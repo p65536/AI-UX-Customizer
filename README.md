@@ -97,8 +97,8 @@ Currently, it supports the following AI services:
 
 ## Settings
 
-- [Settings Screen](./docs/settings_en.md)
-- [Configuration Properties](./docs/manual_json_en.md)
+- [Settings Screen](./docs/settings.md)
+- [Configuration Properties](./docs/manual_json.md)
 
 ---
 
