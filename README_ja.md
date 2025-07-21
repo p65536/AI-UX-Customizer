@@ -133,7 +133,7 @@
 一番簡単な始め方は、[`samples`](./samples) フォルダのサンプルをコピーして、テーマ設定を変更してみることです。  
 以下からサンプルJSONをダウンロードして、スクリプトの設定画面でインポートしてください。なおサンプルでは [Google Fonts](https://fonts.google.com/icons) の公開SVGアイコンを利用しています。
 
-[![Download](https://img.shields.io/badge/Download-theme_sample.json-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/samples/theme_sample.json)
+[![Download](https://img.shields.io/badge/Download-project_theme_sample.json-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/samples/project_theme_sample.json)
 
 設定適用後、サンプル設定の`defaultSet`の設定が適用されるはずです。
 

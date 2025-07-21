@@ -130,7 +130,7 @@ Currently, it supports the following AI services:
 The easiest way to get started is to copy a sample from the [`samples`](./samples) folder and modify its theme settings.  
 Please download the sample JSON from the link below and import it via the script's settings screen. Note that the samples use public SVG icons from [Google Fonts](https://fonts.google.com/icons).
 
-[![Download](https://img.shields.io/badge/Download-theme_sample.json-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/samples/theme_sample.json)
+[![Download](https://img.shields.io/badge/Download-project_theme_sample.json-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/samples/project_theme_sample.json)
 
 After applying the settings, the `defaultSet` configuration from the sample settings should be applied.
 
