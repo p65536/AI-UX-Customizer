@@ -10,11 +10,12 @@
 
 [English README is here.](./README.md)
 
-## ダウンロード
+## ダウンロード (GitHub / Greasy Fork)
 
 ### ChatGPT UX Customizer
 
 [![Download](https://img.shields.io/badge/Download-ChatGPT_UX_Customizer.user.js-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/ChatGPT-UX-Customizer/ChatGPT-UX-Customizer.user.js)
+[![Greasy Fork](https://img.shields.io/badge/Greasy%20Fork-install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/ja/scripts/543703-chatgpt-ux-customizer)
 ![version](https://img.shields.io/badge/version-1.1.0-blue)
 
 最終更新日: **2025/07/26**  
@@ -25,6 +26,7 @@
 ### Gemini UX Customizer
 
 [![Download](https://img.shields.io/badge/Download-Gemini_UX_Customizer.user.js-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/Gemini-UX-Customizer/Gemini-UX-Customizer.user.js)
+[![Greasy Fork](https://img.shields.io/badge/Greasy%20Fork-install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/ja/scripts/543704-gemini-ux-customizer)
 ![version](https://img.shields.io/badge/version-1.1.0-blue)
 
 最終更新日: **2025/07/26**  
