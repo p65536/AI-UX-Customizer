@@ -15,9 +15,9 @@
 ### ChatGPT UX Customizer
 
 [![Download](https://img.shields.io/badge/Download-ChatGPT_UX_Customizer.user.js-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/ChatGPT-UX-Customizer/ChatGPT-UX-Customizer.user.js)
-![version](https://img.shields.io/badge/version-1.0.0-blue)
+![version](https://img.shields.io/badge/version-1.1.0-blue)
 
-最終更新日: **2025/07/21**  
+最終更新日: **2025/07/26**  
 [変更履歴はこちら](./scripts/ChatGPT-UX-Customizer/CHANGELOG_GPTUX_ja.md)
 
 ---
@@ -25,9 +25,9 @@
 ### Gemini UX Customizer
 
 [![Download](https://img.shields.io/badge/Download-Gemini_UX_Customizer.user.js-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/Gemini-UX-Customizer/Gemini-UX-Customizer.user.js)
-![version](https://img.shields.io/badge/version-1.0.0-blue)
+![version](https://img.shields.io/badge/version-1.1.0-blue)
 
-最終更新日: **2025/07/21**  
+最終更新日: **2025/07/26**  
 [変更履歴はこちら](./scripts/Gemini-UX-Customizer/CHANGELOG_GGGUX_ja.md)
 
 ---
@@ -159,6 +159,7 @@
 ## 注意事項・制限
 
   * **テーマ設定で画像項目にローカル画像を指定できますが、多用しないでください。** 設定JSONの肥大化やパフォーマンス低下を招きます。可能な限りオンラインのリソースを指定してください。本機能の主な用途は、手持ちの画像をテーマ設定した場合にどう見えるかを手軽に確認することです。あるいはオンラインに置きたくない画像をテーマ設定したい場合にも使えますが、3~5テーマくらいでの使用に留めてください。
+  * 本スクリプトは、ウェブサイトのCSP（Content Security Policy）に制限されずに外部リソース（背景画像や立ち絵画像など）を読み込むために、`GM_xmlhttpRequest`権限を利用しています。外部サイトの画像を読み込む際に、コンテンツへのアクセス許可を求めるダイアログが表示されますので、許可してご利用ください。
   * **AIサービス側のUIやページ構造が大幅に変更された場合、動作しなくなる可能性があります。**
   * Firefoxで動作確認しています。Chrome系ブラウザでも一応動作確認していますが、Firefoxほどには確認していません。
   * 各スクリプトの最新版のみを掲載しています。過去バージョンは Git の履歴から参照してください。本レポジトリではリリース・タグ機能は使用しません。

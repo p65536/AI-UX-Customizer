@@ -1,19 +1,19 @@
 // ==UserScript==
 // @name         Gemini-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0
+// @version      1.1.0
 // @license      MIT
-// @description  Automatically applies a theme based on the chat name (changes text color, bubble style, input area style, etc.)
+// @description  Automatically applies a theme based on the chat name (changes user/assistant names, text color, icon, bubble style, window background, input area style, standing images, etc.)
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=gemini.google.com
 // @author       p65536
 // @match        https://gemini.google.com/*
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_xmlhttpRequest
-// @connect      p65536.github.io
+// @connect      raw.githubusercontent.com
 // @connect      *
+// @run-at       document-idle
 // @noframes
-// @run-at document-idle
 // ==/UserScript==
 
 (() => {
@@ -29,68 +29,6 @@
     const ASSISTANT_NAME = 'Gemini';
     const LOG_PREFIX = `[${APPID.toUpperCase()}]`;
 
-    const PLATFORM_SELECTORS = {
-        // --- Main containers ---
-        MAIN_APP_CONTAINER: 'bard-sidenav-content',
-        CHAT_WINDOW: 'chat-window',
-        CHAT_HISTORY_MAIN: 'div#chat-history',
-        INPUT_CONTAINER: 'input-container',
-
-        // --- Message containers ---
-        CONVERSATION_CONTAINER: '.conversation-container',
-
-        // --- Selectors for messages ---
-        USER_MESSAGE: 'user-query',
-        ASSISTANT_MESSAGE: 'model-response',
-
-        // --- Selectors for finding elements to tag ---
-        RAW_USER_BUBBLE: '.user-query-bubble-with-background',
-        RAW_ASSISTANT_BUBBLE: '.response-container-with-gpi',
-
-        // --- Text content ---
-        USER_TEXT_CONTENT: '.user-query-bubble-with-background .query-text',
-        ASSISTANT_TEXT_CONTENT: '.response-container-with-gpi .markdown',
-
-        // --- Input area ---
-        INPUT_AREA_BG_TARGET: 'input-area-v2',
-        INPUT_TEXT_FIELD_TARGET: 'rich-textarea .ql-editor',
-
-        // --- Avatar area ---
-        AVATAR_USER: 'user-query',
-        AVATAR_ASSISTANT: 'model-response',
-
-        // --- Selectors for Avatar ---
-        SIDE_AVATAR_CONTAINER: '.side-avatar-container',
-        SIDE_AVATAR_ICON: '.side-avatar-icon',
-        SIDE_AVATAR_NAME: '.side-avatar-name',
-
-        // --- Other UI Selectors ---
-        SIDEBAR_WIDTH_TARGET: 'bard-sidenav',
-
-        // --- Scroll container (null for Gemini, as it uses standard page scroll) ---
-        SCROLL_CONTAINER: null,
-
-        // --- BubbleFeature-specific Selectors ---
-        BUBBLE_FEATURE_MESSAGE_CONTAINERS: 'user-query, model-response',
-        BUBBLE_FEATURE_TURN_CONTAINERS: null, // Not applicable to Gemini
-
-        // --- FixedNav-specific Selectors ---
-        FIXED_NAV_INPUT_AREA_TARGET: 'input-area-v2',
-        FIXED_NAV_MESSAGE_CONTAINERS: 'user-query, model-response',
-        FIXED_NAV_TURN_CONTAINER: null, // Not applicable to Gemini
-        FIXED_NAV_ROLE_USER: 'user-query',
-        FIXED_NAV_ROLE_ASSISTANT: 'model-response',
-        FIXED_NAV_HIGHLIGHT_TARGETS: `.${APPID}-highlight-message .user-query-bubble-with-background, .${APPID}-highlight-message .response-container-with-gpi`,
-
-        // --- Turn Completion Selector ---
-        TURN_COMPLETE_SELECTOR: 'model-response message-actions',
-
-        // --- Debug Selectors ---
-        DEBUG_CONTAINER_TURN: '.conversation-container',
-        DEBUG_CONTAINER_ASSISTANT: 'model-response',
-        DEBUG_CONTAINER_USER: 'user-query',
-    };
-
     // =================================================================================
     // SECTION: Execution Guard
     // Description: Prevents the script from being executed multiple times per page.
@@ -99,6 +37,278 @@
     window.__myproject_guard__ = window.__myproject_guard__ || {};
     if (window.__myproject_guard__[`${APPID}_executed`]) return;
     window.__myproject_guard__[`${APPID}_executed`] = true;
+
+    // =================================================================================
+    // SECTION: Platform-Specific Adapter
+    // Description: Centralizes all platform-specific logic, such as selectors and
+    //              DOM manipulation strategies. This isolates platform differences
+    //              from the core application logic.
+    // =================================================================================
+
+    class PlatformAdapter {
+        /**
+         * Platform-specific CSS selectors.
+         */
+        static SELECTORS = {
+            // --- Main containers ---
+            MAIN_APP_CONTAINER: 'bard-sidenav-content',
+            CHAT_WINDOW: 'chat-window',
+            CHAT_HISTORY_MAIN: 'div#chat-history',
+            INPUT_CONTAINER: 'input-container',
+
+            // --- Message containers ---
+            CONVERSATION_CONTAINER: '.conversation-container',
+            USER_QUERY_CONTAINER: 'user-query-content',
+
+            // --- Selectors for messages ---
+            USER_MESSAGE: 'user-query',
+            ASSISTANT_MESSAGE: 'model-response',
+
+            // --- Selectors for finding elements to tag ---
+            RAW_USER_BUBBLE: '.user-query-bubble-with-background',
+            RAW_ASSISTANT_BUBBLE: '.response-container-with-gpi',
+
+            // --- Text content ---
+            USER_TEXT_CONTENT: '.query-text',
+            ASSISTANT_TEXT_CONTENT: '.markdown',
+
+            // --- Input area ---
+            INPUT_AREA_BG_TARGET: 'input-area-v2',
+            INPUT_TEXT_FIELD_TARGET: 'rich-textarea .ql-editor',
+
+            // --- Avatar area ---
+            AVATAR_USER: 'user-query',
+            AVATAR_ASSISTANT: 'model-response',
+
+            // --- Selectors for Avatar ---
+            SIDE_AVATAR_CONTAINER: '.side-avatar-container',
+            SIDE_AVATAR_ICON: '.side-avatar-icon',
+            SIDE_AVATAR_NAME: '.side-avatar-name',
+
+            // --- Other UI Selectors ---
+            SIDEBAR_WIDTH_TARGET: 'bard-sidenav',
+            CHAT_CONTENT_MAX_WIDTH: '.conversation-container',
+            SCROLL_CONTAINER: null,
+
+            // --- Site Specific Selectors ---
+
+            // --- BubbleFeature-specific Selectors ---
+            BUBBLE_FEATURE_MESSAGE_CONTAINERS: 'user-query, model-response',
+            BUBBLE_FEATURE_TURN_CONTAINERS: null, // Not applicable to Gemini
+
+            // --- FixedNav-specific Selectors ---
+            FIXED_NAV_INPUT_AREA_TARGET: 'input-area-v2',
+            FIXED_NAV_MESSAGE_CONTAINERS: 'user-query, model-response',
+            FIXED_NAV_TURN_CONTAINER: null, // Not applicable to Gemini
+            FIXED_NAV_ROLE_USER: 'user-query',
+            FIXED_NAV_ROLE_ASSISTANT: 'model-response',
+            FIXED_NAV_HIGHLIGHT_TARGETS: `.${APPID}-highlight-message .user-query-bubble-with-background, .${APPID}-highlight-message .response-container-with-gpi`,
+
+            // --- Turn Completion Selector ---
+            TURN_COMPLETE_SELECTOR: 'model-response message-actions',
+
+            // --- Debug Selectors ---
+            DEBUG_CONTAINER_TURN: '.conversation-container',
+            DEBUG_CONTAINER_ASSISTANT: 'model-response',
+            DEBUG_CONTAINER_USER: 'user-query',
+        };
+
+        /**
+         * Gets the platform-specific role identifier from a message element.
+         * @param {HTMLElement} messageElement The message element.
+         * @returns {string | null} The platform's role identifier (e.g., 'user', 'user-query').
+         */
+        static getMessageRole(messageElement) {
+            if (!messageElement) return null;
+            return messageElement.tagName.toLowerCase();
+        }
+
+        /**
+         * Gets the current chat title in a platform-specific way.
+         * @returns {string | null}
+         */
+        static getChatTitle() {
+            // GGGUX gets the title from a specific DOM element.
+            const selectedConversation = document.querySelector('[data-test-id="conversation"].selected');
+            if (selectedConversation) {
+                const titleElement = selectedConversation.querySelector('.conversation-title');
+                if (titleElement) {
+                    return titleElement.textContent.trim();
+                }
+            }
+            return null;
+        }
+
+        /**
+         * Selects the appropriate theme set based on platform-specific logic during an update check.
+         * @param {ThemeManager} themeManager - The instance of the theme manager.
+         * @param {AppConfig} config - The full application configuration.
+         * @param {boolean} urlChanged - Whether the URL has changed since the last check.
+         * @param {boolean} titleChanged - Whether the title has changed since the last check.
+         * @returns {ThemeSet} The theme set that should be applied.
+         */
+        static selectThemeForUpdate(themeManager, config, urlChanged, titleChanged) {
+            // GGGUX-specific logic: If the URL changed but the title hasn't (yet),
+            // apply the default theme as a fallback to prevent applying the previous chat's theme.
+            if (urlChanged && !titleChanged) {
+                return config.defaultSet;
+            }
+
+            // Default logic
+            return themeManager.getThemeSet();
+        }
+
+        /**
+         * Gets the platform-specific parent element for attaching navigation buttons.
+         * @param {HTMLElement} messageElement The message element.
+         * @returns {HTMLElement | null} The parent element for the nav container.
+         */
+        static getNavPositioningParent(messageElement) {
+            const role = this.getMessageRole(messageElement);
+
+            if (role === this.SELECTORS.USER_MESSAGE) {
+                // For user messages, use the specific content container as the positioning context.
+                return messageElement.querySelector(this.SELECTORS.USER_QUERY_CONTAINER);
+            } else {
+                // For model-response, the element itself remains the correct context.
+                return messageElement;
+            }
+        }
+
+        /**
+         * Applies platform specific fixes.
+         * This function is platform-specific.
+         * @param {ThemeAutomator} automatorInstance - The main controller instance.
+         */
+        static applyFixes(automatorInstance) {
+            // Not required for Gemini
+            return;
+        }
+
+        /**
+         * Initializes platform-specific properties on the ObserverManager instance.
+         * @param {ObserverManager} instance The ObserverManager instance.
+         */
+        static initializeObserver(instance) {
+            instance.debouncedVisibilityCheck = debounce(() => EventBus.publish(`${APPID}:visibilityRecheck`), 250);
+        }
+
+        /**
+         * Starts all platform-specific observers.
+         * @param {ObserverManager} instance The ObserverManager instance.
+         */
+        static async start(instance) {
+            const container = await waitForElement(this.SELECTORS.MAIN_APP_CONTAINER);
+            if (!container) {
+                console.error(`${LOG_PREFIX} Main container not found. Observer not started.`);
+                return;
+            }
+
+            instance.mainObserver = new MutationObserver((mutations) => instance._handleMainMutations(mutations));
+            instance.mainObserver.observe(document.body, { childList: true, subtree: true });
+
+            // Centralized ResizeObserver for layout changes
+            instance.layoutResizeObserver = new ResizeObserver(instance.debouncedLayoutRecalculate);
+            instance.layoutResizeObserver.observe(document.body);
+
+            // Call the static methods on the PlatformAdapter class, passing the instance.
+            PlatformAdapter.startConversationTurnObserver(instance);
+            PlatformAdapter.startGlobalTitleObserver(instance);
+            PlatformAdapter.startSidebarObserver(instance);
+            PlatformAdapter.startURLChangeObserver(instance);
+
+            window.addEventListener('resize', instance.debouncedLayoutRecalculate);
+        }
+
+        /**
+         * Handles platform-specific logic within the main mutation observer callback.
+         * @param {ObserverManager} instance The ObserverManager instance.
+         * @param {MutationRecord[]} mutations The mutations to handle.
+         */
+        static handleMainMutations(instance, mutations) {
+            instance._garbageCollectPendingTurns(mutations);
+            instance._dispatchNodeAddedTasks(mutations);
+            instance._checkPendingTurns();
+            instance.debouncedCacheUpdate();
+            instance.debouncedVisibilityCheck();
+        }
+
+        /**
+         * @private
+         * @description Sets up the monitoring for conversation turns.
+         */
+        static startConversationTurnObserver(instance) {
+            // Register a task for newly added turn nodes.
+            instance.registerNodeAddedTask(this.SELECTORS.CONVERSATION_CONTAINER, (turnNode) => {
+                instance._processTurnSingle(turnNode);
+            });
+            // Initial batch processing for all existing turnNodes on page load.
+            instance.scanForExistingTurns();
+        }
+
+        /**
+         * @private
+         * @description Sets up the monitoring for URL changes.
+         */
+        static startURLChangeObserver(instance) {
+            let lastHref = location.href;
+            const handler = () => {
+                if (location.href !== lastHref) {
+                    lastHref = location.href;
+                    instance.cleanupPendingTurns();
+                    EventBus.publish(`${APPID}:themeUpdate`);
+                    EventBus.publish(`${APPID}:navigation`);
+                    // Give the DOM a moment to settle after navigation, then re-scan existing turns.
+                    setTimeout(() => {
+                        instance.scanForExistingTurns();
+                        instance.debouncedCacheUpdate();
+                    }, 200);
+                }
+            };
+            for (const m of ['pushState', 'replaceState']) {
+                const orig = history[m];
+                history[m] = function(...args) {
+                    orig.apply(this, args);
+                    handler();
+                };
+            }
+            window.addEventListener('popstate', handler);
+        }
+
+        /**
+         * @private
+         * @description Sets up the monitoring for title changes.
+         */
+        static startGlobalTitleObserver(instance) {
+            // Not required for Gemini
+        }
+
+        /**
+         * @private
+         * @description Sets up a targeted observer on the sidebar for title and selection changes.
+         */
+        static async startSidebarObserver(instance) {
+            const sidebar = await waitForElement(this.SELECTORS.SIDEBAR_WIDTH_TARGET);
+            if (!sidebar) {
+                console.warn(LOG_PREFIX, 'Sidebar element not found for targeted observation.');
+                return;
+            }
+
+            const debouncedThemeUpdate = debounce(() => EventBus.publish(`${APPID}:themeUpdate`), 150);
+            const sidebarObserver = new MutationObserver(() => {
+                debouncedThemeUpdate();
+                instance.debouncedLayoutRecalculate();
+            });
+            sidebarObserver.observe(sidebar, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                characterData: true,
+                attributeFilter: ['class']
+            });
+            debouncedThemeUpdate();
+        }
+    }
 
     // =================================================================================
     // SECTION: Configuration and Constants
@@ -146,7 +356,7 @@
             BTN_GROUP_GAP: 8,
             TEXTAREA_HEIGHT: 200,
         },
-        SELECTORS: PLATFORM_SELECTORS,
+        SELECTORS: PlatformAdapter.SELECTORS,
     };
 
     // ---- Site-specific Style Variables ----
@@ -489,6 +699,45 @@
                 backgroundColor: null,
                 textColor: null
             }
+        }
+    };
+
+    // =================================================================================
+    // SECTION: Event-Driven Architecture (Pub/Sub)
+    // Description: A simple event bus for decoupled communication between classes.
+    // =================================================================================
+
+    const EventBus = {
+        events: {},
+        /**
+         * @param {string} event
+         * @param {Function} listener
+         */
+        subscribe(event, listener) {
+            if (!this.events[event]) {
+                this.events[event] = [];
+            }
+            this.events[event].push(listener);
+        },
+        /**
+         * @param {string} event
+         * @param {Function} listener
+         */
+        unsubscribe(event, listener) {
+            if (!this.events[event]) {
+                return;
+            }
+            this.events[event] = this.events[event].filter(l => l !== listener);
+        },
+        /**
+         * @param {string} event
+         * @param {any} [data]
+         */
+        publish(event, data) {
+            if (!this.events[event]) {
+                return;
+            }
+            this.events[event].forEach(listener => listener(data));
         }
     };
 
@@ -967,115 +1216,6 @@
         }
     }
 
-    /**
-     * Gets the platform-specific role identifier from a message element.
-     * @param {HTMLElement} messageElement The message element.
-     * @returns {string | null} The platform's role identifier (e.g., 'user', 'user-query').
-     */
-    function getMessageRole(messageElement) {
-        if (!messageElement) return null;
-
-        // GPTUX uses a data-attribute for the role.
-        if (APPID === 'gptux') {
-            return messageElement.getAttribute('data-message-author-role');
-        }
-
-        // GGGUX uses the element's tag name for the role.
-        return messageElement.tagName.toLowerCase();
-    }
-
-    /**
-     * Gets the current chat title in a platform-specific way.
-     * @returns {string | null}
-     */
-    function platformGetChatTitle() {
-        // GPTUX gets the title from the document title.
-        if (APPID === 'gptux') {
-            return document.title.trim();
-        }
-
-        // GGGUX gets the title from a specific DOM element.
-        if (APPID === 'gggux') {
-            const selectedConversation = document.querySelector('[data-test-id="conversation"].selected');
-            if (selectedConversation) {
-                const titleElement = selectedConversation.querySelector('.conversation-title');
-                if (titleElement) {
-                    return titleElement.textContent.trim();
-                }
-            }
-            return null;
-        }
-        return null;
-    }
-
-    /**
-     * Selects the appropriate theme set based on platform-specific logic during an update check.
-     * @param {ThemeManager} themeManager - The instance of the theme manager.
-     * @param {AppConfig} config - The full application configuration.
-     * @param {boolean} urlChanged - Whether the URL has changed since the last check.
-     * @param {boolean} titleChanged - Whether the title has changed since the last check.
-     * @returns {ThemeSet} The theme set that should be applied.
-     */
-    function platformSelectThemeForUpdate(themeManager, config, urlChanged, titleChanged) {
-        // GGGUX-specific logic: If the URL changed but the title hasn't (yet),
-        // apply the default theme as a fallback to prevent applying the previous chat's theme.
-        if (APPID === 'gggux' && urlChanged && !titleChanged) {
-            return config.defaultSet;
-        }
-
-        // Default logic for GPTUX and other cases.
-        return themeManager.getThemeSet();
-    }
-
-    /**
-     * Gets the platform-specific parent element for attaching navigation buttons.
-     * @param {HTMLElement} messageElement The message element.
-     * @returns {HTMLElement | null} The parent element for the nav container.
-     */
-    function platformGetNavPositioningParent(messageElement) {
-        const role = getMessageRole(messageElement);
-
-        let positioningParent;
-        if (role === 'user-query') {
-            // For user messages, use the specific content container as the positioning context.
-            positioningParent = messageElement.querySelector('user-query-content');
-        } else {
-            // For model-response, the element itself remains the correct context.
-            positioningParent = messageElement;
-        }
-
-        // Fallback to the messageElement if the specific container isn't found
-        return positioningParent || messageElement;
-    }
-
-    // =================================================================================
-    // SECTION: Event-Driven Architecture (Pub/Sub)
-    // Description: A simple event bus for decoupled communication between classes.
-    // =================================================================================
-
-    const EventBus = {
-        events: {},
-        /**
-         * @param {string} event
-         * @param {Function} listener
-         */
-        subscribe(event, listener) {
-            if (!this.events[event]) {
-                this.events[event] = [];
-            }
-            this.events[event].push(listener);
-        },
-        /**
-         * @param {string} event
-         * @param {any} [data]
-         */
-        publish(event, data) {
-            if (!this.events[event]) {
-                return;
-            }
-            this.events[event].forEach(listener => listener(data));
-        }
-    };
     // =================================================================================
     // SECTION: Configuration Management (GM Storage)
     // =================================================================================
@@ -1223,7 +1363,7 @@
                 configKey: CONSTANTS.CONFIG_KEY,
                 defaultConfig: DEFAULT_THEME_CONFIG,
                 dataConverter: dataConverter
-             });
+            });
         }
 
         /**
@@ -1260,7 +1400,7 @@
          */
         getIconSize() {
             return this.config?.options?.icon_size ||
-            CONSTANTS.ICON_SIZE;
+                CONSTANTS.ICON_SIZE;
         }
     }
 
@@ -1329,6 +1469,95 @@
     }
 
     // =================================================================================
+    // SECTION: Message Cache Management
+    // Description: Centralized manager for caching and sorting message elements from the DOM.
+    // =================================================================================
+
+    class MessageCacheManager {
+        constructor() {
+            this.userMessages = [];
+            this.assistantMessages = [];
+            this.totalMessages = [];
+            this.debouncedRebuildCache = debounce(this._rebuildCache.bind(this), 250);
+        }
+
+        init() {
+            EventBus.subscribe(`${APPID}:cacheUpdateRequest`, () => this.debouncedRebuildCache());
+            EventBus.subscribe(`${APPID}:navigation`, () => this.clear());
+            this._rebuildCache();
+        }
+
+        _rebuildCache() {
+            this.userMessages = Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.USER_MESSAGE));
+            this.assistantMessages = Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.ASSISTANT_MESSAGE));
+            this.totalMessages = Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS))
+                .sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top);
+
+            this.notify();
+        }
+
+        /**
+         * Publishes the :cacheUpdated event with the current cache state.
+         * Useful for notifying newly initialized components.
+         */
+        notify() {
+            EventBus.publish(`${APPID}:cacheUpdated`);
+        }
+
+        /**
+         * Finds the role and index of a given message element within the cached arrays.
+         * @param {HTMLElement} messageElement The element to find.
+         * @returns {{role: 'user'|'assistant', index: number} | null} An object with the role and index, or null if not found.
+         */
+        findMessageIndex(messageElement) {
+            let index = this.userMessages.indexOf(messageElement);
+            if (index !== -1) {
+                return { role: 'user', index };
+            }
+
+            index = this.assistantMessages.indexOf(messageElement);
+            if (index !== -1) {
+                return { role: 'assistant', index };
+            }
+
+            return null;
+        }
+
+        /**
+         * Retrieves a message element at a specific index for a given role.
+         * @param {'user'|'assistant'} role The role of the message to retrieve.
+         * @param {number} index The index of the message in its role-specific array.
+         * @returns {HTMLElement | null} The element at the specified index, or null if out of bounds.
+         */
+        getMessageAtIndex(role, index) {
+            const targetArray = role === 'user' ? this.userMessages : this.assistantMessages;
+            if (index >= 0 && index < targetArray.length) {
+                return targetArray[index];
+            }
+            return null;
+        }
+
+        clear() {
+            this.userMessages = [];
+            this.assistantMessages = [];
+            this.totalMessages = [];
+            this.notify();
+        }
+
+        getUserMessages() {
+            return this.userMessages;
+        }
+
+        getAssistantMessages() {
+            return this.assistantMessages;
+        }
+
+        getTotalMessages() {
+            return this.totalMessages;
+        }
+    }
+
+    // =================================================================================
     // SECTION: Theme and Style Management
     // =================================================================================
 
@@ -1354,7 +1583,7 @@
 
     const STATIC_CSS = `
         /* This rule is now conditional on a body class, which is toggled by applyChatContentMaxWidth. */
-        body.${APPID}-max-width-active ${CONSTANTS.SELECTORS.CONVERSATION_CONTAINER}{
+        body.${APPID}-max-width-active ${CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH}{
             max-width: var(--${APPID}-chat-content-max-width) !important;
             margin-inline: auto !important;
         }
@@ -1509,7 +1738,7 @@
             cssVar: `--${APPID}-assistant-bubble-maxwidth`,
             cssBlockGenerator: (value) => {
                 if (!value) return '';
-                return `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE} { max-width: var(--${APPID}-assistant-bubble-maxwidth)${SITE_STYLES.CSS_IMPORTANT_FLAG}; margin-right: auto; margin-left: 0; }`;
+                return `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE} { max-width: var(--${APPID}-assistant-bubble-maxwidth)${SITE_STYLES.CSS_IMPORTANT_FLAG}; margin-left: 0; margin-right: auto; }`;
             }
         },
 
@@ -1589,13 +1818,13 @@
 
             for (const definition of STYLE_DEFINITIONS) {
                 const value = getPropertyByPath(currentThemeSet, definition.configKey) ??
-                    getPropertyByPath(fullConfig, definition.fallbackKey);
+                      getPropertyByPath(fullConfig, definition.fallbackKey);
 
                 if (value === null || value === undefined) continue;
                 // Generate rules for direct selector-property mappings
                 if (definition.selector && definition.property) {
                     const selectors = Array.isArray(definition.selector) ?
-                        definition.selector.join(', ') : definition.selector;
+                          definition.selector.join(', ') : definition.selector;
                     dynamicRules.push(`${selectors} { ${definition.property}: var(${definition.cssVar})${important}; }`);
                 }
 
@@ -1664,7 +1893,7 @@
          * @returns {string | null}
          */
         getChatTitleAndCache() {
-            const currentTitle = platformGetChatTitle();
+            const currentTitle = PlatformAdapter.getChatTitle();
             if (currentTitle !== this.cachedTitle) {
                 this.cachedTitle = currentTitle;
                 this.cachedThemeSet = null;
@@ -1724,7 +1953,7 @@
             if (titleChanged) this.lastTitle = currentTitle;
 
             const config = this.configManager.get();
-            const currentThemeSet = platformSelectThemeForUpdate(this, config, urlChanged, titleChanged);
+            const currentThemeSet = PlatformAdapter.selectThemeForUpdate(this, config, urlChanged, titleChanged);
             const contentChanged = currentThemeSet !== this.lastAppliedThemeSet;
 
             const themeShouldUpdate = urlChanged || titleChanged || contentChanged;
@@ -1794,7 +2023,7 @@
             for (const definition of STYLE_DEFINITIONS) {
                 if (!definition.cssVar) continue;
                 const value = getPropertyByPath(currentThemeSet, definition.configKey) ??
-                              getPropertyByPath(fullConfig, `defaultSet.${definition.configKey}`);
+                      getPropertyByPath(fullConfig, `defaultSet.${definition.configKey}`);
 
                 if (value === null || typeof value === 'undefined') {
                     rootStyle.removeProperty(definition.cssVar);
@@ -1809,7 +2038,7 @@
                     rootStyle.setProperty(definition.cssVar, value);
                 }
             }
-            
+
             const themeVars = this.styleGenerator.generateThemeVariables(currentThemeSet, fullConfig);
             for (const [key, value] of Object.entries(themeVars)) {
                 // Let processImageValue handle image vars asynchronously
@@ -1867,6 +2096,183 @@
         }
     }
 
+    // =================================================================================
+    // SECTION: DOM Observers and Event Listeners
+    // =================================================================================
+
+    class ObserverManager {
+        constructor() {
+            this.mainObserver = null;
+            this.layoutResizeObserver = null;
+            this.registeredNodeAddedTasks = [];
+            this.pendingTurnNodes = new Set();
+            this.debouncedNavUpdate = debounce(() => EventBus.publish(`${APPID}:navButtonsUpdate`), 100);
+            this.debouncedCacheUpdate = debounce(() => EventBus.publish(`${APPID}:cacheUpdateRequest`), 250);
+            this.debouncedLayoutRecalculate = debounce(() => EventBus.publish(`${APPID}:layoutRecalculate`), 150);
+
+            // Delegate platform-specific property initialization to the adapter
+            PlatformAdapter.initializeObserver(this);
+        }
+
+        async start() {
+            // Delegate the entire start logic to the platform-specific adapter
+            await PlatformAdapter.start(this);
+        }
+
+        /**
+         * The main callback, a dispatcher that calls specialized handlers.
+         * @param {MutationRecord[]} mutations
+         */
+        _handleMainMutations(mutations) {
+            // Delegate the mutation handling to the platform-specific adapter
+            PlatformAdapter.handleMainMutations(this, mutations);
+        }
+
+        // --- Common Methods ---
+
+        /**
+         * A public method to register a task that runs when a node matching the selector is added.
+         * @param {string} selector
+         * @param {Function} callback
+         */
+        registerNodeAddedTask(selector, callback) {
+            this.registeredNodeAddedTasks.push({ selector, callback });
+        }
+
+        /**
+         * Clears all pending conversation turns.
+         * Useful when navigating away from a chat.
+         */
+        cleanupPendingTurns() {
+            this.pendingTurnNodes.clear();
+        }
+
+        /**
+         * Scans the document for all existing conversation turns and processes them.
+         * This is crucial for applying themes after page loads or navigations.
+         */
+        scanForExistingTurns() {
+            const existingTurnNodes = Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER));
+            if (existingTurnNodes.length > 0) {
+                for (const turnNode of existingTurnNodes) {
+                    this._processTurnSingle(turnNode);
+                }
+            }
+        }
+
+        /**
+         * Handles tasks for newly added nodes.
+         * @param {MutationRecord[]} mutations
+         */
+        _dispatchNodeAddedTasks(mutations) {
+            for (const mutation of mutations) {
+                if (mutation.type === 'childList' && mutation.addedNodes.length) {
+                    for (const addedNode of mutation.addedNodes) {
+                        if (addedNode.nodeType !== Node.ELEMENT_NODE) continue;
+                        // Process tasks for the added node itself and its descendants
+                        for (const task of this.registeredNodeAddedTasks) {
+                            if (addedNode.matches(task.selector)) {
+                                task.callback(addedNode);
+                            }
+                            addedNode.querySelectorAll(task.selector).forEach(task.callback);
+                        }
+                    }
+                }
+            }
+        }
+
+        /**
+         * Removes any pending turn nodes that have been removed from the DOM to prevent memory leaks.
+         * @param {MutationRecord[]} mutations
+         * @private
+         */
+        _garbageCollectPendingTurns(mutations) {
+            if (this.pendingTurnNodes.size === 0) return;
+            for (const mutation of mutations) {
+                if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
+                    for (const removedNode of mutation.removedNodes) {
+                        if (removedNode.nodeType !== Node.ELEMENT_NODE) continue;
+                        // Check if the removed node itself was a pending turn
+                        if (this.pendingTurnNodes.has(removedNode)) {
+                            this.pendingTurnNodes.delete(removedNode);
+                        }
+
+                        // Check if any descendants of the removed node were pending turns
+                        const descendantTurns = removedNode.querySelectorAll(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER);
+                        for (const turnNode of descendantTurns) {
+                            if (this.pendingTurnNodes.has(turnNode)) {
+                                this.pendingTurnNodes.delete(turnNode);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /**
+         * Checks if a conversation turn is complete.
+         * @param {HTMLElement} turnNode
+         * @returns {boolean}
+         * @private
+         */
+        _isTurnComplete(turnNode) {
+            // A turn is complete if it's a user message, or if it's an assistant
+            // message that has rendered its action buttons.
+            const userMessage = turnNode.querySelector(CONSTANTS.SELECTORS.USER_MESSAGE);
+            const assistantActions = turnNode.querySelector(CONSTANTS.SELECTORS.TURN_COMPLETE_SELECTOR);
+            return !!(userMessage || assistantActions);
+        }
+
+        /**
+         * Checks all pending conversation turns for completion.
+         * @private
+         */
+        _checkPendingTurns() {
+            if (this.pendingTurnNodes.size === 0) return;
+            for (const turnNode of this.pendingTurnNodes) {
+                // For streaming turns, continuously inject avatars to handle React re-renders.
+                const allElementsInTurn = turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
+                allElementsInTurn.forEach(elem => {
+                    EventBus.publish(`${APPID}:avatarInject`, elem);
+                });
+                if (this._isTurnComplete(turnNode)) {
+                    // Re-run messageComplete event for all elements in the now-completed turn
+                    allElementsInTurn.forEach(elem => {
+                        EventBus.publish(`${APPID}:messageComplete`, elem);
+                    });
+                    EventBus.publish(`${APPID}:turnComplete`, turnNode);
+
+                    this.debouncedNavUpdate();
+                    this.pendingTurnNodes.delete(turnNode);
+                }
+            }
+        }
+
+        /**
+         * Processes a single turnNode, adding it to the pending queue if it's not already complete.
+         * @param {HTMLElement} turnNode
+         */
+        _processTurnSingle(turnNode) {
+            if (turnNode.nodeType !== Node.ELEMENT_NODE || this.pendingTurnNodes.has(turnNode)) return;
+            // --- Initial State Processing ---
+            const messageElements = turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
+            messageElements.forEach(elem => {
+                EventBus.publish(`${APPID}:avatarInject`, elem);
+            });
+            if (this._isTurnComplete(turnNode)) {
+                // If the turn is already complete when we first see it, process it immediately.
+                messageElements.forEach(elem => {
+                    EventBus.publish(`${APPID}:messageComplete`, elem);
+                });
+                EventBus.publish(`${APPID}:turnComplete`, turnNode);
+                this.debouncedNavUpdate();
+            } else {
+                // Otherwise, add it to the pending list to be checked by the main observer.
+                this.pendingTurnNodes.add(turnNode);
+            }
+        }
+    }
+
     class AvatarManager {
         /**
          * @param {ConfigManager} configManager
@@ -1918,8 +2324,8 @@
             // Use a unique class to prevent re-injection
             const processedClass = `${APPID}-avatar-processed`;
             if (msgElem.classList.contains(processedClass)) return;
-            
-            const role = getMessageRole(msgElem);
+
+            const role = PlatformAdapter.getMessageRole(msgElem);
             if (!role) return;
             // This is the main container that gets the icon and name.
             const container = h(`div${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER}`, [
@@ -2127,7 +2533,7 @@
                 if (!container) return;
 
                 const hasStandingImage = getPropertyByPath(theme, `${actor}.standingImageUrl`) ?? getPropertyByPath(config, `defaultSet.${actor}.standingImageUrl`);
-                
+
                 container.style.opacity = (shouldShowActors && hasStandingImage) ? '1' : '0';
             });
             this.debouncedRecalculateStandingImagesLayout();
@@ -2193,8 +2599,10 @@
         /**
          * @param {ConfigManager} configManager
          */
-        constructor(configManager) {
+        constructor(configManager, messageCacheManager) {
             this.configManager = configManager;
+            this.messageCacheManager = messageCacheManager;
+            this.navContainers = new Map();
         }
 
         /**
@@ -2224,7 +2632,7 @@
          * Updates all feature elements on the page according to the current configuration.
          */
         updateAll() {
-            const allMessageElements = document.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
+            const allMessageElements = this.messageCacheManager.getTotalMessages();
             allMessageElements.forEach(elem => this.processElement(elem));
 
             const turnContainerSelector = CONSTANTS.SELECTORS.BUBBLE_FEATURE_TURN_CONTAINERS;
@@ -2232,6 +2640,33 @@
                 const allTurnNodes = document.querySelectorAll(turnContainerSelector);
                 allTurnNodes.forEach(turn => this.processTurn(turn));
             }
+        }
+
+        _getOrCreateNavContainer(messageElement) {
+            if (this.navContainers.has(messageElement)) {
+                return this.navContainers.get(messageElement);
+            }
+
+            const positioningParent = PlatformAdapter.getNavPositioningParent(messageElement);
+            if (!positioningParent) return null;
+
+            // Check the DOM for an existing container before creating a new one
+            let container = positioningParent.querySelector(`.${APPID}-bubble-nav-container`);
+            if (container) {
+                this.navContainers.set(messageElement, container);
+                return container;
+            }
+
+            positioningParent.style.position = 'relative';
+            positioningParent.classList.add(`${APPID}-bubble-parent-with-nav`);
+
+            container = h(`div.${APPID}-bubble-nav-container`, [
+                h(`div.${APPID}-nav-buttons`)
+            ]);
+
+            positioningParent.appendChild(container);
+            this.navContainers.set(messageElement, container);
+            return container;
         }
 
         // --- Abstract methods to be implemented by subclasses ---
@@ -2264,6 +2699,10 @@
     }
 
     class CollapsibleBubbleManager extends BubbleFeatureManagerBase {
+        constructor(configManager, messageCacheManager) {
+            super(configManager, messageCacheManager);
+        }
+
         getStyleId() {
             return `${APPID}-collapsible-bubble-style`;
         }
@@ -2346,9 +2785,8 @@
     }
 
     class ScrollToTopManager extends BubbleFeatureManagerBase {
-        constructor(configManager) {
-            super(configManager);
-            this.navContainers = new Map();
+        constructor(configManager, messageCacheManager) {
+            super(configManager, messageCacheManager);
         }
 
         /** @override */
@@ -2402,40 +2840,15 @@
             });
         }
 
-        _getOrCreateNavContainer(messageElement) {
-            if (this.navContainers.has(messageElement)) {
-                return this.navContainers.get(messageElement);
-            }
-
-            const positioningParent = platformGetNavPositioningParent(messageElement);
-            if (!positioningParent) return null;
-
-            // Check the DOM for an existing container before creating a new one
-            let container = positioningParent.querySelector(`.${APPID}-bubble-nav-container`);
-            if (container) {
-                this.navContainers.set(messageElement, container);
-                return container;
-            }
-
-            positioningParent.style.position = 'relative';
-            positioningParent.classList.add(`${APPID}-bubble-parent-with-nav`);
-            container = h(`div.${APPID}-bubble-nav-container`, [
-                h(`div.${APPID}-nav-buttons`)
-            ]);
-            positioningParent.appendChild(container);
-            this.navContainers.set(messageElement, container);
-            return container;
-        }
-
         setupScrollToTopButton(messageElement) {
             const container = this._getOrCreateNavContainer(messageElement);
             if (!container || container.querySelector(`.${APPID}-nav-group-bottom`)) return;
 
             const buttonsWrapper = container.querySelector(`.${APPID}-nav-buttons`);
-            
+
             const turnSelector = CONSTANTS.SELECTORS.BUBBLE_FEATURE_TURN_CONTAINERS;
             const scrollTarget = turnSelector ?
-                messageElement.closest(turnSelector) : messageElement;
+                  messageElement.closest(turnSelector) : messageElement;
             if (!scrollTarget) return;
 
             const topBtn = h(`button.${APPID}-bubble-nav-btn.${APPID}-nav-top`, {
@@ -2456,11 +2869,9 @@
     }
 
     class SequentialNavManager extends BubbleFeatureManagerBase {
-        constructor(configManager) {
-            super(configManager);
-            this.navContainers = new Map();
-            this.userMessagesCache = [];
-            this.assistantMessagesCache = [];
+        constructor(configManager, messageCacheManager) {
+            super(configManager, messageCacheManager);
+            this.messageCacheManager = messageCacheManager;
         }
 
         /**
@@ -2471,8 +2882,7 @@
         init() {
             // Injects style and subscribes to message/turn completion.
             super.init();
-            EventBus.subscribe(`${APPID}:cacheUpdateRequest`, () => this.updateMessageCache());
-            EventBus.subscribe(`${APPID}:navButtonsUpdate`, () => this.updateAllPrevNextButtons());
+            EventBus.subscribe(`${APPID}:cacheUpdated`, () => this.updateAllPrevNextButtons());
             EventBus.subscribe(`${APPID}:navigation`, () => this.navContainers.clear());
         }
 
@@ -2496,7 +2906,7 @@
             allMessageElements.forEach(elem => this.processElement(elem));
 
             // Finally, update the enabled/disabled state of any visible prev/next buttons.
-            this.updateMessageCache();
+            this.updateAllPrevNextButtons();
         }
 
         /**
@@ -2512,42 +2922,11 @@
             if (featureEnabled) {
                 this.setupNavigationButtons(messageElement);
             }
-            
+
             const topGroup = messageElement.querySelector(`.${APPID}-nav-group-top`);
             if (topGroup) {
                 topGroup.classList.toggle(`${APPID}-hidden`, !featureEnabled);
             }
-        }
-
-        updateMessageCache() {
-            this.userMessagesCache = Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.USER_MESSAGE));
-            this.assistantMessagesCache = Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.ASSISTANT_MESSAGE));
-            this.updateAllPrevNextButtons();
-        }
-
-        _getOrCreateNavContainer(messageElement) {
-            if (this.navContainers.has(messageElement)) {
-                return this.navContainers.get(messageElement);
-            }
-
-            const positioningParent = platformGetNavPositioningParent(messageElement);
-            if (!positioningParent) return null;
-
-            // Check the DOM for an existing container before creating a new one
-            let container = positioningParent.querySelector(`.${APPID}-bubble-nav-container`);
-            if (container) {
-                this.navContainers.set(messageElement, container);
-                return container;
-            }
-
-            positioningParent.style.position = 'relative';
-            positioningParent.classList.add(`${APPID}-bubble-parent-with-nav`);
-            container = h(`div.${APPID}-bubble-nav-container`, [
-                h(`div.${APPID}-nav-buttons`)
-            ]);
-            positioningParent.appendChild(container);
-            this.navContainers.set(messageElement, container);
-            return container;
         }
 
         setupNavigationButtons(messageElement) {
@@ -2555,19 +2934,22 @@
             if (!container || container.querySelector(`.${APPID}-nav-group-top`)) return;
 
             const buttonsWrapper = container.querySelector(`.${APPID}-nav-buttons`);
-            
+
             const createClickHandler = (direction) => (e) => {
                 e.stopPropagation();
-                const messageRole = getMessageRole(messageElement);
-                const isUserRole = messageRole === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER;
-                const allRoleMessages = isUserRole ? this.userMessagesCache : this.assistantMessagesCache;
-                const currentIndex = allRoleMessages.findIndex(el => el === messageElement);
-                const newIndex = currentIndex + direction;
-                if (newIndex >= 0 && newIndex < allRoleMessages.length) {
-                    const targetMsg = allRoleMessages[newIndex];
+                const roleInfo = this.messageCacheManager.findMessageIndex(messageElement);
+                if (!roleInfo) return;
+
+                const newIndex = roleInfo.index + direction;
+                const targetMsg = this.messageCacheManager.getMessageAtIndex(roleInfo.role, newIndex);
+
+                if (targetMsg) {
                     const turnSelector = CONSTANTS.SELECTORS.BUBBLE_FEATURE_TURN_CONTAINERS;
                     const scrollTarget = turnSelector ? targetMsg.closest(turnSelector) : targetMsg;
-                    if (scrollTarget) scrollToElement(scrollTarget, { offset: CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV });
+                    if (scrollTarget) {
+                        scrollToElement(scrollTarget, { offset: CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV });
+                        EventBus.publish(`${APPID}:nav:highlightMessage`, targetMsg);
+                    }
                 }
             };
             const prevBtn = h(`button.${APPID}-bubble-nav-btn.${APPID}-nav-prev`, {
@@ -2606,7 +2988,7 @@
                         const isDisabled = (index === 0);
                         prevBtn.disabled = isDisabled;
                         prevBtn.title = isDisabled ? `${prevBtn.dataset.originalTitle} ${disabledHint}` :
-                            prevBtn.dataset.originalTitle;
+                        prevBtn.dataset.originalTitle;
                     }
 
                     const nextBtn = container.querySelector(`.${APPID}-nav-next`);
@@ -2618,8 +3000,8 @@
                 });
             };
 
-            updateActorButtons(this.userMessagesCache);
-            updateActorButtons(this.assistantMessagesCache);
+            updateActorButtons(this.messageCacheManager.getUserMessages());
+            updateActorButtons(this.messageCacheManager.getAssistantMessages());
         }
     }
 
@@ -2629,15 +3011,14 @@
     // =================================================================================
 
     class FixedNavigationManager {
-        constructor() {
+        constructor(messageCacheManager) {
             this.navConsole = null;
-            this.userMessages = [];
-            this.asstMessages = [];
-            this.totalMessages = [];
+            this.messageCacheManager = messageCacheManager;
             this.currentIndices = { user: -1, asst: -1, total: -1 };
             this.highlightedMessage = null;
+            this.listeners = {}; // Store listeners for cleanup
 
-            this.debouncedUpdateCaches = debounce(this.updateCaches.bind(this), 250);
+            this.debouncedUpdateUI = debounce(this._updateUI.bind(this), 50);
             this.debouncedReposition = debounce(this.repositionContainers.bind(this), 100);
 
             this.handleBodyClick = this.handleBodyClick.bind(this);
@@ -2647,17 +3028,21 @@
             this.injectStyle();
             this.createContainers();
 
-            EventBus.subscribe(`${APPID}:cacheUpdateRequest`, () => this.debouncedUpdateCaches());
-            EventBus.subscribe(`${APPID}:navigation`, () => this.resetState());
+            // Create and store listeners before subscribing
+            this.listeners.cacheUpdated = () => this.debouncedUpdateUI();
+            this.listeners.navigation = () => this.resetState();
+            this.listeners.highlightMessage = (messageElement) => this.setHighlightAndIndices(messageElement);
+            this.listeners.layoutRecalculate = () => this.debouncedReposition();
 
-            const resizeObserver = new ResizeObserver(this.debouncedReposition);
-            resizeObserver.observe(document.body);
-            this.resizeObserver = resizeObserver;
+            EventBus.subscribe(`${APPID}:cacheUpdated`, this.listeners.cacheUpdated);
+            EventBus.subscribe(`${APPID}:navigation`, this.listeners.navigation);
+            EventBus.subscribe(`${APPID}:nav:highlightMessage`, this.listeners.highlightMessage);
+            EventBus.subscribe(`${APPID}:layoutRecalculate`, this.listeners.layoutRecalculate);
+
             // Wait for the input area to be ready
             await waitForElement(CONSTANTS.SELECTORS.FIXED_NAV_INPUT_AREA_TARGET);
-            // After the main UI is ready, trigger an initial cache update.
-            // This will correctly decide if the console should be shown and then position it.
-            this.debouncedUpdateCaches();
+            // After the main UI is ready, trigger an initial UI update.
+            this.debouncedUpdateUI();
         }
 
         resetState() {
@@ -2679,10 +3064,15 @@
                 this.highlightedMessage = null;
             }
 
+            // Unsubscribe all event bus listeners
+            EventBus.unsubscribe(`${APPID}:cacheUpdated`, this.listeners.cacheUpdated);
+            EventBus.unsubscribe(`${APPID}:navigation`, this.listeners.navigation);
+            EventBus.unsubscribe(`${APPID}:nav:highlightMessage`, this.listeners.highlightMessage);
+            EventBus.unsubscribe(`${APPID}:layoutRecalculate`, this.listeners.layoutRecalculate);
+
             this.navConsole?.remove();
             this.navConsole = null;
             document.body.removeEventListener('click', this.handleBodyClick);
-            this.resizeObserver?.disconnect();
         }
 
         createContainers() {
@@ -2696,14 +3086,12 @@
 
         renderInitialUI() {
             if (!this.navConsole) return;
-
             const svgIcons = {
                 first: () => h('svg', { viewBox: '0 -960 960 960' }, [h('path', { d: 'm280-280 200-200 200 200-56 56-144-144-144 144-56-56Zm-40-360v-80h480v80H240Z' })]),
                 prev: () => h('svg', { viewBox: '0 -960 960 960' }, [h('path', { d: 'm480-528-200 200-56-56 256-256 256 256-56 56-200-200Z' })]),
                 next: () => h('svg', { viewBox: '0 -960 960 960' }, [h('path', { d: 'M480-344 224-590l56-56 200 200 200-200 56 56-256 256Z' })]),
                 last: () => h('svg', { viewBox: '0 -960 960 960' }, [h('path', { d: 'M240-200v-80h480v80H240Zm240-160L280-560l56-56 144 144 144-144 56 56-200 200Z' })]),
             };
-
             const navUI = [
                 h(`div#${APPID}-nav-group-assistant.${APPID}-nav-group`, [
                     h(`button.${APPID}-nav-btn`, { 'data-nav': 'asst-prev', title: 'Previous assistant message' }, [svgIcons.prev()]),
@@ -2767,17 +3155,15 @@
             }
         }
 
-        updateCaches() {
-            this.userMessages = Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.USER_MESSAGE));
-            this.asstMessages = Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.ASSISTANT_MESSAGE));
-            this.totalMessages = Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.FIXED_NAV_MESSAGE_CONTAINERS)).sort((a, b) => {
-                return a.getBoundingClientRect().top - b.getBoundingClientRect().top;
-            });
-
+        _updateUI() {
             if (!this.navConsole) return;
 
+            const userMessages = this.messageCacheManager.getUserMessages();
+            const asstMessages = this.messageCacheManager.getAssistantMessages();
+            const totalMessages = this.messageCacheManager.getTotalMessages();
+
             // Toggle visibility based on message count
-            if (this.totalMessages.length === 0) {
+            if (totalMessages.length === 0) {
                 this.navConsole.classList.add(`${APPID}-nav-hidden`);
             } else {
                 this.navConsole.classList.remove(`${APPID}-nav-hidden`);
@@ -2787,12 +3173,12 @@
                 }
             }
 
-            this.navConsole.querySelector(`#${APPID}-nav-group-user .${APPID}-counter-total`).textContent = this.userMessages.length || '--';
-            this.navConsole.querySelector(`#${APPID}-nav-group-assistant .${APPID}-counter-total`).textContent = this.asstMessages.length || '--';
-            this.navConsole.querySelector(`#${APPID}-nav-group-total .${APPID}-counter-total`).textContent = this.totalMessages.length || '--';
+            this.navConsole.querySelector(`#${APPID}-nav-group-user .${APPID}-counter-total`).textContent = userMessages.length || '--';
+            this.navConsole.querySelector(`#${APPID}-nav-group-assistant .${APPID}-counter-total`).textContent = asstMessages.length || '--';
+            this.navConsole.querySelector(`#${APPID}-nav-group-total .${APPID}-counter-total`).textContent = totalMessages.length || '--';
 
-            if (!this.highlightedMessage && this.totalMessages.length > 0) {
-                this.setHighlightAndIndices(this.totalMessages[0]);
+            if (!this.highlightedMessage && totalMessages.length > 0) {
+                this.setHighlightAndIndices(totalMessages[0]);
             }
 
             this.repositionContainers();
@@ -2802,15 +3188,19 @@
             if (!targetMsg || !this.navConsole) return;
             this.highlightMessage(targetMsg);
 
-            this.currentIndices.total = this.totalMessages.indexOf(targetMsg);
-            const role = getMessageRole(targetMsg);
+            const userMessages = this.messageCacheManager.getUserMessages();
+            const asstMessages = this.messageCacheManager.getAssistantMessages();
+            const totalMessages = this.messageCacheManager.getTotalMessages();
+
+            this.currentIndices.total = totalMessages.indexOf(targetMsg);
+            const role = PlatformAdapter.getMessageRole(targetMsg);
 
             if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER) {
-                this.currentIndices.user = this.userMessages.indexOf(targetMsg);
-                this.currentIndices.asst = this.findNearestIndex(targetMsg, this.asstMessages);
+                this.currentIndices.user = userMessages.indexOf(targetMsg);
+                this.currentIndices.asst = this.findNearestIndex(targetMsg, asstMessages);
             } else {
-                this.currentIndices.asst = this.asstMessages.indexOf(targetMsg);
-                this.currentIndices.user = this.findNearestIndex(targetMsg, this.userMessages);
+                this.currentIndices.asst = asstMessages.indexOf(targetMsg);
+                this.currentIndices.user = this.findNearestIndex(targetMsg, userMessages);
             }
 
             this.navConsole.querySelector(`#${APPID}-nav-group-user .${APPID}-counter-current`).textContent = this.currentIndices.user > -1 ? this.currentIndices.user + 1 : '--';
@@ -2832,34 +3222,51 @@
 
         handleButtonClick(buttonElement) {
             let targetMsg = null;
-            const currentUserIndex = this.currentIndices.user > -1 ? this.currentIndices.user : 0;
-            const currentAsstIndex = this.currentIndices.asst > -1 ? this.currentIndices.asst : 0;
-            const currentTotalIndex = this.currentIndices.total > -1 ? this.currentIndices.total : 0;
+            const userMessages = this.messageCacheManager.getUserMessages();
+            const asstMessages = this.messageCacheManager.getAssistantMessages();
+            const totalMessages = this.messageCacheManager.getTotalMessages();
+
+            const { user: currentUserIndex, asst: currentAsstIndex, total: currentTotalIndex } = this.currentIndices;
+
             switch (buttonElement.dataset.nav) {
-                case 'user-prev':
-                    targetMsg = this.userMessages[Math.max(0, currentUserIndex - 1)];
+                case 'user-prev': {
+                    const userPrevIndex = currentUserIndex > -1 ? currentUserIndex : 0;
+                    targetMsg = this.messageCacheManager.getMessageAtIndex('user', Math.max(0, userPrevIndex - 1));
                     break;
-                case 'user-next':
-                    targetMsg = this.userMessages[Math.min(this.userMessages.length - 1, currentUserIndex + 1)];
+                }
+                case 'user-next': {
+                    const userNextIndex = currentUserIndex === -1 ? 0 : currentUserIndex + 1;
+                    targetMsg = this.messageCacheManager.getMessageAtIndex('user', Math.min(userMessages.length - 1, userNextIndex));
                     break;
-                case 'asst-prev':
-                    targetMsg = this.asstMessages[Math.max(0, currentAsstIndex - 1)];
+                }
+                case 'asst-prev': {
+                    const asstPrevIndex = currentAsstIndex > -1 ? currentAsstIndex : 0;
+                    targetMsg = this.messageCacheManager.getMessageAtIndex('asst', Math.max(0, asstPrevIndex - 1));
                     break;
-                case 'asst-next':
-                    targetMsg = this.asstMessages[Math.min(this.asstMessages.length - 1, currentAsstIndex + 1)];
+                }
+                case 'asst-next': {
+                    const asstNextIndex = currentAsstIndex === -1 ? 0 : currentAsstIndex + 1;
+                    targetMsg = this.messageCacheManager.getMessageAtIndex('asst', Math.min(asstMessages.length - 1, asstNextIndex));
                     break;
-                case 'total-first':
-                    targetMsg = this.totalMessages[0];
+                }
+                case 'total-first': {
+                    targetMsg = totalMessages[0];
                     break;
-                case 'total-last':
-                    targetMsg = this.totalMessages[this.totalMessages.length - 1];
+                }
+                case 'total-last': {
+                    targetMsg = totalMessages[totalMessages.length - 1];
                     break;
-                case 'total-prev':
-                    targetMsg = this.totalMessages[Math.max(0, currentTotalIndex - 1)];
+                }
+                case 'total-prev': {
+                    const totalPrevIndex = currentTotalIndex > -1 ? currentTotalIndex : 0;
+                    targetMsg = totalMessages[Math.max(0, totalPrevIndex - 1)];
                     break;
-                case 'total-next':
-                    targetMsg = this.totalMessages[Math.min(this.totalMessages.length - 1, currentTotalIndex + 1)];
+                }
+                case 'total-next': {
+                    const totalNextIndex = currentTotalIndex === -1 ? 0 : currentTotalIndex + 1;
+                    targetMsg = totalMessages[Math.min(totalMessages.length - 1, totalNextIndex)];
                     break;
+                }
             }
 
             this.navigateToMessage(targetMsg);
@@ -2876,9 +3283,9 @@
                     const num = parseInt(input.value, 10);
                     if (!isNaN(num)) {
                         const roleMap = {
-                            user: this.userMessages,
-                            asst: this.asstMessages,
-                            total: this.totalMessages
+                            user: this.messageCacheManager.getUserMessages(),
+                            asst: this.messageCacheManager.getAssistantMessages(),
+                            total: this.messageCacheManager.getTotalMessages()
                         };
                         const targetArray = roleMap[role];
                         const index = num - 1;
@@ -2949,11 +3356,11 @@
                 textContent: `
                     #${APPID}-nav-console .is-hidden {
                         display: none !important;
-                     }
+                      }
                     #${APPID}-nav-console.${APPID}-nav-unpositioned {
                         visibility: hidden;
                         opacity: 0;
-                     }
+                      }
                     #${APPID}-nav-console {
                         position: fixed;
                         z-index: ${CONSTANTS.Z_INDICES.NAV_CONSOLE};
@@ -3050,19 +3457,26 @@
             this.configManager = configManager;
             this.button = null;
             this.debouncedReposition = debounce(this.repositionButton.bind(this), 100);
-            this.resizeObserver = null;
+            this.fixedNavManager = null;
+        }
+
+        /**
+         * Sets the FixedNavigationManager instance.
+         * @param {FixedNavigationManager | null} manager
+         */
+        setFixedNavManager(manager) {
+            this.fixedNavManager = manager;
         }
 
         async init() {
             this.render();
             this.injectStyle();
-            
+
             EventBus.subscribe(`${APPID}:cacheUpdateRequest`, this.updateVisibility.bind(this));
+            EventBus.subscribe(`${APPID}:layoutRecalculate`, this.debouncedReposition);
 
             const inputArea = await waitForElement(CONSTANTS.SELECTORS.FIXED_NAV_INPUT_AREA_TARGET);
             if (inputArea && this.button) {
-                this.resizeObserver = new ResizeObserver(this.debouncedReposition);
-                this.resizeObserver.observe(document.body);
                 this.repositionButton();
                 this.updateVisibility(); // Set initial visibility
                 this.button.style.visibility = 'visible';
@@ -3072,7 +3486,6 @@
         render() {
             const collapseIcon = h('svg', { className: 'icon-collapse', viewBox: '0 -960 960 960' }, [h('path', { d: 'M440-440v240h-80v-160H200v-80h240Zm160-320v160h160v80H520v-240h80Z' })]);
             const expandIcon = h('svg', { className: 'icon-expand', viewBox: '0 -960 960 960' }, [h('path', { d: 'M200-200v-240h80v160h160v80H200Zm480-320v-160H520v-80h240v240h-80Z' })]);
-
             this.button = h('button', {
                 id: `${APPID}-bulk-collapse-btn`,
                 title: 'Toggle all messages',
@@ -3086,7 +3499,6 @@
                     this._toggleAllMessages(nextState);
                 }
             }, [collapseIcon, expandIcon]);
-
             document.body.appendChild(this.button);
         }
 
@@ -3165,9 +3577,21 @@
         _toggleAllMessages(state) {
             const messages = document.querySelectorAll(`.${APPID}-collapsible`);
             const shouldCollapse = state === 'collapsed';
+            const highlightedMessage = this.fixedNavManager?.highlightedMessage;
+
             messages.forEach(msg => {
                 msg.classList.toggle(`${APPID}-bubble-collapsed`, shouldCollapse);
             });
+
+            // After toggling, explicitly navigate to the highlighted message to ensure correct scroll position.
+            if (highlightedMessage && this.fixedNavManager) {
+                // Use rAF to wait for the browser to repaint with new heights before navigating.
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        this.fixedNavManager.navigateToMessage(highlightedMessage);
+                    });
+                });
+            }
         }
     }
 
@@ -3402,12 +3826,12 @@
             const i = Math.floor(h / 60);
             const f = (h / 60) - i, p = v * (1 - s), q = v * (1 - s * f), t = v * (1 - s * (1 - f));
             switch (i % 6) {
-                case 0: r = v; g = t; b = p; break;
-                case 1: r = q; g = v; b = p; break;
-                case 2: r = p; g = v; b = t; break;
-                case 3: r = p; g = q; b = v; break;
-                case 4: r = t; g = p; b = v; break;
-                case 5: r = v; g = p; b = q; break;
+                case 0: { r = v; g = t; b = p; break; }
+                case 1: { r = q; g = v; b = p; break; }
+                case 2: { r = p; g = v; b = t; break; }
+                case 3: { r = p; g = q; b = v; break; }
+                case 4: { r = t; g = p; b = v; break; }
+                case 5: { r = v; g = p; b = q; break; }
             }
             return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) };
         }
@@ -3429,9 +3853,9 @@
             if (max === min) { h = 0; }
             else {
                 switch (max) {
-                    case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-                    case g: h = (b - r) / d + 2; break;
-                    case b: h = (r - g) / d + 4; break;
+                    case r: { h = (g - b) / d + (g < b ? 6 : 0); break; }
+                    case g: { h = (b - r) / d + 2; break; }
+                    case b: { h = (r - g) / d + 4; break; }
                 }
                 h /= 6;
             }
@@ -3661,10 +4085,10 @@
                 const sStep = e.shiftKey ? 10 : 1;
                 const vStep = e.shiftKey ? 10 : 1;
                 switch (e.key) {
-                    case 'ArrowLeft': this.state.s = Math.max(0, this.state.s - sStep); break;
-                    case 'ArrowRight': this.state.s = Math.min(100, this.state.s + sStep); break;
-                    case 'ArrowUp': this.state.v = Math.min(100, this.state.v + vStep); break;
-                    case 'ArrowDown': this.state.v = Math.max(0, this.state.v - vStep); break;
+                    case 'ArrowLeft': { this.state.s = Math.max(0, this.state.s - sStep); break; }
+                    case 'ArrowRight': { this.state.s = Math.min(100, this.state.s + sStep); break; }
+                    case 'ArrowUp': { this.state.v = Math.min(100, this.state.v + vStep); break; }
+                    case 'ArrowDown': { this.state.v = Math.max(0, this.state.v - vStep); break; }
                 }
                 this._requestUpdate();
             });
@@ -3733,7 +4157,7 @@
                 title: '',
                 width: '500px',
                 cssPrefix: 'cm',
-                 closeOnBackdropClick: true,
+                closeOnBackdropClick: true,
                 buttons: [],
                 onDestroy: null,
                 ...options
@@ -3828,7 +4252,7 @@
                 return h('button', {
                     id: btnDef.id,
                     className: fullClassName,
-                     onclick: (e) => btnDef.onClick(this, e)
+                    onclick: (e) => btnDef.onClick(this, e)
                 }, btnDef.text);
             });
 
@@ -3853,7 +4277,7 @@
                     if (e.target === this.element) {
                         this.close();
                     }
-                 });
+                });
             }
 
             // Store references and append the final element to the body.
@@ -3883,7 +4307,7 @@
                         position: 'absolute',
                         left: `${Math.max(left, margin)}px`,
                         top: `${Math.max(top, margin)}px`,
-                         margin: '0',
+                        margin: '0',
                         transform: 'none'
                     });
                 } else {
@@ -3891,7 +4315,7 @@
                     Object.assign(this.element.style, {
                         position: 'fixed',
                         left: '50%',
-                         top: '50%',
+                        top: '50%',
                         transform: 'translate(-50%, -50%)',
                         margin: '0'
                     });
@@ -4201,7 +4625,7 @@
             // Options
             this.element.querySelector(`#${APPID}-opt-icon-size-slider`).value = CONSTANTS.ICON_SIZE_VALUES.indexOf(config.options.icon_size || CONSTANTS.ICON_SIZE);
             this.element.querySelector(`#${APPID}-opt-respect-avatar-space`).checked = config.options.respect_avatar_space;
-            
+
             const widthValueRaw = config.options.chat_content_max_width;
             const widthConfig = CONSTANTS.SLIDER_CONFIGS.CHAT_WIDTH;
             const widthSlider = this.element.querySelector(`#${APPID}-opt-chat-max-width-slider`);
@@ -4245,7 +4669,7 @@
             // Options
             const iconSizeIndex = parseInt(this.element.querySelector(`#${APPID}-opt-icon-size-slider`).value, 10);
             newConfig.options.icon_size = CONSTANTS.ICON_SIZE_VALUES[iconSizeIndex] || CONSTANTS.ICON_SIZE;
-            
+
             const widthSlider = this.element.querySelector(`#${APPID}-opt-chat-max-width-slider`);
             const sliderValue = parseInt(widthSlider.value, 10);
             const widthConfig = CONSTANTS.SLIDER_CONFIGS.CHAT_WIDTH;
@@ -4310,7 +4734,7 @@
         _injectStyles() {
             const styleId = `${APPID}-ui-styles`;
             if (document.getElementById(styleId)) return;
-            
+
             const styles = SITE_STYLES.SETTINGS_PANEL;
             const style = h('style', {
                 id: styleId,
@@ -4401,7 +4825,7 @@
                 .${APPID}-feature-group .${APPID}-submenu-row:first-child {
                     margin-top: 0;
                 }
-                
+
                 /* Toggle Switch Styles */
                 .${APPID}-toggle-switch {
                     position: relative;
@@ -4653,7 +5077,7 @@
                 cssPrefix: `${APPID}-theme-modal-shell`,
                 closeOnBackdropClick: false,
                 buttons: [
-                     { text: 'Apply', id: `${APPID}-theme-modal-apply-btn`, className: `${APPID}-modal-button`, title: 'Save changes and keep the modal open.', onClick: () => this._handleThemeAction(false) },
+                    { text: 'Apply', id: `${APPID}-theme-modal-apply-btn`, className: `${APPID}-modal-button`, title: 'Save changes and keep the modal open.', onClick: () => this._handleThemeAction(false) },
                     { text: 'Save', id: `${APPID}-theme-modal-save-btn`, className: `${APPID}-modal-button`, title: 'Save changes and close the modal.', onClick: () => this._handleThemeAction(true) },
                     { text: 'Cancel', id: `${APPID}-theme-modal-cancel-btn`, className: `${APPID}-modal-button`, title: 'Discard changes and close the modal.', onClick: () => this.close() },
                 ],
@@ -4676,7 +5100,7 @@
             const config = await this.callbacks.getCurrentConfig();
             if (config) {
                 const keyToSelect = selectThemeKey ||
-                this.activeThemeKey || 'defaultSet';
+                      this.activeThemeKey || 'defaultSet';
                 await this._refreshModalState(config, keyToSelect);
             }
 
@@ -4739,12 +5163,12 @@
                     background: styles.btn_bg,
                     color: styles.btn_text,
                     border: `1px solid ${styles.btn_border}`,
-                     borderRadius: `var(--radius-md, ${CONSTANTS.MODAL.BTN_RADIUS}px)`,
+                    borderRadius: `var(--radius-md, ${CONSTANTS.MODAL.BTN_RADIUS}px)`,
                     padding: CONSTANTS.MODAL.BTN_PADDING,
                     fontSize: `${CONSTANTS.MODAL.BTN_FONT_SIZE}px`,
                 });
                 button.addEventListener('mouseover', () => { button.style.background = styles.btn_hover_bg; });
-                 button.addEventListener('mouseout', () => { button.style.background = styles.btn_bg; });
+                button.addEventListener('mouseout', () => { button.style.background = styles.btn_bg; });
             });
         }
 
@@ -4753,7 +5177,7 @@
                 h('label', { htmlFor: `${APPID}-theme-select`, title: 'Select a theme to edit.' }, 'Theme:'),
                 h(`select#${APPID}-theme-select`, { title: 'Select a theme to edit.' }),
                 h(`div#${APPID}-theme-main-actions`, { style: { display: 'contents' } }, [
-                     h(`button#${APPID}-theme-up-btn.${APPID}-modal-button.${APPID}-move-btn`, { title: 'Move selected theme up.' }, '▲'),
+                    h(`button#${APPID}-theme-up-btn.${APPID}-modal-button.${APPID}-move-btn`, { title: 'Move selected theme up.' }, '▲'),
                     h(`button#${APPID}-theme-down-btn.${APPID}-modal-button.${APPID}-move-btn`, { title: 'Move selected theme down.' }, '▼'),
                     h(`div.${APPID}-header-spacer`),
                     h(`button#${APPID}-theme-new-btn.${APPID}-modal-button`, { title: 'Create a new theme (saves immediately).' }, 'New'),
@@ -4791,46 +5215,46 @@
                     h('label', { htmlFor: `${APPID}-form-${id}`, title: fullTooltip }, label),
                     h(`div.${APPID}-color-field-wrapper`, [
                         h('input', { type: 'text', id: `${APPID}-form-${id}`, autocomplete: 'off' }),
-                         h(`button.${APPID}-color-swatch`, { type: 'button', 'data-controls-color': id, title: 'Open color picker' }, [
+                        h(`button.${APPID}-color-swatch`, { type: 'button', 'data-controls-color': id, title: 'Open color picker' }, [
                             h(`span.${APPID}-color-swatch-checkerboard`),
                             h(`span.${APPID}-color-swatch-value`)
-                         ])
+                        ])
                     ])
                 ]);
             };
             const createSelectField = (label, id, options, tooltip = '') =>
-                h(`div.${APPID}-form-field`, [
-                    h('label', { htmlFor: `${APPID}-form-${id}`, title: tooltip }, label),
-                    h('select', { id: `${APPID}-form-${id}` }, [
-                         h('option', { value: '' }, '(not set)'),
-                        ...options.map(o => h('option', { value: o }, o))
-                    ])
-                ]);
+            h(`div.${APPID}-form-field`, [
+                h('label', { htmlFor: `${APPID}-form-${id}`, title: tooltip }, label),
+                h('select', { id: `${APPID}-form-${id}` }, [
+                    h('option', { value: '' }, '(not set)'),
+                    ...options.map(o => h('option', { value: o }, o))
+                ])
+            ]);
             const createSliderField = (containerClass, label, id, min, max, step, tooltip = '', isPercent = false, nullThreshold = -1) =>
-                h(`div`, { className: containerClass }, [
-                    h('label', { htmlFor: `${APPID}-form-${id}-slider`, title: tooltip }, label),
+            h(`div`, { className: containerClass }, [
+                h('label', { htmlFor: `${APPID}-form-${id}-slider`, title: tooltip }, label),
+                h(`div.${APPID}-slider-subgroup-control`, [
+                    h('input', {
+                        type: 'range', id: `${APPID}-form-${id}-slider`, min, max, step,
+                        dataset: { sliderFor: id, isPercent, nullThreshold }
+                    }),
+                    h('span', { 'data-slider-display-for': id })
+                ])
+            ]);
+            const createPaddingSliders = (actor) => {
+                const createSubgroup = (name, id, min, max, step) =>
+                h(`div.${APPID}-slider-subgroup`, [
+                    h('label', { htmlFor: id }, name),
                     h(`div.${APPID}-slider-subgroup-control`, [
-                         h('input', {
-                            type: 'range', id: `${APPID}-form-${id}-slider`, min, max, step,
-                            dataset: { sliderFor: id, isPercent, nullThreshold }
-                         }),
+                        h('input', { type: 'range', id, min, max, step, dataset: { sliderFor: id, nullThreshold: 0 } }),
                         h('span', { 'data-slider-display-for': id })
                     ])
                 ]);
-            const createPaddingSliders = (actor) => {
-                const createSubgroup = (name, id, min, max, step) =>
-                    h(`div.${APPID}-slider-subgroup`, [
-                        h('label', { htmlFor: id }, name),
-                         h(`div.${APPID}-slider-subgroup-control`, [
-                            h('input', { type: 'range', id, min, max, step, dataset: { sliderFor: id, nullThreshold: 0 } }),
-                            h('span', { 'data-slider-display-for': id })
-                         ])
-                    ]);
                 return h(`div.${APPID}-form-field`, [
                     h(`div.${APPID}-compound-slider-container`, [
                         createSubgroup('Padding Top/Bottom:', `${APPID}-form-${actor}-bubblePadding-tb`, -1, 30, 1),
                         createSubgroup('Padding Left/Right:', `${APPID}-form-${actor}-bubblePadding-lr`, -1, 30, 1)
-                     ])
+                    ])
                 ]);
             };
             const createPreview = (actor) => {
@@ -4839,7 +5263,7 @@
                     h('label', 'Preview:'),
                     h('div', { className: wrapperClass }, [
                         h(`div.${APPID}-preview-bubble`, { 'data-preview-for': actor }, [h('span', 'Sample Text')])
-                     ])
+                    ])
                 ]);
             };
             return h(`div.${APPID}-theme-modal-content`, [
@@ -4850,83 +5274,83 @@
                         h(`textarea`, { id: `${APPID}-form-metadata-matchPatterns`, rows: 3 }),
                         h(`div.${APPID}-form-error-msg`, { 'data-error-for': 'metadata-matchPatterns' })
                     ])
-                 ]),
+                ]),
                 h(`hr.${APPID}-theme-separator`, { tabIndex: -1 }),
                 h(`div.${APPID}-theme-scrollable-area`, [
                     h(`div.${APPID}-theme-grid`, [
                         h('fieldset', [
-                             h('legend', 'Assistant'),
+                            h('legend', 'Assistant'),
                             createTextField('Name:', 'assistant-name', 'The name displayed for the assistant.', 'name'),
                             createTextField('Icon:', 'assistant-icon', "URL, Data URI, or <svg> for the assistant's icon.", 'icon'),
-                             createTextField('Standing image:', 'assistant-standingImageUrl', "URL or Data URI for the character's standing image.", 'image'),
+                            createTextField('Standing image:', 'assistant-standingImageUrl', "URL or Data URI for the character's standing image.", 'image'),
                             h('fieldset', [
                                 h('legend', 'Bubble Settings'),
+                                createColorField('Background color:', 'assistant-bubbleBackgroundColor', 'Background color of the message bubble.'),
                                 createColorField('Text color:', 'assistant-textColor', 'Color of the text inside the bubble.'),
                                 createTextField('Font:', 'assistant-font', 'Font family for the text.\nFont names with spaces must be quoted (e.g., "Times New Roman").'),
-                                 createColorField('Background color:', 'assistant-bubbleBackgroundColor', 'Background color of the message bubble.'),
                                 createPaddingSliders('assistant'),
                                 h(`div.${APPID}-compound-slider-container`, [
-                                     createSliderField(`${APPID}-slider-subgroup`, 'Radius:', 'assistant-bubbleBorderRadius', -1, 50, 1, 'Corner roundness of the bubble (e.g., 10px).\nSet to the far left for (auto).', false, 0),
+                                    createSliderField(`${APPID}-slider-subgroup`, 'Radius:', 'assistant-bubbleBorderRadius', -1, 50, 1, 'Corner roundness of the bubble (e.g., 10px).\nSet to the far left for (auto).', false, 0),
                                     createSliderField(`${APPID}-slider-subgroup`, 'max Width:', 'assistant-bubbleMaxWidth', 29, 100, 1, 'Maximum width of the bubble.\nSet to the far left for (auto).', true, 30)
                                 ]),
                                 h(`hr.${APPID}-theme-separator`),
-                                 createPreview('assistant')
+                                createPreview('assistant')
                             ])
                         ]),
                         h('fieldset', [
-                             h('legend', 'User'),
+                            h('legend', 'User'),
                             createTextField('Name:', 'user-name', 'The name displayed for the user.', 'name'),
                             createTextField('Icon:', 'user-icon', "URL, Data URI, or <svg> for the user's icon.", 'icon'),
-                             createTextField('Standing image:', 'user-standingImageUrl', "URL or Data URI for the character's standing image.", 'image'),
+                            createTextField('Standing image:', 'user-standingImageUrl', "URL or Data URI for the character's standing image.", 'image'),
                             h('fieldset', [
                                 h('legend', 'Bubble Settings'),
-                                 createColorField('Text color:', 'user-textColor', 'Color of the text inside the bubble.'),
+                                createColorField('Background color:', 'user-bubbleBackgroundColor', 'Background color of the message bubble.'),
+                                createColorField('Text color:', 'user-textColor', 'Color of the text inside the bubble.'),
                                 createTextField('Font:', 'user-font', 'Font family for the text.\nFont names with spaces must be quoted (e.g., "Times New Roman").'),
-                                 createColorField('Background color:', 'user-bubbleBackgroundColor', 'Background color of the message bubble.'),
                                 createPaddingSliders('user'),
                                 h(`div.${APPID}-compound-slider-container`, [
-                                     createSliderField(`${APPID}-slider-subgroup`, 'Radius:', 'user-bubbleBorderRadius', -1, 50, 1, 'Corner roundness of the bubble (e.g., 10px).\nSet to the far left for (auto).', false, 0),
+                                    createSliderField(`${APPID}-slider-subgroup`, 'Radius:', 'user-bubbleBorderRadius', -1, 50, 1, 'Corner roundness of the bubble (e.g., 10px).\nSet to the far left for (auto).', false, 0),
                                     createSliderField(`${APPID}-slider-subgroup`, 'max Width:', 'user-bubbleMaxWidth', 29, 100, 1, 'Maximum width of the bubble.\nSet to the far left for (auto).', true, 30)
-                                 ]),
+                                ]),
                                 h(`hr.${APPID}-theme-separator`),
                                 createPreview('user')
-                             ])
+                            ])
                         ]),
                         h('fieldset', [
                             h('legend', 'Background'),
-                             createColorField('Background color:', 'window-backgroundColor', 'Main background color of the chat window.'),
+                            createColorField('Background color:', 'window-backgroundColor', 'Main background color of the chat window.'),
                             createTextField('Background image:', 'window-backgroundImageUrl', 'URL or Data URI for the main background image.', 'image'),
                             h(`div.${APPID}-compound-form-field-container`, [
-                                 createSelectField('Size:', 'window-backgroundSize', ['auto', 'cover', 'contain'], 'How the background image is sized.'),
+                                createSelectField('Size:', 'window-backgroundSize', ['auto', 'cover', 'contain'], 'How the background image is sized.'),
                                 createSelectField('Position:', 'window-backgroundPosition', [
-                                     'top left', 'top center', 'top right',
+                                    'top left', 'top center', 'top right',
                                     'center left', 'center center', 'center right',
                                     'bottom left', 'bottom center', 'bottom right'
-                                 ], 'Position of the background image.')
+                                ], 'Position of the background image.')
                             ]),
                             h(`div.${APPID}-compound-form-field-container`, [
-                                 createSelectField('Repeat:', 'window-backgroundRepeat', ['no-repeat', 'repeat'], 'How the background image is repeated.'),
+                                createSelectField('Repeat:', 'window-backgroundRepeat', ['no-repeat', 'repeat'], 'How the background image is repeated.'),
                             ])
                         ]),
                         h('fieldset', [
                             h('legend', 'Input area'),
-                             createColorField('Background color:', 'inputArea-backgroundColor', 'Background color of the text input area.'),
+                            createColorField('Background color:', 'inputArea-backgroundColor', 'Background color of the text input area.'),
                             createColorField('Text color:', 'inputArea-textColor', 'Color of the text you type.'),
                             h(`hr.${APPID}-theme-separator`),
-                             h(`div.${APPID}-preview-container`, [
+                            h(`div.${APPID}-preview-container`, [
                                 h('label', 'Preview:'),
                                 h(`div.${APPID}-preview-bubble-wrapper`, [
-                                     h(`div.${APPID}-preview-input-area`, { 'data-preview-for': 'inputArea' }, [
+                                    h(`div.${APPID}-preview-input-area`, { 'data-preview-for': 'inputArea' }, [
                                         h('span', 'Sample input text')
-                                     ])
+                                    ])
                                 ])
                             ])
                         ])
-                     ])
+                    ])
                 ])
             ]);
         }
-        
+
         _updateAllPreviews() {
             this._updatePreview('user');
             this._updatePreview('assistant');
@@ -4941,13 +5365,13 @@
 
                 const form = this.modal.element;
                 const getVal = (id) => form.querySelector(`#${APPID}-form-${id}`)?.value.trim() || null;
-                
-                 previewBubble.style.color = getVal(`${actor}-textColor`) || '';
+
+                previewBubble.style.color = getVal(`${actor}-textColor`) || '';
                 previewBubble.style.fontFamily = getVal(`${actor}-font`) || '';
                 previewBubble.style.backgroundColor = getVal(`${actor}-bubbleBackgroundColor`) || '#888';
-                
+
                 const paddingTBSlider = form.querySelector(`#${APPID}-form-${actor}-bubblePadding-tb`);
-                 const paddingLRSlider = form.querySelector(`#${APPID}-form-${actor}-bubblePadding-lr`);
+                const paddingLRSlider = form.querySelector(`#${APPID}-form-${actor}-bubblePadding-lr`);
                 const tbVal = (paddingTBSlider && paddingTBSlider.value < 0) ? null : paddingTBSlider?.value;
                 const lrVal = (paddingLRSlider && paddingLRSlider.value < 0) ? null : paddingLRSlider?.value;
                 previewBubble.style.padding = (tbVal !== null && lrVal !== null) ? `${tbVal}px ${lrVal}px` : '';
@@ -5019,7 +5443,7 @@
             this.modal.element.querySelector(`#${APPID}-theme-main-actions`).style.display = 'none';
             this.modal.element.querySelector(`#${APPID}-theme-delete-confirm-group`).hidden = false;
         }
-        
+
         _exitDeleteConfirmationMode(resetKey = true) {
             if (resetKey) {
                 this.pendingDeletionKey = null;
@@ -5113,7 +5537,7 @@
                 const actionMap = {
                     [`${APPID}-theme-new-btn`]: () => this._handleThemeNew(),
                     [`${APPID}-theme-copy-btn`]: () => this._handleThemeCopy(),
-                     [`${APPID}-theme-delete-btn`]: () => this._enterDeleteConfirmationMode(),
+                    [`${APPID}-theme-delete-btn`]: () => this._enterDeleteConfirmationMode(),
                     [`${APPID}-theme-delete-confirm-btn`]: () => this._handleThemeDelete(),
                     [`${APPID}-theme-delete-cancel-btn`]: () => this._exitDeleteConfirmationMode(),
                     [`${APPID}-theme-up-btn`]: () => this._handleThemeMove(-1),
@@ -5122,7 +5546,7 @@
                 for (const id in actionMap) {
                     if (target.closest(`#${id}`)) {
                         actionMap[id]();
-                         break;
+                        break;
                     }
                 }
             });
@@ -5137,16 +5561,16 @@
 
                 // Trigger preview for text-based inputs
                 const isTextPreviewable = id.includes('textColor') || id.includes('font') ||
-                                           id.includes('bubbleBackgroundColor') ||
-                                          id.includes('inputArea-backgroundColor') || id.includes('inputArea-textColor');
+                      id.includes('bubbleBackgroundColor') ||
+                      id.includes('inputArea-backgroundColor') || id.includes('inputArea-textColor');
                 if (isTextPreviewable) {
-                     this.debouncedUpdatePreview();
+                    this.debouncedUpdatePreview();
                 }
 
                 // Handle all range sliders consistently
                 if (target.matches('input[type="range"]')) {
                     this._updateSliderDisplay(target);
-                     // Always trigger a preview update when any slider is changed.
+                    // Always trigger a preview update when any slider is changed.
                     this.debouncedUpdatePreview();
                 }
             });
@@ -5176,11 +5600,6 @@
             } else {
                 display.textContent = `${currentValue}px`;
             }
-        }
-        
-         _updatePaddingDisplay(slider) {
-            const display = this.modal.element.querySelector(`#${slider.id}-display`);
-            if(display) display.textContent = `${slider.value}px`;
         }
 
         async _populateFormWithThemeData(themeKey) {
@@ -5233,8 +5652,8 @@
                         tbSlider.value = parts[0];
                         lrSlider.value = parts[1];
                     } else {
-                         tbSlider.value = -1;
-                         lrSlider.value = -1; // Fallback to default
+                        tbSlider.value = -1;
+                        lrSlider.value = -1; // Fallback to default
                     }
                 }
                 this._updateSliderDisplay(tbSlider);
@@ -5251,13 +5670,13 @@
                 const actorConf = theme[actor] || {};
                 setVal(`${actor}-name`, actorConf.name);
                 setVal(`${actor}-icon`, actorConf.icon);
-                 setVal(`${actor}-standingImageUrl`, actorConf.standingImageUrl);
+                setVal(`${actor}-standingImageUrl`, actorConf.standingImageUrl);
                 setVal(`${actor}-textColor`, actorConf.textColor);
                 setVal(`${actor}-font`, actorConf.font);
                 setVal(`${actor}-bubbleBackgroundColor`, actorConf.bubbleBackgroundColor);
                 setPaddingSliders(actor, actorConf.bubblePadding);
                 setSliderVal(`${actor}-bubbleBorderRadius`, actorConf.bubbleBorderRadius);
-                 setSliderVal(`${actor}-bubbleMaxWidth`, actorConf.bubbleMaxWidth);
+                setSliderVal(`${actor}-bubbleMaxWidth`, actorConf.bubbleMaxWidth);
             });
             // Populate window fields
             const windowConf = theme.window || {};
@@ -5276,7 +5695,7 @@
                 const swatch = swatchValue.closest(`.${APPID}-color-swatch`);
                 const targetId = swatch.dataset.controlsColor;
                 const textInput = modalElement.querySelector(`#${APPID}-form-${targetId}`);
-                 if (textInput) {
+                if (textInput) {
                     swatchValue.style.backgroundColor = textInput.value || 'transparent';
                 }
             });
@@ -5298,7 +5717,7 @@
             }
             modalElement.querySelector(`#${APPID}-theme-delete-btn`).disabled = isDefault;
             this._updateAllPreviews();
-            
+
             if (scrollableArea) {
                 scrollableArea.style.visibility = 'visible';
             }
@@ -5336,7 +5755,7 @@
                 themeData[actor].icon = getVal(`${actor}-icon`);
                 themeData[actor].standingImageUrl = getVal(`${actor}-standingImageUrl`);
                 themeData[actor].textColor = getVal(`${actor}-textColor`);
-                 themeData[actor].font = getVal(`${actor}-font`);
+                themeData[actor].font = getVal(`${actor}-font`);
                 themeData[actor].bubbleBackgroundColor = getVal(`${actor}-bubbleBackgroundColor`);
                 themeData[actor].bubblePadding = getPaddingVal(actor);
                 themeData[actor].bubbleBorderRadius = getSliderVal(`${actor}-bubbleBorderRadius`);
@@ -5388,10 +5807,10 @@
                     isFormValid = false;
                 }
                 const isDuplicate = newConfig.themeSets.some(t =>
-                    t.metadata.id !== this.activeThemeKey &&
-                    t.metadata.name &&
-                    t.metadata.name.trim().toLowerCase() === newName.trim().toLowerCase()
-                 );
+                                                             t.metadata.id !== this.activeThemeKey &&
+                                                             t.metadata.name &&
+                                                             t.metadata.name.trim().toLowerCase() === newName.trim().toLowerCase()
+                                                            );
                 if (isDuplicate) {
                     this._setFieldError('metadata-name', 'This theme name is already in use.');
                     isFormValid = false;
@@ -5891,6 +6310,10 @@
         }
     }
 
+    // =================================================================================
+    // SECTION: Debugging
+    // =================================================================================
+
     class DebugManager {
         /**
          * @param {ThemeAutomator} automatorInstance An instance of the main controller to access its methods and properties.
@@ -5951,272 +6374,6 @@
     }
 
     // =================================================================================
-    // SECTION: DOM Observers and Event Listeners
-    // =================================================================================
-
-    class ObserverManager {
-        constructor() {
-            this.mainObserver = null;
-            this.registeredNodeAddedTasks = [];
-            this.pendingTurnNodes = new Set();
-            this.debouncedNavUpdate = debounce(() => EventBus.publish(`${APPID}:navButtonsUpdate`), 100);
-            this.debouncedCacheUpdate = debounce(() => EventBus.publish(`${APPID}:cacheUpdateRequest`), 250);
-            this.debouncedLayoutRecalculate = debounce(() => EventBus.publish(`${APPID}:layoutRecalculate`), 150);
-            // *** [Platform Specific] START ***
-            this.debouncedVisibilityCheck = debounce(() => EventBus.publish(`${APPID}:visibilityRecheck`), 250);
-            // *** [Platform Specific] END ***
-        }
-
-        /**
-         * A public method to register a task that runs when a node matching the selector is added.
-         * @param {string} selector
-         * @param {Function} callback
-         */
-        registerNodeAddedTask(selector, callback) {
-            this.registeredNodeAddedTasks.push({ selector, callback });
-        }
-
-        /**
-         * Clears all pending conversation turns.
-         * Useful when navigating away from a chat.
-         */
-        cleanupPendingTurns() {
-            this.pendingTurnNodes.clear();
-        }
-
-        /**
-         * Scans the document for all existing conversation turns and processes them.
-         * This is crucial for applying themes after page loads or navigations.
-         */
-        scanForExistingTurns() {
-            const existingTurnNodes = Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER));
-            if (existingTurnNodes.length > 0) {
-                for (const turnNode of existingTurnNodes) {
-                    this._processTurnSingle(turnNode);
-                }
-            }
-        }
-
-        /**
-         * The main callback, a dispatcher that calls specialized handlers.
-         * @param {MutationRecord[]} mutations
-         */
-        _handleMainMutations(mutations) {
-            this._garbageCollectPendingTurns(mutations);
-            this._dispatchNodeAddedTasks(mutations);
-            this._checkPendingTurns();
-            this.debouncedCacheUpdate();
-            // *** [Platform Specific] START ***
-            this.debouncedVisibilityCheck();
-            // *** [Platform Specific] END ***
-        }
-
-        /**
-         * Handles tasks for newly added nodes.
-         * @param {MutationRecord[]} mutations
-         */
-        _dispatchNodeAddedTasks(mutations) {
-            for (const mutation of mutations) {
-                if (mutation.type === 'childList' && mutation.addedNodes.length) {
-                    for (const addedNode of mutation.addedNodes) {
-                        if (addedNode.nodeType !== Node.ELEMENT_NODE) continue;
-                        // Process tasks for the added node itself and its descendants
-                        for (const task of this.registeredNodeAddedTasks) {
-                            if (addedNode.matches(task.selector)) {
-                                task.callback(addedNode);
-                            }
-                            addedNode.querySelectorAll(task.selector).forEach(task.callback);
-                        }
-                    }
-                }
-            }
-        }
-
-        /**
-         * Removes any pending turn nodes that have been removed from the DOM to prevent memory leaks.
-         * @param {MutationRecord[]} mutations
-         * @private
-         */
-        _garbageCollectPendingTurns(mutations) {
-            if (this.pendingTurnNodes.size === 0) return;
-            for (const mutation of mutations) {
-                if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
-                    for (const removedNode of mutation.removedNodes) {
-                        if (removedNode.nodeType !== Node.ELEMENT_NODE) continue;
-                        // Check if the removed node itself was a pending turn
-                        if (this.pendingTurnNodes.has(removedNode)) {
-                            this.pendingTurnNodes.delete(removedNode);
-                        }
-
-                        // Check if any descendants of the removed node were pending turns
-                        const descendantTurns = removedNode.querySelectorAll(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER);
-                        for (const turnNode of descendantTurns) {
-                            if (this.pendingTurnNodes.has(turnNode)) {
-                                this.pendingTurnNodes.delete(turnNode);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        /**
-         * Checks if a conversation turn is complete.
-         * @param {HTMLElement} turnNode
-         * @returns {boolean}
-         * @private
-         */
-        _isTurnComplete(turnNode) {
-            // A turn is complete if it's a user message, or if it's an assistant
-            // message that has rendered its action buttons.
-            const userMessage = turnNode.querySelector(CONSTANTS.SELECTORS.USER_MESSAGE);
-            const assistantActions = turnNode.querySelector(CONSTANTS.SELECTORS.TURN_COMPLETE_SELECTOR);
-            return !!(userMessage || assistantActions);
-        }
-
-        /**
-         * Checks all pending conversation turns for completion.
-         * @private
-         */
-        _checkPendingTurns() {
-            if (this.pendingTurnNodes.size === 0) return;
-            for (const turnNode of this.pendingTurnNodes) {
-                // For streaming turns, continuously inject avatars to handle React re-renders.
-                const allElementsInTurn = turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
-                allElementsInTurn.forEach(elem => {
-                    EventBus.publish(`${APPID}:avatarInject`, elem);
-                });
-
-                if (this._isTurnComplete(turnNode)) {
-                    // Re-run messageComplete event for all elements in the now-completed turn
-                    allElementsInTurn.forEach(elem => {
-                        EventBus.publish(`${APPID}:messageComplete`, elem);
-                    });
-                    EventBus.publish(`${APPID}:turnComplete`, turnNode);
-
-                    this.debouncedNavUpdate();
-                    this.pendingTurnNodes.delete(turnNode);
-                }
-            }
-        }
-
-        async start() {
-            const container = await waitForElement(CONSTANTS.SELECTORS.MAIN_APP_CONTAINER);
-            if (!container) {
-                console.error(`${LOG_PREFIX} Main container not found. Observer not started.`);
-                return;
-            }
-
-            this.mainObserver = new MutationObserver(this._handleMainMutations.bind(this));
-            this.mainObserver.observe(document.body, { childList: true, subtree: true });
-
-            this.startConversationTurnObserver();
-            this.startGlobalTitleObserver();
-            this.startSidebarObserver();
-            this.startURLChangeObserver();
-            window.addEventListener('resize', this.debouncedLayoutRecalculate);
-        }
-
-        /**
-         * @private
-         * @description Sets up the monitoring for conversation turns.
-         */
-        startConversationTurnObserver() {
-            // Register a task for newly added turn nodes.
-            this.registerNodeAddedTask(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER, (turnNode) => {
-                this._processTurnSingle(turnNode);
-            });
-            // Initial batch processing for all existing turnNodes on page load.
-            this.scanForExistingTurns();
-        }
-
-        /**
-         * @private
-         * @description Sets up the monitoring for title changes.
-         */
-        startGlobalTitleObserver() {
-            // Not required for Gemini
-        }
-
-        /**
-         * @private
-         * @description Sets up a targeted observer on the sidebar for title and selection changes.
-         */
-        async startSidebarObserver() {
-            const sidebar = await waitForElement(CONSTANTS.SELECTORS.SIDEBAR_WIDTH_TARGET);
-            if (!sidebar) {
-                console.warn(LOG_PREFIX, 'Sidebar element not found for targeted observation.');
-                return;
-            }
-
-            const debouncedThemeUpdate = debounce(() => EventBus.publish(`${APPID}:themeUpdate`), 150);
-            const sidebarObserver = new MutationObserver(() => {
-                debouncedThemeUpdate();
-            });
-            sidebarObserver.observe(sidebar, {
-                childList: true,
-                subtree: true,
-                attributes: true,
-                characterData: true,
-                attributeFilter: ['class']
-            });
-            debouncedThemeUpdate();
-        }
-
-        /**
-         * @private
-         * @description Sets up the monitoring for URL changes.
-         */
-        startURLChangeObserver() {
-            let lastHref = location.href;
-            const handler = () => {
-                if (location.href !== lastHref) {
-                    lastHref = location.href;
-                    this.cleanupPendingTurns();
-                    EventBus.publish(`${APPID}:themeUpdate`);
-                    EventBus.publish(`${APPID}:navigation`);
-                    // Give the DOM a moment to settle after navigation, then re-scan existing turns.
-                    setTimeout(() => this.scanForExistingTurns(), 200);
-                }
-            };
-            for (const m of ['pushState', 'replaceState']) {
-                const orig = history[m];
-                history[m] = function(...args) {
-                    orig.apply(this, args);
-                    handler();
-                };
-            }
-            window.addEventListener('popstate', handler);
-        }
-
-        /**
-         * Processes a single turnNode, adding it to the pending queue if it's not already complete.
-         * @param {HTMLElement} turnNode
-         */
-        _processTurnSingle(turnNode) {
-            if (turnNode.nodeType !== Node.ELEMENT_NODE || this.pendingTurnNodes.has(turnNode)) return;
-
-            // --- Initial State Processing ---
-            const messageElements = turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
-            messageElements.forEach(elem => {
-                EventBus.publish(`${APPID}:avatarInject`, elem);
-            });
-
-            if (this._isTurnComplete(turnNode)) {
-                // If the turn is already complete when we first see it, process it immediately.
-                messageElements.forEach(elem => {
-                    EventBus.publish(`${APPID}:messageComplete`, elem);
-                });
-                EventBus.publish(`${APPID}:turnComplete`, turnNode);
-                this.debouncedNavUpdate();
-            } else {
-                // Otherwise, add it to the pending list to be checked by the main observer.
-                this.pendingTurnNodes.add(turnNode);
-            }
-        }
-    }
-
-    // =================================================================================
     // SECTION: Main Application Controller
     // =================================================================================
 
@@ -6233,12 +6390,15 @@
             this.observerManager = new ObserverManager();
             this.debugManager = new DebugManager(this);
 
+            // Create the central message cache manager first
+            this.messageCacheManager = new MessageCacheManager();
             this.avatarManager = new AvatarManager(this.configManager);
             this.standingImageManager = new StandingImageManager(this.configManager);
             this.themeManager = new ThemeManager(this.configManager, this.imageDataManager, this.standingImageManager);
-            this.collapsibleBubbleManager = new CollapsibleBubbleManager(this.configManager);
-            this.scrollToTopManager = new ScrollToTopManager(this.configManager);
-            this.sequentialNavManager = new SequentialNavManager(this.configManager);
+            this.collapsibleBubbleManager = new CollapsibleBubbleManager(this.configManager, this.messageCacheManager);
+            this.scrollToTopManager = new ScrollToTopManager(this.configManager, this.messageCacheManager);
+            // Inject the cache manager into components that need it
+            this.sequentialNavManager = new SequentialNavManager(this.configManager, this.messageCacheManager);
             this.fixedNavManager = null;
             this.bulkCollapseManager = new BulkCollapseManager(this.configManager);
         }
@@ -6246,6 +6406,9 @@
         async init() {
             await this.configManager.load();
             this._ensureUniqueThemeIds(this.configManager.get());
+
+            // Initialize the cache manager after config is loaded
+            this.messageCacheManager.init();
             this.avatarManager.init();
             this.standingImageManager.init();
             this.collapsibleBubbleManager.init();
@@ -6253,11 +6416,13 @@
             this.sequentialNavManager.init();
             this.uiManager.init();
             if (this.configManager.get().features.fixed_nav_console.enabled) {
-                this.fixedNavManager = new FixedNavigationManager();
+                // Inject the cache manager
+                this.fixedNavManager = new FixedNavigationManager(this.messageCacheManager);
                 await this.fixedNavManager.init();
+                // Provide the nav manager instance to the bulk collapse manager
+                this.bulkCollapseManager.setFixedNavManager(this.fixedNavManager);
             }
             this.bulkCollapseManager.init();
-
             // Wire up the themeManager callback to the uiManager after all instances are created
             if (this.uiManager.settingsPanel) {
                 this.uiManager.settingsPanel.callbacks.getCurrentThemeSet = () => this.themeManager.getThemeSet();
@@ -6401,11 +6566,17 @@
 
                 const navConsoleEnabled = completeConfig.features.fixed_nav_console.enabled;
                 if (navConsoleEnabled && !this.fixedNavManager) {
-                    this.fixedNavManager = new FixedNavigationManager();
+                    this.fixedNavManager = new FixedNavigationManager(this.messageCacheManager);
                     await this.fixedNavManager.init();
+                    // Explicitly notify the new instance with the current cache state
+                    this.messageCacheManager.notify();
+                    // Provide the new instance to the bulk collapse manager
+                    this.bulkCollapseManager.setFixedNavManager(this.fixedNavManager);
                 } else if (!navConsoleEnabled && this.fixedNavManager) {
                     this.fixedNavManager.destroy();
                     this.fixedNavManager = null;
+                    // Clear the instance from the bulk collapse manager
+                    this.bulkCollapseManager.setFixedNavManager(null);
                 }
 
             } catch (e) {
@@ -6458,20 +6629,10 @@
 
     }
 
-    /**
-     * Applies platform specific fixes.
-     * This function is platform-specific.
-     * @param {ThemeAutomator} automatorInstance - The main controller instance.
-     */
-    function applyPlatformSpecificFixes(automatorInstance) {
-        // Not required for Gemini
-        return;
-    }
-
     // ---- Script Entry Point ----
     const automator = new ThemeAutomator();
     automator.init().then(() => {
-        applyPlatformSpecificFixes(automator);
+        PlatformAdapter.applyFixes(automator);
     });
 
     // ---- Debugging ----

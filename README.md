@@ -15,18 +15,20 @@
 ### ChatGPT UX Customizer
 
 [![Download](https://img.shields.io/badge/Download-ChatGPT_UX_Customizer.user.js-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/ChatGPT-UX-Customizer/ChatGPT-UX-Customizer.user.js)
-![version](https://img.shields.io/badge/version-1.0.0-blue)
+![version](https://img.shields.io/badge/version-1.1.0-blue)
 
-Last updated: **2025/07/21** [View changelog](./scripts/ChatGPT-UX-Customizer/CHANGELOG_GPTUX.md)
+Last updated: **2025/07/26**  
+[View changelog](./scripts/ChatGPT-UX-Customizer/CHANGELOG_GPTUX.md)
 
 ---
 
 ### Gemini UX Customizer
 
 [![Download](https://img.shields.io/badge/Download-Gemini_UX_Customizer.user.js-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/Gemini-UX-Customizer/Gemini-UX-Customizer.user.js)
-![version](https://img.shields.io/badge/version-1.0.0-blue)
+![version](https://img.shields.io/badge/version-1.1.0-blue)
 
-Last updated: **2025/07/21** [View changelog](./scripts/Gemini-UX-Customizer/CHANGELOG_GGGUX.md)
+Last updated: **2025/07/26**  
+[View changelog](./scripts/Gemini-UX-Customizer/CHANGELOG_GGGUX.md)
 
 ---
 
@@ -156,6 +158,7 @@ Try modifying these settings to your liking. Using the GUI theme editor is an ea
 ## Notes & Limitations
 
   * **You can specify local images for image fields in theme settings, but please do not overuse this feature.** It can lead to bloated configuration JSON and degraded performance. Whenever possible, specify online resources. The main purpose of this feature is to easily check how your local images appear when applied to a theme. While it can also be used for images you prefer not to host online, please limit its use to around 3-5 themes.
+  * This script uses the special permission `GM_xmlhttpRequest` to load external resources (such as background and standing images) without being restricted by a website's Content Security Policy (CSP). When loading images from external sites, a dialog requesting access permission for the content will appear, so please approve it for use.
   * **If the AI service's UI or page structure undergoes major changes, the script may stop working.**
   * It has been tested on Firefox. It has also been confirmed to work on Chrome-based browsers, but less extensively.
   * Only the latest version of each script is provided. Past versions can be referenced from Git history. This repository does not use release or tag features.

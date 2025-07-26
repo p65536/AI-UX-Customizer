@@ -51,7 +51,7 @@
       },
       "window": {
         "backgroundColor": "#151b22",
-        "backgroundImageUrl": "https://p65536.github.io/p65536/images/sample_bg_001.webp",
+        "backgroundImageUrl": "https://raw.githubusercontent.com/p65536/p65536/main/images/sample_bg_001.webp",
         "backgroundSize": "cover",
         "backgroundPosition": "center center",
         "backgroundRepeat": "no-repeat"
@@ -93,7 +93,7 @@
       },
       "window": {
         "backgroundColor": "#181a1c",
-        "backgroundImageUrl": "https://p65536.github.io/p65536/images/sample_bg_002.webp",
+        "backgroundImageUrl": "https://raw.githubusercontent.com/p65536/p65536/main/images/sample_bg_002.webp",
         "backgroundSize": "cover",
         "backgroundPosition": "center center",
         "backgroundRepeat": "no-repeat"
@@ -113,29 +113,29 @@
       },
       "assistant": {
         "name": "Game Master",
-        "icon": "https://p65536.github.io/p65536/images/sample_icon_dice.webp",
+        "icon": "https://raw.githubusercontent.com/p65536/p65536/main/images/sample_icon_dice.webp",
         "textColor": "#b0c4de",
         "font": "'Segoe UI', 'Yu Gothic UI', 'Meiryo', sans-serif",
         "bubbleBackgroundColor": "rgb(35 34 28 / 0.7)",
         "bubblePadding": "10px 14px",
         "bubbleBorderRadius": "16px",
         "bubbleMaxWidth": "100%",
-        "standingImageUrl": "https://p65536.github.io/p65536/images/sample_standing_wizard.webp"
+        "standingImageUrl": "https://raw.githubusercontent.com/p65536/p65536/main/images/sample_standing_wizard.webp"
       },
       "user": {
         "name": "Player",
-        "icon": "https://p65536.github.io/p65536/images/sample_icon_fighter.webp",
+        "icon": "https://raw.githubusercontent.com/p65536/p65536/main/images/sample_icon_fighter.webp",
         "textColor": "#efb810",
         "font": "'Meiryo', 'Yu Gothic UI', 'Segoe UI', sans-serif",
         "bubbleBackgroundColor": "rgb(53 51 44 / 0.7)",
         "bubblePadding": "10px 14px",
         "bubbleBorderRadius": "16px",
         "bubbleMaxWidth": "70%",
-        "standingImageUrl": "https://p65536.github.io/p65536/images/sample_standing_sword.webp"
+        "standingImageUrl": "https://raw.githubusercontent.com/p65536/p65536/main/images/sample_standing_sword.webp"
       },
       "window": {
         "backgroundColor": "#201e1a",
-        "backgroundImageUrl": "https://p65536.github.io/p65536/images/sample_bg_003.webp",
+        "backgroundImageUrl": "https://raw.githubusercontent.com/p65536/p65536/main/images/sample_bg_003.webp",
         "backgroundSize": "cover",
         "backgroundPosition": "center center",
         "backgroundRepeat": "no-repeat"
