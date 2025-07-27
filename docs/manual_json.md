@@ -147,9 +147,9 @@ The following is a sample to illustrate the JSON structure. **Ready-to-use sampl
 
 | Property Name | Description | Example | Notes/Allowed Values |
 | --- | --- | --- | --- |
-| `icon_size` | Icon size | `64` | Number. Default is `64`.\<br\>Values `64`, `96`, `128`, `160`, `192` are specified as allowed values for balanced display.  |
-| `chat_content_max_width` | Max width of the chat content area. | `'70vw'` | A valid CSS `max-width` value as a string. However, this script is limited to `vw` units.\<br\>Blank or `null` for the AI service's default.  |
-| `respect_avatar_space` | Whether to consider avatar icon space when displaying standing images.  | `true` | `true`: Standing images are adjusted so they don't overlap avatar icons.\<br\>`false`: Standing images may overlap avatar icons. Set to `false` if you want to maximize standing image display size.\<br\>Default is `true`.  |
+| `icon_size` | Icon size | `64` | Number. Default is `64`.<br>Values `64`, `96`, `128`, `160`, `192` are specified as allowed values for balanced display.  |
+| `chat_content_max_width` | Max width of the chat content area. | `'70vw'` | A valid CSS `max-width` value as a string. However, this script is limited to `vw` units.<br>Blank or `null` for the AI service's default.  |
+| `respect_avatar_space` | Whether to consider avatar icon space when displaying standing images.  | `true` | `true`: Standing images are adjusted so they don't overlap avatar icons.<br>`false`: Standing images may overlap avatar icons. Set to `false` if you want to maximize standing image display size.<br>Default is `true`.  |
 
 -----
 
@@ -159,10 +159,10 @@ Configure ON/OFF and thresholds for convenient UI improvement features.
 
 | Property Name | Description | Example | Notes/Allowed Values |
 | --- | --- | --- | --- |
-| `collapsible_button` | Displays a button to collapse messages at the top of each message bubble.  | `{ "enabled": true }` | `true`/`false`\<br\>Displays on the top-left for assistant and top-right for user.\<br\>Note: For Gemini, user bubbles have a standard collapse button, so this script does not process user bubbles for Gemini.\<br\>When this feature is enabled, a button to toggle the collapse state of all messages is displayed to the right of the message input field.  |
-| `scroll_to_top_button` | Displays a button to scroll to the top of a message (or turn) at the bottom of each message bubble.  | `{ "enabled": true }` | `true`/`false`\<br\>Displays on the bottom-left for assistant and bottom-right for user.  |
-| `sequential_nav_buttons` | Displays buttons next to each message bubble to jump to the next/previous message from the same author (user or assistant).  | `{ "enabled": true }` | `true`/`false`\<br\>Displays on the top-left for assistant and top-right for user.  |
-| `fixed_nav_console` | Displays an integrated navigation console at the top of the message input field.  | `{ "enabled": true }` | `true`/`false`\<br\>Displays a console bar consolidating navigation-related features for efficient message movement.  |
+| `collapsible_button` | Displays a button to collapse messages at the top of each message bubble.  | `{ "enabled": true }` | `true`/`false`<br>Displays on the top-left for assistant and top-right for user.<br>Note: For Gemini, user bubbles have a standard collapse button, so this script does not process user bubbles for Gemini.<br>When this feature is enabled, a button to toggle the collapse state of all messages is displayed to the right of the message input field.  |
+| `scroll_to_top_button` | Displays a button to scroll to the top of a message (or turn) at the bottom of each message bubble.  | `{ "enabled": true }` | `true`/`false`<br>Displays on the bottom-left for assistant and bottom-right for user.  |
+| `sequential_nav_buttons` | Displays buttons next to each message bubble to jump to the next/previous message from the same author (user or assistant).  | `{ "enabled": true }` | `true`/`false`<br>Displays on the top-left for assistant and top-right for user.  |
+| `fixed_nav_console` | Displays an integrated navigation console at the top of the message input field.  | `{ "enabled": true }` | `true`/`false`<br>Displays a console bar consolidating navigation-related features for efficient message movement.  |
 
 -----
 
@@ -178,7 +178,7 @@ At the beginning of each theme object, describe the theme's information in `meta
 | --- | --- | --- | --- |
 | `id` | Unique ID for the theme | `"gptux-theme-12345"` | An ID for internal management by the script. You usually don't need to edit this. It is automatically assigned when a new theme is created in the theme editor. Even if duplicate IDs exist in the JSON, duplicates will be automatically avoided upon import.  |
 | `name` | Theme name | `"My Project Theme"` | The name displayed in the theme editor's dropdown. Use a descriptive name.  |
-| `matchPatterns` | Theme application conditions  | `[ "/myproject/i", "/^Project\\\\d+/" ]` | An **array of regular expression strings**. The theme is applied if the window title matches these conditions.\<br\>**Backslashes (\\) must be escaped twice (\\\\) in the JSON.**\<br\>\<br\>**Examples:**\<br\>- Contains `"myproject"` (case-insensitive with `/i`)\<br\>- Starts with `"Project"` followed by a number  |
+| `matchPatterns` | Theme application conditions  | `[ "/myproject/i", "/^Project\\\\d+/" ]` | An **array of regular expression strings**. The theme is applied if the window title matches these conditions.<br>**Backslashes (\\) must be escaped twice (\\\\) in the JSON.**<br><br>**Examples:**<br>- Contains `"myproject"` (case-insensitive with `/i`)<br>- Starts with `"Project"` followed by a number  |
 
 -----
 
@@ -187,9 +187,9 @@ At the beginning of each theme object, describe the theme's information in `meta
 | Property Name | Description | Example | Notes/Allowed Values |
 | --- | --- | --- | --- |
 | `name` | Display name | `"You"`, `"AI Service"` | String  |
-| `icon` | Icon image | `"https://.../icon.png"`\<br\>`"<svg>..."` | URL, SVG code, Base64, etc.\<br\>When editing JSON directly, `"` in SVG code must be escaped as `\"`.  |
-| `standingImageUrl` | Standing image URL | `"https://.../sample.png"` | Corresponding CSS property: `background-image` format.\<br\>Can be a single URL or combined with `linear-gradient`, etc.  |
-| `textColor` | Text color | `"#89c4f4"` | CSS color code (\# notation/rgb()/name, etc.)\<br\>Corresponding CSS property: `color`  |
+| `icon` | Icon image | `"https://.../icon.png"`<br>`"<svg>..."` | URL, SVG code, Base64, etc.<br>When editing JSON directly, `"` in SVG code must be escaped as `\"`.  |
+| `standingImageUrl` | Standing image URL | `"https://.../sample.png"` | Corresponding CSS property: `background-image` format.<br>Can be a single URL or combined with `linear-gradient`, etc.  |
+| `textColor` | Text color | `"#89c4f4"` | CSS color code (\# notation/rgb()/name, etc.)<br>Corresponding CSS property: `color`  |
 | `font` | Font for the bubble | `"Meiryo, sans-serif"` | CSS font declaration  |
 | `bubbleBackgroundColor` | Bubble background color | `"#222833"` | Corresponding CSS property: `background-color`  |
 | `bubblePadding` | Bubble inner padding | `"10px 14px"` | Corresponding CSS property: `padding`  |
@@ -203,7 +203,7 @@ At the beginning of each theme object, describe the theme's information in `meta
 | Property Name | Description | Example | Notes/Allowed Values |
 | --- | --- | --- | --- |
 | `backgroundColor` | Chat window background color | `"#11131c"` | Corresponding CSS property: `background-color`  |
-| `backgroundImageUrl` | Chat window background image | `"https://.../bg.png"` | Corresponding CSS property: `background-image` format.\<br\>Can be a single URL or combined with `linear-gradient`, etc.  |
+| `backgroundImageUrl` | Chat window background image | `"https://.../bg.png"` | Corresponding CSS property: `background-image` format.<br>Can be a single URL or combined with `linear-gradient`, etc.  |
 | `backgroundSize` | Background image size | `"cover"`, `"contain"` | Corresponding CSS property: `background-size`  |
 | `backgroundPosition` | Background image position | `"center center"` | Corresponding CSS property: `background-position`  |
 | `backgroundRepeat` | Background image repeat setting | `"no-repeat"`, `"repeat"` | Corresponding CSS property: `background-repeat`  |
