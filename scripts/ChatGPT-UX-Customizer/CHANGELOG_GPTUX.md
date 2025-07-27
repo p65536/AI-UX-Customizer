@@ -1,6 +1,11 @@
 # Changelog
 
-## [1.1.0] - 2025-07-23
+## [1.1.1] - 2025-07-27
+- **Stability Improvement:** Fixed a stability issue in Firefox environments where the UI (e.g., settings button) would sometimes fail to display or function correctly on initial page load.
+  - **Cause:** Likely due to a race condition caused by conflicts with the site's UI rendering process.
+  - **Solution:** Revised the initialization logic to ensure the script starts only after the site's UI is fully interactive.
+
+## [1.1.0] - 2025-07-26
 - Changed the order of items on the theme settings screen. The order is now `background color` -> `text color` (background color is now listed first in all blocks).
 - Adjusted the "Collapse/Expand All" toggle to ensure the currently highlighted message remains in view.
 - **Implemented and optimized message caching**: Introduced a message caching mechanism to improve the efficiency of retrieving and managing message elements. This enhances overall script performance and makes features such as message collapsing, scrolling, and sequential navigation smoother.

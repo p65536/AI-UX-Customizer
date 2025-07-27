@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.1.0
+// @version      1.1.1
 // @license      MIT
 // @description  Automatically applies a theme based on the chat name (changes user/assistant names, text color, icon, bubble style, window background, input area style, standing images, etc.)
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=gemini.google.com
@@ -6377,6 +6377,54 @@
     // SECTION: Main Application Controller
     // =================================================================================
 
+    /**
+     * @class Sentinel
+     * @description Detects DOM node insertion using a CSS animation trick.
+     */
+    class Sentinel {
+        constructor() {
+            this.animationName = `${APPID}-sentinel-animation-${Date.now()}`;
+            this.listeners = new Map();
+            this._injectStyle();
+            document.addEventListener('animationstart', this._handleAnimationStart.bind(this), true);
+        }
+
+        _injectStyle() {
+            const styleId = `${APPID}-sentinel-style`;
+            if (document.getElementById(styleId)) return;
+            const style = h('style', {
+                id: styleId,
+                textContent: `@keyframes ${this.animationName} { from { transform: none; } to { transform: none; } }`
+            });
+            document.head.appendChild(style);
+        }
+
+        _handleAnimationStart(event) {
+            if (event.animationName !== this.animationName) return;
+            event.stopImmediatePropagation();
+            const target = event.target;
+            if (!target) return;
+
+            for (const [selector, callbacks] of this.listeners.entries()) {
+                if (target.matches(selector)) {
+                    callbacks.forEach(cb => cb(target));
+                }
+            }
+        }
+
+        on(selector, callback) {
+            if (!this.listeners.has(selector)) {
+                this.listeners.set(selector, []);
+                const style = h('style', {
+                    className: `${APPID}-sentinel-rule`,
+                    textContent: `${selector} { animation-duration: 0.001s; animation-name: ${this.animationName}; }`
+                });
+                document.head.appendChild(style);
+            }
+            this.listeners.get(selector).push(callback);
+        }
+    }
+
     class ThemeAutomator {
         constructor() {
             this.dataConverter = new DataConverter();
@@ -6631,8 +6679,22 @@
 
     // ---- Script Entry Point ----
     const automator = new ThemeAutomator();
-    automator.init().then(() => {
-        PlatformAdapter.applyFixes(automator);
+    const sentinel = new Sentinel();
+
+    // Use the text input area as a reliable signal that the UI is fully interactive.
+    const ANCHOR_SELECTOR = CONSTANTS.SELECTORS.INPUT_TEXT_FIELD_TARGET;
+    let isInitialized = false;
+
+    // Use the Sentinel to wait for the main UI container to appear.
+    sentinel.on(ANCHOR_SELECTOR, () => {
+        // Run the full initialization only once.
+        if (isInitialized) return;
+        isInitialized = true;
+
+        console.log(LOG_PREFIX, 'Main UI anchor detected. Initializing script...');
+        automator.init().then(() => {
+            PlatformAdapter.applyFixes(automator);
+        });
     });
 
     // ---- Debugging ----
@@ -6646,7 +6708,7 @@
                     typeof automator.debugManager[key] === 'function' &&
                     key !== 'constructor' &&
                     !key.startsWith('_')
-                   );
+                );
 
             for (const key of methodNames) {
                 debugApi[key] = automator.debugManager[key].bind(automator.debugManager);

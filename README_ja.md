@@ -16,9 +16,9 @@
 
 [![Download](https://img.shields.io/badge/Download-ChatGPT_UX_Customizer.user.js-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/ChatGPT-UX-Customizer/ChatGPT-UX-Customizer.user.js)
 [![Greasy Fork](https://img.shields.io/badge/Greasy%20Fork-install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/ja/scripts/543703-chatgpt-ux-customizer)
-![version](https://img.shields.io/badge/version-1.1.0-blue)
+![version](https://img.shields.io/badge/version-1.1.1-blue)
 
-最終更新日: **2025/07/26**  
+最終更新日: **2025/07/27**  
 [変更履歴はこちら](./scripts/ChatGPT-UX-Customizer/CHANGELOG_GPTUX_ja.md)
 
 ---
@@ -27,9 +27,9 @@
 
 [![Download](https://img.shields.io/badge/Download-Gemini_UX_Customizer.user.js-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/Gemini-UX-Customizer/Gemini-UX-Customizer.user.js)
 [![Greasy Fork](https://img.shields.io/badge/Greasy%20Fork-install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/ja/scripts/543704-gemini-ux-customizer)
-![version](https://img.shields.io/badge/version-1.1.0-blue)
+![version](https://img.shields.io/badge/version-1.1.1-blue)
 
-最終更新日: **2025/07/26**  
+最終更新日: **2025/07/27**  
 [変更履歴はこちら](./scripts/Gemini-UX-Customizer/CHANGELOG_GGGUX_ja.md)
 
 ---

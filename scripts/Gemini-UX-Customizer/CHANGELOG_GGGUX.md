@@ -1,6 +1,9 @@
 # Changelog
 
-## [1.1.0] - 2025-07-23
+## [1.1.1] - 2025-07-27
+- **Stability Improvement:** Proactively applied the stability enhancements from `ChatGPT UX Customizer` v1.1.1 to this script.
+
+## [1.1.0] - 2025-07-26
 - Changed the order of items on the theme settings screen. The order is now `background color` -> `text color` (background color is now listed first in all blocks).
 - Adjusted the "Collapse/Expand All" toggle to ensure the currently highlighted message remains in view.
 - **Implemented and optimized message caching**: Introduced a message caching mechanism to improve the efficiency of retrieving and managing message elements. This enhances overall script performance and makes features such as message collapsing, scrolling, and sequential navigation smoother.
