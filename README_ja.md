@@ -33,8 +33,8 @@
 
 | 対象 | GitHub | Greasy Fork | バージョン | 最終更新日 | 変更履歴 |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **ChatGPT** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/UX-Customizer/ChatGPT-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/ja/scripts/543703-chatgpt-ux-customizer) | 1.2.0 | 2025/08/05 | [参照](./docs/UX-Customizer/CHANGELOG_GPTUX_ja.md) |
-| **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/UX-Customizer/Gemini-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/ja/scripts/543704-gemini-ux-customizer) | 1.2.0 | 2025/08/05 | [参照](./docs/UX-Customizer/CHANGELOG_GGGUX_ja.md) |
+| **ChatGPT** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/UX-Customizer/ChatGPT-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/543703-chatgpt-ux-customizer) | 1.2.0 | 2025/08/05 | [参照](./docs/UX-Customizer/CHANGELOG_GPTUX_ja.md) |
+| **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/UX-Customizer/Gemini-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/543704-gemini-ux-customizer) | 1.2.0 | 2025/08/05 | [参照](./docs/UX-Customizer/CHANGELOG_GGGUX_ja.md) |
 
 **[UX Customizer の詳細はこちら](./docs/UX-Customizer/README_ja.md)**
 
@@ -48,7 +48,7 @@
 
 | 対象 | GitHub | Greasy Fork | バージョン | 最終更新日 | 変更履歴 |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **ChatGPT** & **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/Quick-Text-Buttons/Quick-Text-Buttons.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/ja/scripts/xxxxxx-quick-text-buttons) | 1.0.0 | 2025/08/05 | [参照](./docs/Quick-Text-Buttons/CHANGELOG_QTBUX_ja.md) |
+| **ChatGPT** & **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/Quick-Text-Buttons/Quick-Text-Buttons.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/544699-quick-text-buttons) | 1.0.0 | 2025/08/05 | [参照](./docs/Quick-Text-Buttons/CHANGELOG_QTBUX_ja.md) |
 
 **[Quick Text Buttons の詳細はこちら](./docs/Quick-Text-Buttons/README_ja.md)**
 
