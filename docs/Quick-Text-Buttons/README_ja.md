@@ -56,7 +56,7 @@
 
 ## サンプル設定
 
-一番簡単な始め方は、[サンプル](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/samples/Quick-Text-Buttons/text_presets.json)をインポートして、内容を自分好みに変更してみることです。  
+一番簡単な始め方は、[サンプル](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/samples/Quick-Text-Buttons/text_presets_ja.json)をインポートして、内容を自分好みに変更してみることです。  
 上記リンクのサンプルJSONを、スクリプトの設定画面（JSONモーダル）でインポートしてください。
 
 ---
