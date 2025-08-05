@@ -1,7 +1,18 @@
 # Changelog
 
+## [1.2.0] - 2025-08-05
+- **New Features**: Added a feature to automatically synchronize settings when the script is used across multiple tabs.
+- **Improvement**: Enhanced the theme preview feature. Unset items now inherit values from the user-defined default theme (`defaultSet`), making the preview more accurate and WYSIWYG.
+- **Improvement**: Improved the UI for changing theme names, allowing for inline editing.
+- Switched from using emojis to SVGs for various icons.
+- Improved the initialization logic to enhance stability.
+- Fixed a bug related to CSS where some settings were not being applied as intended.
+- **Internal Code Improvements**: Other improvements to internal processing.
+
 ## [1.1.1] - 2025-07-27
-- **Stability Improvement:** Proactively applied the stability enhancements from `ChatGPT UX Customizer` v1.1.1 to this script.
+- **Stability Improvement:** Fixed a stability issue in Firefox environments where the UI (e.g., settings button) would sometimes fail to display or function correctly on initial page load.
+  - **Cause:** Likely due to a race condition caused by conflicts with the site's UI rendering process.
+  - **Solution:** Revised the initialization logic to ensure the script starts only after the site's UI is fully interactive.
 
 ## [1.1.0] - 2025-07-26
 - Changed the order of items on the theme settings screen. The order is now `background color` -> `text color` (background color is now listed first in all blocks).

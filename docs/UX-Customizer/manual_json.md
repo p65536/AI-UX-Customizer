@@ -14,7 +14,7 @@ Refer to this page if you get stuck during customization.
 
 ## JSON Structure
 
-The following is a sample to illustrate the JSON structure. **Ready-to-use samples for copy-pasting or importing** are available in the [`samples`](../samples) folder. 
+The following is a sample to illustrate the JSON structure. **Ready-to-use samples for copy-pasting or importing** are available in the [`samples`](../../samples/UX-Customizer) folder. 
 
 ```json
 {

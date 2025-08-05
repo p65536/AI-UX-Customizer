@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.1.1
+// @version      1.2.0
 // @license      MIT
 // @description  Automatically applies a theme based on the chat name (changes user/assistant names, text color, icon, bubble style, window background, input area style, standing images, etc.)
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=gemini.google.com
@@ -9,6 +9,7 @@
 // @match        https://gemini.google.com/*
 // @grant        GM_setValue
 // @grant        GM_getValue
+// @grant        GM_addValueChangeListener
 // @grant        GM_xmlhttpRequest
 // @connect      raw.githubusercontent.com
 // @connect      *
@@ -23,11 +24,70 @@
     // SECTION: Platform-Specific Definitions (DO NOT COPY TO OTHER PLATFORM)
     // =================================================================================
 
-    // ★★★ Change this ID to switch platforms ★★★
+    const OWNERID = 'p65536';
     const APPID = 'gggux';
     const APPNAME = 'Gemini UX Customizer';
     const ASSISTANT_NAME = 'Gemini';
     const LOG_PREFIX = `[${APPID.toUpperCase()}]`;
+
+    // =================================================================================
+    // SECTION: Logging Utility
+    // Description: Centralized logging interface for consistent log output across modules.
+    //              Handles log level control, message formatting, and console API wrapping.
+    // =================================================================================
+
+    const Logger = {
+        /** @property {object} levels - Defines the numerical hierarchy of log levels. */
+        levels: {
+            error: 0,
+            warn: 1,
+            info: 2,
+            log: 3,
+        },
+        /** @property {string} level - The current active log level. */
+        level: 'log', // Default level
+        /**
+         * Sets the current log level.
+         * @param {string} level The new log level. Must be one of 'error', 'warn', 'info', 'log'.
+         */
+        setLevel(level) {
+            if (Object.prototype.hasOwnProperty.call(this.levels, level)) {
+                this.level = level;
+            } else {
+                console.warn(LOG_PREFIX, `Invalid log level "${level}". Valid levels are: ${Object.keys(this.levels).join(', ')}. Level not changed.`);
+            }
+        },
+        /** @param {...any} args The messages or objects to log. */
+        error(...args) {
+            if (this.levels[this.level] >= this.levels.error) {
+                console.error(LOG_PREFIX, ...args);
+            }
+        },
+        /** @param {...any} args The messages or objects to log. */
+        warn(...args) {
+            if (this.levels[this.level] >= this.levels.warn) {
+                console.warn(LOG_PREFIX, ...args);
+            }
+        },
+        /** @param {...any} args The messages or objects to log. */
+        info(...args) {
+            if (this.levels[this.level] >= this.levels.info) {
+                console.info(LOG_PREFIX, ...args);
+            }
+        },
+        /** @param {...any} args The messages or objects to log. */
+        log(...args) {
+            if (this.levels[this.level] >= this.levels.log) {
+                console.log(LOG_PREFIX, ...args);
+            }
+        },
+        /** @param {...any} args The title for the log group. */
+        group: (...args) => console.group(LOG_PREFIX, ...args),
+        /** @param {...any} args The title for the collapsed log group. */
+        groupCollapsed: (...args) => console.groupCollapsed(LOG_PREFIX, ...args),
+        /** Closes the current log group. */
+        groupEnd: () => console.groupEnd(),
+    };
 
     // =================================================================================
     // SECTION: Execution Guard
@@ -200,7 +260,7 @@
         static async start(instance) {
             const container = await waitForElement(this.SELECTORS.MAIN_APP_CONTAINER);
             if (!container) {
-                console.error(`${LOG_PREFIX} Main container not found. Observer not started.`);
+                Logger.error('Main container not found. Observer not started.');
                 return;
             }
 
@@ -290,7 +350,7 @@
         static async startSidebarObserver(instance) {
             const sidebar = await waitForElement(this.SELECTORS.SIDEBAR_WIDTH_TARGET);
             if (!sidebar) {
-                console.warn(LOG_PREFIX, 'Sidebar element not found for targeted observation.');
+                Logger.warn('Sidebar element not found for targeted observation.');
                 return;
             }
 
@@ -365,7 +425,9 @@
             background: 'var(--gem-sys-color--surface-container-high)',
             borderColor: 'var(--gem-sys-color--outline)',
             backgroundHover: 'var(--gem-sys-color--surface-container-higher)',
-            borderColorHover: 'var(--gem-sys-color--outline)'
+            borderColorHover: 'var(--gem-sys-color--outline)',
+            borderRadius: '50%',
+            iconDef: { tag: 'svg', props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 0 24 24', width: '24px', fill: 'currentColor' }, children: [{ tag: 'path', props: { d: 'M0 0h24v24H0V0z', fill: 'none' } }, { tag: 'path', props: { d: 'M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.08-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z' } }] }
         },
         SETTINGS_PANEL: {
             bg: 'var(--gem-sys-color--surface-container-highest)',
@@ -374,11 +436,14 @@
             border_medium: 'var(--gem-sys-color--outline)',
             border_default: 'var(--gem-sys-color--outline)',
             border_light: 'var(--gem-sys-color--outline)',
+            toggle_bg_off: 'var(--gem-sys-color--surface-container)',
+            toggle_bg_on: 'var(--gem-sys-color--primary)',
+            toggle_knob: 'var(--gem-sys-color--on-primary-container)',
         },
         JSON_MODAL: {
-            modal_bg: 'var(--gem-sys-color--surface-container-highest)',
-            modal_text: 'var(--gem-sys-color--on-surface)',
-            modal_border: 'var(--gem-sys-color--outline)',
+            bg: 'var(--gem-sys-color--surface-container-highest)',
+            text: 'var(--gem-sys-color--on-surface)',
+            border: 'var(--gem-sys-color--outline)',
             btn_bg: 'var(--gem-sys-color--surface-container-high)',
             btn_hover_bg: 'var(--gem-sys-color--surface-container-higher)',
             btn_text: 'var(--gem-sys-color--on-surface-variant)',
@@ -412,6 +477,10 @@
             slider_display_text: 'var(--gem-sys-color--on-surface-variant)',
             popup_bg: 'var(--gem-sys-color--surface-container-highest)',
             popup_border: 'var(--gem-sys-color--outline)',
+            dnd_indicator_color: 'var(--gem-sys-color--primary)',
+            folderIconDef: { tag: 'svg', props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, children: [{ tag: 'path', props: { d: 'M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z' } }] },
+            upIconDef: { tag: 'svg', props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, children: [{ tag: 'path', props: { d: 'M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z' } }] },
+            downIconDef: { tag: 'svg', props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, children: [{ tag: 'path', props: { d: 'M480-344 240-584l56-56 184 184 184-184 56 56-240 240Z' } }] },
         },
         FIXED_NAV: {
             bg: 'var(--gem-sys-color--surface-container)',
@@ -704,40 +773,79 @@
 
     // =================================================================================
     // SECTION: Event-Driven Architecture (Pub/Sub)
-    // Description: A simple event bus for decoupled communication between classes.
+    // Description: A event bus for decoupled communication between classes.
     // =================================================================================
 
     const EventBus = {
         events: {},
         /**
-         * @param {string} event
-         * @param {Function} listener
+         * Subscribes a listener to an event. Prevents duplicate subscriptions.
+         * @param {string} event The event name.
+         * @param {Function} listener The callback function.
+         * @returns {Function} An unsubscribe function.
          */
         subscribe(event, listener) {
             if (!this.events[event]) {
                 this.events[event] = [];
             }
-            this.events[event].push(listener);
+            // Prevent adding the same listener multiple times.
+            if (!this.events[event].includes(listener)) {
+                this.events[event].push(listener);
+            }
+
+            // Return an unsubscribe function for easy cleanup.
+            const unsubscribe = () => {
+                this.unsubscribe(event, listener);
+            };
+            return unsubscribe;
         },
         /**
-         * @param {string} event
-         * @param {Function} listener
+         * Subscribes a listener that will be automatically unsubscribed after one execution.
+         * @param {string} event The event name.
+         * @param {Function} listener The callback function.
+         * @returns {Function} An unsubscribe function.
+         */
+        once(event, listener) {
+            const unsubscribe = this.subscribe(event, (...args) => {
+                unsubscribe();
+                listener(...args);
+            });
+            return unsubscribe;
+        },
+        /**
+         * Unsubscribes a listener from an event.
+         * Cleans up the event array if it becomes empty.
+         * @param {string} event The event name.
+         * @param {Function} listener The callback function to remove.
          */
         unsubscribe(event, listener) {
             if (!this.events[event]) {
                 return;
             }
             this.events[event] = this.events[event].filter(l => l !== listener);
+
+            // If the event has no more listeners, remove the event property to save memory.
+            if (this.events[event].length === 0) {
+                delete this.events[event];
+            }
         },
         /**
-         * @param {string} event
-         * @param {any} [data]
+         * Publishes an event, calling all subscribed listeners with the provided data.
+         * @param {string} event The event name.
+         * @param {...any} args The data to pass to the listeners.
          */
-        publish(event, data) {
+        publish(event, ...args) {
             if (!this.events[event]) {
                 return;
             }
-            this.events[event].forEach(listener => listener(data));
+            // Iterate over a copy of the array in case a listener unsubscribes itself (e.g., 'once').
+            [...this.events[event]].forEach(listener => {
+                try {
+                    listener(...args);
+                } catch (e) {
+                    Logger.error(`EventBus error in listener for event "${event}":`, e);
+                }
+            });
         }
     };
 
@@ -826,7 +934,7 @@
                 }
                 return btoa(binary);
             } catch (error) {
-                console.error(`${LOG_PREFIX} Compression failed:`, error);
+                Logger.error('Compression failed:', error);
                 throw new Error("Configuration compression failed.");
             }
         }
@@ -847,7 +955,7 @@
                 const decompressed = await new Response(stream).text();
                 return JSON.parse(decompressed);
             } catch (error) {
-                console.error(`${LOG_PREFIX} Decompression failed:`, error);
+                Logger.error('Decompression failed:', error);
                 throw new Error("Configuration is corrupt or in an unknown format.");
             }
         }
@@ -869,6 +977,38 @@
             clearTimeout(timeout);
             timeout = setTimeout(() => func.apply(this, args), delay);
         };
+    }
+
+    /**
+     * Helper function to check if an item is a non-array object.
+     * @param {*} item The item to check.
+     * @returns {boolean}
+     */
+    function isObject(item) {
+        return !!(item && typeof item === 'object' && !Array.isArray(item));
+    }
+
+    /**
+     * Recursively merges the properties of a source object into a target object.
+     * The target object is mutated. This is ideal for merging a partial user config into a complete default config.
+     * @param {object} target The target object (e.g., a deep copy of default config).
+     * @param {object} source The source object (e.g., user config).
+     * @returns {object} The mutated target object.
+     */
+    function deepMerge(target, source) {
+        for (const key in source) {
+            if (Object.prototype.hasOwnProperty.call(source, key)) {
+                const sourceVal = source[key];
+                if (isObject(sourceVal) && Object.prototype.hasOwnProperty.call(target, key) && isObject(target[key])) {
+                    // If both are objects, recurse
+                    deepMerge(target[key], sourceVal);
+                } else if (typeof sourceVal !== 'undefined') {
+                    // Otherwise, overwrite or set the value from the source
+                    target[key] = sourceVal;
+                }
+            }
+        }
+        return target;
     }
 
     /**
@@ -904,7 +1044,7 @@
         // --- Start of Attribute/Property Handling ---
         const directProperties = new Set(['value', 'checked', 'selected', 'readOnly', 'disabled', 'multiple', 'textContent']);
         const urlAttributes = new Set(['href', 'src', 'action', 'formaction']);
-        const safeUrlRegex = /^\s*(?:(?:https?|mailto|tel|ftp|blob):|[^a-z0-9+.-]*[#\/])/i;
+        const safeUrlRegex = /^\s*(?:(?:https?|mailto|tel|ftp|blob):|[^a-z0-9+.-]*[#/])/i;
 
         for (const [key, value] of Object.entries(props)) {
             // 0. Handle `ref` callback (highest priority after props parsing).
@@ -918,7 +1058,7 @@
                     el.setAttribute(key, url);
                 } else {
                     el.setAttribute(key, '#');
-                    console.warn(`Blocked potentially unsafe URL in attribute "${key}":`, url);
+                    Logger.warn(`Blocked potentially unsafe URL in attribute "${key}":`, url);
                 }
             }
             // 2. Direct property assignments.
@@ -971,6 +1111,17 @@
     }
 
     /**
+     * Recursively builds a DOM element from a definition object using the h() function.
+     * @param {object} def The definition object for the element.
+     * @returns {HTMLElement | SVGElement | null} The created DOM element.
+     */
+    function createIconFromDef(def) {
+        if (!def) return null;
+        const children = def.children ? def.children.map(child => createIconFromDef(child)) : [];
+        return h(def.tag, def.props, children);
+    }
+
+    /**
      * Waits for a specific element to appear in the DOM using MutationObserver for efficiency.
      * @param {string} selector The CSS selector for the element.
      * @param {object} [options]
@@ -997,7 +1148,7 @@
 
             const timer = setTimeout(() => {
                 observer.disconnect();
-                console.warn(`${LOG_PREFIX} Timed out after ${timeout}ms waiting for element "${selector}"`);
+                Logger.warn(`Timed out after ${timeout}ms waiting for element "${selector}"`);
                 resolve(null);
             }, timeout);
 
@@ -1009,38 +1160,6 @@
     }
 
     /**
-     * Helper function to check if an item is a non-array object.
-     * @param {*} item The item to check.
-     * @returns {boolean}
-     */
-    function isObject(item) {
-        return (item && typeof item === 'object' && !Array.isArray(item));
-    }
-
-    /**
-     * Recursively merges the properties of a source object into a target object.
-     * The target object is mutated. This is ideal for merging a partial user config into a complete default config.
-     * @param {object} target The target object (e.g., a deep copy of default config).
-     * @param {object} source The source object (e.g., user config).
-     * @returns {object} The mutated target object.
-     */
-    function deepMerge(target, source) {
-        for (const key in source) {
-            if (Object.prototype.hasOwnProperty.call(source, key)) {
-                const sourceVal = source[key];
-                if (isObject(sourceVal) && Object.prototype.hasOwnProperty.call(target, key) && isObject(target[key])) {
-                    // If both are objects, recurse
-                    deepMerge(target[key], sourceVal);
-                } else if (typeof sourceVal !== 'undefined') {
-                    // Otherwise, overwrite or set the value from the source
-                    target[key] = sourceVal;
-                }
-            }
-        }
-        return target;
-    }
-
-    /**
      * Generates a unique ID string.
      * @returns {string}
      */
@@ -1049,17 +1168,32 @@
     }
 
     /**
-     * @param {string | null} value
-     * @returns {string | null}
+     * Proposes a unique name by appending a suffix if the base name already exists in a given set.
+     * It checks for "Copy", "Copy 2", "Copy 3", etc., in a case-insensitive manner.
+     * @param {string} baseName The initial name to check.
+     * @param {Set<string> | Array<string>} existingNames A Set or Array containing existing names.
+     * @returns {string} A unique name.
      */
-    function formatCssBgImageValue(value) {
-        if (!value) return null;
-        const trimmedVal = String(value).trim();
-        if (/^[a-z-]+\(.*\)$/i.test(trimmedVal)) {
-            return trimmedVal;
+    function proposeUniqueName(baseName, existingNames) {
+        const existingNamesLower = new Set(Array.from(existingNames).map(name => name.toLowerCase()));
+
+        if (!existingNamesLower.has(baseName.trim().toLowerCase())) {
+            return baseName;
         }
-        const escapedVal = trimmedVal.replace(/"/g, '\\"');
-        return `url("${escapedVal}")`;
+
+        let proposedName = `${baseName} Copy`;
+        if (!existingNamesLower.has(proposedName.trim().toLowerCase())) {
+            return proposedName;
+        }
+
+        let counter = 2;
+        while (true) {
+            proposedName = `${baseName} Copy ${counter}`;
+            if (!existingNamesLower.has(proposedName.trim().toLowerCase())) {
+                return proposedName;
+            }
+            counter++;
+        }
     }
 
     /**
@@ -1085,12 +1219,12 @@
      * @returns {{isValid: boolean, message: string}} An object with validation result and an error message.
      */
     function validateImageString(value, fieldType) {
-        // This check safely handles null, undefined, and empty strings.
-        if (!value) {
-            return { isValid: true, message: '' }; // Empty is valid (means "not set")
+        // This check safely handles null, undefined, empty, and whitespace-only strings.
+        if (!value || String(value).trim() === '') {
+            return { isValid: true, message: '' };
         }
 
-        const val = value.trim();
+        const val = String(value).trim();
 
         // Rule: Should not be enclosed in quotes
         if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
@@ -1125,13 +1259,15 @@
                 // The URL constructor is a reliable way to check for basic structural validity.
                 new URL(val);
                 return { isValid: true, message: '' };
-            } catch (e) {
+            } catch {
                 return { isValid: false, message: 'The URL format is invalid.' };
             }
         }
 
         // If none of the recognized patterns match
-        const allowed = fieldType === 'icon' ? 'a URL (http...), Data URI (data:image...), an SVG string, or a CSS function (url(), linear-gradient())' : 'a URL, a Data URI, or a CSS function';
+        const allowed = fieldType === 'icon' ?
+              'a URL (http...), Data URI (data:image...), an SVG string, or a CSS function (url(), linear-gradient())' :
+        'a URL, a Data URI, or a CSS function';
         return { isValid: false, message: `Invalid format. Must be ${allowed}.` };
     }
 
@@ -1226,91 +1362,53 @@
      * Handles generic logic for loading, saving, backups, and validation.
      * This class is platform-agnostic and designed to be extended.
      */
-    class CustomConfigManager {
+    class ConfigManagerBase {
         /**
          * @param {object} params
          * @param {string} params.configKey The key for GM_setValue/GM_getValue.
          * @param {object} params.defaultConfig The default configuration object for the script.
-         * @param {DataConverter} params.dataConverter The data converter instance.
          */
-        constructor({ configKey, defaultConfig, dataConverter }) {
-            if (!configKey || !defaultConfig || !dataConverter) {
-                throw new Error("configKey, defaultConfig, and dataConverter must be provided.");
+        constructor({ configKey, defaultConfig }) {
+            if (!configKey || !defaultConfig) {
+                throw new Error("configKey and defaultConfig must be provided.");
             }
             this.CONFIG_KEY = configKey;
             this.DEFAULT_CONFIG = defaultConfig;
-            this.dataConverter = dataConverter;
             /** @type {object|null} */
             this.config = null;
         }
 
         /**
-         * Loads the configuration from storage. It attempts to parse as JSON for backward
-         * compatibility, then falls back to decompressing the new gzipped format.
-         * Handles recovery from a backup if the primary config is corrupt.
+         * Loads the configuration from storage.
+         * Assumes the configuration is stored as a JSON string.
          * @returns {Promise<void>}
          */
         async load() {
-            const loadAndParse = async (key) => {
-                const raw = await GM_getValue(key);
-                if (!raw) return null;
-
-                // 1. Try parsing as plain JSON for backward compatibility.
-                try {
-                    const parsed = JSON.parse(raw);
-                    // If it's an object, it's likely a valid old config.
-                    if (isObject(parsed)) return parsed;
-                } catch (e) {
-                    // Not a valid JSON, so proceed to decompression.
-                }
-
-                // 2. Try decompressing as the new gzipped format.
-                try {
-                    return await this.dataConverter.decompressConfig(raw);
-                } catch (e) {
-                    // If decompression also fails, the data is corrupt.
-                    throw new Error(`Failed to parse or decompress config from key: ${key}. Error: ${e.message}`);
-                }
-            };
-
+            const raw = await GM_getValue(this.CONFIG_KEY);
             let userConfig = null;
-            try {
-                // Attempt to load primary configuration
-                userConfig = await loadAndParse(this.CONFIG_KEY);
-            } catch (e) {
-                // If loading fails for ANY reason, log the error and prepare to use defaults.
-                console.error(LOG_PREFIX, `Failed to load configuration. Resetting to default settings.`, e);
-                userConfig = null;
+            if (raw) {
+                try {
+                    userConfig = JSON.parse(raw);
+                } catch (e) {
+                    Logger.error('Failed to parse configuration. Resetting to default settings.', e);
+                    userConfig = null;
+                }
             }
 
             const completeConfig = JSON.parse(JSON.stringify(this.DEFAULT_CONFIG));
-            // If userConfig is null (due to first run or load failure), deepMerge will correctly use the default.
             this.config = deepMerge(completeConfig, userConfig || {});
 
             this._validateAndSanitizeOptions();
         }
 
         /**
-         * Compresses and saves the configuration object to storage, but only if it's
-         * under the size limit. Throws a specific error if the limit is exceeded.
+         * Saves the configuration object to storage as a JSON string.
          * @param {object} obj The configuration object to save.
          * @returns {Promise<void>}
          */
         async save(obj) {
-            const compressedConfig = await this.dataConverter.compressConfig(obj);
-            const configSize = compressedConfig.length;
-
-            if (configSize > CONSTANTS.CONFIG_SIZE_LIMIT_BYTES) {
-                const sizeInMB = (configSize / 1024 / 1024).toFixed(2);
-                const limitInMB = (CONSTANTS.CONFIG_SIZE_LIMIT_BYTES / 1024 / 1024).toFixed(1);
-                throw {
-                    name: 'ConfigSizeError',
-                    message: `Configuration size (${sizeInMB} MB) exceeds the ${limitInMB} MB limit. Please reduce the number of local images.`
-                };
-            }
-
             this.config = obj;
-            await GM_setValue(this.CONFIG_KEY, compressedConfig);
+            await GM_setValue(this.CONFIG_KEY, JSON.stringify(obj));
         }
 
         /**
@@ -1318,6 +1416,130 @@
          */
         get() {
             return this.config;
+        }
+
+        /**
+         * @abstract
+         * @protected
+         * This method should be overridden by subclasses to perform script-specific
+         * validation and sanitization of the `this.config.options` object.
+         */
+        _validateAndSanitizeOptions() {
+            // Default implementation does nothing.
+            // Subclasses should provide their own logic.
+        }
+    }
+
+    class ConfigManager extends ConfigManagerBase {
+        constructor() {
+            super({
+                configKey: CONSTANTS.CONFIG_KEY,
+                defaultConfig: DEFAULT_THEME_CONFIG,
+            });
+            this.dataConverter = new DataConverter();
+        }
+
+        /**
+         * @override
+         * Loads the configuration from storage.
+         * It attempts to parse as JSON for backward
+         * compatibility, then falls back to decompressing the new gzipped format.
+         * @returns {Promise<void>}
+         */
+        async load() {
+            const raw = await GM_getValue(this.CONFIG_KEY);
+            let userConfig = null;
+            let migrationNeeded = false;
+
+            if (raw) {
+                // 1. Try parsing as plain JSON first.
+                try {
+                    const parsed = JSON.parse(raw);
+                    if (isObject(parsed)) {
+                        userConfig = parsed;
+                    }
+                } catch {
+                    // 2. If JSON parsing fails, try decompressing the old format.
+                    try {
+                        userConfig = await this.dataConverter.decompressConfig(raw);
+                        migrationNeeded = true; // Mark for re-saving in the new format.
+                        Logger.log('Old compressed config detected. Will migrate to plain JSON on load.');
+                    } catch (e) {
+                        Logger.error(`Failed to parse or decompress config. Resetting to default. Error: ${e.message}`);
+                        userConfig = null;
+                    }
+                }
+            }
+
+            const completeConfig = JSON.parse(JSON.stringify(this.DEFAULT_CONFIG));
+            this.config = deepMerge(completeConfig, userConfig || {});
+
+            this._validateAndSanitizeOptions();
+
+            // 3. If migration was needed, save the config back in plain JSON format.
+            if (migrationNeeded) {
+                try {
+                    await this.save(this.config);
+                    Logger.log('Successfully migrated config to plain JSON format.');
+                } catch (e) {
+                    Logger.error('Failed to save migrated config:', e);
+                }
+            }
+        }
+
+        /**
+         * @override
+         * Compresses and saves the configuration object to storage, but only if it's
+         * under the size limit.
+         * Throws a specific error if the limit is exceeded.
+         * @param {object} obj The configuration object to save.
+         * @returns {Promise<void>}
+         */
+        async save(obj) {
+            const jsonString = JSON.stringify(obj);
+            const configSize = new Blob([jsonString]).size; // Use Blob to get accurate byte size
+
+            if (configSize > CONSTANTS.CONFIG_SIZE_LIMIT_BYTES) {
+                this.config = obj; // Keep oversized config in memory
+                const sizeInMB = (configSize / 1024 / 1024).toFixed(2);
+                const limitInMB = (CONSTANTS.CONFIG_SIZE_LIMIT_BYTES / 1024 / 1024).toFixed(1);
+                const errorMsg = `Configuration size (${sizeInMB} MB) exceeds the ${limitInMB} MB limit. Changes are not saved.`;
+
+                EventBus.publish(`${APPID}:configSizeExceeded`, { message: errorMsg });
+                throw new Error(errorMsg); // Throw error for immediate UI feedback
+            }
+
+            this.config = obj;
+            await GM_setValue(this.CONFIG_KEY, jsonString);
+            EventBus.publish(`${APPID}:configSaveSuccess`); // Notify UI to clear warnings
+        }
+
+        /**
+         * Decodes a raw string from storage into a user configuration object.
+         * Handles both plain JSON and legacy compressed formats.
+         * @param {string | null} rawValue The raw string from GM_getValue.
+         * @returns {Promise<object | null>} The parsed user configuration object, or null if parsing fails.
+         */
+        async decode(rawValue) {
+            if (!rawValue) return null;
+
+            // 1. Try parsing as plain JSON first.
+            try {
+                const parsed = JSON.parse(rawValue);
+                if (isObject(parsed)) {
+                    return parsed;
+                }
+            } catch {
+                // Not a valid JSON, fall through to try decompression.
+            }
+
+            // 2. If JSON parsing fails, try decompressing the old format.
+            try {
+                return await this.dataConverter.decompressConfig(rawValue);
+            } catch (e) {
+                Logger.error(`Failed to parse or decompress raw value. Error: ${e.message}`);
+                return null;
+            }
         }
 
         /**
@@ -1343,27 +1565,6 @@
                     }
                 }
             }
-        }
-
-        /**
-         * @abstract
-         * @protected
-         * This method should be overridden by subclasses to perform script-specific
-         * validation and sanitization of the `this.config.options` object.
-         */
-        _validateAndSanitizeOptions() {
-            // Default implementation does nothing.
-            // Subclasses should provide their own logic.
-        }
-    }
-
-    class ConfigManager extends CustomConfigManager {
-        constructor(dataConverter) {
-            super({
-                configKey: CONSTANTS.CONFIG_KEY,
-                defaultConfig: DEFAULT_THEME_CONFIG,
-                dataConverter: dataConverter
-            });
         }
 
         /**
@@ -1401,6 +1602,111 @@
         getIconSize() {
             return this.config?.options?.icon_size ||
                 CONSTANTS.ICON_SIZE;
+        }
+    }
+
+    // =================================================================================
+    // SECTION: Sync Manager
+    // =================================================================================
+
+    class SyncManager {
+        constructor(appInstance) {
+            this.app = appInstance;
+            this.pendingRemoteConfig = null;
+        }
+
+        init() {
+            GM_addValueChangeListener(this.app.configKey, async (name, oldValue, newValue, remote) => {
+                if (remote) {
+                    await this._handleRemoteChange(newValue);
+                }
+            });
+        }
+
+        onModalClose() {
+            if (this.pendingRemoteConfig) {
+                Logger.log('SyncManager: Modal closed with a pending update. Applying it now.');
+                this.app.applyUpdate(this.pendingRemoteConfig);
+                this.pendingRemoteConfig = null;
+            }
+        }
+
+        onSave() {
+            // A local save overwrites any pending remote changes.
+            this.pendingRemoteConfig = null;
+            // Also, clear any visible conflict notifications.
+            const activeModal = this.app.uiManager.getActiveModal?.();
+            if (activeModal) {
+                this._clearConflictNotification(activeModal);
+            }
+        }
+
+        async _handleRemoteChange(rawValue) {
+            Logger.log('SyncManager: Remote config change detected.');
+            try {
+                const newConfig = await this.app.configManager.decode(rawValue);
+                const activeModal = this.app.uiManager.getActiveModal?.();
+
+                if (activeModal) {
+                    Logger.log('SyncManager: A modal is open. Storing update and displaying conflict notification.');
+                    this.pendingRemoteConfig = newConfig;
+                    this._showConflictNotification(activeModal);
+                } else {
+                    Logger.log('SyncManager: No modal open. Applying silent update.');
+                    this.app.applyUpdate(newConfig);
+                }
+            } catch (e) {
+                Logger.error('SyncManager: Failed to handle remote config change:', e);
+            }
+        }
+
+        _showConflictNotification(modalComponent) {
+            if (!modalComponent?.modal) return;
+            this._clearConflictNotification(modalComponent); // Clear previous state first
+
+            const styles = modalComponent.callbacks.siteStyles;
+            const messageArea = modalComponent.modal.dom.footerMessage;
+
+            if (messageArea) {
+                const messageText = h('span', {
+                    textContent: 'Settings updated in another tab.',
+                    style: { display: 'flex', alignItems: 'center' }
+                });
+
+                const reloadBtn = h('button', {
+                    id: `${APPID}-conflict-reload-btn`,
+                    className: `${APPID}-modal-button`,
+                    textContent: 'Reload UI',
+                    title: 'Discard local changes and load the settings from the other tab.',
+                    style: {
+                        borderColor: styles.error_text || 'red',
+                        marginLeft: '12px'
+                    },
+                    onclick: () => {
+                        const reopenContext = modalComponent.getContextForReopen?.();
+                        modalComponent.close();
+                        // onModalClose will handle applying the pending update.
+                        // Request to reopen the modal after a short delay to ensure sync completion.
+                        setTimeout(() => {
+                            EventBus.publish(`${APPID}:reOpenModal`, reopenContext);
+                        }, 100);
+                    }
+                });
+
+                messageArea.textContent = '';
+                messageArea.classList.add(`${APPID}-conflict-text`);
+                messageArea.style.color = styles.error_text || 'red';
+                messageArea.append(messageText, reloadBtn);
+            }
+        }
+
+        _clearConflictNotification(modalComponent) {
+            if (!modalComponent?.modal) return;
+            const messageArea = modalComponent.modal.dom.footerMessage;
+            if (messageArea) {
+                messageArea.textContent = '';
+                messageArea.classList.remove(`${APPID}-conflict-text`);
+            }
         }
     }
 
@@ -1446,21 +1752,21 @@
                                 resolve(dataUrl);
                             };
                             reader.onerror = () => {
-                                console.error(LOG_PREFIX, `FileReader error for URL: ${url}`);
+                                Logger.error(`FileReader error for URL: ${url}`);
                                 resolve(null);
                             };
                             reader.readAsDataURL(response.response);
                         } else {
-                            console.error(LOG_PREFIX, `Failed to fetch image. Status: ${response.status}, URL: ${url}`);
+                            Logger.error(`Failed to fetch image. Status: ${response.status}, URL: ${url}`);
                             resolve(null);
                         }
                     },
                     onerror: (error) => {
-                        console.error(LOG_PREFIX, `GM_xmlhttpRequest error for URL: ${url}`, error);
+                        Logger.error(`GM_xmlhttpRequest error for URL: ${url}`, error);
                         resolve(null);
                     },
                     ontimeout: () => {
-                        console.error(LOG_PREFIX, `GM_xmlhttpRequest timeout for URL: ${url}`);
+                        Logger.error(`GM_xmlhttpRequest timeout for URL: ${url}`);
                         resolve(null);
                     }
                 });
@@ -1917,9 +2223,9 @@
                             const flags = title.slice(lastSlash + 1);
                             try {
                                 regexArr.push({ pattern: new RegExp(pattern, flags), set });
-                            } catch (e) { /* ignore invalid regex strings in config */ }
+                            } catch { /* ignore invalid regex strings in config */ }
                         } else {
-                            console.error(LOG_PREFIX, `Invalid match pattern format (must be /pattern/flags): ${title}`);
+                            Logger.error(`Invalid match pattern format (must be /pattern/flags): ${title}`);
                         }
                     } else if (title instanceof RegExp) {
                         regexArr.push({ pattern: new RegExp(title.source, title.flags), set });
@@ -3016,7 +3322,7 @@
             this.messageCacheManager = messageCacheManager;
             this.currentIndices = { user: -1, asst: -1, total: -1 };
             this.highlightedMessage = null;
-            this.listeners = {}; // Store listeners for cleanup
+            this.unsubscribers = [];
 
             this.debouncedUpdateUI = debounce(this._updateUI.bind(this), 50);
             this.debouncedReposition = debounce(this.repositionContainers.bind(this), 100);
@@ -3028,16 +3334,13 @@
             this.injectStyle();
             this.createContainers();
 
-            // Create and store listeners before subscribing
-            this.listeners.cacheUpdated = () => this.debouncedUpdateUI();
-            this.listeners.navigation = () => this.resetState();
-            this.listeners.highlightMessage = (messageElement) => this.setHighlightAndIndices(messageElement);
-            this.listeners.layoutRecalculate = () => this.debouncedReposition();
-
-            EventBus.subscribe(`${APPID}:cacheUpdated`, this.listeners.cacheUpdated);
-            EventBus.subscribe(`${APPID}:navigation`, this.listeners.navigation);
-            EventBus.subscribe(`${APPID}:nav:highlightMessage`, this.listeners.highlightMessage);
-            EventBus.subscribe(`${APPID}:layoutRecalculate`, this.listeners.layoutRecalculate);
+            // Store the unsubscribe functions returned by EventBus.subscribe
+            this.unsubscribers.push(
+                EventBus.subscribe(`${APPID}:cacheUpdated`, () => this.debouncedUpdateUI()),
+                EventBus.subscribe(`${APPID}:navigation`, () => this.resetState()),
+                EventBus.subscribe(`${APPID}:nav:highlightMessage`, (messageElement) => this.setHighlightAndIndices(messageElement)),
+                EventBus.subscribe(`${APPID}:layoutRecalculate`, () => this.debouncedReposition())
+            );
 
             // Wait for the input area to be ready
             await waitForElement(CONSTANTS.SELECTORS.FIXED_NAV_INPUT_AREA_TARGET);
@@ -3064,11 +3367,9 @@
                 this.highlightedMessage = null;
             }
 
-            // Unsubscribe all event bus listeners
-            EventBus.unsubscribe(`${APPID}:cacheUpdated`, this.listeners.cacheUpdated);
-            EventBus.unsubscribe(`${APPID}:navigation`, this.listeners.navigation);
-            EventBus.unsubscribe(`${APPID}:nav:highlightMessage`, this.listeners.highlightMessage);
-            EventBus.unsubscribe(`${APPID}:layoutRecalculate`, this.listeners.layoutRecalculate);
+            // Call all unsubscribe functions
+            this.unsubscribers.forEach(unsub => unsub());
+            this.unsubscribers = [];
 
             this.navConsole?.remove();
             this.navConsole = null;
@@ -3603,7 +3904,7 @@
      * @abstract
      * @description Base class for a UI component.
      */
-    class UIComponent {
+    class UIComponentBase {
         constructor(callbacks = {}) {
             this.callbacks = callbacks;
             this.element = null;
@@ -4358,7 +4659,7 @@
      * Manages a configurable, reusable settings button.
      * This component is static and does not include drag-and-drop functionality.
      */
-    class CustomSettingsButton extends UIComponent {
+    class CustomSettingsButton extends UIComponentBase {
         /**
          * @param {object} callbacks - Functions to be called on component events.
          * @param {function} callbacks.onClick - Called when the button is clicked.
@@ -4368,7 +4669,7 @@
          * @param {string} options.title - The tooltip text for the button.
          * @param {number|string} options.zIndex - The z-index for the button.
          * @param {{top?: string, right?: string, bottom?: string, left?: string}} options.position - The fixed position of the button.
-         * @param {{background: string, borderColor: string, backgroundHover: string, borderColorHover: string}} options.styleVariables - CSS variables for theming.
+         * @param {{background: string, borderColor: string, backgroundHover: string, borderColorHover: string}} options.siteStyles - CSS variables for theming.
          */
         constructor(callbacks, options) {
             super(callbacks);
@@ -4379,7 +4680,6 @@
 
         render() {
             this._injectStyles();
-
             const oldElement = document.getElementById(this.id);
             if (oldElement) {
                 oldElement.remove();
@@ -4388,12 +4688,19 @@
             this.element = h('button', {
                 id: this.id,
                 title: this.options.title,
-                textContent: this.options.textContent,
                 onclick: (e) => {
                     e.stopPropagation();
                     this.callbacks.onClick?.();
                 }
             });
+
+            const iconDef = this.options.siteStyles.iconDef;
+            if (iconDef) {
+                const svgElement = createIconFromDef(iconDef);
+                if (svgElement) {
+                    this.element.appendChild(svgElement);
+                }
+            }
             document.body.appendChild(this.element);
 
             return this.element;
@@ -4405,7 +4712,7 @@
          */
         _injectStyles() {
             if (document.getElementById(this.styleId)) return;
-            const { position, zIndex, styleVariables } = this.options;
+            const { position, zIndex, siteStyles } = this.options;
 
             const style = h('style', {
                 id: this.styleId,
@@ -4419,9 +4726,9 @@
                     z-index: ${zIndex};
                     width: 32px;
                     height: 32px;
-                    border-radius: 50%;
-                    background: ${styleVariables.background};
-                    border: 1px solid ${styleVariables.borderColor};
+                    border-radius: ${siteStyles.borderRadius};
+                    background: ${siteStyles.background};
+                    border: 1px solid ${siteStyles.borderColor};
                     font-size: 16px;
                     cursor: pointer;
                     box-shadow: var(--drop-shadow-xs, 0 1px 1px #0000000d);
@@ -4435,8 +4742,8 @@
                     pointer-events: auto !important;
                 }
                 #${this.id}:hover {
-                    background: ${styleVariables.backgroundHover};
-                    border-color: ${styleVariables.borderColorHover};
+                    background: ${siteStyles.backgroundHover};
+                    border-color: ${siteStyles.borderColorHover};
                 }
             `
             });
@@ -4445,12 +4752,12 @@
     }
 
     /**
-     * Manages the settings panel/submenu.
+     * @abstract
+     * @description Base class for a settings panel/submenu UI component.
      */
-    class SettingsPanelComponent extends UIComponent {
+    class SettingsPanelBase extends UIComponentBase {
         constructor(callbacks) {
             super(callbacks);
-            this.activeThemeSet = null;
             this.debouncedSave = debounce(async () => {
                 const newConfig = await this._collectDataFromForm();
                 this.callbacks.onSave?.(newConfig);
@@ -4464,7 +4771,10 @@
                 document.getElementById(`${APPID}-settings-panel`).remove();
             }
             this._injectStyles();
-            this.element = this._createPanelElement();
+            this.element = this._createPanelContainer();
+            const content = this._createPanelContent();
+            this.element.appendChild(content);
+
             document.body.appendChild(this.element);
             this._setupEventListeners();
             return this.element;
@@ -4479,18 +4789,12 @@
             }
         }
 
-        async show() {
-            // Update applied theme name display (if callback is available)
-            if (this.callbacks.getCurrentThemeSet) {
-                this.activeThemeSet = this.callbacks.getCurrentThemeSet();
-                const themeName = this.activeThemeSet.metadata?.name || 'Default Settings';
-                const themeNameEl = this.element.querySelector(`#${APPID}-applied-theme-name`);
-                if (themeNameEl) {
-                    themeNameEl.textContent = themeName;
-                }
-            }
+        isOpen() {
+            return this.element && this.element.style.display !== 'none';
+        }
 
-            await this._populateForm();
+        async show() {
+            await this.populateForm();
             const anchorRect = this.callbacks.getAnchorElement().getBoundingClientRect();
 
             let top = anchorRect.bottom + 4;
@@ -4519,7 +4823,54 @@
             document.removeEventListener('keydown', this._handleDocumentKeydown, true);
         }
 
-        _createPanelElement() {
+        _createPanelContainer() {
+            return h(`div#${APPID}-settings-panel`, { style: { display: 'none' }, role: 'menu' });
+        }
+
+        _handleDocumentClick(e) {
+            const anchor = this.callbacks.getAnchorElement();
+            if (this.element && !this.element.contains(e.target) && anchor && !anchor.contains(e.target)) {
+                this.hide();
+            }
+        }
+
+        _handleDocumentKeydown(e) {
+            if (e.key === 'Escape') {
+                this.hide();
+            }
+        }
+
+        // --- Abstract methods to be implemented by subclasses ---
+        _createPanelContent() { throw new Error("Subclass must implement _createPanelContent()"); }
+        _injectStyles() { throw new Error("Subclass must implement _injectStyles()"); }
+        populateForm() { throw new Error("Subclass must implement populateForm()"); }
+        _collectDataFromForm() { throw new Error("Subclass must implement _collectDataFromForm()"); }
+        _setupEventListeners() { throw new Error("Subclass must implement _setupEventListeners()"); }
+    }
+
+    /**
+     * Manages the settings panel/submenu.
+     */
+    class SettingsPanelComponent extends SettingsPanelBase {
+        constructor(callbacks) {
+            super(callbacks);
+            this.activeThemeSet = null;
+        }
+
+        async show() {
+            // Update applied theme name display (if callback is available)
+            if (this.callbacks.getCurrentThemeSet) {
+                this.activeThemeSet = this.callbacks.getCurrentThemeSet();
+                const themeName = this.activeThemeSet.metadata?.name || 'Default Settings';
+                const themeNameEl = this.element.querySelector(`#${APPID}-applied-theme-name`);
+                if (themeNameEl) {
+                    themeNameEl.textContent = themeName;
+                }
+            }
+            await super.show();
+        }
+
+        _createPanelContent() {
             const widthConfig = CONSTANTS.SLIDER_CONFIGS.CHAT_WIDTH;
             const createToggle = (id) => {
                 return h(`label.${APPID}-toggle-switch`, [
@@ -4528,7 +4879,7 @@
                 ]);
             };
 
-            const panelContainer = h(`div#${APPID}-settings-panel`, { style: { display: 'none' }, role: 'menu' }, [
+            return h('div', [ // Return a fragment or a wrapper div
                 h(`fieldset.${APPID}-submenu-fieldset`, [
                     h('legend', 'Applied Theme'),
                     h(`button#${APPID}-applied-theme-name.${APPID}-modal-button`, {
@@ -4615,10 +4966,9 @@
                     ])
                 ])
             ]);
-            return panelContainer;
         }
 
-        async _populateForm() {
+        async populateForm() {
             const config = await this.callbacks.getCurrentConfig();
             if (!config) return;
 
@@ -4718,24 +5068,11 @@
             this.element.querySelector(`#${APPID}-feat-fixed-nav-enabled`).addEventListener('change', this.debouncedSave);
         }
 
-        _handleDocumentClick(e) {
-            const anchor = this.callbacks.getAnchorElement();
-            if (this.element && !this.element.contains(e.target) && anchor && !anchor.contains(e.target)) {
-                this.hide();
-            }
-        }
-
-        _handleDocumentKeydown(e) {
-            if (e.key === 'Escape') {
-                this.hide();
-            }
-        }
-
         _injectStyles() {
             const styleId = `${APPID}-ui-styles`;
             if (document.getElementById(styleId)) return;
 
-            const styles = SITE_STYLES.SETTINGS_PANEL;
+            const styles = this.callbacks.siteStyles;
             const style = h('style', {
                 id: styleId,
                 textContent: `
@@ -4846,7 +5183,7 @@
                     left: 0;
                     right: 0;
                     bottom: 0;
-                    background-color: #555;
+                    background-color: ${styles.toggle_bg_off};
                     transition: .3s;
                     border-radius: 22px;
                 }
@@ -4857,12 +5194,12 @@
                     width: 16px;
                     left: 3px;
                     bottom: 3px;
-                    background-color: white;
+                    background-color: ${styles.toggle_knob};
                     transition: .3s;
                     border-radius: 50%;
                 }
                 .${APPID}-toggle-switch input:checked + .${APPID}-toggle-slider {
-                    background-color: #4CAF50;
+                    background-color: ${styles.toggle_bg_on};
                 }
                 .${APPID}-toggle-switch input:checked + .${APPID}-toggle-slider:before {
                     transform: translateX(18px);
@@ -4889,6 +5226,8 @@
 
         async open(anchorElement) {
             if (this.modal) return;
+            this.callbacks.onModalOpenStateChange?.(true);
+
             const p = APPID;
             this.modal = new CustomModal({
                 title: `${APPNAME} Settings`,
@@ -4901,6 +5240,7 @@
                     { text: 'Cancel', id: `${p}-json-modal-cancel-btn`, onClick: () => this.close() },
                 ],
                 onDestroy: () => {
+                    this.callbacks.onModalOpenStateChange?.(false);
                     this.modal = null;
                 }
             });
@@ -4909,12 +5249,13 @@
             const contentContainer = this.modal.getContentContainer();
             this._createContent(contentContainer);
 
+            this.callbacks.onModalOpen?.(); // Notify UIManager to check for warnings
+
             const config = await this.callbacks.getCurrentConfig();
             const textarea = contentContainer.querySelector('textarea');
             textarea.value = JSON.stringify(config, null, 2);
 
             this.modal.show(anchorElement);
-
             // Set focus and move cursor to the start of the textarea.
             textarea.focus();
             textarea.scrollTop = 0;
@@ -4929,14 +5270,14 @@
         }
 
         _applyTheme() {
+            this._injectStyles();
             const modalBox = this.modal.dom.modalBox;
             const p = this.modal.options.cssPrefix;
-            const styles = SITE_STYLES.JSON_MODAL;
+            const styles = this.callbacks.siteStyles;
 
-            modalBox.style.setProperty(`--${p}-bg`, styles.modal_bg);
-            modalBox.style.setProperty(`--${p}-text`, styles.modal_text);
-            modalBox.style.setProperty(`--${p}-border-color`, styles.modal_border);
-
+            modalBox.style.setProperty(`--${p}-bg`, styles.bg);
+            modalBox.style.setProperty(`--${p}-text`, styles.text);
+            modalBox.style.setProperty(`--${p}-border-color`, styles.border);
             const footer = this.modal.dom.footer;
             const buttons = footer.querySelectorAll(`.${p}-button`);
             buttons.forEach(button => {
@@ -4950,7 +5291,7 @@
         }
 
         _createContent(parent) {
-            const styles = SITE_STYLES.JSON_MODAL;
+            const styles = this.callbacks.siteStyles;
             parent.style.paddingTop = '16px';
             parent.style.paddingBottom = '8px';
 
@@ -4981,16 +5322,13 @@
             const textarea = this.modal.getContentContainer().querySelector('textarea');
             const msgDiv = this.modal.getContentContainer().querySelector(`.${APPID}-modal-msg`);
             try {
-                // Clear previous messages before attempting to save.
-                msgDiv.textContent = '';
-
                 const obj = JSON.parse(textarea.value);
                 await this.callbacks.onSave(obj);
                 this.close();
             } catch (e) {
                 // Display the specific error message from the save process.
                 msgDiv.textContent = e.message;
-                msgDiv.style.color = SITE_STYLES.JSON_MODAL.msg_error_text;
+                msgDiv.style.color = this.callbacks.siteStyles.msg_error_text;
             }
         }
 
@@ -5012,12 +5350,11 @@
 
                 // Revoke the URL after a delay to ensure the download has time to start.
                 setTimeout(() => URL.revokeObjectURL(url), 10000);
-
                 msgDiv.textContent = 'Export successful.';
-                msgDiv.style.color = SITE_STYLES.JSON_MODAL.msg_success_text;
+                msgDiv.style.color = this.callbacks.siteStyles.msg_success_text;
             } catch (e) {
                 msgDiv.textContent = `Export failed: ${e.message}`;
-                msgDiv.style.color = SITE_STYLES.JSON_MODAL.msg_error_text;
+                msgDiv.style.color = this.callbacks.siteStyles.msg_error_text;
             }
         }
 
@@ -5036,10 +5373,10 @@
                                 const importedConfig = JSON.parse(e.target.result);
                                 textarea.value = JSON.stringify(importedConfig, null, 2);
                                 msgDiv.textContent = 'Import successful. Click "Save" to apply.';
-                                msgDiv.style.color = SITE_STYLES.JSON_MODAL.msg_success_text;
+                                msgDiv.style.color = this.callbacks.siteStyles.msg_success_text;
                             } catch (err) {
                                 msgDiv.textContent = `Import failed: ${err.message}`;
-                                msgDiv.style.color = SITE_STYLES.JSON_MODAL.msg_error_text;
+                                msgDiv.style.color = this.callbacks.siteStyles.msg_error_text;
                             }
                         };
                         reader.readAsText(file);
@@ -5048,12 +5385,23 @@
             });
             fileInput.click();
         }
+
+        _injectStyles() {
+            const styleId = `${APPID}-json-modal-styles`;
+            if (document.getElementById(styleId)) {
+                document.getElementById(styleId).remove();
+            }
+        }
+
+        getContextForReopen() {
+            return { type: 'json' };
+    }
     }
 
     /**
      * Manages the Theme Settings modal by leveraging the CustomModal component.
      */
-    class ThemeModalComponent extends UIComponent {
+    class ThemeModalComponent extends UIComponentBase {
         constructor(callbacks) {
             super(callbacks);
             this.activeThemeKey = null;
@@ -5062,6 +5410,10 @@
             this.modal = null;
             this.dataConverter = callbacks.dataConverter;
             this.debouncedUpdatePreview = debounce(() => this._updateAllPreviews(), 50);
+            this.renameState = {
+                type: null,
+                isActive: false,
+            };
         }
 
         render() {
@@ -5069,7 +5421,10 @@
         }
 
         async open(selectThemeKey) {
+            this.renameState = { type: null, isActive: false };
+            this.pendingDeletionKey = null;
             if (this.modal) return;
+            this.callbacks.onModalOpenStateChange?.(true);
             if (!this.callbacks.getCurrentConfig) return;
             this.modal = new CustomModal({
                 title: `${APPNAME} - Theme settings`,
@@ -5082,6 +5437,7 @@
                     { text: 'Cancel', id: `${APPID}-theme-modal-cancel-btn`, className: `${APPID}-modal-button`, title: 'Discard changes and close the modal.', onClick: () => this.close() },
                 ],
                 onDestroy: () => {
+                    this.callbacks.onModalOpenStateChange?.(false);
                     this.colorPickerManager?.destroy();
                     this.colorPickerManager = null;
                     this.modal = null;
@@ -5097,47 +5453,99 @@
             this._setupEventListeners();
             this.colorPickerManager = new ColorPickerPopupManager(this.modal.element);
             this.colorPickerManager.init();
+
+            this.callbacks.onModalOpen?.(); // Notify UIManager to check for warnings
+
             const config = await this.callbacks.getCurrentConfig();
             if (config) {
                 const keyToSelect = selectThemeKey ||
-                      this.activeThemeKey || 'defaultSet';
-                await this._refreshModalState(config, keyToSelect);
+                    this.activeThemeKey || 'defaultSet';
+                this.activeThemeKey = keyToSelect;
+                await this._refreshModalState();
             }
 
             this.modal.show();
-
             requestAnimationFrame(() => {
                 const scrollableArea = this.modal.element.querySelector(`.${APPID}-theme-scrollable-area`);
                 if (scrollableArea) {
                     scrollableArea.scrollTop = 0;
                 }
             });
-
         }
 
         close() {
             this.modal?.close();
         }
 
-        async _refreshModalState(config, keyToSelect) {
+        async _refreshModalState() {
             if (!this.modal) return;
-            const themeSelect = this.modal.element.querySelector(`#${APPID}-theme-select`);
-            const currentScrollTop = themeSelect.scrollTop;
+            const config = await this.callbacks.getCurrentConfig();
+            if (!config) return;
 
-            themeSelect.textContent = '';
-            const defaultOption = h('option', { value: 'defaultSet' }, 'Default Settings');
-            themeSelect.appendChild(defaultOption);
-            config.themeSets.forEach((theme, index) => {
-                const themeName = (typeof theme.metadata?.name === 'string' && theme.metadata.name.trim() !== '') ? theme.metadata.name : `Theme ${index + 1}`;
-                const option = h('option', { value: theme.metadata.id }, themeName);
-                themeSelect.appendChild(option);
-            });
-            themeSelect.value = keyToSelect;
-            if (!themeSelect.value) {
-                themeSelect.value = 'defaultSet';
+            const isAnyRenaming = this.renameState.isActive;
+            const isAnyDeleting = !!this.pendingDeletionKey;
+
+            const headerRow = this.modal.element.querySelector(`.${APPID}-header-row`);
+            const generalSettingsArea = this.modal.element.querySelector(`.${APPID}-theme-general-settings`);
+            const scrollArea = this.modal.element.querySelector(`.${APPID}-theme-scrollable-area`);
+
+            const isRenamingThis = isAnyRenaming && this.renameState.type === 'theme';
+            const isDeletingThis = this.pendingDeletionKey === this.activeThemeKey;
+
+            const select = headerRow.querySelector('select');
+            const renameInput = headerRow.querySelector('input[type="text"]');
+            const mainActions = headerRow.querySelector(`#${APPID}-theme-main-actions`);
+            const renameActions = headerRow.querySelector(`#${APPID}-theme-rename-actions`);
+            const deleteConfirmGroup = headerRow.querySelector(`#${APPID}-theme-delete-confirm-group`);
+
+            const showMainActions = !isRenamingThis && !isDeletingThis;
+            select.style.display = isRenamingThis ? 'none' : 'block';
+            renameInput.style.display = isRenamingThis ? 'block' : 'none';
+            mainActions.style.visibility = showMainActions ? 'visible' : 'hidden';
+            renameActions.style.display = isRenamingThis ? 'flex' : 'none';
+            deleteConfirmGroup.style.display = isDeletingThis ? 'flex' : 'none';
+
+            if (!isRenamingThis) {
+                const scroll = select.scrollTop;
+                select.textContent = '';
+                const defaultOption = h('option', { value: 'defaultSet' }, 'Default Settings');
+                select.appendChild(defaultOption);
+                config.themeSets.forEach((theme, index) => {
+                    const themeName = (typeof theme.metadata?.name === 'string' && theme.metadata.name.trim() !== '') ? theme.metadata.name : `Theme ${index + 1}`;
+                    const option = h('option', { value: theme.metadata.id }, themeName);
+                    select.appendChild(option);
+                });
+                select.value = this.activeThemeKey;
+                if (!select.value) {
+                    select.value = 'defaultSet';
+                    this.activeThemeKey = 'defaultSet';
+                }
+                select.scrollTop = scroll;
+            } else {
+                const theme = this.activeThemeKey === 'defaultSet' ? { metadata: { name: 'Default Settings' } } : config.themeSets.find(t => t.metadata.id === this.activeThemeKey);
+                renameInput.value = theme?.metadata?.name || '';
             }
-            themeSelect.scrollTop = currentScrollTop;
-            await this._populateFormWithThemeData(themeSelect.value);
+
+            const isAnyActionInProgress = isAnyRenaming || isAnyDeleting;
+            const isDefault = this.activeThemeKey === 'defaultSet';
+            const index = config.themeSets.findIndex(t => t.metadata.id === this.activeThemeKey);
+
+            headerRow.querySelector(`#${APPID}-theme-up-btn`).disabled = isAnyActionInProgress || isDefault || (index <= 0);
+            headerRow.querySelector(`#${APPID}-theme-down-btn`).disabled = isAnyActionInProgress || isDefault || (index >= config.themeSets.length - 1);
+            headerRow.querySelector(`#${APPID}-theme-delete-btn`).disabled = isAnyActionInProgress || isDefault;
+            headerRow.querySelector(`#${APPID}-theme-new-btn`).disabled = isAnyActionInProgress;
+            headerRow.querySelector(`#${APPID}-theme-copy-btn`).disabled = isAnyActionInProgress;
+            headerRow.querySelector(`#${APPID}-theme-rename-btn`).disabled = isAnyActionInProgress || isDefault;
+
+            if (generalSettingsArea) generalSettingsArea.classList.toggle('is-disabled', isAnyActionInProgress);
+            scrollArea.classList.toggle('is-disabled', isAnyActionInProgress);
+            this.modal.element.querySelector(`#${APPID}-theme-modal-apply-btn`).disabled = isAnyActionInProgress;
+            this.modal.element.querySelector(`#${APPID}-theme-modal-save-btn`).disabled = isAnyActionInProgress;
+            this.modal.element.querySelector(`#${APPID}-theme-modal-cancel-btn`).disabled = isAnyActionInProgress;
+
+            if (!isAnyActionInProgress) {
+                await this._populateFormWithThemeData(this.activeThemeKey);
+            }
         }
 
         _applyThemeToModal() {
@@ -5173,31 +5581,45 @@
         }
 
         _createHeaderControls() {
+            const styles = this.callbacks.siteStyles;
+            const type = 'theme';
             return h(`div.${APPID}-theme-modal-header-controls`, [
-                h('label', { htmlFor: `${APPID}-theme-select`, title: 'Select a theme to edit.' }, 'Theme:'),
-                h(`select#${APPID}-theme-select`, { title: 'Select a theme to edit.' }),
-                h(`div#${APPID}-theme-main-actions`, { style: { display: 'contents' } }, [
-                    h(`button#${APPID}-theme-up-btn.${APPID}-modal-button.${APPID}-move-btn`, { title: 'Move selected theme up.' }, '▲'),
-                    h(`button#${APPID}-theme-down-btn.${APPID}-modal-button.${APPID}-move-btn`, { title: 'Move selected theme down.' }, '▼'),
-                    h(`div.${APPID}-header-spacer`),
-                    h(`button#${APPID}-theme-new-btn.${APPID}-modal-button`, { title: 'Create a new theme (saves immediately).' }, 'New'),
-                    h(`button#${APPID}-theme-copy-btn.${APPID}-modal-button`, { title: 'Create a copy of the selected theme (saves immediately).' }, 'Copy'),
-                    h(`button#${APPID}-theme-delete-btn.${APPID}-modal-button`, { title: 'Delete the selected theme.' }, 'Delete')
-                ]),
-                h(`div#${APPID}-theme-delete-confirm-group.${APPID}-delete-confirm-group`, { hidden: true }, [
-                    h(`span.${APPID}-delete-confirm-label`, 'Are you sure?'),
-                    h(`button#${APPID}-theme-delete-confirm-btn.${APPID}-modal-button.${APPID}-delete-confirm-btn-yes`, 'Confirm Delete'),
-                    h(`button#${APPID}-theme-delete-cancel-btn.${APPID}-modal-button`, 'Cancel')
+                h(`div.${APPID}-header-row`, { 'data-type': type }, [
+                    h('label', { htmlFor: `${APPID}-${type}-select` }, 'Theme:'),
+                    h(`div.${APPID}-rename-area`, [
+                        h(`select#${APPID}-${type}-select`),
+                        h('input', { type: 'text', id: `${APPID}-${type}-rename-input`, style: { display: 'none' } }),
+                    ]),
+                    h(`div.${APPID}-action-area`, [
+                        h(`div#${APPID}-${type}-main-actions`, [
+                            h(`button#${APPID}-${type}-rename-btn.${APPID}-modal-button`, 'Rename'),
+                            h(`button#${APPID}-${type}-up-btn.${APPID}-modal-button.${APPID}-move-btn`, [createIconFromDef(styles.upIconDef)]),
+                            h(`button#${APPID}-${type}-down-btn.${APPID}-modal-button.${APPID}-move-btn`, [createIconFromDef(styles.downIconDef)]),
+                            h(`button#${APPID}-${type}-new-btn.${APPID}-modal-button`, 'New'),
+                            h(`button#${APPID}-${type}-copy-btn.${APPID}-modal-button`, 'Copy'),
+                            h(`button#${APPID}-${type}-delete-btn.${APPID}-modal-button`, 'Delete'),
+                        ]),
+                        h(`div#${APPID}-${type}-rename-actions`, { style: { display: 'none' } }, [
+                            h(`button#${APPID}-${type}-rename-ok-btn.${APPID}-modal-button`, 'OK'),
+                            h(`button#${APPID}-${type}-rename-cancel-btn.${APPID}-modal-button`, 'Cancel'),
+                        ]),
+                        h(`div#${APPID}-${type}-delete-confirm-group.${APPID}-delete-confirm-group`, { style: { display: 'none' } }, [
+                            h(`span.${APPID}-delete-confirm-label`, 'Are you sure?'),
+                            h(`button#${APPID}-${type}-delete-confirm-btn.${APPID}-modal-button.${APPID}-delete-confirm-btn-yes`, 'Confirm Delete'),
+                            h(`button#${APPID}-${type}-delete-cancel-btn.${APPID}-modal-button`, 'Cancel'),
+                        ]),
+                    ])
                 ])
             ]);
         }
 
         _createMainContent() {
+            const styles = this.callbacks.siteStyles;
             const createTextField = (label, id, tooltip = '', fieldType = 'text') => {
                 const isImageField = ['image', 'icon'].includes(fieldType);
                 const inputWrapperChildren = [h('input', { type: 'text', id: `${APPID}-form-${id}` })];
                 if (isImageField) {
-                    inputWrapperChildren.push(h(`button.${APPID}-local-file-btn`, { type: 'button', 'data-target-id': id, title: 'Select local file' }, '📁'));
+                    inputWrapperChildren.push(h(`button.${APPID}-local-file-btn`, { type: 'button', 'data-target-id': id, title: 'Select local file' }, [createIconFromDef(styles.folderIconDef)]));
                 }
                 const fieldChildren = [
                     h('label', { htmlFor: `${APPID}-form-${id}`, title: tooltip }, label),
@@ -5226,8 +5648,7 @@
             h(`div.${APPID}-form-field`, [
                 h('label', { htmlFor: `${APPID}-form-${id}`, title: tooltip }, label),
                 h('select', { id: `${APPID}-form-${id}` }, [
-                    h('option', { value: '' }, '(not set)'),
-                    ...options.map(o => h('option', { value: o }, o))
+                    h('option', { value: '' }, '(not set)'), ...options.map(o => h('option', { value: o }, o))
                 ])
             ]);
             const createSliderField = (containerClass, label, id, min, max, step, tooltip = '', isPercent = false, nullThreshold = -1) =>
@@ -5268,7 +5689,6 @@
             };
             return h(`div.${APPID}-theme-modal-content`, [
                 h(`div.${APPID}-theme-general-settings`, [
-                    createTextField('Name:', 'metadata-name', 'Enter a unique name for this theme.', 'name'),
                     h(`div.${APPID}-form-field`, [
                         h('label', { htmlFor: `${APPID}-form-metadata-matchPatterns`, title: 'Enter one RegEx pattern per line to automatically apply this theme (e.g., /My Project/i).' }, 'Patterns (one per line):'),
                         h(`textarea`, { id: `${APPID}-form-metadata-matchPatterns`, rows: 3 }),
@@ -5294,6 +5714,7 @@
                                     createSliderField(`${APPID}-slider-subgroup`, 'max Width:', 'assistant-bubbleMaxWidth', 29, 100, 1, 'Maximum width of the bubble.\nSet to the far left for (auto).', true, 30)
                                 ]),
                                 h(`hr.${APPID}-theme-separator`),
+
                                 createPreview('assistant')
                             ])
                         ]),
@@ -5306,8 +5727,7 @@
                                 h('legend', 'Bubble Settings'),
                                 createColorField('Background color:', 'user-bubbleBackgroundColor', 'Background color of the message bubble.'),
                                 createColorField('Text color:', 'user-textColor', 'Color of the text inside the bubble.'),
-                                createTextField('Font:', 'user-font', 'Font family for the text.\nFont names with spaces must be quoted (e.g., "Times New Roman").'),
-                                createPaddingSliders('user'),
+                                createTextField('Font:', 'user-font', 'Font family for the text.\nFont names with spaces must be quoted (e.g., "Times New Roman").'), createPaddingSliders('user'),
                                 h(`div.${APPID}-compound-slider-container`, [
                                     createSliderField(`${APPID}-slider-subgroup`, 'Radius:', 'user-bubbleBorderRadius', -1, 50, 1, 'Corner roundness of the bubble (e.g., 10px).\nSet to the far left for (auto).', false, 0),
                                     createSliderField(`${APPID}-slider-subgroup`, 'max Width:', 'user-bubbleMaxWidth', 29, 100, 1, 'Maximum width of the bubble.\nSet to the far left for (auto).', true, 30)
@@ -5338,6 +5758,7 @@
                             createColorField('Text color:', 'inputArea-textColor', 'Color of the text you type.'),
                             h(`hr.${APPID}-theme-separator`),
                             h(`div.${APPID}-preview-container`, [
+
                                 h('label', 'Preview:'),
                                 h(`div.${APPID}-preview-bubble-wrapper`, [
                                     h(`div.${APPID}-preview-input-area`, { 'data-preview-for': 'inputArea' }, [
@@ -5357,8 +5778,16 @@
             this._updateInputAreaPreview();
         }
 
-        _updatePreview(actor) {
+        async _updatePreview(actor) {
             if (!this.modal) return;
+            const config = await this.callbacks.getCurrentConfig();
+            if (!config) return;
+
+            const isEditingDefaultSet = this.activeThemeKey === 'defaultSet';
+            const defaultActorSet = config.defaultSet[actor] || {};
+            // When editing the defaultSet, the fallback should be empty, not the set's own old values.
+            const fallbackActorSet = isEditingDefaultSet ? {} : defaultActorSet;
+
             requestAnimationFrame(() => {
                 const previewBubble = this.modal.element.querySelector(`[data-preview-for="${actor}"]`);
                 if (!previewBubble) return;
@@ -5366,43 +5795,61 @@
                 const form = this.modal.element;
                 const getVal = (id) => form.querySelector(`#${APPID}-form-${id}`)?.value.trim() || null;
 
-                previewBubble.style.color = getVal(`${actor}-textColor`) || '';
-                previewBubble.style.fontFamily = getVal(`${actor}-font`) || '';
-                previewBubble.style.backgroundColor = getVal(`${actor}-bubbleBackgroundColor`) || '#888';
+                // Apply fallback logic (current theme -> defaultSet -> hardcoded default) to all properties.
+                previewBubble.style.color = getVal(`${actor}-textColor`) ?? fallbackActorSet.textColor ?? '';
+                previewBubble.style.fontFamily = getVal(`${actor}-font`) ?? fallbackActorSet.font ?? '';
+                previewBubble.style.backgroundColor = getVal(`${actor}-bubbleBackgroundColor`) ?? fallbackActorSet.bubbleBackgroundColor ?? '#888';
 
+                // Padding
                 const paddingTBSlider = form.querySelector(`#${APPID}-form-${actor}-bubblePadding-tb`);
                 const paddingLRSlider = form.querySelector(`#${APPID}-form-${actor}-bubblePadding-lr`);
-                const tbVal = (paddingTBSlider && paddingTBSlider.value < 0) ? null : paddingTBSlider?.value;
-                const lrVal = (paddingLRSlider && paddingLRSlider.value < 0) ? null : paddingLRSlider?.value;
-                previewBubble.style.padding = (tbVal !== null && lrVal !== null) ? `${tbVal}px ${lrVal}px` : '';
+                let tbVal = (paddingTBSlider && paddingTBSlider.value < 0) ? null : paddingTBSlider?.value;
+                let lrVal = (paddingLRSlider && paddingLRSlider.value < 0) ? null : paddingLRSlider?.value;
+
+                const defaultSetValue = fallbackActorSet.bubblePadding;
+                if (tbVal === null && lrVal === null && defaultSetValue === null) {
+                    previewBubble.style.padding = ''; // No value in current theme or defaultSet.
+                } else {
+                    const defaultPaddingParts = (defaultSetValue || "6px 10px").split(' ');
+                    const defaultTB = parseInt(defaultPaddingParts[0], 10);
+                    const defaultLR = parseInt(defaultPaddingParts[1] || defaultPaddingParts[0], 10);
+                    const finalTB = (tbVal !== null) ? tbVal : defaultTB;
+                    const finalLR = (lrVal !== null) ? lrVal : defaultLR;
+                    previewBubble.style.padding = `${finalTB}px ${finalLR}px`;
+                }
+
+                // Radius
                 const radiusSlider = form.querySelector(`#${APPID}-form-${actor}-bubbleBorderRadius-slider`);
                 if (radiusSlider) {
                     const radiusVal = parseInt(radiusSlider.value, 10);
                     const nullThreshold = parseInt(radiusSlider.dataset.nullThreshold, 10);
-                    previewBubble.style.borderRadius = (!isNaN(nullThreshold) && radiusVal < nullThreshold) ? '' : `${radiusVal}px`;
+                    const currentRadius = (!isNaN(nullThreshold) && radiusVal < nullThreshold) ? null : `${radiusVal}px`;
+                    previewBubble.style.borderRadius = currentRadius ?? fallbackActorSet.bubbleBorderRadius ?? '';
                 }
 
+                // Max Width
                 const widthSlider = form.querySelector(`#${APPID}-form-${actor}-bubbleMaxWidth-slider`);
                 if (widthSlider) {
                     const widthVal = parseInt(widthSlider.value, 10);
                     const nullThreshold = parseInt(widthSlider.dataset.nullThreshold, 10);
-                    const isDefault = !isNaN(nullThreshold) && widthVal < nullThreshold;
-
-                    let targetWidth;
-                    if (isDefault) {
-                        targetWidth = (actor === 'user') ? '50%' : '90%';
-                    } else {
-                        targetWidth = `${widthVal}%`;
-                    }
-                    // Apply to both width and maxWidth to force the inline-block element to size correctly.
-                    previewBubble.style.width = targetWidth;
-                    previewBubble.style.maxWidth = targetWidth;
+                    const currentWidth = (!isNaN(nullThreshold) && widthVal < nullThreshold) ? null : `${widthVal}%`;
+                    const finalWidth = currentWidth ?? fallbackActorSet.bubbleMaxWidth ?? (actor === 'user' ? '50%' : '90%');
+                    previewBubble.style.width = finalWidth;
+                    previewBubble.style.maxWidth = finalWidth;
                 }
             });
         }
 
-        _updateInputAreaPreview() {
+        async _updateInputAreaPreview() {
             if (!this.modal) return;
+            const config = await this.callbacks.getCurrentConfig();
+            if (!config) return;
+
+            const isEditingDefaultSet = this.activeThemeKey === 'defaultSet';
+            const defaultInputSet = config.defaultSet.inputArea || {};
+            // When editing the defaultSet, the fallback should be empty, not the set's own old values.
+            const fallbackInputSet = isEditingDefaultSet ? {} : defaultInputSet;
+
             requestAnimationFrame(() => {
                 const preview = this.modal.element.querySelector('[data-preview-for="inputArea"]');
                 if (!preview) return;
@@ -5410,8 +5857,9 @@
                 const form = this.modal.element;
                 const getVal = (id) => form.querySelector(`#${APPID}-form-${id}`)?.value.trim() || null;
 
-                preview.style.backgroundColor = getVal('inputArea-backgroundColor') || '#888';
-                preview.style.color = getVal('inputArea-textColor') || '';
+                // Apply fallback logic (current theme -> defaultSet -> hardcoded default).
+                preview.style.backgroundColor = getVal('inputArea-backgroundColor') ?? fallbackInputSet.backgroundColor ?? '#888';
+                preview.style.color = getVal('inputArea-textColor') ?? fallbackInputSet.textColor ?? '';
             });
         }
 
@@ -5438,10 +5886,10 @@
         }
 
         _enterDeleteConfirmationMode() {
-            if (!this.modal) return;
+            if (!this.modal || this.renameState.isActive) return;
             this.pendingDeletionKey = this.activeThemeKey;
-            this.modal.element.querySelector(`#${APPID}-theme-main-actions`).style.display = 'none';
-            this.modal.element.querySelector(`#${APPID}-theme-delete-confirm-group`).hidden = false;
+            if (!this.pendingDeletionKey) return;
+            this._refreshModalState();
         }
 
         _exitDeleteConfirmationMode(resetKey = true) {
@@ -5449,8 +5897,7 @@
                 this.pendingDeletionKey = null;
             }
             if (this.modal) {
-                this.modal.element.querySelector(`#${APPID}-theme-main-actions`).style.display = 'contents';
-                this.modal.element.querySelector(`#${APPID}-theme-delete-confirm-group`).hidden = true;
+                this._refreshModalState();
             }
         }
 
@@ -5470,7 +5917,8 @@
             if (targetId.includes('icon')) {
                 return { quality: 0.85 };
             }
-            return { quality: 0.85 }; // Default
+            return { quality: 0.85 };
+            // Default
         }
 
         /**
@@ -5498,7 +5946,8 @@
                     const options = this._getImageOptions(targetId);
                     const dataUrl = await this.dataConverter.imageToOptimizedDataUrl(file, options);
                     targetInput.value = dataUrl;
-                    targetInput.dispatchEvent(new Event('input', { bubbles: true })); // Trigger preview update
+                    targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    // Trigger preview update
 
                     // Clear the "Processing..." message on success.
                     if (errorField) {
@@ -5506,7 +5955,7 @@
                         errorField.style.color = ''; // Reset color to inherit from CSS
                     }
                 } catch (error) {
-                    console.error('Image processing failed:', error);
+                    Logger.error('Image processing failed:', error);
                     // Show a proper error message with the error color on failure.
                     if (errorField) {
                         errorField.textContent = `Error: ${error.message}`;
@@ -5526,11 +5975,14 @@
                 this.debouncedUpdatePreview();
             });
             modalElement.addEventListener('click', (e) => {
-                const target = e.target;
+                const target = e.target.closest('button');
+                if (!target) return;
 
                 // Handle local file selection button
-                if (target.matches(`.${APPID}-local-file-btn`)) {
-                    this._handleLocalFileSelect(target);
+                const fileBtn = target.closest(`.${APPID}-local-file-btn`);
+                if (fileBtn) {
+
+                    this._handleLocalFileSelect(fileBtn);
                     return;
                 }
 
@@ -5541,18 +5993,21 @@
                     [`${APPID}-theme-delete-confirm-btn`]: () => this._handleThemeDelete(),
                     [`${APPID}-theme-delete-cancel-btn`]: () => this._exitDeleteConfirmationMode(),
                     [`${APPID}-theme-up-btn`]: () => this._handleThemeMove(-1),
-                    [`${APPID}-theme-down-btn`]: () => this._handleThemeMove(1)
+
+                    [`${APPID}-theme-down-btn`]: () => this._handleThemeMove(1),
+                    [`${APPID}-theme-rename-btn`]: () => this._enterRenameMode('theme'),
+                    [`${APPID}-theme-rename-ok-btn`]: () => this._handleRenameConfirm('theme'),
+                    [`${APPID}-theme-rename-cancel-btn`]: () => this._exitRenameMode(true),
                 };
-                for (const id in actionMap) {
-                    if (target.closest(`#${id}`)) {
-                        actionMap[id]();
-                        break;
-                    }
-                }
+                const action = actionMap[target.id];
+                if (action) action();
             });
-            modalElement.addEventListener('change', (e) => {
+            modalElement.addEventListener('change', async (e) => {
                 if (e.target.matches(`#${APPID}-theme-select`)) {
-                    this._populateFormWithThemeData(e.target.value);
+                    // Add a guard clause to prevent infinite loops.
+                    if (this.activeThemeKey === e.target.value) return;
+                    this.activeThemeKey = e.target.value;
+                    await this._refreshModalState();
                 }
             });
             modalElement.addEventListener('input', (e) => {
@@ -5561,6 +6016,7 @@
 
                 // Trigger preview for text-based inputs
                 const isTextPreviewable = id.includes('textColor') || id.includes('font') ||
+
                       id.includes('bubbleBackgroundColor') ||
                       id.includes('inputArea-backgroundColor') || id.includes('inputArea-textColor');
                 if (isTextPreviewable) {
@@ -5572,6 +6028,7 @@
                     this._updateSliderDisplay(target);
                     // Always trigger a preview update when any slider is changed.
                     this.debouncedUpdatePreview();
+
                 }
             });
             modalElement.addEventListener('mouseover', e => {
@@ -5582,6 +6039,18 @@
             modalElement.addEventListener('mouseout', e => {
                 if (e.target.matches('input[type="text"], textarea')) {
                     e.target.title = '';
+                }
+            });
+            modalElement.addEventListener('keydown', (e) => {
+                if(e.target.matches(`#${APPID}-theme-rename-input`)) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        this._handleRenameConfirm('theme');
+                    }
+                    if (e.key === 'Escape') {
+                        e.preventDefault();
+                        this._exitRenameMode(true);
+                    }
                 }
             });
         }
@@ -5611,7 +6080,7 @@
             if (scrollableArea) scrollableArea.style.visibility = 'hidden';
 
             this._clearAllFieldErrors();
-            this._exitDeleteConfirmationMode();
+
             const config = await this.callbacks.getCurrentConfig();
             if (!config) {
                 if (scrollableArea) scrollableArea.style.visibility = 'visible';
@@ -5695,27 +6164,21 @@
                 const swatch = swatchValue.closest(`.${APPID}-color-swatch`);
                 const targetId = swatch.dataset.controlsColor;
                 const textInput = modalElement.querySelector(`#${APPID}-form-${targetId}`);
+
                 if (textInput) {
                     swatchValue.style.backgroundColor = textInput.value || 'transparent';
                 }
             });
             const generalSettingsEl = modalElement.querySelector(`.${APPID}-theme-general-settings`);
             const separatorEl = modalElement.querySelector(`.${APPID}-theme-separator`);
-            const upBtn = modalElement.querySelector(`#${APPID}-theme-up-btn`);
-            const downBtn = modalElement.querySelector(`#${APPID}-theme-down-btn`);
+
             if (isDefault) {
                 generalSettingsEl.style.display = 'none';
                 separatorEl.style.display = 'none';
-                upBtn.disabled = true;
-                downBtn.disabled = true;
             } else {
                 generalSettingsEl.style.display = 'grid';
                 separatorEl.style.display = 'block';
-                const index = config.themeSets.findIndex(t => t.metadata.id === themeKey);
-                upBtn.disabled = (index === 0);
-                downBtn.disabled = (index === config.themeSets.length - 1);
             }
-            modalElement.querySelector(`#${APPID}-theme-delete-btn`).disabled = isDefault;
             this._updateAllPreviews();
 
             if (scrollableArea) {
@@ -5747,7 +6210,6 @@
 
             // Collect metadata
             const themeData = { metadata: {}, user: {}, assistant: {}, window: {}, inputArea: {} };
-            themeData.metadata.name = getVal('metadata-name');
             themeData.metadata.matchPatterns = modalElement.querySelector(`#${APPID}-form-metadata-matchPatterns`).value.split('\n').map(p => p.trim()).filter(p => p);
             // Collect actor data
             ['user', 'assistant'].forEach(actor => {
@@ -5801,20 +6263,6 @@
             validateField('window.backgroundImageUrl', themeData.window.backgroundImageUrl, 'image', 'Background image');
             const isDefault = this.activeThemeKey === 'defaultSet';
             if (!isDefault) {
-                const newName = themeData.metadata.name;
-                if (!newName || newName.trim() === '') {
-                    this._setFieldError('metadata-name', 'Theme Name cannot be empty.');
-                    isFormValid = false;
-                }
-                const isDuplicate = newConfig.themeSets.some(t =>
-                                                             t.metadata.id !== this.activeThemeKey &&
-                                                             t.metadata.name &&
-                                                             t.metadata.name.trim().toLowerCase() === newName.trim().toLowerCase()
-                                                            );
-                if (isDuplicate) {
-                    this._setFieldError('metadata-name', 'This theme name is already in use.');
-                    isFormValid = false;
-                }
                 for (const p of themeData.metadata.matchPatterns) {
                     if (!/^\/.*\/[gimsuy]*$/.test(p)) {
                         this._setFieldError('metadata-matchPatterns', `Invalid format: "${p}". Must be /pattern/flags.`);
@@ -5831,7 +6279,6 @@
             }
 
             if (!isFormValid) return;
-
             if (isDefault) {
                 newConfig.defaultSet.user = themeData.user;
                 newConfig.defaultSet.assistant = themeData.assistant;
@@ -5840,20 +6287,19 @@
             } else {
                 const index = newConfig.themeSets.findIndex(t => t.metadata.id === this.activeThemeKey);
                 if (index !== -1) {
-                    const existingId = newConfig.themeSets[index].metadata.id;
-                    newConfig.themeSets[index] = { ...newConfig.themeSets[index], ...themeData };
-                    newConfig.themeSets[index].metadata.id = existingId;
+                    // Preserve existing metadata not edited in this form (like name and id)
+                    const existingMetadata = newConfig.themeSets[index].metadata;
+                    newConfig.themeSets[index] = { ...themeData, metadata: existingMetadata };
+                    newConfig.themeSets[index].metadata.matchPatterns = themeData.metadata.matchPatterns;
                 }
             }
 
             try {
                 await this.callbacks.onSave(newConfig);
-
                 if (shouldClose) {
                     this.close();
                 } else {
-                    const latestConfig = await this.callbacks.getCurrentConfig();
-                    await this._refreshModalState(latestConfig, this.activeThemeKey);
+                    await this._refreshModalState();
                 }
             } catch (e) {
                 if (this.modal?.dom?.footerMessage) {
@@ -5864,35 +6310,28 @@
             }
         }
 
-        _proposeUniqueName(baseName, existingNamesSet) {
-            let proposedName = baseName;
-            let counter = 2;
-            while (existingNamesSet.has(proposedName.trim().toLowerCase())) {
-                proposedName = `${baseName} ${counter}`;
-                counter++;
-            }
-            return proposedName;
-        }
-
         async _handleThemeNew() {
             const config = await this.callbacks.getCurrentConfig();
             const existingNames = new Set(config.themeSets.map(t => t.metadata.name?.trim().toLowerCase()));
-            const newName = this._proposeUniqueName('New Theme', existingNames);
+            const newName = proposeUniqueName('New Theme', existingNames);
             const newTheme = {
                 metadata: { id: generateUniqueId(), name: newName, matchPatterns: [] },
                 user: {}, assistant: {}, window: {}, inputArea: {}
             };
             const newConfig = JSON.parse(JSON.stringify(config));
             newConfig.themeSets.push(newTheme);
+            try {
             await this.callbacks.onSave(newConfig);
 
-            const latestConfig = await this.callbacks.getCurrentConfig();
-            await this._refreshModalState(latestConfig, newTheme.metadata.id);
-
-            const nameInput = this.modal?.element.querySelector(`#${APPID}-form-metadata-name`);
-            if (nameInput) {
-                nameInput.focus();
-                nameInput.select();
+            this.activeThemeKey = newTheme.metadata.id;
+            await this._refreshModalState();
+            this._enterRenameMode('theme');
+            } catch (e) {
+                if (this.modal?.dom?.footerMessage) {
+                    const footerMsg = this.modal.dom.footerMessage;
+                    footerMsg.textContent = e.message;
+                    footerMsg.style.color = this.callbacks.siteStyles.error_text;
+                }
             }
         }
 
@@ -5910,7 +6349,7 @@
             const originalName = themeToCopy.metadata.name || 'Theme';
             const baseName = `${originalName} Copy`;
             const existingNames = new Set(config.themeSets.map(t => t.metadata.name?.trim().toLowerCase()));
-            const newName = this._proposeUniqueName(baseName, existingNames);
+            const newName = proposeUniqueName(baseName, existingNames);
             const newTheme = JSON.parse(JSON.stringify(themeToCopy));
 
             if (!newTheme.metadata) newTheme.metadata = {};
@@ -5922,14 +6361,16 @@
 
             const newConfig = JSON.parse(JSON.stringify(config));
             newConfig.themeSets.push(newTheme);
+            try {
             await this.callbacks.onSave(newConfig);
-            const latestConfig = await this.callbacks.getCurrentConfig();
-            await this._refreshModalState(latestConfig, newTheme.metadata.id);
-
-            const nameInput = this.modal?.element.querySelector(`#${APPID}-form-metadata-name`);
-            if (nameInput) {
-                nameInput.focus();
-                nameInput.select();
+            this.activeThemeKey = newTheme.metadata.id;
+            await this._refreshModalState();
+            } catch (e) {
+                if (this.modal?.dom?.footerMessage) {
+                    const footerMsg = this.modal.dom.footerMessage;
+                    footerMsg.textContent = e.message;
+                    footerMsg.style.color = this.callbacks.siteStyles.error_text;
+                }
             }
         }
 
@@ -5943,10 +6384,19 @@
             const config = await this.callbacks.getCurrentConfig();
             const newConfig = JSON.parse(JSON.stringify(config));
             newConfig.themeSets = newConfig.themeSets.filter(t => t.metadata.id !== themeKey);
+            try {
             await this.callbacks.onSave(newConfig);
+
+            this.activeThemeKey = 'defaultSet';
             this._exitDeleteConfirmationMode();
-            const latestConfig = await this.callbacks.getCurrentConfig();
-            await this._refreshModalState(latestConfig, 'defaultSet');
+            await this._refreshModalState();
+            } catch (e) {
+                if (this.modal?.dom?.footerMessage) {
+                    const footerMsg = this.modal.dom.footerMessage;
+                    footerMsg.textContent = e.message;
+                    footerMsg.style.color = this.callbacks.siteStyles.error_text;
+                }
+            }
         }
 
         async _handleThemeMove(direction) {
@@ -5963,9 +6413,103 @@
             const item = newConfig.themeSets.splice(currentIndex, 1)[0];
             newConfig.themeSets.splice(newIndex, 0, item);
 
+            try {
             await this.callbacks.onSave(newConfig);
-            const latestConfig = await this.callbacks.getCurrentConfig();
-            await this._refreshModalState(latestConfig, themeKey);
+            await this._refreshModalState();
+            } catch (e) {
+                if (this.modal?.dom?.footerMessage) {
+                    const footerMsg = this.modal.dom.footerMessage;
+                    footerMsg.textContent = e.message;
+                    footerMsg.style.color = this.callbacks.siteStyles.error_text;
+                }
+            }
+        }
+
+        async _enterRenameMode(type) {
+            if (this.renameState.isActive) return;
+            this.renameState = {
+                type: type,
+                isActive: true
+            };
+            await this._refreshModalState();
+
+            const input = this.modal.element.querySelector(`#${APPID}-${type}-rename-input`);
+            if (input) {
+                input.focus();
+                input.select();
+            }
+        }
+
+        async _exitRenameMode(refresh = false) {
+            if (!this.renameState.isActive) return;
+            const type = this.renameState.type;
+            this.renameState = { type: null, isActive: false };
+
+            if (this.modal) {
+                const input = this.modal.element.querySelector(`#${APPID}-${type}-rename-input`);
+                if (input) input.classList.remove('is-invalid');
+
+                const footerMessage = this.modal.dom.footerMessage;
+                if (footerMessage) footerMessage.textContent = '';
+                if(refresh) await this._refreshModalState();
+            }
+        }
+
+        async _handleRenameConfirm(type) {
+            const footerMessage = this.modal?.dom?.footerMessage;
+            if (footerMessage) footerMessage.textContent = '';
+
+            const input = this.modal.element.querySelector(`#${APPID}-${type}-rename-input`);
+            const newName = input.value.trim();
+            const config = await this.callbacks.getCurrentConfig();
+            const oldTheme = this.activeThemeKey === 'defaultSet' ?
+                  { metadata: { name: 'Default Settings' } } :
+            config.themeSets.find(t => t.metadata.id === this.activeThemeKey);
+            const oldName = oldTheme?.metadata?.name || '';
+
+            // Validation
+            if (!newName) {
+                if (footerMessage) {
+                    footerMessage.textContent = `Theme name cannot be empty.`;
+                    footerMessage.style.color = this.callbacks.siteStyles.error_text;
+                }
+                input.classList.add('is-invalid');
+                return;
+            }
+
+            const existingKeys = config.themeSets.map(t => t.metadata.name);
+
+            if (newName.toLowerCase() !== oldName.toLowerCase() && existingKeys.some(k => k.toLowerCase() === newName.toLowerCase())) {
+                if (footerMessage) {
+                    footerMessage.textContent = `Name "${newName}" is already in use.`;
+                    footerMessage.style.color = this.callbacks.siteStyles.error_text;
+                }
+                input.classList.add('is-invalid');
+                return;
+            }
+
+            // Config Update
+            const newConfig = JSON.parse(JSON.stringify(config));
+            const themeToUpdate = newConfig.themeSets.find(t => t.metadata.id === this.activeThemeKey);
+            if(themeToUpdate){
+                themeToUpdate.metadata.name = newName;
+            } else {
+                if (footerMessage) {
+                    footerMessage.textContent = `Error: Could not find theme to update.`;
+                    footerMessage.style.color = this.callbacks.siteStyles.error_text;
+                }
+                return;
+            }
+
+            try {
+                await this.callbacks.onSave(newConfig);
+                await this._exitRenameMode(true);
+            } catch (e) {
+                if (footerMessage) {
+                    footerMessage.textContent = `Save failed: ${e.message}`;
+                    footerMessage.style.color = this.callbacks.siteStyles.error_text;
+                }
+            }
         }
 
         _injectStyles() {
@@ -5976,7 +6520,44 @@
             const style = document.createElement('style');
             style.id = styleId;
             style.textContent = `
-                /* --- New styles for input wrappers and file buttons --- */
+                /* --- New styles for rename UI --- */
+                .${APPID}-theme-modal-header-controls {
+                  display: flex;
+                  flex-direction: column;
+                  gap: 12px;
+                }
+                .${APPID}-header-row {
+                  display: grid;
+                  grid-template-columns: 5.5rem 1fr auto;
+                  gap: 8px;
+                  align-items: center;
+                }
+                .${APPID}-header-row > label {
+                  grid-column: 1;
+                  text-align: right;
+                  color: ${styles.label_text};
+                  font-size: 0.9em;
+                }
+                .${APPID}-header-row > .${APPID}-rename-area {
+                  grid-column: 2;
+                  min-width: 180px; /* Ensure a minimum width */
+                }
+                .${APPID}-header-row > .${APPID}-action-area {
+                  grid-column: 3;
+                  display: grid; /* Use grid for stacking */
+                  align-items: center;
+                }
+                .${APPID}-action-area > * {
+                    grid-area: 1 / 1;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+                .${APPID}-theme-general-settings.is-disabled,
+                .${APPID}-theme-scrollable-area.is-disabled {
+                  pointer-events: none;
+                  opacity: 0.5;
+                }
                 .${APPID}-input-wrapper {
                     display: flex;
                     align-items: center;
@@ -6010,10 +6591,8 @@
                 .${APPID}-theme-modal-shell-box .is-invalid {
                   border-color: ${styles.error_text} !important;
                 }
-                .${APPID}-theme-modal-header-controls {
-                  align-items: center;
-                  display: flex;
-                  gap: 8px;
+                .${APPID}-delete-confirm-group {
+                    display: none;
                 }
                 .${APPID}-delete-confirm-group:not([hidden]) {
                   align-items: center;
@@ -6034,15 +6613,14 @@
                   color: ${styles.delete_confirm_btn_hover_text} !important;
                 }
                 .${APPID}-modal-button.${APPID}-move-btn {
+                  display: flex;
                   align-items: center;
                   justify-content: center;
-                  line-height: 1.2;
-                  min-width: 28px;
-                  padding: 2px 6px;
-                }
-                .${APPID}-header-spacer {
-                  flex-shrink: 0;
-                  width: 16px;
+                  line-height: 1;
+                  min-width: 24px;
+                  padding: 4px;
+                  height: 24px;
+                  width: 24px;
                 }
                 .${APPID}-theme-modal-content {
                   display: flex;
@@ -6063,13 +6641,15 @@
                 .${APPID}-theme-general-settings {
                   display: grid;
                   gap: 16px;
-                  grid-template-columns: 1fr 1fr;
+                  grid-template-columns: 1fr;
+                  transition: opacity 0.2s;
                 }
                 .${APPID}-theme-scrollable-area {
                   flex-grow: 1;
                   overflow-y: auto;
                   padding-bottom: 8px;
                   padding-right: 8px;
+                  transition: opacity 0.2s;
                 }
                 .${APPID}-theme-scrollable-area:focus {
                   outline: none;
@@ -6255,32 +6835,60 @@
                   cursor: not-allowed;
                   opacity: 0.5;
                 }
+                .${APPID}-theme-modal-shell-footer-message.${APPID}-conflict-text {
+                    color: ${styles.error_text};
+                    display: flex;
+                    align-items: center;
+                }
+                #${APPID}-conflict-reload-btn {
+                    border-color: ${styles.error_text};
+                }
+                .${APPID}-text-item.drag-over-top {
+                  border-top: 2px solid ${styles.dnd_indicator_color};
+                }
+                .${APPID}-text-item.drag-over-bottom {
+                  border-bottom: 2px solid ${styles.dnd_indicator_color};
+                }
             `;
             document.head.appendChild(style);
         }
+
+        getContextForReopen() {
+            return { type: 'theme', key: this.activeThemeKey };
+        }
+
     }
 
     class UIManager {
         /** * @param {(config: AppConfig) => Promise<void>} onSaveCallback
          * @param {() => Promise<AppConfig>} getCurrentConfigCallback
          * @param {DataConverter} dataConverter
+         * @param {() => void} onModalClose
+         * @param {object} siteStyles
          */
-        constructor(onSaveCallback, getCurrentConfigCallback, dataConverter) {
+        constructor(appInstance, onSaveCallback, getCurrentConfigCallback, dataConverter, onModalClose, siteStyles, getCurrentThemeSetCallback) {
+            this.app = appInstance; // Store reference to main controller
             this.onSave = onSaveCallback;
             this.getCurrentConfig = getCurrentConfigCallback;
             this.dataConverter = dataConverter;
-
+            this.onModalClose = onModalClose;
+            this.siteStyles = siteStyles;
+            this.isModalOpen = false;
+            const modalCallbacks = {
+                onSave: (newConfig) => this.onSave(newConfig),
+                getCurrentConfig: () => this.getCurrentConfig(),
+                onModalOpenStateChange: (isOpen) => this.setModalState(isOpen)
+            };
             this.settingsButton = new CustomSettingsButton(
                 { // Callbacks
                     onClick: () => this.settingsPanel.toggle()
                 },
                 { // Options
                     id: `${APPID}-settings-button`,
-                    textContent: '⚙️',
                     title: `Settings (${APPNAME})`,
                     zIndex: CONSTANTS.Z_INDICES.SETTINGS_BUTTON,
                     position: { top: '10px', right: '320px' },
-                    styleVariables: SITE_STYLES.SETTINGS_BUTTON
+                    siteStyles: this.siteStyles.SETTINGS_BUTTON
                 }
             );
             this.settingsPanel = new SettingsPanelComponent({
@@ -6288,17 +6896,21 @@
                 onShowJsonModal: () => this.jsonModal.open(this.settingsButton.element),
                 onShowThemeModal: (themeKey) => this.themeModal.open(themeKey),
                 getCurrentConfig: () => this.getCurrentConfig(),
-                getAnchorElement: () => this.settingsButton.element
-                // getCurrentThemeSet is now set later in ThemeAutomator.init
+                getAnchorElement: () => this.settingsButton.element,
+                siteStyles: this.siteStyles.SETTINGS_PANEL,
+                onShow: () => this.displayConfigWarning(),
+                getCurrentThemeSet: getCurrentThemeSetCallback // Pass callback directly
             });
             this.jsonModal = new JsonModalComponent({
-                onSave: (newConfig) => this.onSave(newConfig),
-                getCurrentConfig: () => this.getCurrentConfig()
+                ...modalCallbacks,
+                siteStyles: this.siteStyles.JSON_MODAL,
+                onModalOpen: () => this.displayConfigWarning()
             });
             this.themeModal = new ThemeModalComponent({
-                onSave: (newConfig) => this.onSave(newConfig),
-                getCurrentConfig: () => this.getCurrentConfig(),
-                dataConverter: this.dataConverter
+                ...modalCallbacks,
+                dataConverter: this.dataConverter,
+                siteStyles: this.siteStyles.THEME_MODAL,
+                onModalOpen: () => this.displayConfigWarning()
             });
         }
 
@@ -6307,6 +6919,72 @@
             this.settingsPanel.render();
             this.jsonModal.render();
             this.themeModal.render();
+            EventBus.subscribe(`${APPID}:reOpenModal`, ({ type, key }) => {
+                if (type === 'json') {
+                    this.jsonModal.open(this.settingsButton.element);
+                } else if (type === 'theme') {
+                    this.themeModal.open(key);
+                }
+            });
+        }
+
+        getActiveModal() {
+            if (this.jsonModal?.modal?.element?.open) {
+                return this.jsonModal;
+            }
+            if (this.themeModal?.modal?.element?.open) {
+                return this.themeModal;
+            }
+            return null;
+        }
+
+        setModalState(isOpen) {
+            this.isModalOpen = isOpen;
+            if (!isOpen) {
+                this.onModalClose?.();
+            }
+        }
+
+        _createWarningBanner() {
+            return h(`div.${APPID}-config-warning-banner`, {
+                style: {
+                    backgroundColor: 'var(--bg-danger, #ffdddd)',
+                    color: 'var(--text-on-danger, #a00)',
+                    padding: '8px 12px',
+                    fontSize: '0.85em',
+                    textAlign: 'center',
+                    borderRadius: '4px',
+                    margin: '0 0 12px 0',
+                    border: '1px solid var(--border-danger-heavy, #c00)',
+                    whiteSpace: 'pre-wrap',
+                }
+            }, this.app.configWarningMessage);
+        }
+
+        displayConfigWarning() {
+            const components = [this.settingsPanel, this.jsonModal, this.themeModal];
+            // First, remove any existing banners from all components
+            components.forEach(component => {
+                const modalElement = component?.modal?.element || component?.element;
+                if (modalElement) {
+                    modalElement.querySelector(`.${APPID}-config-warning-banner`)?.remove();
+                }
+            });
+
+            if (this.app.isConfigSizeExceeded) {
+                const newBanner = this._createWarningBanner();
+                // Add banner to any visible settings UI
+                if (this.settingsPanel?.isOpen()) {
+                    this.settingsPanel.element.prepend(newBanner.cloneNode(true));
+                }
+                if (this.jsonModal?.modal?.element?.open) {
+                    this.jsonModal.modal.getContentContainer().prepend(newBanner.cloneNode(true));
+                }
+                if (this.themeModal?.modal?.element?.open) {
+                    const target = this.themeModal.modal.element.querySelector(`.${APPID}-theme-general-settings`);
+                    target?.before(newBanner.cloneNode(true));
+                }
+            }
         }
     }
 
@@ -6344,11 +7022,11 @@
                 `
                 });
                 document.head.appendChild(debugStyle);
-                console.log(LOG_PREFIX, 'Borders ON');
+                Logger.log('Borders ON');
             } else {
                 if (existingStyle) {
                     existingStyle.remove();
-                    console.log(LOG_PREFIX, 'Borders OFF');
+                    Logger.log('Borders OFF');
                 }
             }
         }
@@ -6357,7 +7035,7 @@
          * Logs the current configuration object to the console.
          */
         logConfig() {
-            console.log(LOG_PREFIX, 'Current Config:', this.automator.configManager.get());
+            Logger.log('Current Config:', this.automator.configManager.get());
         }
 
         /**
@@ -6365,10 +7043,10 @@
          */
         help() {
             console.group(LOG_PREFIX, "Debug Commands");
-            console.log(`${APPID}Debug.help() - Displays this help message.`);
-            console.log(`${APPID}Debug.toggleBorders() - Toggles visibility of layout borders.`);
-            console.log(`${APPID}Debug.checkSelectors() - Validates all critical CSS selectors.`);
-            console.log(`${APPID}Debug.logConfig() - Prints the current configuration object.`);
+            Logger.log(`${APPID}Debug.help() - Displays this help message.`);
+            Logger.log(`${APPID}Debug.toggleBorders() - Toggles visibility of layout borders.`);
+            Logger.log(`${APPID}Debug.checkSelectors() - Validates all critical CSS selectors.`);
+            Logger.log(`${APPID}Debug.logConfig() - Prints the current configuration object.`);
             console.groupEnd();
         }
     }
@@ -6379,32 +7057,43 @@
 
     /**
      * @class Sentinel
-     * @description Detects DOM node insertion using a CSS animation trick.
+     * @description Detects DOM node insertion using a shared, prefixed CSS animation trick.
      */
     class Sentinel {
-        constructor() {
-            this.animationName = `${APPID}-sentinel-animation-${Date.now()}`;
+        constructor(prefix = 'my-project') {
+            window.__global_sentinel_instances__ = window.__global_sentinel_instances__ || {};
+            if (window.__global_sentinel_instances__[prefix]) {
+                return window.__global_sentinel_instances__[prefix];
+            }
+
+            // Use a unique, prefixed animation name shared by all scripts in a project.
+            this.animationName = `${prefix}-global-sentinel-animation`;
+            this.styleId = `${prefix}-sentinel-global-keyframes`;
+            this.ruleClassName = `${prefix}-sentinel-rule`;
             this.listeners = new Map();
-            this._injectStyle();
+            this._injectKeyframes();
             document.addEventListener('animationstart', this._handleAnimationStart.bind(this), true);
+
+            window.__global_sentinel_instances__[prefix] = this;
         }
 
-        _injectStyle() {
-            const styleId = `${APPID}-sentinel-style`;
-            if (document.getElementById(styleId)) return;
+        _injectKeyframes() {
+            // Ensure the keyframes are injected only once per project prefix.
+            if (document.getElementById(this.styleId)) return;
+
             const style = h('style', {
-                id: styleId,
+                id: this.styleId,
                 textContent: `@keyframes ${this.animationName} { from { transform: none; } to { transform: none; } }`
             });
             document.head.appendChild(style);
         }
 
         _handleAnimationStart(event) {
+            // Check if the animation is the one we're listening for.
             if (event.animationName !== this.animationName) return;
-            event.stopImmediatePropagation();
             const target = event.target;
             if (!target) return;
-
+            // Check if the target element matches any of this instance's selectors.
             for (const [selector, callbacks] of this.listeners.entries()) {
                 if (target.matches(selector)) {
                     callbacks.forEach(cb => cb(target));
@@ -6415,8 +7104,10 @@
         on(selector, callback) {
             if (!this.listeners.has(selector)) {
                 this.listeners.set(selector, []);
+                // Each script still injects its own rule to target its specific element.
+                // All rules will point to the same, shared animation name.
                 const style = h('style', {
-                    className: `${APPID}-sentinel-rule`,
+                    className: this.ruleClassName,
                     textContent: `${selector} { animation-duration: 0.001s; animation-name: ${this.animationName}; }`
                 });
                 document.head.appendChild(style);
@@ -6430,11 +7121,8 @@
             this.dataConverter = new DataConverter();
             this.configManager = new ConfigManager(this.dataConverter);
             this.imageDataManager = new ImageDataManager();
-            this.uiManager = new UIManager(
-                this.handleSave.bind(this),
-                () => Promise.resolve(this.configManager.get()),
-                this.dataConverter
-            );
+            this.uiManager = null;
+            // Initialized in init
             this.observerManager = new ObserverManager();
             this.debugManager = new DebugManager(this);
 
@@ -6449,12 +7137,24 @@
             this.sequentialNavManager = new SequentialNavManager(this.configManager, this.messageCacheManager);
             this.fixedNavManager = null;
             this.bulkCollapseManager = new BulkCollapseManager(this.configManager);
+            this.syncManager = null;
+            this.isConfigSizeExceeded = false;
+            this.configWarningMessage = '';
         }
 
         async init() {
             await this.configManager.load();
             this._ensureUniqueThemeIds(this.configManager.get());
 
+            this.uiManager = new UIManager(
+                this, // Pass the app instance
+                (newConfig) => this.handleSave(newConfig),
+                () => Promise.resolve(this.configManager.get()),
+                this.dataConverter,
+                () => this.syncManager.onModalClose(),
+                SITE_STYLES,
+                () => this.themeManager.getThemeSet() // Pass the callback directly
+            );
             // Initialize the cache manager after config is loaded
             this.messageCacheManager.init();
             this.avatarManager.init();
@@ -6471,13 +7171,163 @@
                 this.bulkCollapseManager.setFixedNavManager(this.fixedNavManager);
             }
             this.bulkCollapseManager.init();
-            // Wire up the themeManager callback to the uiManager after all instances are created
-            if (this.uiManager.settingsPanel) {
-                this.uiManager.settingsPanel.callbacks.getCurrentThemeSet = () => this.themeManager.getThemeSet();
-            }
 
             this.observerManager.start();
             this.themeManager.updateTheme();
+            this.syncManager = new SyncManager(this);
+            this.syncManager.init();
+
+            EventBus.subscribe(`${APPID}:configSizeExceeded`, ({ message }) => {
+                this.isConfigSizeExceeded = true;
+                this.configWarningMessage = message;
+                this.uiManager.displayConfigWarning();
+            });
+            EventBus.subscribe(`${APPID}:configSaveSuccess`, () => {
+                this.isConfigSizeExceeded = false;
+                this.configWarningMessage = '';
+                this.uiManager.displayConfigWarning();
+            });
+        }
+
+        // Method required by the SyncManager's interface for silent updates
+        async applyUpdate(newConfig) {
+            try {
+                const { completeConfig, themeChanged } = this._processConfig(newConfig);
+                this.configManager.config = completeConfig; // Update in-memory config
+                await this._applyUiUpdates(completeConfig, themeChanged);
+            } catch (e) {
+                Logger.error('Failed to apply remote config update:', e.message);
+            }
+        }
+
+        // Method required by the SyncManager's interface
+        getAppId() {
+            return APPID;
+        }
+
+        // Getter required by the SyncManager's interface
+        get configKey() {
+            return CONSTANTS.CONFIG_KEY;
+        }
+
+        _processConfig(newConfig) {
+            const currentConfig = this.configManager.get();
+            const themeChanged = JSON.stringify(currentConfig.themeSets) !== JSON.stringify(newConfig.themeSets) ||
+                  JSON.stringify(currentConfig.defaultSet) !== JSON.stringify(newConfig.defaultSet);
+            // Create a complete config object by merging the incoming data with defaults.
+            const completeConfig = deepMerge(
+                JSON.parse(JSON.stringify(DEFAULT_THEME_CONFIG)),
+                newConfig
+            );
+            // Ensure all theme IDs are unique before proceeding to validation and saving.
+            this._ensureUniqueThemeIds(completeConfig);
+            // Validate the configuration object before processing.
+            this.configManager.validateThemeMatchPatterns(completeConfig);
+
+            // Sanitize global options
+            if (completeConfig && completeConfig.options) {
+                // Sanitize icon_size
+                if (!CONSTANTS.ICON_SIZE_VALUES.includes(completeConfig.options.icon_size)) {
+                    completeConfig.options.icon_size = CONSTANTS.ICON_SIZE;
+                }
+
+                // Sanitize chat_content_max_width
+                let width = completeConfig.options.chat_content_max_width;
+                const widthConfig = CONSTANTS.SLIDER_CONFIGS.CHAT_WIDTH;
+                const defaultValue = widthConfig.DEFAULT;
+                let sanitized = false;
+                if (width === null) {
+                    sanitized = true;
+                } else if (typeof width === 'string' && width.endsWith('vw')) {
+                    const numVal = parseInt(width, 10);
+                    if (!isNaN(numVal) && numVal >= widthConfig.NULL_THRESHOLD && numVal <= widthConfig.MAX) {
+                        sanitized = true;
+                    }
+                }
+
+                if (!sanitized) {
+                    completeConfig.options.chat_content_max_width = defaultValue;
+                }
+            }
+
+            // Sanitize all theme sets to ensure slider values are valid
+            if (Array.isArray(completeConfig.themeSets)) {
+                completeConfig.themeSets.forEach(theme => {
+                    const validate = (value, type) => {
+                        const result = validateImageString(value, type);
+                        if (!result.isValid) throw new Error(`Theme "${theme.metadata.name}": ${result.message}`);
+                    };
+                    validate(theme.user.icon, 'icon');
+                    validate(theme.user.standingImageUrl, 'image');
+                    validate(theme.assistant.icon, 'icon');
+                    validate(theme.assistant.standingImageUrl, 'image');
+                    validate(theme.window.backgroundImageUrl, 'image');
+
+                    ['user', 'assistant'].forEach(actor => {
+                        if (!theme[actor]) theme[actor] = {};
+                        const actorConf = theme[actor];
+                        const defaultActorConf = DEFAULT_THEME_CONFIG.defaultSet[actor];
+
+                        for (const key in THEME_VALIDATION_RULES) {
+                            if (Object.prototype.hasOwnProperty.call(actorConf, key)) {
+                                const rule = THEME_VALIDATION_RULES[key];
+                                actorConf[key] = this._sanitizeProperty(actorConf[key], rule, defaultActorConf[key]);
+                            }
+                        }
+                    });
+                });
+            }
+            return { completeConfig, themeChanged };
+        }
+
+        async _applyUiUpdates(completeConfig, themeChanged) {
+            this.avatarManager.updateIconSizeCss();
+            this.collapsibleBubbleManager.updateAll();
+            this.scrollToTopManager.updateAll();
+            this.sequentialNavManager.updateAll();
+            this.bulkCollapseManager.updateVisibility();
+
+            // Repopulate the settings panel form if it is currently open
+            if (this.uiManager.settingsPanel?.isOpen()) {
+                await this.uiManager.settingsPanel.populateForm();
+            }
+
+            // Only trigger a full theme update if theme-related data has changed.
+            if (themeChanged) {
+                this.themeManager.cachedThemeSet = null;
+                this.themeManager.updateTheme();
+            } else {
+                // Otherwise, just apply the layout-specific changes.
+                this.themeManager.applyChatContentMaxWidth();
+            }
+
+            const navConsoleEnabled = completeConfig.features.fixed_nav_console.enabled;
+            if (navConsoleEnabled && !this.fixedNavManager) {
+                this.fixedNavManager = new FixedNavigationManager(this.messageCacheManager);
+                await this.fixedNavManager.init();
+                // Explicitly notify the new instance with the current cache state
+                this.messageCacheManager.notify();
+                // Provide the new instance to the bulk collapse manager
+                this.bulkCollapseManager.setFixedNavManager(this.fixedNavManager);
+            } else if (!navConsoleEnabled && this.fixedNavManager) {
+                this.fixedNavManager.destroy();
+                this.fixedNavManager = null;
+                // Clear the instance from the bulk collapse manager
+                this.bulkCollapseManager.setFixedNavManager(null);
+            }
+        }
+
+        /** @param {AppConfig} newConfig */
+        async handleSave(newConfig) {
+            try {
+                const { completeConfig, themeChanged } = this._processConfig(newConfig);
+                await this.configManager.save(completeConfig);
+                this.syncManager.onSave(); // Notify SyncManager of the successful save
+                await this._applyUiUpdates(completeConfig, themeChanged);
+            } catch (e) {
+                Logger.error('Configuration save failed:', e.message);
+                throw e; // Re-throw the error for the UI layer to catch
+            }
         }
 
         /**
@@ -6501,11 +7351,9 @@
 
         /**
          * @private
-         * @param {string |
-         * null} value The value to sanitize.
+         * @param {string |* null} value The value to sanitize.
          * @param {object} rule The validation rule from THEME_VALIDATION_RULES.
-         * @param {string |
-         * null} defaultValue The fallback value.
+         * @param {string |* null} defaultValue The fallback value.
          * @returns {string | null} The sanitized value.
          */
         _sanitizeProperty(value, rule, defaultValue) {
@@ -6523,114 +7371,6 @@
             }
 
             return value; // The original value is valid
-        }
-
-        /** @param {AppConfig} newConfig */
-        async handleSave(newConfig) {
-            try {
-                const currentConfig = this.configManager.get();
-                const themeChanged = JSON.stringify(currentConfig.themeSets) !== JSON.stringify(newConfig.themeSets) ||
-                      JSON.stringify(currentConfig.defaultSet) !== JSON.stringify(newConfig.defaultSet);
-                // Create a complete config object by merging the incoming data with defaults.
-                const completeConfig = deepMerge(
-                    JSON.parse(JSON.stringify(DEFAULT_THEME_CONFIG)),
-                    newConfig
-                );
-                // Ensure all theme IDs are unique before proceeding to validation and saving.
-                this._ensureUniqueThemeIds(completeConfig);
-                // Validate the configuration object before processing.
-                this.configManager.validateThemeMatchPatterns(completeConfig);
-
-                // Sanitize global options
-                if (completeConfig && completeConfig.options) {
-                    // Sanitize icon_size
-                    if (!CONSTANTS.ICON_SIZE_VALUES.includes(completeConfig.options.icon_size)) {
-                        completeConfig.options.icon_size = CONSTANTS.ICON_SIZE;
-                    }
-
-                    // Sanitize chat_content_max_width
-                    let width = completeConfig.options.chat_content_max_width;
-                    const widthConfig = CONSTANTS.SLIDER_CONFIGS.CHAT_WIDTH;
-                    const defaultValue = widthConfig.DEFAULT;
-                    let sanitized = false;
-                    if (width === null) {
-                        sanitized = true;
-                    } else if (typeof width === 'string' && width.endsWith('vw')) {
-                        const numVal = parseInt(width, 10);
-                        if (!isNaN(numVal) && numVal >= widthConfig.NULL_THRESHOLD && numVal <= widthConfig.MAX) {
-                            sanitized = true;
-                        }
-                    }
-
-                    if (!sanitized) {
-                        completeConfig.options.chat_content_max_width = defaultValue;
-                    }
-                }
-
-                // Sanitize all theme sets to ensure slider values are valid
-                if (Array.isArray(completeConfig.themeSets)) {
-                    completeConfig.themeSets.forEach(theme => {
-                        const validate = (value, type) => {
-                            const result = validateImageString(value, type);
-                            if (!result.isValid) throw new Error(`Theme "${theme.metadata.name}": ${result.message}`);
-                        };
-                        validate(theme.user.icon, 'icon');
-                        validate(theme.user.standingImageUrl, 'image');
-                        validate(theme.assistant.icon, 'icon');
-                        validate(theme.assistant.standingImageUrl, 'image');
-                        validate(theme.window.backgroundImageUrl, 'image');
-
-                        ['user', 'assistant'].forEach(actor => {
-                            if (!theme[actor]) theme[actor] = {};
-                            const actorConf = theme[actor];
-                            const defaultActorConf = DEFAULT_THEME_CONFIG.defaultSet[actor];
-
-                            for (const key in THEME_VALIDATION_RULES) {
-                                if (Object.prototype.hasOwnProperty.call(actorConf, key)) {
-                                    const rule = THEME_VALIDATION_RULES[key];
-                                    actorConf[key] = this._sanitizeProperty(actorConf[key], rule, defaultActorConf[key]);
-                                }
-                            }
-                        });
-                    });
-                }
-
-                await this.configManager.save(completeConfig);
-                // Update UI components that depend on the new settings
-                this.avatarManager.updateIconSizeCss();
-                this.collapsibleBubbleManager.updateAll();
-                this.scrollToTopManager.updateAll();
-                this.sequentialNavManager.updateAll();
-                this.bulkCollapseManager.updateVisibility();
-
-                // Only trigger a full theme update if theme-related data has changed.
-                if (themeChanged) {
-                    this.themeManager.cachedThemeSet = null;
-                    this.themeManager.updateTheme();
-                } else {
-                    // Otherwise, just apply the layout-specific changes.
-                    this.themeManager.applyChatContentMaxWidth();
-                }
-
-                const navConsoleEnabled = completeConfig.features.fixed_nav_console.enabled;
-                if (navConsoleEnabled && !this.fixedNavManager) {
-                    this.fixedNavManager = new FixedNavigationManager(this.messageCacheManager);
-                    await this.fixedNavManager.init();
-                    // Explicitly notify the new instance with the current cache state
-                    this.messageCacheManager.notify();
-                    // Provide the new instance to the bulk collapse manager
-                    this.bulkCollapseManager.setFixedNavManager(this.fixedNavManager);
-                } else if (!navConsoleEnabled && this.fixedNavManager) {
-                    this.fixedNavManager.destroy();
-                    this.fixedNavManager = null;
-                    // Clear the instance from the bulk collapse manager
-                    this.bulkCollapseManager.setFixedNavManager(null);
-                }
-
-            } catch (e) {
-                console.error(LOG_PREFIX, 'Configuration save failed:', e.message);
-                throw e; // Re-throw the error for the UI layer to catch
-            }
         }
 
         /**
@@ -6656,20 +7396,20 @@
                 try {
                     const el = document.querySelector(selector);
                     if (el) {
-                        console.log(`${LOG_PREFIX} ✅ [OK] "${selector}"\n     description: ${desc}\n     element found:`, el);
+                        Logger.log(`✅ [OK] "${selector}"\n     description: ${desc}\n     element found:`, el);
                     } else {
-                        console.warn(`${LOG_PREFIX} ❌ [NG] "${selector}"\n     description: ${desc}\n     element NOT found.`);
+                        Logger.warn(`❌ [NG] "${selector}"\n     description: ${desc}\n     element NOT found.`);
                         allOK = false;
                     }
                 } catch (e) {
-                    console.error(`${LOG_PREFIX} 💥 [ERROR] Invalid selector "${selector}"\n     description: ${desc}\n     error:`, e.message);
+                    Logger.error(`💥 [ERROR] Invalid selector "${selector}"\n     description: ${desc}\n     error:`, e.message);
                     allOK = false;
                 }
             }
             if (allOK) {
-                console.log(LOG_PREFIX, "🎉 All essential selectors are currently valid!");
+                Logger.log("🎉 All essential selectors are currently valid!");
             } else {
-                console.warn(LOG_PREFIX, "⚠ One or more essential selectors are NOT found or invalid. The script might not function correctly.");
+                Logger.warn("⚠ One or more essential selectors are NOT found or invalid. The script might not function correctly.");
             }
             console.groupEnd();
             return allOK;
@@ -6679,7 +7419,7 @@
 
     // ---- Script Entry Point ----
     const automator = new ThemeAutomator();
-    const sentinel = new Sentinel();
+    const sentinel = new Sentinel(OWNERID);
 
     // Use the text input area as a reliable signal that the UI is fully interactive.
     const ANCHOR_SELECTOR = CONSTANTS.SELECTORS.INPUT_TEXT_FIELD_TARGET;
@@ -6691,7 +7431,7 @@
         if (isInitialized) return;
         isInitialized = true;
 
-        console.log(LOG_PREFIX, 'Main UI anchor detected. Initializing script...');
+        Logger.log('Anchor element detected. Initializing the script...');
         automator.init().then(() => {
             PlatformAdapter.applyFixes(automator);
         });
@@ -6708,7 +7448,7 @@
                     typeof automator.debugManager[key] === 'function' &&
                     key !== 'constructor' &&
                     !key.startsWith('_')
-                );
+                   );
 
             for (const key of methodNames) {
                 debugApi[key] = automator.debugManager[key].bind(automator.debugManager);
@@ -6723,9 +7463,9 @@
         if (typeof debugApi.help !== "function") {
             debugApi.help = () => {
                 console.table(Object.keys(debugApi));
-                console.log(LOG_PREFIX, "All available debug commands listed above.");
+                Logger.log("All available debug commands listed above.");
             };
-            console.warn(LOG_PREFIX, "debugManager.help not found, fallback help() defined.");
+            Logger.warn("debugManager.help not found, fallback help() defined.");
         }
 
         if (typeof exportFunction === 'function') {
@@ -6734,9 +7474,9 @@
             unsafeWindow[`${APPID}Debug`] = debugApi;
         }
 
-        console.log(LOG_PREFIX, `Debug tools are available. Use \`${APPID}Debug.help()\` in the console for a list of commands.`);
+        Logger.log(`Debug tools are available. Use \`${APPID}Debug.help()\` in the console for a list of commands.`);
     } catch (e) {
-        console.error(LOG_PREFIX, "Could not expose debug object to console.", e);
+        Logger.error("Could not expose debug object to console.", e);
     }
 
 })();

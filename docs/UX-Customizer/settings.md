@@ -4,11 +4,11 @@
 
 ### 1. Click the Settings button in the upper right corner to open the Settings Panel
 
-![Settings button](./images/aiux_settings_button.webp)
+![Settings button](./images/settings_button.webp)
 
 ### 2. Settings Panel Items
 
-![Settings Panel](./images/aiux_settings_panel.webp)
+![Settings Panel](./images/settings_panel.webp)
 
 | Item | Description |
 | :--- | :--- |
@@ -25,16 +25,16 @@
 
 ### 3. Theme Settings Screen Items
 
-![Theme Editor](./images/aiux_theme_settings.webp)
+![Theme Editor](./images/theme_settings.webp)
 
 | Item | Description |
 | :--- | :--- |
 | **Theme Management** | |
 | `Theme` (dropdown) | Select the theme you want to edit. `Default Settings` is the base setting for all themes. |
+| `Rename` | Changes the name of the selected theme. Clicking this enables inline editing. |
 | `▲` / `▼` | Moves the theme's priority. Patterns of themes higher in the list are evaluated first. |
 | `New` / `Copy` / `Delete` | Respectively, "Create new," "Duplicate," and "Delete" a theme. |
 | **General Settings** | |
-| `Name` | The name of this theme displayed in the theme list. |
 | `Patterns` | The theme is automatically applied if the chat title matches this regular expression pattern. |
 | **Assistant / User** | *(Assistant and User settings are common)* |
 | `Name` | The speaker's name displayed on the chat screen. If left blank, the default name will be used. |
