@@ -143,7 +143,7 @@ MIT License
 
 ### High Priority (Items the author wants to implement)
 
-  * [ChatGPT] Adjust theme application on the project selection screen (currently does not fully consider themes for chat lists, project files, etc.).
+  * Additional UI adjustments when using Canvas (e.g., how the navigation console is displayed)
   
 ### Low Priority (Items under consideration but not deemed necessary at present)
 
@@ -151,3 +151,4 @@ MIT License
   * Theme application to the sidebar.
   * Font changes for the input area.
   * On/off switch for theme application to the toolbar area (the top area with project name, chat title, account icon, etc.) (Initially, the toolbar was excluded from theme application, but it stood out more than expected, so it's now fully applied).
+  * Applying themes to Canvas
