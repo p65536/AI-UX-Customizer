@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.2.1] - 2025-08-15
+- **Added**: Implemented dynamic UI adjustment to prevent interference when the Canvas feature is active.
+  - **Standing Image:** Now hidden when the Canvas is open.
+
 ## [1.2.0] - 2025-08-05
 - **New Features**: Added a feature to automatically synchronize settings when the script is used across multiple tabs.
 - **Improvement**: Enhanced the theme preview feature. Unset items now inherit values from the user-defined default theme (`defaultSet`), making the preview more accurate and WYSIWYG.
