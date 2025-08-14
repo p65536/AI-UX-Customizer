@@ -171,7 +171,18 @@
             DEBUG_CONTAINER_TURN: 'article[data-testid^="conversation-turn-"]',
             DEBUG_CONTAINER_ASSISTANT: 'div[data-message-author-role="assistant"]',
             DEBUG_CONTAINER_USER: 'div[data-message-author-role="user"]',
+
+            // --- Canvas ---
+            CANVAS_CONTAINER: 'section.popover header h2',
         };
+
+        /**
+         * Checks if the Canvas feature is currently active on the page.
+         * @returns {boolean} True if Canvas mode is detected, otherwise false.
+         */
+        static isCanvasModeActive() {
+            return !!document.querySelector(this.SELECTORS.CANVAS_CONTAINER);
+        }
 
         /**
          * Gets the platform-specific role identifier from a message element.
@@ -243,6 +254,7 @@
             instance.sidebarResizeObserver = null;
             instance.lastSidebarElem = null;
             instance.sidebarAttributeObserver = null;
+            instance.debouncedVisibilityCheck = debounce(() => EventBus.publish(`${APPID}:visibilityRecheck`), 250);
         }
 
         /**
@@ -282,6 +294,7 @@
             instance._dispatchNodeAddedTasks(mutations);
             instance._checkPendingTurns();
             instance.debouncedCacheUpdate();
+            instance.debouncedVisibilityCheck();
         }
 
         /**
@@ -399,6 +412,36 @@
             // Initial run to attach the observer on page load.
             setupAttributeObserverOnSidebar();
         }
+
+        static _getSettingsButtonStyle() {
+            const canvasTitle = document.querySelector(this.SELECTORS.CANVAS_CONTAINER);
+            if (canvasTitle) {
+                const canvasPanel = canvasTitle.closest('section.popover');
+                if (canvasPanel) {
+                    const canvasRect = canvasPanel.getBoundingClientRect();
+                    const offset = CONSTANTS.UI_DEFAULTS.SETTINGS_BUTTON_CANVAS_OFFSET_PX;
+                    return { property: 'left', value: `${canvasRect.left - offset}px` };
+                }
+            }
+            // Return the default style object if canvas is not active
+            const defaultPosition = CONSTANTS.UI_DEFAULTS.SETTINGS_BUTTON_DEFAULT_POSITION;
+            return { property: 'right', value: defaultPosition.right };
+        }
+
+        static repositionSettingsButton(settingsButton) {
+            if (!settingsButton?.element) return;
+
+            const button = settingsButton.element;
+            const style = this._getSettingsButtonStyle();
+
+            if (style.property === 'left') {
+                button.style.right = '';
+                button.style.left = style.value;
+            } else {
+                button.style.left = '';
+                button.style.right = style.value;
+            }
+        }
     }
 
     // =================================================================================
@@ -446,6 +489,10 @@
             TITLE_MARGIN_BOTTOM: 8,
             BTN_GROUP_GAP: 8,
             TEXTAREA_HEIGHT: 200,
+        },
+        UI_DEFAULTS: {
+            SETTINGS_BUTTON_CANVAS_OFFSET_PX: 96,
+            SETTINGS_BUTTON_DEFAULT_POSITION: { top: '10px', right: '320px' },
         },
         SELECTORS: PlatformAdapter.SELECTORS,
     };
@@ -2798,6 +2845,7 @@
             this.injectStyles();
             EventBus.subscribe(`${APPID}:layoutRecalculate`, () => this.debouncedRecalculateStandingImagesLayout());
             EventBus.subscribe(`${APPID}:themeApplied`, () => this.updateVisibility());
+            EventBus.subscribe(`${APPID}:visibilityRecheck`, () => this.updateVisibility());
         }
 
         injectStyles() {
@@ -2853,14 +2901,16 @@
         }
 
         updateVisibility() {
+            const isCanvasActive = PlatformAdapter.isCanvasModeActive();
             ['user', 'assistant'].forEach((actor) => {
                 const imgElement = document.getElementById(`${APPID}-standing-image-${actor}`);
                 if (!imgElement) return;
 
                 const hasImage = !!document.documentElement.style.getPropertyValue(`--${APPID}-${actor}-standing-image`);
-                imgElement.style.opacity = hasImage ? '1' : '0';
+                imgElement.style.opacity = hasImage && !isCanvasActive ? '1' : '0';
             });
             this.debouncedRecalculateStandingImagesLayout();
+            EventBus.publish(`${APPID}:uiReposition`);
         }
 
         /**
@@ -6971,7 +7021,7 @@
                     id: `${APPID}-settings-button`,
                     title: `Settings (${APPNAME})`,
                     zIndex: CONSTANTS.Z_INDICES.SETTINGS_BUTTON,
-                    position: { top: '10px', right: '320px' },
+                    position: CONSTANTS.UI_DEFAULTS.SETTINGS_BUTTON_DEFAULT_POSITION,
                     siteStyles: this.siteStyles.SETTINGS_BUTTON,
                 }
             );
@@ -7010,6 +7060,12 @@
                     this.themeModal.open(key);
                 }
             });
+            EventBus.subscribe(`${APPID}:uiReposition`, () => this.repositionSettingsButton());
+        }
+
+        repositionSettingsButton() {
+            if (!this.settingsButton?.element) return;
+            PlatformAdapter.repositionSettingsButton(this.settingsButton);
         }
 
         getActiveModal() {

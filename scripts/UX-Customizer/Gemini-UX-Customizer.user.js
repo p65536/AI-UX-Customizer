@@ -171,7 +171,18 @@
             DEBUG_CONTAINER_TURN: '.conversation-container',
             DEBUG_CONTAINER_ASSISTANT: 'model-response',
             DEBUG_CONTAINER_USER: 'user-query',
+
+            // --- Canvas ---
+            CANVAS_CONTAINER: 'immersive-panel',
         };
+
+        /**
+         * Checks if the Canvas feature is currently active on the page.
+         * @returns {boolean} True if Canvas mode is detected, otherwise false.
+         */
+        static isCanvasModeActive() {
+            return !!document.querySelector(this.SELECTORS.CANVAS_CONTAINER);
+        }
 
         /**
          * Gets the platform-specific role identifier from a message element.
@@ -368,6 +379,12 @@
             });
             debouncedThemeUpdate();
         }
+
+        static repositionSettingsButton(settingsButton) {
+            // This method is a no-op for Gemini, as dynamic repositioning is not needed.
+            // It exists to make the UIManager class identical across platforms.
+            return;
+        }
     }
 
     // =================================================================================
@@ -415,6 +432,10 @@
             TITLE_MARGIN_BOTTOM: 8,
             BTN_GROUP_GAP: 8,
             TEXTAREA_HEIGHT: 200,
+        },
+        UI_DEFAULTS: {
+            SETTINGS_BUTTON_CANVAS_OFFSET_PX: 96,
+            SETTINGS_BUTTON_DEFAULT_POSITION: { top: '10px', right: '320px' },
         },
         SELECTORS: PlatformAdapter.SELECTORS,
     };
@@ -2847,6 +2868,7 @@
             const isActiveChat = this._isChatActive();
             const hasMessages = !!document.querySelector(CONSTANTS.SELECTORS.USER_MESSAGE);
             const shouldShowActors = isActiveChat && hasMessages;
+            const isCanvasActive = PlatformAdapter.isCanvasModeActive();
 
             ['user', 'assistant'].forEach((actor) => {
                 const container = document.getElementById(`${APPID}-standing-image-${actor}`);
@@ -2854,9 +2876,10 @@
 
                 const hasStandingImage = getPropertyByPath(theme, `${actor}.standingImageUrl`) ?? getPropertyByPath(config, `defaultSet.${actor}.standingImageUrl`);
 
-                container.style.opacity = shouldShowActors && hasStandingImage ? '1' : '0';
+                container.style.opacity = shouldShowActors && hasStandingImage && !isCanvasActive ? '1' : '0';
             });
             this.debouncedRecalculateStandingImagesLayout();
+            EventBus.publish(`${APPID}:uiReposition`);
         }
 
         /**
@@ -6960,7 +6983,7 @@
                     id: `${APPID}-settings-button`,
                     title: `Settings (${APPNAME})`,
                     zIndex: CONSTANTS.Z_INDICES.SETTINGS_BUTTON,
-                    position: { top: '10px', right: '320px' },
+                    position: CONSTANTS.UI_DEFAULTS.SETTINGS_BUTTON_DEFAULT_POSITION,
                     siteStyles: this.siteStyles.SETTINGS_BUTTON,
                 }
             );
@@ -6999,6 +7022,12 @@
                     this.themeModal.open(key);
                 }
             });
+            EventBus.subscribe(`${APPID}:uiReposition`, () => this.repositionSettingsButton());
+        }
+
+        repositionSettingsButton() {
+            if (!this.settingsButton?.element) return;
+            PlatformAdapter.repositionSettingsButton(this.settingsButton);
         }
 
         getActiveModal() {
