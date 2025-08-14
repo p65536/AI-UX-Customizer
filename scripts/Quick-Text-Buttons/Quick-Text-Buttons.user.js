@@ -4,7 +4,7 @@
 // @version      1.0.1
 // @license      MIT
 // @description  Adds customizable buttons to paste predefined text into the input field on ChatGPT/Gemini.
-// @icon         data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iNjRweCIgdmlld0JveD0iMCAwIDI0IDI0IiB3aWR0aD0iNjRweCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTIiIGZpbGw9IndoaXRlIi8+PHBhdGggZD0iTTAgMGgyNHYyNEgwdjAweiIgZmlsbD0ibm9uZSIvPjxwYXRoIGZpbGw9IiMzMzMiIGQ9Ik0xNC4wNiA5LjAybC45Mi45Mkw1LjkyIDE5SDV2LS45Mmw5LjA2LTkuMDZNMTcuNjYgM2MtLjI1IDAtLjUxLjEtLjcuMjlsLTEuODMgMS44MyAzLjc1IDMuNzUgMS44My0xLjgzYy4zOS0uMzkuMzktMS4wMiAwLTEuNDFsLTIuMzQtMi4zNGMtLjItLjItLjQ1LS4yOS0uNzEtLjI5em0tMy42IDMuMTlMMyAxNy4yNVYyMWgzLjc1TDE3LjgxIDkuOTRsLTMuNzUtMy43NXoiLz48L3N2Zz4=
+// @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/qtb.ico
 // @author       p65536
 // @match        https://chatgpt.com/*
 // @match        https://gemini.google.com/*
