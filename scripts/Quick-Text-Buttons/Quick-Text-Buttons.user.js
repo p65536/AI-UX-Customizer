@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Quick-Text-Buttons
 // @namespace    https://github.com/p65536
-// @version      1.0.0
+// @version      1.0.1
 // @license      MIT
 // @description  Adds customizable buttons to paste predefined text into the input field on ChatGPT/Gemini.
 // @icon         data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGhlaWdodD0iNjRweCIgdmlld0JveD0iMCAwIDI0IDI0IiB3aWR0aD0iNjRweCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTIiIGZpbGw9IndoaXRlIi8+PHBhdGggZD0iTTAgMGgyNHYyNEgwdjAweiIgZmlsbD0ibm9uZSIvPjxwYXRoIGZpbGw9IiMzMzMiIGQ9Ik0xNC4wNiA5LjAybC45Mi45Mkw1LjkyIDE5SDV2LS45Mmw5LjA2LTkuMDZNMTcuNjYgM2MtLjI1IDAtLjUxLjEtLjcuMjlsLTEuODMgMS44MyAzLjc1IDMuNzUgMS44My0xLjgzYy4zOS0uMzkuMzktMS4wMiAwLTEuNDFsLTIuMzQtMi4zNGMtLjItLjItLjQ1LS4yOS0uNzEtLjI5em0tMy42IDMuMTlMMyAxNy4yNVYyMWgzLjc1TDE3LjgxIDkuOTRsLTMuNzUtMy43NXoiLz48L3N2Zz4=
@@ -102,7 +102,6 @@
     // =================================================================================
 
     class PlatformAdapter {
-
         static getPlatformDetails() {
             const { host } = location;
             if (host.includes('chatgpt.com')) {
@@ -307,14 +306,35 @@
                 borderColor: 'var(--interactive-border-secondary-default)',
                 backgroundHover: 'var(--interactive-bg-secondary-hover)',
                 borderRadius: 'var(--radius-md, 4px)',
-                iconDef: { tag: 'svg', props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, children: [{ tag: 'path', props: { d: 'M270-80q-45 0-77.5-30.5T160-186v-558q0-38 23.5-68t61.5-38l395-78v640l-379 76q-9 2-15 9.5t-6 16.5q0 11 9 18.5t21 7.5h450v-640h80v720H270Zm90-233 200-39v-478l-200 39v478Zm-80 16v-478l-15 3q-11 2-18 9.5t-7 18.5v457q5-2 10.5-3.5T261-293l19-4Zm-40-472v482-482Z' } }] }
+                iconDef: {
+                    tag: 'svg',
+                    props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
+                    children: [
+                        {
+                            tag: 'path',
+                            props: {
+                                d: 'M270-80q-45 0-77.5-30.5T160-186v-558q0-38 23.5-68t61.5-38l395-78v640l-379 76q-9 2-15 9.5t-6 16.5q0 11 9 18.5t21 7.5h450v-640h80v720H270Zm90-233 200-39v-478l-200 39v478Zm-80 16v-478l-15 3q-11 2-18 9.5t-7 18.5v457q5-2 10.5-3.5T261-293l19-4Zm-40-472v482-482Z',
+                            },
+                        },
+                    ],
+                },
             },
             INSERT_BUTTON: {
                 background: 'var(--interactive-bg-secondary-default)',
                 borderColor: 'var(--interactive-border-secondary-default)',
                 backgroundHover: 'var(--interactive-bg-secondary-hover)',
                 borderRadius: 'var(--radius-md, 4px)',
-                iconDef: { tag: 'svg', props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 0 24 24', width: '24px', fill: 'currentColor' }, children: [{ tag: 'path', props: { d: 'M0 0h24v24H0V0z', fill: 'none' } }, { tag: 'path', props: { d: 'M14.06 9.02l.92.92L5.92 19H5v-.92l9.06-9.06M17.66 3c-.25 0-.51.1-.7.29l-1.83 1.83 3.75 3.75 1.83-1.83c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.2-.2-.45-.29-.71-.29zm-3.6 3.19L3 17.25V21h3.75L17.81 9.94l-3.75-3.75z' } }] }
+                iconDef: {
+                    tag: 'svg',
+                    props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 0 24 24', width: '24px', fill: 'currentColor' },
+                    children: [
+                        { tag: 'path', props: { d: 'M0 0h24v24H0V0z', fill: 'none' } },
+                        {
+                            tag: 'path',
+                            props: { d: 'M14.06 9.02l.92.92L5.92 19H5v-.92l9.06-9.06M17.66 3c-.25 0-.51.1-.7.29l-1.83 1.83 3.75 3.75 1.83-1.83c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.2-.2-.45-.29-.71-.29zm-3.6 3.19L3 17.25V21h3.75L17.81 9.94l-3.75-3.75z' },
+                        },
+                    ],
+                },
             },
             SETTINGS_PANEL: {
                 bg: 'var(--sidebar-surface-primary)',
@@ -369,9 +389,21 @@
                 popup_bg: 'var(--main-surface-primary)',
                 popup_border: 'var(--border-default)',
                 dnd_indicator_color: 'var(--text-accent)',
-                upIconDef: { tag: 'svg', props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, children: [{ tag: 'path', props: { d: 'M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z' } }] },
-                downIconDef: { tag: 'svg', props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, children: [{ tag: 'path', props: { d: 'M480-344 240-584l56-56 184 184 184-184 56 56-240 240Z' } }] },
-                deleteIconDef: { tag: 'svg', props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, children: [{ tag: 'path', props: { d: 'm256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z' } }] },
+                upIconDef: {
+                    tag: 'svg',
+                    props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
+                    children: [{ tag: 'path', props: { d: 'M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z' } }],
+                },
+                downIconDef: {
+                    tag: 'svg',
+                    props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
+                    children: [{ tag: 'path', props: { d: 'M480-344 240-584l56-56 184 184 184-184 56 56-240 240Z' } }],
+                },
+                deleteIconDef: {
+                    tag: 'svg',
+                    props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
+                    children: [{ tag: 'path', props: { d: 'm256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z' } }],
+                },
             },
             TEXT_LIST: {
                 bg: 'var(--main-surface-primary)',
@@ -392,7 +424,7 @@
                 option_hover_bg: 'var(--interactive-bg-secondary-hover)',
                 option_hover_border: 'var(--border-default)',
                 option_hover_outline: 'var(--border-default)',
-            }
+            },
         },
         gemini: {
             SETTINGS_BUTTON: {
@@ -400,14 +432,35 @@
                 borderColor: 'var(--gem-sys-color--outline)',
                 backgroundHover: 'var(--gem-sys-color--surface-container-higher)',
                 borderRadius: 'var(--radius-md, 4px)',
-                iconDef: { tag: 'svg', props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, children: [{ tag: 'path', props: { d: 'M270-80q-45 0-77.5-30.5T160-186v-558q0-38 23.5-68t61.5-38l395-78v640l-379 76q-9 2-15 9.5t-6 16.5q0 11 9 18.5t21 7.5h450v-640h80v720H270Zm90-233 200-39v-478l-200 39v478Zm-80 16v-478l-15 3q-11 2-18 9.5t-7 18.5v457q5-2 10.5-3.5T261-293l19-4Zm-40-472v482-482Z' } }] }
+                iconDef: {
+                    tag: 'svg',
+                    props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
+                    children: [
+                        {
+                            tag: 'path',
+                            props: {
+                                d: 'M270-80q-45 0-77.5-30.5T160-186v-558q0-38 23.5-68t61.5-38l395-78v640l-379 76q-9 2-15 9.5t-6 16.5q0 11 9 18.5t21 7.5h450v-640h80v720H270Zm90-233 200-39v-478l-200 39v478Zm-80 16v-478l-15 3q-11 2-18 9.5t-7 18.5v457q5-2 10.5-3.5T261-293l19-4Zm-40-472v482-482Z',
+                            },
+                        },
+                    ],
+                },
             },
             INSERT_BUTTON: {
                 background: 'var(--gem-sys-color--surface-container-high)',
                 borderColor: 'var(--gem-sys-color--outline)',
                 backgroundHover: 'var(--gem-sys-color--surface-container-higher)',
                 borderRadius: 'var(--radius-md, 4px)',
-                iconDef: { tag: 'svg', props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 0 24 24', width: '24px', fill: 'currentColor' }, children: [{ tag: 'path', props: { d: 'M0 0h24v24H0V0z', fill: 'none' } }, { tag: 'path', props: { d: 'M14.06 9.02l.92.92L5.92 19H5v-.92l9.06-9.06M17.66 3c-.25 0-.51.1-.7.29l-1.83 1.83 3.75 3.75 1.83-1.83c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.2-.2-.45-.29-.71-.29zm-3.6 3.19L3 17.25V21h3.75L17.81 9.94l-3.75-3.75z' } }] }
+                iconDef: {
+                    tag: 'svg',
+                    props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 0 24 24', width: '24px', fill: 'currentColor' },
+                    children: [
+                        { tag: 'path', props: { d: 'M0 0h24v24H0V0z', fill: 'none' } },
+                        {
+                            tag: 'path',
+                            props: { d: 'M14.06 9.02l.92.92L5.92 19H5v-.92l9.06-9.06M17.66 3c-.25 0-.51.1-.7.29l-1.83 1.83 3.75 3.75 1.83-1.83c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.2-.2-.45-.29-.71-.29zm-3.6 3.19L3 17.25V21h3.75L17.81 9.94l-3.75-3.75z' },
+                        },
+                    ],
+                },
             },
             SETTINGS_PANEL: {
                 bg: 'var(--gem-sys-color--surface-container-highest)',
@@ -462,9 +515,21 @@
                 popup_bg: 'var(--gem-sys-color--surface-container-highest)',
                 popup_border: 'var(--gem-sys-color--outline)',
                 dnd_indicator_color: 'var(--gem-sys-color--primary)',
-                upIconDef: { tag: 'svg', props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, children: [{ tag: 'path', props: { d: 'M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z' } }] },
-                downIconDef: { tag: 'svg', props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, children: [{ tag: 'path', props: { d: 'M480-344 240-584l56-56 184 184 184-184 56 56-240 240Z' } }] },
-                deleteIconDef: { tag: 'svg', props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, children: [{ tag: 'path', props: { d: 'm256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z' } }] },
+                upIconDef: {
+                    tag: 'svg',
+                    props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
+                    children: [{ tag: 'path', props: { d: 'M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z' } }],
+                },
+                downIconDef: {
+                    tag: 'svg',
+                    props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
+                    children: [{ tag: 'path', props: { d: 'M480-344 240-584l56-56 184 184 184-184 56 56-240 240Z' } }],
+                },
+                deleteIconDef: {
+                    tag: 'svg',
+                    props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
+                    children: [{ tag: 'path', props: { d: 'm256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z' } }],
+                },
             },
             TEXT_LIST: {
                 bg: 'var(--gem-sys-color--surface-container-high)',
@@ -485,7 +550,7 @@
                 option_hover_bg: 'var(--gem-sys-color--surface-container-higher)',
                 option_hover_border: 'var(--gem-sys-color--outline)',
                 option_hover_outline: 'var(--gem-sys-color--primary)',
-            }
+            },
         },
     };
 
@@ -494,41 +559,41 @@
             insert_before_newline: false,
             insert_after_newline: false,
             insertion_position: 'end', // 'cursor', 'start', 'end'
-            activeProfileName: 'Default'
+            activeProfileName: 'Default',
         },
         texts: {
-            "Default": {
-                "Test": [
-                    "[TEST MESSAGE] You can ignore this message.",
-                    "Tell me something interesting.",
-                    "Based on all of our previous conversations, generate an image of me as you imagine. Make it super-realistic. Please feel free to fill in any missing information with your own imagination. Do not ask follow-up questions; generate the image immediately.",
-                    "Based on all of our previous conversations, generate an image of my ideal partner (opposite sex) as you imagine. Make it super-realistic. Please feel free to fill in any missing information with your own imagination. Do not ask follow-up questions; generate the image immediately.",
-                    "Based on all of our previous conversations, generate an image of a person who is the exact opposite of my ideal partner. Make it super-realistic. Please feel free to fill in any missing information with your own imagination. Do not ask follow-up questions; generate the image immediately."
+            Default: {
+                Test: [
+                    '[TEST MESSAGE] You can ignore this message.',
+                    'Tell me something interesting.',
+                    'Based on all of our previous conversations, generate an image of me as you imagine. Make it super-realistic. Please feel free to fill in any missing information with your own imagination. Do not ask follow-up questions; generate the image immediately.',
+                    'Based on all of our previous conversations, generate an image of my ideal partner (opposite sex) as you imagine. Make it super-realistic. Please feel free to fill in any missing information with your own imagination. Do not ask follow-up questions; generate the image immediately.',
+                    'Based on all of our previous conversations, generate an image of a person who is the exact opposite of my ideal partner. Make it super-realistic. Please feel free to fill in any missing information with your own imagination. Do not ask follow-up questions; generate the image immediately.',
                 ],
-                "Images": [
-                    "For each generated image, include an \"image number\" (e.g., Image 1, Image 2, ...), a title, and an image description.\n\n",
-                    "Refer to the body shape and illustration style in the attached images, and draw the same person. Pay special attention to maintaining character consistency.\n\n",
-                    "Feel free to illustrate a scene from everyday life. You can choose the composition or situation. If you are depicting consecutive scenes (a story), make sure to keep everything consistent (e.g., do not change clothing for no reason).\n\n"
+                Images: [
+                    'For each generated image, include an "image number" (e.g., Image 1, Image 2, ...), a title, and an image description.\n\n',
+                    'Refer to the body shape and illustration style in the attached images, and draw the same person. Pay special attention to maintaining character consistency.\n\n',
+                    'Feel free to illustrate a scene from everyday life. You can choose the composition or situation. If you are depicting consecutive scenes (a story), make sure to keep everything consistent (e.g., do not change clothing for no reason).\n\n',
                 ],
-                "Coding": [
-                    "### Code Editing Rules (Apply to the entire chat)\nStrictly follow these rules for all code suggestions, changes, optimizations, and Canvas reflection:\n1. **Do not modify any part of the code that is not being edited.**\n   * This includes blank lines, comments, variable names, order, etc. **Strictly keep all unmodified parts as is.**\n2. **Always leave concise, meaningful comments.**\n   * Limit comments to content that aids understanding or future maintenance. Do not include formal or duplicate notes.\n3. **When proposing or changing code, clearly state the intent and scope.**\n   * Example: \"Improve performance of this function,\" \"Simplify this conditional branch,\" etc.\n4. **Apply the above rules even for Canvas reflection.**\n   * Do not reformat, remove, or reorder content on the GPT side.\n5. **Preserve the overall style of the code (indentation, newlines, etc.).**\n   * Only edited parts should stand out clearly as differences.\n\n",
-                    "Optimize the following script according to modern design guidelines.\nWhile maintaining its purpose and function, improve the structure, readability, and extensibility.\nIf there are improvements, clearly indicate them in the code comments and compare Before→After.\n\n```\n```\n\n"
+                Coding: [
+                    '### Code Editing Rules (Apply to the entire chat)\nStrictly follow these rules for all code suggestions, changes, optimizations, and Canvas reflection:\n1. **Do not modify any part of the code that is not being edited.**\n   * This includes blank lines, comments, variable names, order, etc. **Strictly keep all unmodified parts as is.**\n2. **Always leave concise, meaningful comments.**\n   * Limit comments to content that aids understanding or future maintenance. Do not include formal or duplicate notes.\n3. **When proposing or changing code, clearly state the intent and scope.**\n   * Example: "Improve performance of this function," "Simplify this conditional branch," etc.\n4. **Apply the above rules even for Canvas reflection.**\n   * Do not reformat, remove, or reorder content on the GPT side.\n5. **Preserve the overall style of the code (indentation, newlines, etc.).**\n   * Only edited parts should stand out clearly as differences.\n\n',
+                    'Optimize the following script according to modern design guidelines.\nWhile maintaining its purpose and function, improve the structure, readability, and extensibility.\nIf there are improvements, clearly indicate them in the code comments and compare Before→After.\n\n```\n```\n\n',
                 ],
-                "Summary": [
-                    "STEP 1: For this chat log, do not summarize, but clearly show the structure of the content. Please output in the following format:\n\n- 🔹 List of topics (each topic heading and its starting point)\n- 🧷 List of technical terms / keywords / commands / proper nouns\n- 📌 Key statements marking turning points in the discussion (quotes allowed)\n\n[NOTE]\nThe goal is not to summarize, but to \"enumerate and organize the topics.\"\nGive priority to extracting important elements while maintaining context.\n",
-                    "STEP 2: For this chat log, enumerate the content as it is, without summarizing or restructuring.\n\nSample output format:\n1. [Start] Consulted about PowerShell script character encoding error\n2. [Proposal] Suggested UTF-8 with BOM save\n3. [Clarification] Clarified misunderstanding about Shift-JIS (e.g., cp932)\n4. [Conclusion] Decided on UTF-8-only approach with PowerShell\n\n[NOTE]\nMaintain the original order of topics. The goal is not to summarize, but to list \"what was discussed\" and \"what conclusions were drawn.\"",
+                Summary: [
+                    'STEP 1: For this chat log, do not summarize, but clearly show the structure of the content. Please output in the following format:\n\n- 🔹 List of topics (each topic heading and its starting point)\n- 🧷 List of technical terms / keywords / commands / proper nouns\n- 📌 Key statements marking turning points in the discussion (quotes allowed)\n\n[NOTE]\nThe goal is not to summarize, but to "enumerate and organize the topics."\nGive priority to extracting important elements while maintaining context.\n',
+                    'STEP 2: For this chat log, enumerate the content as it is, without summarizing or restructuring.\n\nSample output format:\n1. [Start] Consulted about PowerShell script character encoding error\n2. [Proposal] Suggested UTF-8 with BOM save\n3. [Clarification] Clarified misunderstanding about Shift-JIS (e.g., cp932)\n4. [Conclusion] Decided on UTF-8-only approach with PowerShell\n\n[NOTE]\nMaintain the original order of topics. The goal is not to summarize, but to list "what was discussed" and "what conclusions were drawn."',
                     "STEP 3: Provide a mid-level summary for each topic in this chat log.\nCompression ratio can be low. Do not omit topics, and keep granularity somewhat fine.\n\nSample output format:\n## Chat title (or date)\n\n### Topic 1: About XXXXX\n- Overview:\n- Main discussion points:\n- Tentative conclusion or direction:\n\n### Topic 2: About YYYYY\n- ...\n\n[NOTE]\nIt's okay to be verbose. Ensure important details are not omitted so that a human can organize them later.",
-                    "STEP 4: For each topic in this chat log, add the following indicators:\n\n- [Importance]: High / Medium / Low\n- [Reference recommended]: Yes / No (Is it worth reusing/repurposing?)\n- [Reference keywords]: About 3 search keywords\n\nThe purpose is to provide criteria for organizing or deleting this record in the future."
+                    'STEP 4: For each topic in this chat log, add the following indicators:\n\n- [Importance]: High / Medium / Low\n- [Reference recommended]: Yes / No (Is it worth reusing/repurposing?)\n- [Reference keywords]: About 3 search keywords\n\nThe purpose is to provide criteria for organizing or deleting this record in the future.',
                 ],
-                "Memory": [
-                    "[Memory list output] Please display all currently stored model set context (memory list) for me.\nSeparate by category, output concisely and accurately.",
-                    "[Add to memory] Please add the following content to the model set context:\n\n[Category] (e.g., PowerShell)\n[Content]\n- Always unify the log output folder for PowerShell scripts to a \"logs\" subfolder.\n- Internal comments in scripts should be written in Japanese.\n\nPlease consistently refer to this information as context and policy in future conversations.",
-                    "[Edit memory] Please edit the following memory content:\n\n[Target category] PowerShell\n[Current text to be edited] The default encoding for PowerShell scripts is \"UTF-8 with BOM.\"\n[New text] The default encoding for PowerShell scripts is \"UTF-8 without BOM.\"\n\nBe sure to discard the old information and replace it with the new information.",
-                    "[Delete memory] Please completely delete the following memory content:\n\n[Target category] Image generation (Haruna)\n[Text to be deleted]\n- Always include an image number and situation description (caption) when generating images.\n\nEnsure that this information is completely removed and will not affect future conversations.",
-                    "Summarize everything you have learned about our conversation and commit it to the memory update."
-                ]
-            }
-        }
+                Memory: [
+                    '[Memory list output] Please display all currently stored model set context (memory list) for me.\nSeparate by category, output concisely and accurately.',
+                    '[Add to memory] Please add the following content to the model set context:\n\n[Category] (e.g., PowerShell)\n[Content]\n- Always unify the log output folder for PowerShell scripts to a "logs" subfolder.\n- Internal comments in scripts should be written in Japanese.\n\nPlease consistently refer to this information as context and policy in future conversations.',
+                    '[Edit memory] Please edit the following memory content:\n\n[Target category] PowerShell\n[Current text to be edited] The default encoding for PowerShell scripts is "UTF-8 with BOM."\n[New text] The default encoding for PowerShell scripts is "UTF-8 without BOM."\n\nBe sure to discard the old information and replace it with the new information.',
+                    '[Delete memory] Please completely delete the following memory content:\n\n[Target category] Image generation (Haruna)\n[Text to be deleted]\n- Always include an image number and situation description (caption) when generating images.\n\nEnsure that this information is completely removed and will not affect future conversations.',
+                    'Summarize everything you have learned about our conversation and commit it to the memory update.',
+                ],
+            },
+        },
     };
 
     // =================================================================================
@@ -582,7 +647,7 @@
             if (!this.events[event]) {
                 return;
             }
-            this.events[event] = this.events[event].filter(l => l !== listener);
+            this.events[event] = this.events[event].filter((l) => l !== listener);
 
             // If the event has no more listeners, remove the event property to save memory.
             if (this.events[event].length === 0) {
@@ -599,14 +664,14 @@
                 return;
             }
             // Iterate over a copy of the array in case a listener unsubscribes itself (e.g., 'once').
-            [...this.events[event]].forEach(listener => {
+            [...this.events[event]].forEach((listener) => {
                 try {
                     listener(...args);
                 } catch (e) {
                     Logger.error(`EventBus error in listener for event "${event}":`, e);
                 }
             });
-        }
+        },
     };
 
     // =================================================================================
@@ -620,7 +685,7 @@
      */
     function debounce(func, delay) {
         let timeout;
-        return function(...args) {
+        return function (...args) {
             clearTimeout(timeout);
             timeout = setTimeout(() => func.apply(this, args), delay);
         };
@@ -666,7 +731,7 @@
      * @returns {string} A unique name.
      */
     function proposeUniqueName(baseName, existingNames) {
-        const existingNamesLower = new Set(Array.from(existingNames).map(name => name.toLowerCase()));
+        const existingNamesLower = new Set(Array.from(existingNames).map((name) => name.toLowerCase()));
 
         if (!existingNamesLower.has(baseName.trim().toLowerCase())) {
             return baseName;
@@ -701,9 +766,7 @@
 
         const [, tagName, id, classList] = match;
         const isSVG = ['svg', 'circle', 'rect', 'path', 'g', 'line', 'text', 'use', 'defs', 'clipPath'].includes(tagName);
-        const el = isSVG
-        ? document.createElementNS(SVG_NS, tagName)
-        : document.createElement(tagName);
+        const el = isSVG ? document.createElementNS(SVG_NS, tagName) : document.createElement(tagName);
 
         if (id) el.id = id.slice(1);
         if (classList) el.className = classList.replace(/\./g, ' ').trim();
@@ -793,10 +856,9 @@
      */
     function createIconFromDef(def) {
         if (!def) return null;
-        const children = def.children ? def.children.map(child => createIconFromDef(child)) : [];
+        const children = def.children ? def.children.map((child) => createIconFromDef(child)) : [];
         return h(def.tag, def.props, children);
     }
-
 
     // =================================================================================
     // SECTION: Configuration Management (GM Storage)
@@ -816,7 +878,7 @@
          */
         constructor({ configKey, defaultConfig }) {
             if (!configKey || !defaultConfig) {
-                throw new Error("configKey and defaultConfig must be provided.");
+                throw new Error('configKey and defaultConfig must be provided.');
             }
             this.CONFIG_KEY = configKey;
             this.DEFAULT_CONFIG = defaultConfig;
@@ -880,7 +942,7 @@
         constructor() {
             super({
                 configKey: CONSTANTS.CONFIG_KEY,
-                defaultConfig: DEFAULT_CONFIG
+                defaultConfig: DEFAULT_CONFIG,
             });
         }
 
@@ -965,7 +1027,7 @@
 
         /** @abstract */
         render() {
-            throw new Error("Component must implement render method.");
+            throw new Error('Component must implement render method.');
         }
 
         destroy() {
@@ -999,7 +1061,7 @@
                 closeOnBackdropClick: true,
                 buttons: [],
                 onDestroy: null,
-                ...options
+                ...options,
             };
             this.element = null;
             this.dom = {}; // To hold references to internal elements like header, content, footer
@@ -1086,28 +1148,30 @@
             // Define variables to hold references to key elements.
             let header, content, footer, modalBox, footerMessage;
             // Create footer buttons declaratively using map and h().
-            const buttons = this.options.buttons.map(btnDef => {
+            const buttons = this.options.buttons.map((btnDef) => {
                 const fullClassName = [`${p}-button`, btnDef.className].filter(Boolean).join(' ');
-                return h('button', {
-                    id: btnDef.id,
-                    className: fullClassName,
-                    onclick: (e) => btnDef.onClick(this, e)
-                }, btnDef.text);
+                return h(
+                    'button',
+                    {
+                        id: btnDef.id,
+                        className: fullClassName,
+                        onclick: (e) => btnDef.onClick(this, e),
+                    },
+                    btnDef.text
+                );
             });
 
             const buttonGroup = h(`div.${p}-button-group`, buttons);
 
             // Create the entire modal structure using h().
-            this.element = h(`dialog.${p}-dialog`,
-                             modalBox = h(`div.${p}-box`, { style: { width: this.options.width } }, [
-                header = h(`div.${p}-header`, this.options.title),
-                content = h(`div.${p}-content`),
-                footer = h(`div.${p}-footer`, [
-                    footerMessage = h(`div.${p}-footer-message`),
-                    buttonGroup
-                ])
-            ])
-                            );
+            this.element = h(
+                `dialog.${p}-dialog`,
+                (modalBox = h(`div.${p}-box`, { style: { width: this.options.width } }, [
+                    (header = h(`div.${p}-header`, this.options.title)),
+                    (content = h(`div.${p}-content`)),
+                    (footer = h(`div.${p}-footer`, [(footerMessage = h(`div.${p}-footer-message`)), buttonGroup])),
+                ]))
+            );
             // The 'close' event is the single source of truth for when the dialog has been dismissed.
             this.element.addEventListener('close', () => this.destroy());
 
@@ -1147,7 +1211,7 @@
                         left: `${Math.max(left, margin)}px`,
                         top: `${Math.max(top, margin)}px`,
                         margin: '0',
-                        transform: 'none'
+                        transform: 'none',
                     });
                 } else {
                     // DEFAULT CENTERING
@@ -1156,7 +1220,7 @@
                         left: '50%',
                         top: '50%',
                         transform: 'translate(-50%, -50%)',
-                        margin: '0'
+                        margin: '0',
                     });
                 }
             }
@@ -1229,7 +1293,7 @@
                 onclick: (e) => {
                     e.stopPropagation();
                     this.callbacks.onClick?.();
-                }
+                },
             });
 
             const iconDef = this.options.siteStyles.iconDef;
@@ -1283,7 +1347,7 @@
                     background: ${siteStyles.backgroundHover};
                     border-color: ${siteStyles.borderColorHover};
                 }
-            `
+            `,
             });
             document.head.appendChild(style);
         }
@@ -1379,54 +1443,63 @@
         }
 
         // --- Abstract methods to be implemented by subclasses ---
-        _createPanelContent() { throw new Error("Subclass must implement _createPanelContent()"); }
-        _injectStyles() { throw new Error("Subclass must implement _injectStyles()"); }
-        populateForm() { throw new Error("Subclass must implement populateForm()"); }
-        _collectDataFromForm() { throw new Error("Subclass must implement _collectDataFromForm()"); }
-        _setupEventListeners() { throw new Error("Subclass must implement _setupEventListeners()"); }
+        _createPanelContent() {
+            throw new Error('Subclass must implement _createPanelContent()');
+        }
+        _injectStyles() {
+            throw new Error('Subclass must implement _injectStyles()');
+        }
+        populateForm() {
+            throw new Error('Subclass must implement populateForm()');
+        }
+        _collectDataFromForm() {
+            throw new Error('Subclass must implement _collectDataFromForm()');
+        }
+        _setupEventListeners() {
+            throw new Error('Subclass must implement _setupEventListeners()');
+        }
     }
 
     class SettingsPanelComponent extends SettingsPanelBase {
         _createPanelContent() {
             const createToggle = (id, title) => {
-                return h(`label.${APPID}-toggle-switch`, { title }, [
-                    h('input', { type: 'checkbox', id: id }),
-                    h(`span.${APPID}-toggle-slider`)
-                ]);
+                return h(`label.${APPID}-toggle-switch`, { title }, [h('input', { type: 'checkbox', id: id }), h(`span.${APPID}-toggle-slider`)]);
             };
             return h('div', [
                 h(`fieldset.${APPID}-submenu-fieldset`, [
                     h('legend', 'Profile'),
                     h(`select#${APPID}-profile-select`, {
-                        title: 'Select the active profile.'
-                    })
+                        title: 'Select the active profile.',
+                    }),
                 ]),
                 h(`div.${APPID}-submenu-top-row`, [
                     h(`fieldset.${APPID}-submenu-fieldset`, [
                         h('legend', 'Texts'),
-                        h(`button#${APPID}-submenu-edit-texts-btn.${APPID}-modal-button`, {
-                            style: { width: '100%' },
-                            title: 'Open the text editor.'
-                        }, 'Edit Texts...')
+                        h(
+                            `button#${APPID}-submenu-edit-texts-btn.${APPID}-modal-button`,
+                            {
+                                style: { width: '100%' },
+                                title: 'Open the text editor.',
+                            },
+                            'Edit Texts...'
+                        ),
                     ]),
                     h(`fieldset.${APPID}-submenu-fieldset`, [
                         h('legend', 'JSON'),
-                        h(`button#${APPID}-submenu-json-btn.${APPID}-modal-button`, {
-                            style: { width: '100%' },
-                            title: 'Opens the advanced settings modal to directly edit, import, or export the entire configuration in JSON format.'
-                        }, 'JSON...')
-                    ])
+                        h(
+                            `button#${APPID}-submenu-json-btn.${APPID}-modal-button`,
+                            {
+                                style: { width: '100%' },
+                                title: 'Opens the advanced settings modal to directly edit, import, or export the entire configuration in JSON format.',
+                            },
+                            'JSON...'
+                        ),
+                    ]),
                 ]),
                 h(`fieldset.${APPID}-submenu-fieldset`, [
                     h('legend', 'Options'),
-                    h(`div.${APPID}-submenu-row`, [
-                        h('label', { htmlFor: `${APPID}-opt-insert-before-newline` }, 'Insert newline before text'),
-                        createToggle(`${APPID}-opt-insert-before-newline`, 'Adds a newline character before the inserted text.')
-                    ]),
-                    h(`div.${APPID}-submenu-row`, [
-                        h('label', { htmlFor: `${APPID}-opt-insert-after-newline` }, 'Insert newline after text'),
-                        createToggle(`${APPID}-opt-insert-after-newline`, 'Adds a newline character after the inserted text.')
-                    ]),
+                    h(`div.${APPID}-submenu-row`, [h('label', { htmlFor: `${APPID}-opt-insert-before-newline` }, 'Insert newline before text'), createToggle(`${APPID}-opt-insert-before-newline`, 'Adds a newline character before the inserted text.')]),
+                    h(`div.${APPID}-submenu-row`, [h('label', { htmlFor: `${APPID}-opt-insert-after-newline` }, 'Insert newline after text'), createToggle(`${APPID}-opt-insert-after-newline`, 'Adds a newline character after the inserted text.')]),
                     h(`div.${APPID}-submenu-separator`),
                     h(`div.${APPID}-submenu-row-stacked`, [
                         h('label', { htmlFor: `${APPID}-insertion-pos-slider`, title: 'Determines where the text is inserted in the input field.' }, 'Insertion position'),
@@ -1436,12 +1509,15 @@
                                 id: `${APPID}-insertion-pos-slider`,
                                 min: '0',
                                 max: '2',
-                                step: '1'
+                                step: '1',
                             }),
-                            h(`span#${APPID}-slider-value-display`)
-                        ])
+                            h(`span#${APPID}-slider-value-display`),
+                        ]),
                     ]),
-                    h(`div.${APPID}-settings-note`, `Note: The behavior of all 'Options' settings can be influenced by the state of the input field, such as its focus or current content. For the most consistent results, setting 'Insertion position' to 'End' and leaving the 'Insert newline' options off.`)
+                    h(
+                        `div.${APPID}-settings-note`,
+                        `Note: The behavior of all 'Options' settings can be influenced by the state of the input field, such as its focus or current content. For the most consistent results, setting 'Insertion position' to 'End' and leaving the 'Insert newline' options off.`
+                    ),
                 ]),
             ]);
         }
@@ -1453,7 +1529,7 @@
             const profileSelect = this.element.querySelector(`#${APPID}-profile-select`);
             profileSelect.textContent = '';
             const profileNames = Object.keys(config.texts);
-            profileNames.forEach(name => {
+            profileNames.forEach((name) => {
                 const option = h('option', { value: name }, name);
                 profileSelect.appendChild(option);
             });
@@ -1461,7 +1537,7 @@
 
             this.element.querySelector(`#${APPID}-opt-insert-before-newline`).checked = config.options.insert_before_newline;
             this.element.querySelector(`#${APPID}-opt-insert-after-newline`).checked = config.options.insert_after_newline;
-            const positionMap = { 'start': '0', 'cursor': '1', 'end': '2' };
+            const positionMap = { start: '0', cursor: '1', end: '2' };
             const positionValue = config.options.insertion_position || 'cursor';
             const sliderValue = positionMap[positionValue];
 
@@ -1481,7 +1557,7 @@
 
             newConfig.options.insert_before_newline = this.element.querySelector(`#${APPID}-opt-insert-before-newline`).checked;
             newConfig.options.insert_after_newline = this.element.querySelector(`#${APPID}-opt-insert-after-newline`).checked;
-            const valueMap = { '0': 'start', '1': 'cursor', '2': 'end' };
+            const valueMap = { 0: 'start', 1: 'cursor', 2: 'end' };
             const slider = this.element.querySelector(`#${APPID}-insertion-pos-slider`);
             newConfig.options.insertion_position = valueMap[slider.value] || 'cursor';
             return newConfig;
@@ -1508,7 +1584,7 @@
 
         _updateSliderAppearance(slider) {
             const display = this.element.querySelector(`#${APPID}-slider-value-display`);
-            const displayMap = { '0': 'Start', '1': 'Cursor', '2': 'End' };
+            const displayMap = { 0: 'Start', 1: 'Cursor', 2: 'End' };
             const value = slider.value;
             display.textContent = displayMap[value];
             slider.dataset.value = value;
@@ -1675,7 +1751,7 @@
                     text-align: right;
                     color: ${styles.text_secondary};
                 }
-            `
+            `,
             });
             document.head.appendChild(style);
         }
@@ -1724,7 +1800,7 @@
                 onDestroy: () => {
                     this.callbacks.onModalOpenStateChange?.(false);
                     this.modal = null;
-                }
+                },
             });
 
             this._applyThemeToModal();
@@ -1737,8 +1813,7 @@
 
             const config = await this.callbacks.getCurrentConfig();
             if (config) {
-                this.activeProfileKey = config.options.activeProfileName ||
-                    Object.keys(config.texts)[0];
+                this.activeProfileKey = config.options.activeProfileName || Object.keys(config.texts)[0];
                 const activeProfile = config.texts[this.activeProfileKey] || {};
                 this.activeCategoryKey = Object.keys(activeProfile)[0] || null;
                 await this._refreshModalState();
@@ -1797,7 +1872,7 @@
                 if (!isRenamingThis) {
                     const scroll = select.scrollTop;
                     select.textContent = '';
-                    keys.forEach(key => select.appendChild(h('option', { value: key }, key)));
+                    keys.forEach((key) => select.appendChild(h('option', { value: key }, key)));
                     select.value = activeKey;
                     select.scrollTop = scroll;
                 } else {
@@ -1813,9 +1888,9 @@
                 const renameBtn = row.querySelector(`#${APPID}-${type}-rename-btn`);
                 const index = keys.indexOf(activeKey);
 
-                if (upBtn) upBtn.disabled = isAnyActionInProgress || (index <= 0);
-                if (downBtn) downBtn.disabled = isAnyActionInProgress || (index >= keys.length - 1);
-                if (deleteBtn) deleteBtn.disabled = isAnyActionInProgress || (keys.length <= 1);
+                if (upBtn) upBtn.disabled = isAnyActionInProgress || index <= 0;
+                if (downBtn) downBtn.disabled = isAnyActionInProgress || index >= keys.length - 1;
+                if (deleteBtn) deleteBtn.disabled = isAnyActionInProgress || keys.length <= 1;
                 if (newBtn) newBtn.disabled = isAnyActionInProgress;
                 if (copyBtn) copyBtn.disabled = isAnyActionInProgress;
                 if (renameBtn) renameBtn.disabled = isAnyActionInProgress;
@@ -1848,15 +1923,18 @@
             modalBox.style.setProperty(`--${p}-border-color`, styles.modal_border);
             Object.assign(this.modal.dom.header.style, {
                 borderBottom: `1px solid ${styles.modal_border}`,
-                paddingBottom: '12px', display: 'flex', flexDirection: 'column',
-                alignItems: 'stretch', gap: '12px'
+                paddingBottom: '12px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'stretch',
+                gap: '12px',
             });
             Object.assign(this.modal.dom.footer.style, {
                 borderTop: `1px solid ${styles.modal_border}`,
-                paddingTop: '16px'
+                paddingTop: '16px',
             });
             const buttons = this.modal.dom.footer.querySelectorAll(`.${p}-button`);
-            buttons.forEach(button => {
+            buttons.forEach((button) => {
                 Object.assign(button.style, {
                     background: styles.btn_bg,
                     color: styles.btn_text,
@@ -1865,8 +1943,12 @@
                     padding: CONSTANTS.MODAL.BTN_PADDING,
                     fontSize: `${CONSTANTS.MODAL.BTN_FONT_SIZE}px`,
                 });
-                button.addEventListener('mouseover', () => { button.style.background = styles.btn_hover_bg; });
-                button.addEventListener('mouseout', () => { button.style.background = styles.btn_bg; });
+                button.addEventListener('mouseover', () => {
+                    button.style.background = styles.btn_hover_bg;
+                });
+                button.addEventListener('mouseout', () => {
+                    button.style.background = styles.btn_bg;
+                });
             });
         }
 
@@ -1879,10 +1961,7 @@
                     h('label', { htmlFor: `${APPID}-${type}-select` }, label),
 
                     // Container 2: Select / Input
-                    h(`div.${APPID}-rename-area`, [
-                        h(`select#${APPID}-${type}-select`),
-                        h('input', { type: 'text', id: `${APPID}-${type}-rename-input`, style: { display: 'none' } }),
-                    ]),
+                    h(`div.${APPID}-rename-area`, [h(`select#${APPID}-${type}-select`), h('input', { type: 'text', id: `${APPID}-${type}-rename-input`, style: { display: 'none' } })]),
 
                     // Container 3: Action Buttons
                     h(`div.${APPID}-action-area`, [
@@ -1894,36 +1973,27 @@
                             h(`button#${APPID}-${type}-copy-btn.${APPID}-modal-button`, 'Copy'),
                             h(`button#${APPID}-${type}-delete-btn.${APPID}-modal-button`, 'Delete'),
                         ]),
-                        h(`div.${APPID}-rename-actions`, { style: { display: 'none' } }, [
-                            h(`button#${APPID}-${type}-rename-ok-btn.${APPID}-modal-button`, 'OK'),
-                            h(`button#${APPID}-${type}-rename-cancel-btn.${APPID}-modal-button`, 'Cancel'),
-                        ]),
+                        h(`div.${APPID}-rename-actions`, { style: { display: 'none' } }, [h(`button#${APPID}-${type}-rename-ok-btn.${APPID}-modal-button`, 'OK'), h(`button#${APPID}-${type}-rename-cancel-btn.${APPID}-modal-button`, 'Cancel')]),
                         h(`div.${APPID}-delete-confirm-group`, { style: { display: 'none' } }, [
                             h(`span.${APPID}-delete-confirm-label`, 'Are you sure?'),
                             h(`button#${APPID}-${type}-delete-confirm-btn.${APPID}-modal-button.${APPID}-delete-confirm-btn-yes`, 'Confirm'),
                             h(`button#${APPID}-${type}-delete-cancel-btn.${APPID}-modal-button`, 'Cancel'),
                         ]),
-                    ])
+                    ]),
                 ]);
             };
 
-            return h(`div.${APPID}-editor-modal-header-controls`, [
-                createControlRow('profile', 'Profile:'),
-                createControlRow('category', 'Category:')
-            ]);
+            return h(`div.${APPID}-editor-modal-header-controls`, [createControlRow('profile', 'Profile:'), createControlRow('category', 'Category:')]);
         }
 
         _createMainContent() {
             // Remove the old fieldsets for profile/category names
-            return h(`div.${APPID}-editor-modal-content`, [
-                h(`div.${APPID}-editor-scrollable-area`),
-                h(`button#${APPID}-text-new-btn.${APPID}-modal-button`, 'Add New Text')
-            ]);
+            return h(`div.${APPID}-editor-modal-content`, [h(`div.${APPID}-editor-scrollable-area`), h(`button#${APPID}-text-new-btn.${APPID}-modal-button`, 'Add New Text')]);
         }
 
         _enterDeleteConfirmationMode(type) {
             if (!this.modal || this.renameState.isActive) return;
-            this.pendingDeletionKey = (type === 'profile') ? this.activeProfileKey : this.activeCategoryKey;
+            this.pendingDeletionKey = type === 'profile' ? this.activeProfileKey : this.activeCategoryKey;
             if (!this.pendingDeletionKey) return;
             // The UI update is now centralized in _refreshModalState
             this._refreshModalState();
@@ -2022,7 +2092,7 @@
                 }
             });
             modalElement.addEventListener('keydown', (e) => {
-                if(e.target.matches('input[type="text"]')) {
+                if (e.target.matches('input[type="text"]')) {
                     if (e.key === 'Enter') {
                         e.preventDefault();
                         const type = e.target.id.includes('profile') ? 'profile' : 'category';
@@ -2055,7 +2125,7 @@
                 const draggingElement = scrollArea.querySelector('.dragging');
                 if (!draggingElement) return;
 
-                scrollArea.querySelectorAll(`.${APPID}-text-item`).forEach(el => {
+                scrollArea.querySelectorAll(`.${APPID}-text-item`).forEach((el) => {
                     el.classList.remove('drag-over-top', 'drag-over-bottom');
                 });
 
@@ -2088,7 +2158,7 @@
                     }
                 }
 
-                scrollArea.querySelectorAll(`.${APPID}-text-item`).forEach(el => {
+                scrollArea.querySelectorAll(`.${APPID}-text-item`).forEach((el) => {
                     el.classList.remove('drag-over-top', 'drag-over-bottom');
                 });
                 this._updateTextItemsUI();
@@ -2110,21 +2180,24 @@
                 if (footerMessage) footerMessage.textContent = '';
 
                 // Refresh the UI if requested (e.g., by Cancel button)
-                if(refresh) await this._refreshModalState();
+                if (refresh) await this._refreshModalState();
             }
         }
 
         _getDragAfterElement(container, y) {
             const draggableElements = [...container.querySelectorAll(`.${APPID}-text-item:not(.dragging)`)];
-            return draggableElements.reduce((closest, child) => {
-                const box = child.getBoundingClientRect();
-                const offset = y - box.top - box.height / 2;
-                if (offset < 0 && offset > closest.offset) {
-                    return { offset: offset, element: child };
-                } else {
-                    return closest;
-                }
-            }, { offset: Number.NEGATIVE_INFINITY }).element;
+            return draggableElements.reduce(
+                (closest, child) => {
+                    const box = child.getBoundingClientRect();
+                    const offset = y - box.top - box.height / 2;
+                    if (offset < 0 && offset > closest.offset) {
+                        return { offset: offset, element: child };
+                    } else {
+                        return closest;
+                    }
+                },
+                { offset: Number.NEGATIVE_INFINITY }
+            ).element;
         }
 
         _renderTextList(texts, indexToFocus = -1) {
@@ -2133,39 +2206,51 @@
             scrollArea.textContent = '';
 
             texts.forEach((text, index) => {
-                const textItem = h(`div.${APPID}-text-item`, {
-                    'data-index': index
-                }, [
-                    h(`div.${APPID}-drag-handle`, { title: 'Drag to reorder', draggable: 'true' }, [
-                        h('svg', { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, [
-                            h('path', { d: 'M349.85-524.85q-14.52 0-24.68-10.16-10.17-10.17-10.17-24.69t10.17-24.68q10.16-10.17 24.68-10.17t24.69 10.17q10.16 10.16 10.16 24.68t-10.16 24.69q-10.17 10.16-24.69 10.16Zm260.3,0q-14.52 0-24.68-10.16-10.17-10.17-10.17-24.69t10.17-24.68q10.16-10.17 24.68-10.17t24.69 10.17q10.16 10.16 10.16 24.68t-10.16 24.69q-10.17 10.16-24.69 10.16Zm-260.3-170q-14.52 0-24.68-10.17-10.17-10.16-10.17-24.68t10.17-24.69q10.16-10.16 24.68-10.16t24.69 10.16q10.16 10.17 10.16 24.69t-10.16 24.68q-10.17 10.17-24.69 10.17Zm260.3,0q-14.52 0-24.68-10.17-10.17-10.16-10.17-24.68t10.17-24.69q10.16-10.16 24.68-10.16t24.69 10.16q10.16 10.17 10.16 24.69t-10.16 24.68q-10.17 10.17-24.69 10.17Zm-260.3,340q-14.52 0-24.68-10.17-10.17-10.16-10.17-24.68t10.17-24.69q10.16-10.16 24.68-10.16t24.69 10.16q10.16 10.17 10.16 24.69t-10.16 24.68q-10.17 10.17-24.69 10.17Zm260.3,0q-14.52 0-24.68-10.17-10.17-10.16-10.17-24.68t10.17-24.69q10.16-10.16 24.68-10.16t24.69 10.16q10.16 10.17 10.16 24.69t-10.16 24.68q-10.17 10.17-24.69 10.17Z' })
-                        ])
-                    ]),
-                    h('textarea', {
-                        'data-index': index, rows: 3, ref: (el) => {
-                            if (index === indexToFocus) {
-                                requestAnimationFrame(() => el.focus());
-                            }
-                        }
-                    }, text),
-                    h(`div.${APPID}-text-item-controls`, [
-                        h(`button.${APPID}-modal-button.${APPID}-move-btn.move-up-btn`, { title: 'Move up', disabled: index === 0 }, [createIconFromDef(styles.upIconDef)]),
-                        h(`button.${APPID}-modal-button.${APPID}-move-btn.move-down-btn`, { title: 'Move down', disabled: index === texts.length - 1 }, [createIconFromDef(styles.downIconDef)]),
-                        h(`button.${APPID}-modal-button.${APPID}-delete-btn.delete-btn`, { title: 'Delete' }, [createIconFromDef(styles.deleteIconDef)])
-                    ])
-                ]);
+                const textItem = h(
+                    `div.${APPID}-text-item`,
+                    {
+                        'data-index': index,
+                    },
+                    [
+                        h(`div.${APPID}-drag-handle`, { title: 'Drag to reorder', draggable: 'true' }, [
+                            h('svg', { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, [
+                                h('path', {
+                                    d: 'M349.85-524.85q-14.52 0-24.68-10.16-10.17-10.17-10.17-24.69t10.17-24.68q10.16-10.17 24.68-10.17t24.69 10.17q10.16 10.16 10.16 24.68t-10.16 24.69q-10.17 10.16-24.69 10.16Zm260.3,0q-14.52 0-24.68-10.16-10.17-10.17-10.17-24.69t10.17-24.68q10.16-10.17 24.68-10.17t24.69 10.17q10.16 10.16 10.16 24.68t-10.16 24.69q-10.17 10.16-24.69 10.16Zm-260.3-170q-14.52 0-24.68-10.17-10.17-10.16-10.17-24.68t10.17-24.69q10.16-10.16 24.68-10.16t24.69 10.16q10.16 10.17 10.16 24.69t-10.16 24.68q-10.17 10.17-24.69 10.17Zm260.3,0q-14.52 0-24.68-10.17-10.17-10.16-10.17-24.68t10.17-24.69q10.16-10.16 24.68-10.16t24.69 10.16q10.16 10.17 10.16 24.69t-10.16 24.68q-10.17 10.17-24.69 10.17Zm-260.3,340q-14.52 0-24.68-10.17-10.17-10.16-10.17-24.68t10.17-24.69q10.16-10.16 24.68-10.16t24.69 10.16q10.16 10.17 10.16 24.69t-10.16 24.68q-10.17 10.17-24.69 10.17Zm260.3,0q-14.52 0-24.68-10.17-10.17-10.16-10.17-24.68t10.17-24.69q10.16-10.16 24.68-10.16t24.69 10.16q10.16 10.17 10.16 24.69t-10.16 24.68q-10.17 10.17-24.69 10.17Z',
+                                }),
+                            ]),
+                        ]),
+                        h(
+                            'textarea',
+                            {
+                                'data-index': index,
+                                rows: 3,
+                                ref: (el) => {
+                                    if (index === indexToFocus) {
+                                        requestAnimationFrame(() => el.focus());
+                                    }
+                                },
+                            },
+                            text
+                        ),
+                        h(`div.${APPID}-text-item-controls`, [
+                            h(`button.${APPID}-modal-button.${APPID}-move-btn.move-up-btn`, { title: 'Move up', disabled: index === 0 }, [createIconFromDef(styles.upIconDef)]),
+                            h(`button.${APPID}-modal-button.${APPID}-move-btn.move-down-btn`, { title: 'Move down', disabled: index === texts.length - 1 }, [createIconFromDef(styles.downIconDef)]),
+                            h(`button.${APPID}-modal-button.${APPID}-delete-btn.delete-btn`, { title: 'Delete' }, [createIconFromDef(styles.deleteIconDef)]),
+                        ]),
+                    ]
+                );
                 scrollArea.appendChild(textItem);
             });
 
             // Call auto-resize for all textareas after they have been added to the DOM.
-            scrollArea.querySelectorAll('textarea').forEach(ta => this._autoResizeTextarea(ta));
+            scrollArea.querySelectorAll('textarea').forEach((ta) => this._autoResizeTextarea(ta));
         }
 
         _collectAllDataFromForm() {
             if (!this.modal) return null;
             const scrollArea = this.modal.element.querySelector(`.${APPID}-editor-scrollable-area`);
             const textareas = scrollArea.querySelectorAll('textarea');
-            const texts = Array.from(textareas).map(ta => ta.value);
+            const texts = Array.from(textareas).map((ta) => ta.value);
 
             return { texts, textareas };
         }
@@ -2181,8 +2266,8 @@
 
                 const upBtn = item.querySelector('.move-up-btn');
                 const downBtn = item.querySelector('.move-down-btn');
-                if (upBtn) upBtn.disabled = (index === 0);
-                if (downBtn) downBtn.disabled = (index === items.length - 1);
+                if (upBtn) upBtn.disabled = index === 0;
+                if (downBtn) downBtn.disabled = index === items.length - 1;
             });
         }
 
@@ -2199,24 +2284,30 @@
             const scrollArea = this.modal.element.querySelector(`.${APPID}-editor-scrollable-area`);
             const items = scrollArea.querySelectorAll(`.${APPID}-text-item`);
             const newIndex = items.length;
-            const newItem = h(`div.${APPID}-text-item`, {
-                'data-index': newIndex
-            }, [
-                h(`div.${APPID}-drag-handle`, { title: 'Drag to reorder', draggable: 'true' }, [
-                    h('svg', { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, [
-                        h('path', { d: 'M349.85-524.85q-14.52 0-24.68-10.16-10.17-10.17-10.17-24.69t10.17-24.68q10.16-10.17 24.68-10.17t24.69 10.17q10.16 10.16 10.16 24.68t-10.16 24.69q-10.17 10.16-24.69 10.16Zm260.3,0q-14.52 0-24.68-10.16-10.17-10.17-10.17-24.69t10.17-24.68q10.16-10.17 24.68-10.17t24.69 10.17q10.16 10.16 10.16 24.68t-10.16 24.69q-10.17 10.16-24.69 10.16Zm-260.3-170q-14.52 0-24.68-10.17-10.17-10.16-10.17-24.68t10.17-24.69q10.16-10.16 24.68-10.16t24.69 10.16q10.16 10.17 10.16 24.69t-10.16 24.68q-10.17 10.17-24.69 10.17Zm260.3,0q-14.52 0-24.68-10.17-10.17-10.16-10.17-24.68t10.17-24.69q10.16-10.16 24.68-10.16t24.69 10.16q10.16 10.17 10.16 24.69t-10.16 24.68q-10.17 10.17-24.69 10.17Zm-260.3,340q-14.52 0-24.68-10.17-10.17-10.16-10.17-24.68t10.17-24.69q10.16-10.16 24.68-10.16t24.69 10.16q10.16 10.17 10.16 24.69t-10.16 24.68q-10.17 10.17-24.69 10.17Zm260.3,0q-14.52 0-24.68-10.17-10.17-10.16-10.17-24.68t10.17-24.69q10.16-10.16 24.68-10.16t24.69 10.16q10.16 10.17 10.16 24.69t-10.16 24.68q-10.17 10.17-24.69 10.17Z' })
-                    ])
-                ]),
-                h('textarea', {
+            const newItem = h(
+                `div.${APPID}-text-item`,
+                {
                     'data-index': newIndex,
-                    rows: 3
-                }),
-                h(`div.${APPID}-text-item-controls`, [
-                    h(`button.${APPID}-modal-button.${APPID}-move-btn.move-up-btn`, { title: 'Move up' }, [createIconFromDef(styles.upIconDef)]),
-                    h(`button.${APPID}-modal-button.${APPID}-move-btn.move-down-btn`, { title: 'Move down' }, [createIconFromDef(styles.downIconDef)]),
-                    h(`button.${APPID}-modal-button.${APPID}-delete-btn.delete-btn`, { title: 'Delete' }, [createIconFromDef(styles.deleteIconDef)])
-                ])
-            ]);
+                },
+                [
+                    h(`div.${APPID}-drag-handle`, { title: 'Drag to reorder', draggable: 'true' }, [
+                        h('svg', { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, [
+                            h('path', {
+                                d: 'M349.85-524.85q-14.52 0-24.68-10.16-10.17-10.17-10.17-24.69t10.17-24.68q10.16-10.17 24.68-10.17t24.69 10.17q10.16 10.16 10.16 24.68t-10.16 24.69q-10.17 10.16-24.69 10.16Zm260.3,0q-14.52 0-24.68-10.16-10.17-10.17-10.17-24.69t10.17-24.68q10.16-10.17 24.68-10.17t24.69 10.17q10.16 10.16 10.16 24.68t-10.16 24.69q-10.17 10.16-24.69 10.16Zm-260.3-170q-14.52 0-24.68-10.17-10.17-10.16-10.17-24.68t10.17-24.69q10.16-10.16 24.68-10.16t24.69 10.16q10.16 10.17 10.16 24.69t-10.16 24.68q-10.17 10.17-24.69 10.17Zm260.3,0q-14.52 0-24.68-10.17-10.17-10.16-10.17-24.68t10.17-24.69q10.16-10.16 24.68-10.16t24.69 10.16q10.16 10.17 10.16 24.69t-10.16 24.68q-10.17 10.17-24.69 10.17Zm-260.3,340q-14.52 0-24.68-10.17-10.17-10.16-10.17-24.68t10.17-24.69q10.16-10.16 24.68-10.16t24.69 10.16q10.16 10.17 10.16 24.69t-10.16 24.68q-10.17 10.17-24.69 10.17Zm260.3,0q-14.52 0-24.68-10.17-10.17-10.16-10.17-24.68t10.17-24.69q10.16-10.16 24.68-10.16t24.69 10.16q10.16 10.17 10.16 24.69t-10.16 24.68q-10.17 10.17-24.69 10.17Z',
+                            }),
+                        ]),
+                    ]),
+                    h('textarea', {
+                        'data-index': newIndex,
+                        rows: 3,
+                    }),
+                    h(`div.${APPID}-text-item-controls`, [
+                        h(`button.${APPID}-modal-button.${APPID}-move-btn.move-up-btn`, { title: 'Move up' }, [createIconFromDef(styles.upIconDef)]),
+                        h(`button.${APPID}-modal-button.${APPID}-move-btn.move-down-btn`, { title: 'Move down' }, [createIconFromDef(styles.downIconDef)]),
+                        h(`button.${APPID}-modal-button.${APPID}-delete-btn.delete-btn`, { title: 'Delete' }, [createIconFromDef(styles.deleteIconDef)]),
+                    ]),
+                ]
+            );
 
             scrollArea.appendChild(newItem);
             this._updateTextItemsUI();
@@ -2246,9 +2337,11 @@
             const currentItem = items[index];
             const targetItem = items[newIndex];
 
-            if (direction === -1) { // Move up
+            if (direction === -1) {
+                // Move up
                 scrollArea.insertBefore(currentItem, targetItem);
-            } else { // Move down
+            } else {
+                // Move down
                 scrollArea.insertBefore(currentItem, targetItem.nextSibling);
             }
 
@@ -2256,11 +2349,11 @@
         }
 
         _proposeUniqueCategoryName(baseName, existingKeys) {
-            return proposeUniqueName(baseName, new Set(existingKeys.map(k => k.toLowerCase())));
+            return proposeUniqueName(baseName, new Set(existingKeys.map((k) => k.toLowerCase())));
         }
 
         _proposeUniqueProfileName(baseName, existingKeys) {
-            return proposeUniqueName(baseName, new Set(existingKeys.map(k => k.toLowerCase())));
+            return proposeUniqueName(baseName, new Set(existingKeys.map((k) => k.toLowerCase())));
         }
 
         async _handleProfileNew() {
@@ -2270,7 +2363,7 @@
 
             const newConfig = JSON.parse(JSON.stringify(config));
             newConfig.texts[newName] = {
-                'New Category': []
+                'New Category': [],
             };
             await this.callbacks.onSave(newConfig);
 
@@ -2294,9 +2387,13 @@
             const keys = Object.keys(newConfig.texts);
             const insertIndex = keys.indexOf(this.activeProfileKey) + 1;
             const reorderedConfigTexts = {};
-            keys.slice(0, insertIndex).forEach(key => { reorderedConfigTexts[key] = newConfig.texts[key]; });
+            keys.slice(0, insertIndex).forEach((key) => {
+                reorderedConfigTexts[key] = newConfig.texts[key];
+            });
             reorderedConfigTexts[newName] = profileToCopy;
-            keys.slice(insertIndex).forEach(key => { reorderedConfigTexts[key] = newConfig.texts[key]; });
+            keys.slice(insertIndex).forEach((key) => {
+                reorderedConfigTexts[key] = newConfig.texts[key];
+            });
             newConfig.texts = reorderedConfigTexts;
 
             await this.callbacks.onSave(newConfig);
@@ -2347,7 +2444,7 @@
 
             const newConfig = JSON.parse(JSON.stringify(config));
             const newTexts = {};
-            keys.forEach(key => {
+            keys.forEach((key) => {
                 newTexts[key] = config.texts[key];
             });
             newConfig.texts = newTexts;
@@ -2391,9 +2488,13 @@
             const insertIndex = keys.indexOf(this.activeCategoryKey) + 1;
 
             const reorderedCategories = {};
-            keys.slice(0, insertIndex).forEach(key => { reorderedCategories[key] = activeProfile[key]; });
+            keys.slice(0, insertIndex).forEach((key) => {
+                reorderedCategories[key] = activeProfile[key];
+            });
             reorderedCategories[newName] = textsToCopy;
-            keys.slice(insertIndex).forEach(key => { reorderedCategories[key] = activeProfile[key]; });
+            keys.slice(insertIndex).forEach((key) => {
+                reorderedCategories[key] = activeProfile[key];
+            });
             newConfig.texts[this.activeProfileKey] = reorderedCategories;
 
             await this.callbacks.onSave(newConfig);
@@ -2421,8 +2522,7 @@
 
             const latestKeys = Object.keys(newConfig.texts[this.activeProfileKey]);
             const nextIndex = Math.max(0, currentIndex - 1);
-            this.activeCategoryKey = latestKeys[nextIndex] ||
-                (latestKeys.length > 0 ? latestKeys[0] : null);
+            this.activeCategoryKey = latestKeys[nextIndex] || (latestKeys.length > 0 ? latestKeys[0] : null);
 
             this._exitDeleteConfirmationMode();
             await this._refreshModalState();
@@ -2443,7 +2543,7 @@
             [keys[currentIndex], keys[newIndex]] = [keys[newIndex], keys[currentIndex]];
             const newConfig = JSON.parse(JSON.stringify(config));
             const newCategories = {};
-            keys.forEach(key => {
+            keys.forEach((key) => {
                 newCategories[key] = profileData[key];
             });
             newConfig.texts[this.activeProfileKey] = newCategories;
@@ -2458,14 +2558,14 @@
                 footerMessage.textContent = '';
                 footerMessage.style.color = this.callbacks.siteStyles.error_text;
             }
-            this.modal.element.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+            this.modal.element.querySelectorAll('.is-invalid').forEach((el) => el.classList.remove('is-invalid'));
 
             // Collect only text area data
             const formData = this._collectAllDataFromForm();
             let isFormValid = true;
 
             // --- Validation (only for text areas) ---
-            formData.textareas.forEach(ta => {
+            formData.textareas.forEach((ta) => {
                 if (ta.value.trim() === '') {
                     ta.classList.add('is-invalid');
                     isFormValid = false;
@@ -2482,13 +2582,12 @@
             let newConfig = JSON.parse(JSON.stringify(config));
 
             // Check if the active profile and category still exist
-            if (newConfig.texts[this.activeProfileKey] &&
-                Object.prototype.hasOwnProperty.call(newConfig.texts[this.activeProfileKey], this.activeCategoryKey)) {
+            if (newConfig.texts[this.activeProfileKey] && Object.prototype.hasOwnProperty.call(newConfig.texts[this.activeProfileKey], this.activeCategoryKey)) {
                 newConfig.texts[this.activeProfileKey][this.activeCategoryKey] = texts;
             } else {
                 // This case should ideally not happen in normal flow
                 Logger.warn('Could not save texts because the active profile or category was not found.');
-                if(footerMessage) footerMessage.textContent = 'Error: Active profile or category not found.';
+                if (footerMessage) footerMessage.textContent = 'Error: Active profile or category not found.';
                 return;
             }
 
@@ -2511,7 +2610,7 @@
 
             this.renameState = {
                 type: type,
-                isActive: true
+                isActive: true,
             };
 
             await this._refreshModalState();
@@ -2528,7 +2627,7 @@
             const footerMessage = this.modal?.dom?.footerMessage;
             const input = this.modal.element.querySelector(`#${APPID}-${type}-rename-input`);
             const newName = input.value.trim();
-            const oldName = (type === 'profile') ? this.activeProfileKey : this.activeCategoryKey;
+            const oldName = type === 'profile' ? this.activeProfileKey : this.activeCategoryKey;
 
             // --- Validation ---
             if (!newName) {
@@ -2548,7 +2647,7 @@
                 existingKeys = Object.keys(config.texts[this.activeProfileKey] || {});
             }
 
-            if (newName.toLowerCase() !== oldName.toLowerCase() && existingKeys.some(k => k.toLowerCase() === newName.toLowerCase())) {
+            if (newName.toLowerCase() !== oldName.toLowerCase() && existingKeys.some((k) => k.toLowerCase() === newName.toLowerCase())) {
                 if (footerMessage) {
                     footerMessage.textContent = `Name "${newName}" is already in use.`;
                     footerMessage.style.color = this.callbacks.siteStyles.error_text;
@@ -2572,7 +2671,8 @@
                 newConfig.texts = reorderedProfiles;
                 newConfig.options.activeProfileName = newName;
                 this.activeProfileKey = newName;
-            } else { // type === 'category'
+            } else {
+                // type === 'category'
                 const profileData = newConfig.texts[this.activeProfileKey];
                 const reorderedCategories = {};
                 for (const key of Object.keys(profileData)) {
@@ -2841,7 +2941,7 @@
                 onDestroy: () => {
                     this.callbacks.onModalOpenStateChange?.(false);
                     this.modal = null;
-                }
+                },
             });
             // Apply App specific theme to the generic modal
             this._applyTheme();
@@ -2877,13 +2977,17 @@
             modalBox.style.setProperty(`--${p}-border-color`, styles.border);
             const footer = this.modal.dom.footer;
             const buttons = footer.querySelectorAll(`.${p}-button`);
-            buttons.forEach(button => {
+            buttons.forEach((button) => {
                 button.classList.add(`${APPID}-modal-button`);
                 button.style.background = styles.btn_bg;
                 button.style.color = styles.btn_text;
                 button.style.border = `1px solid ${styles.btn_border}`;
-                button.addEventListener('mouseover', () => { button.style.background = styles.btn_hover_bg;});
-                button.addEventListener('mouseout', () => { button.style.background = styles.btn_bg;});
+                button.addEventListener('mouseover', () => {
+                    button.style.background = styles.btn_hover_bg;
+                });
+                button.addEventListener('mouseout', () => {
+                    button.style.background = styles.btn_bg;
+                });
             });
         }
 
@@ -2903,14 +3007,14 @@
                     border: `1px solid ${styles.textarea_border}`,
                     background: styles.textarea_bg,
                     color: styles.textarea_text,
-                }
+                },
             });
             const msgDiv = h(`div.${APPID}-modal-msg`, {
                 style: {
                     color: styles.msg_error_text,
                     marginTop: '4px',
-                    fontSize: '0.9em'
-                }
+                    fontSize: '0.9em',
+                },
             });
             parent.append(textarea, msgDiv);
         }
@@ -2941,7 +3045,7 @@
                 const url = URL.createObjectURL(blob);
                 const a = h('a', {
                     href: url,
-                    download: `${APPID}_config.json`
+                    download: `${APPID}_config.json`,
                 });
                 a.click();
 
@@ -2978,7 +3082,7 @@
                         };
                         reader.readAsText(file);
                     }
-                }
+                },
             });
             fileInput.click();
         }
@@ -3067,7 +3171,7 @@
                     background: ${siteStyles.backgroundHover};
                     border-color: ${siteStyles.borderColorHover || siteStyles.borderColor};
                 }
-            `
+            `,
             });
             document.head.appendChild(style);
         }
@@ -3088,15 +3192,15 @@
         render() {
             this._injectStyles();
 
-            this.element = h(`div#${this.id}`, {
-                style: { display: 'none' },
-                onmouseenter: (e) => this.callbacks.onMouseEnter?.(e),
-                onmouseleave: (e) => this.callbacks.onMouseLeave?.(e),
-            }, [
-                this.elements.tabsContainer = h('div.cqtb-category-tabs'),
-                h('div.cqtb-category-separator'),
-                this.elements.optionsContainer = h('div.cqtb-text-options')
-            ]);
+            this.element = h(
+                `div#${this.id}`,
+                {
+                    style: { display: 'none' },
+                    onmouseenter: (e) => this.callbacks.onMouseEnter?.(e),
+                    onmouseleave: (e) => this.callbacks.onMouseLeave?.(e),
+                },
+                [(this.elements.tabsContainer = h('div.cqtb-category-tabs')), h('div.cqtb-category-separator'), (this.elements.optionsContainer = h('div.cqtb-text-options'))]
+            );
 
             document.body.appendChild(this.element);
             return this.element;
@@ -3176,7 +3280,7 @@
                     border-color: ${styles.option_hover_border} !important;
                     outline: 2px solid ${styles.option_hover_outline};
                 }
-            `
+            `,
             });
             document.head.appendChild(style);
         }
@@ -3212,17 +3316,20 @@
             const modalCallbacks = {
                 onSave: (newConfig) => this.onSave(newConfig),
                 getCurrentConfig: () => this.config,
-                onModalOpenStateChange: (isOpen) => this.setModalState(isOpen)
+                onModalOpenStateChange: (isOpen) => this.setModalState(isOpen),
             };
-            this.components.settingsBtn = new CustomSettingsButton({
-                onClick: () => this.components.settingsPanel.toggle(),
-            }, {
-                id: `${CONSTANTS.ID_PREFIX}settings-btn`,
-                title: `Settings (${APPNAME})`,
-                zIndex: 10000,
-                position: { top: '10px', right: '360px' },
-                siteStyles: this.siteStyles.SETTINGS_BUTTON,
-            });
+            this.components.settingsBtn = new CustomSettingsButton(
+                {
+                    onClick: () => this.components.settingsPanel.toggle(),
+                },
+                {
+                    id: `${CONSTANTS.ID_PREFIX}settings-btn`,
+                    title: `Settings (${APPNAME})`,
+                    zIndex: 10000,
+                    position: { top: '10px', right: '360px' },
+                    siteStyles: this.siteStyles.SETTINGS_BUTTON,
+                }
+            );
             this.components.settingsPanel = new SettingsPanelComponent({
                 onSave: (newConfig) => this.onSave(newConfig),
                 getCurrentConfig: () => this.config,
@@ -3232,25 +3339,31 @@
                     this.components.settingsPanel.hide();
                     this.components.jsonModal.open(this.components.settingsBtn.element);
                 },
-                siteStyles: this.siteStyles.SETTINGS_PANEL
+                siteStyles: this.siteStyles.SETTINGS_PANEL,
             });
-            this.components.insertBtn = new InsertButtonComponent({
-                onMouseEnter: () => this._showList(),
-                onMouseLeave: () => this._startHideTimer(),
-            }, {
-                id: `${CONSTANTS.ID_PREFIX}insert-btn`,
-                title: 'Add quick text',
-                zIndex: 10000,
-                position: { top: '10px', right: '400px' },
-                siteStyles: this.siteStyles.INSERT_BUTTON,
-            });
-            this.components.textList = new TextListComponent({
-                onMouseEnter: () => clearTimeout(this.hideTimeoutId),
-                onMouseLeave: () => this._startHideTimer(),
-            }, {
-                id: `${CONSTANTS.ID_PREFIX}text-list`,
-                siteStyles: this.siteStyles.TEXT_LIST,
-            });
+            this.components.insertBtn = new InsertButtonComponent(
+                {
+                    onMouseEnter: () => this._showList(),
+                    onMouseLeave: () => this._startHideTimer(),
+                },
+                {
+                    id: `${CONSTANTS.ID_PREFIX}insert-btn`,
+                    title: 'Add quick text',
+                    zIndex: 10000,
+                    position: { top: '10px', right: '400px' },
+                    siteStyles: this.siteStyles.INSERT_BUTTON,
+                }
+            );
+            this.components.textList = new TextListComponent(
+                {
+                    onMouseEnter: () => clearTimeout(this.hideTimeoutId),
+                    onMouseLeave: () => this._startHideTimer(),
+                },
+                {
+                    id: `${CONSTANTS.ID_PREFIX}text-list`,
+                    siteStyles: this.siteStyles.TEXT_LIST,
+                }
+            );
 
             this.components.jsonModal = new JsonModalComponent({
                 ...modalCallbacks,
@@ -3262,7 +3375,7 @@
                 onShowJsonModal: () => {
                     this.components.textEditorModal.close();
                     this.components.jsonModal.open(this.components.settingsBtn.element);
-                }
+                },
             });
         }
 
@@ -3317,29 +3430,29 @@
                 return;
             }
 
-            Object.keys(activeProfile).forEach(cat => {
+            Object.keys(activeProfile).forEach((cat) => {
                 const tab = h('button', {
                     className: 'cqtb-category-tab' + (cat === this.activeCategory ? ' active' : ''),
                     textContent: cat,
-                    onmousedown: e => {
+                    onmousedown: (e) => {
                         e.stopPropagation();
                         this.activeCategory = cat;
                         this.renderContent();
-                    }
+                    },
                 });
                 tabsContainer.appendChild(tab);
             });
 
-            (activeProfile[this.activeCategory] || []).forEach(txt => {
+            (activeProfile[this.activeCategory] || []).forEach((txt) => {
                 const btn = h('button', {
                     className: 'cqtb-text-option',
                     textContent: txt.length > 100 ? `${txt.slice(0, 100)}…` : txt,
                     title: txt,
-                    onmousedown: e => {
+                    onmousedown: (e) => {
                         e.stopPropagation();
                         this._insertText(txt);
                         this.components.textList.element.style.display = 'none';
-                    }
+                    },
                 });
                 optionsContainer.appendChild(btn);
             });
@@ -3394,7 +3507,6 @@
             }, CONSTANTS.HIDE_DELAY_MS);
         }
     }
-
 
     // =================================================================================
     // SECTION: Sync Manager
@@ -3461,7 +3573,7 @@
             if (messageArea) {
                 const messageText = h('span', {
                     textContent: 'Settings updated in another tab.',
-                    style: { display: 'flex', alignItems: 'center' }
+                    style: { display: 'flex', alignItems: 'center' },
                 });
                 const reloadBtn = h('button', {
                     id: `${APPID}-conflict-reload-btn`,
@@ -3470,7 +3582,7 @@
                     title: 'Discard local changes and load the settings from the other tab.',
                     style: {
                         borderColor: styles.error_text || 'red',
-                        marginLeft: '12px'
+                        marginLeft: '12px',
                     },
                     onclick: () => {
                         const reopenContext = modalComponent.getContextForReopen?.();
@@ -3480,7 +3592,7 @@
                         setTimeout(() => {
                             EventBus.publish(`${APPID}:reOpenModal`, reopenContext);
                         }, 100);
-                    }
+                    },
                 });
                 messageArea.textContent = '';
                 messageArea.classList.add(`${APPID}-conflict-text`);
@@ -3531,7 +3643,7 @@
 
             const style = h('style', {
                 id: this.styleId,
-                textContent: `@keyframes ${this.animationName} { from { transform: none; } to { transform: none; } }`
+                textContent: `@keyframes ${this.animationName} { from { transform: none; } to { transform: none; } }`,
             });
             document.head.appendChild(style);
         }
@@ -3544,7 +3656,7 @@
             // Check if the target element matches any of this instance's selectors.
             for (const [selector, callbacks] of this.listeners.entries()) {
                 if (target.matches(selector)) {
-                    callbacks.forEach(cb => cb(target));
+                    callbacks.forEach((cb) => cb(target));
                 }
             }
         }
@@ -3556,7 +3668,7 @@
                 // All rules will point to the same, shared animation name.
                 const style = h('style', {
                     className: this.ruleClassName,
-                    textContent: `${selector} { animation-duration: 0.001s; animation-name: ${this.animationName}; }`
+                    textContent: `${selector} { animation-duration: 0.001s; animation-name: ${this.animationName}; }`,
                 });
                 document.head.appendChild(style);
             }
@@ -3684,7 +3796,7 @@
             if (!completeConfig.texts || Object.keys(completeConfig.texts).length === 0) {
                 // If sanitization results in an empty texts object, restore the default to prevent a broken state.
                 completeConfig.texts = JSON.parse(JSON.stringify(DEFAULT_CONFIG.texts));
-                Logger.warn("Configuration resulted in no profiles. Restoring default texts to prevent errors.");
+                Logger.warn('Configuration resulted in no profiles. Restoring default texts to prevent errors.');
             }
 
             const profileKeys = Object.keys(completeConfig.texts);
@@ -3716,5 +3828,4 @@
             app.init();
         });
     }
-
 })();

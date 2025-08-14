@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.2.0
+// @version      1.2.1
 // @license      MIT
 // @description  Automatically applies a theme based on the chat name (changes user/assistant names, text color, icon, bubble style, window background, input area style, standing images, etc.)
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=gemini.google.com
@@ -327,7 +327,7 @@
             };
             for (const m of ['pushState', 'replaceState']) {
                 const orig = history[m];
-                history[m] = function(...args) {
+                history[m] = function (...args) {
                     orig.apply(this, args);
                     handler();
                 };
@@ -364,7 +364,7 @@
                 subtree: true,
                 attributes: true,
                 characterData: true,
-                attributeFilter: ['class']
+                attributeFilter: ['class'],
             });
             debouncedThemeUpdate();
         }
@@ -393,8 +393,8 @@
                 MIN: 29,
                 MAX: 80,
                 NULL_THRESHOLD: 30,
-                DEFAULT: null
-            }
+                DEFAULT: null,
+            },
         },
         Z_INDICES: {
             SETTINGS_BUTTON: 10000,
@@ -427,7 +427,19 @@
             backgroundHover: 'var(--gem-sys-color--surface-container-higher)',
             borderColorHover: 'var(--gem-sys-color--outline)',
             borderRadius: '50%',
-            iconDef: { tag: 'svg', props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 0 24 24', width: '24px', fill: 'currentColor' }, children: [{ tag: 'path', props: { d: 'M0 0h24v24H0V0z', fill: 'none' } }, { tag: 'path', props: { d: 'M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.08-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z' } }] }
+            iconDef: {
+                tag: 'svg',
+                props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 0 24 24', width: '24px', fill: 'currentColor' },
+                children: [
+                    { tag: 'path', props: { d: 'M0 0h24v24H0V0z', fill: 'none' } },
+                    {
+                        tag: 'path',
+                        props: {
+                            d: 'M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.08-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z',
+                        },
+                    },
+                ],
+            },
         },
         SETTINGS_PANEL: {
             bg: 'var(--gem-sys-color--surface-container-highest)',
@@ -478,9 +490,21 @@
             popup_bg: 'var(--gem-sys-color--surface-container-highest)',
             popup_border: 'var(--gem-sys-color--outline)',
             dnd_indicator_color: 'var(--gem-sys-color--primary)',
-            folderIconDef: { tag: 'svg', props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, children: [{ tag: 'path', props: { d: 'M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z' } }] },
-            upIconDef: { tag: 'svg', props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, children: [{ tag: 'path', props: { d: 'M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z' } }] },
-            downIconDef: { tag: 'svg', props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, children: [{ tag: 'path', props: { d: 'M480-344 240-584l56-56 184 184 184-184 56 56-240 240Z' } }] },
+            folderIconDef: {
+                tag: 'svg',
+                props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
+                children: [{ tag: 'path', props: { d: 'M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z' } }],
+            },
+            upIconDef: {
+                tag: 'svg',
+                props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
+                children: [{ tag: 'path', props: { d: 'M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z' } }],
+            },
+            downIconDef: {
+                tag: 'svg',
+                props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
+                children: [{ tag: 'path', props: { d: 'M480-344 240-584l56-56 184 184 184-184 56 56-240 240Z' } }],
+            },
         },
         FIXED_NAV: {
             bg: 'var(--gem-sys-color--surface-container)',
@@ -639,7 +663,7 @@
     // ---- Validation Rules ----
     const THEME_VALIDATION_RULES = {
         bubbleBorderRadius: { unit: 'px', min: 0, max: 50, nullable: true },
-        bubbleMaxWidth: { unit: '%', min: 30, max: 100, nullable: true }
+        bubbleMaxWidth: { unit: '%', min: 30, max: 100, nullable: true },
     };
     /**
      * @typedef {object} ActorConfig
@@ -676,28 +700,28 @@
         options: {
             icon_size: CONSTANTS.ICON_SIZE,
             chat_content_max_width: CONSTANTS.SLIDER_CONFIGS.CHAT_WIDTH.DEFAULT,
-            respect_avatar_space: true
+            respect_avatar_space: true,
         },
         features: {
             collapsible_button: {
-                enabled: true
+                enabled: true,
             },
             scroll_to_top_button: {
-                enabled: true
+                enabled: true,
             },
             sequential_nav_buttons: {
-                enabled: true
+                enabled: true,
             },
             fixed_nav_console: {
-                enabled: true
-            }
+                enabled: true,
+            },
         },
         themeSets: [
             {
                 metadata: {
                     id: `${APPID}-theme-example-1`,
                     name: 'Project Example',
-                    matchPatterns: ["/project1/i"]
+                    matchPatterns: ['/project1/i'],
                 },
                 assistant: {
                     name: null,
@@ -708,7 +732,7 @@
                     bubblePadding: null,
                     bubbleBorderRadius: null,
                     bubbleMaxWidth: null,
-                    standingImageUrl: null
+                    standingImageUrl: null,
                 },
                 user: {
                     name: null,
@@ -719,7 +743,7 @@
                     bubblePadding: null,
                     bubbleBorderRadius: null,
                     bubbleMaxWidth: null,
-                    standingImageUrl: null
+                    standingImageUrl: null,
                 },
                 window: {
                     backgroundColor: null,
@@ -730,9 +754,9 @@
                 },
                 inputArea: {
                     backgroundColor: null,
-                    textColor: null
-                }
-            }
+                    textColor: null,
+                },
+            },
         ],
         defaultSet: {
             assistant: {
@@ -741,10 +765,10 @@
                 textColor: null,
                 font: null,
                 bubbleBackgroundColor: null,
-                bubblePadding: "6px 10px",
-                bubbleBorderRadius: "10px",
+                bubblePadding: '6px 10px',
+                bubbleBorderRadius: '10px',
                 bubbleMaxWidth: null,
-                standingImageUrl: null
+                standingImageUrl: null,
             },
             user: {
                 name: 'You',
@@ -752,23 +776,23 @@
                 textColor: null,
                 font: null,
                 bubbleBackgroundColor: null,
-                bubblePadding: "6px 10px",
-                bubbleBorderRadius: "10px",
+                bubblePadding: '6px 10px',
+                bubbleBorderRadius: '10px',
                 bubbleMaxWidth: null,
-                standingImageUrl: null
+                standingImageUrl: null,
             },
             window: {
                 backgroundColor: null,
                 backgroundImageUrl: null,
-                backgroundSize: "cover",
-                backgroundPosition: "center center",
-                backgroundRepeat: "no-repeat",
+                backgroundSize: 'cover',
+                backgroundPosition: 'center center',
+                backgroundRepeat: 'no-repeat',
             },
             inputArea: {
                 backgroundColor: null,
-                textColor: null
-            }
-        }
+                textColor: null,
+            },
+        },
     };
 
     // =================================================================================
@@ -822,7 +846,7 @@
             if (!this.events[event]) {
                 return;
             }
-            this.events[event] = this.events[event].filter(l => l !== listener);
+            this.events[event] = this.events[event].filter((l) => l !== listener);
 
             // If the event has no more listeners, remove the event property to save memory.
             if (this.events[event].length === 0) {
@@ -839,14 +863,14 @@
                 return;
             }
             // Iterate over a copy of the array in case a listener unsubscribes itself (e.g., 'once').
-            [...this.events[event]].forEach(listener => {
+            [...this.events[event]].forEach((listener) => {
                 try {
                     listener(...args);
                 } catch (e) {
                     Logger.error(`EventBus error in listener for event "${event}":`, e);
                 }
             });
-        }
+        },
     };
 
     // =================================================================================
@@ -935,7 +959,7 @@
                 return btoa(binary);
             } catch (error) {
                 Logger.error('Compression failed:', error);
-                throw new Error("Configuration compression failed.");
+                throw new Error('Configuration compression failed.');
             }
         }
 
@@ -956,7 +980,7 @@
                 return JSON.parse(decompressed);
             } catch (error) {
                 Logger.error('Decompression failed:', error);
-                throw new Error("Configuration is corrupt or in an unknown format.");
+                throw new Error('Configuration is corrupt or in an unknown format.');
             }
         }
     }
@@ -973,7 +997,7 @@
      */
     function debounce(func, delay) {
         let timeout;
-        return function(...args) {
+        return function (...args) {
             clearTimeout(timeout);
             timeout = setTimeout(() => func.apply(this, args), delay);
         };
@@ -1025,9 +1049,7 @@
 
         const [, tagName, id, classList] = match;
         const isSVG = ['svg', 'circle', 'rect', 'path', 'g', 'line', 'text', 'use', 'defs', 'clipPath'].includes(tagName);
-        const el = isSVG
-        ? document.createElementNS(SVG_NS, tagName)
-        : document.createElement(tagName);
+        const el = isSVG ? document.createElementNS(SVG_NS, tagName) : document.createElement(tagName);
 
         if (id) el.id = id.slice(1);
         if (classList) el.className = classList.replace(/\./g, ' ').trim();
@@ -1117,7 +1139,7 @@
      */
     function createIconFromDef(def) {
         if (!def) return null;
-        const children = def.children ? def.children.map(child => createIconFromDef(child)) : [];
+        const children = def.children ? def.children.map((child) => createIconFromDef(child)) : [];
         return h(def.tag, def.props, children);
     }
 
@@ -1154,7 +1176,7 @@
 
             observer.observe(context, {
                 childList: true,
-                subtree: true
+                subtree: true,
             });
         });
     }
@@ -1175,7 +1197,7 @@
      * @returns {string} A unique name.
      */
     function proposeUniqueName(baseName, existingNames) {
-        const existingNamesLower = new Set(Array.from(existingNames).map(name => name.toLowerCase()));
+        const existingNamesLower = new Set(Array.from(existingNames).map((name) => name.toLowerCase()));
 
         if (!existingNamesLower.has(baseName.trim().toLowerCase())) {
             return baseName;
@@ -1204,11 +1226,9 @@
     function svgToDataUrl(svg) {
         if (!svg || typeof svg !== 'string') return null;
         // Basic sanitization: remove <script> tags.
-        const sanitizedSvg = svg.replace(/<script.+?<\/script>/sg, '');
+        const sanitizedSvg = svg.replace(/<script.+?<\/script>/gs, '');
         // Gemini's CSP blocks single quotes in data URLs, so they must be encoded.
-        const encodedSvg = encodeURIComponent(sanitizedSvg)
-        .replace(/'/g, '%27')
-        .replace(/"/g, '%22');
+        const encodedSvg = encodeURIComponent(sanitizedSvg).replace(/'/g, '%27').replace(/"/g, '%22');
         return `data:image/svg+xml,${encodedSvg}`;
     }
 
@@ -1265,9 +1285,7 @@
         }
 
         // If none of the recognized patterns match
-        const allowed = fieldType === 'icon' ?
-              'a URL (http...), Data URI (data:image...), an SVG string, or a CSS function (url(), linear-gradient())' :
-        'a URL, a Data URI, or a CSS function';
+        const allowed = fieldType === 'icon' ? 'a URL (http...), Data URI (data:image...), an SVG string, or a CSS function (url(), linear-gradient())' : 'a URL, a Data URI, or a CSS function';
         return { isValid: false, message: `Invalid format. Must be ${allowed}.` };
     }
 
@@ -1313,7 +1331,7 @@
             const targetScrollTop = element.offsetTop - offset;
             scrollContainer.scrollTo({
                 top: targetScrollTop,
-                behavior
+                behavior,
             });
             return;
         }
@@ -1336,7 +1354,7 @@
                     top: `-${offset}px`,
                     height: '1px',
                     width: '1px',
-                }
+                },
             });
 
             target.prepend(anchor);
@@ -1370,7 +1388,7 @@
          */
         constructor({ configKey, defaultConfig }) {
             if (!configKey || !defaultConfig) {
-                throw new Error("configKey and defaultConfig must be provided.");
+                throw new Error('configKey and defaultConfig must be provided.');
             }
             this.CONFIG_KEY = configKey;
             this.DEFAULT_CONFIG = defaultConfig;
@@ -1600,8 +1618,7 @@
          * @returns {number}
          */
         getIconSize() {
-            return this.config?.options?.icon_size ||
-                CONSTANTS.ICON_SIZE;
+            return this.config?.options?.icon_size || CONSTANTS.ICON_SIZE;
         }
     }
 
@@ -1670,7 +1687,7 @@
             if (messageArea) {
                 const messageText = h('span', {
                     textContent: 'Settings updated in another tab.',
-                    style: { display: 'flex', alignItems: 'center' }
+                    style: { display: 'flex', alignItems: 'center' },
                 });
 
                 const reloadBtn = h('button', {
@@ -1680,7 +1697,7 @@
                     title: 'Discard local changes and load the settings from the other tab.',
                     style: {
                         borderColor: styles.error_text || 'red',
-                        marginLeft: '12px'
+                        marginLeft: '12px',
                     },
                     onclick: () => {
                         const reopenContext = modalComponent.getContextForReopen?.();
@@ -1690,7 +1707,7 @@
                         setTimeout(() => {
                             EventBus.publish(`${APPID}:reOpenModal`, reopenContext);
                         }, 100);
-                    }
+                    },
                 });
 
                 messageArea.textContent = '';
@@ -1768,7 +1785,7 @@
                     ontimeout: () => {
                         Logger.error(`GM_xmlhttpRequest timeout for URL: ${url}`);
                         resolve(null);
-                    }
+                    },
                 });
             });
         }
@@ -1796,8 +1813,7 @@
         _rebuildCache() {
             this.userMessages = Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.USER_MESSAGE));
             this.assistantMessages = Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.ASSISTANT_MESSAGE));
-            this.totalMessages = Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS))
-                .sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top);
+            this.totalMessages = Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS)).sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top);
 
             this.notify();
         }
@@ -1877,7 +1893,7 @@
         if (!obj || typeof path !== 'string') {
             return undefined;
         }
-        return path.split('.').reduce((o, k) => (o && o[k] !== 'undefined') ? o[k] : undefined, obj);
+        return path.split('.').reduce((o, k) => (o && o[k] !== 'undefined' ? o[k] : undefined), obj);
     }
 
     // =================================================================================
@@ -1923,7 +1939,7 @@
             configKey: 'user.name',
             fallbackKey: 'defaultSet.user.name',
             cssVar: `--${APPID}-user-name`,
-            transformer: (value) => value ? `'${value.replace(/'/g, "\\'")}'` : null
+            transformer: (value) => (value ? `'${value.replace(/'/g, "\\'")}'` : null),
         },
         {
             configKey: 'user.icon',
@@ -1940,41 +1956,41 @@
             fallbackKey: 'defaultSet.user.textColor',
             cssVar: `--${APPID}-user-textColor`,
             selector: `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.USER_TEXT_CONTENT}`,
-            property: 'color'
+            property: 'color',
         },
         {
             configKey: 'user.font',
             fallbackKey: 'defaultSet.user.font',
             cssVar: `--${APPID}-user-font`,
             selector: `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.USER_TEXT_CONTENT}`,
-            property: 'font-family'
+            property: 'font-family',
         },
         {
             configKey: 'user.bubbleBackgroundColor',
             fallbackKey: 'defaultSet.user.bubbleBackgroundColor',
             cssVar: `--${APPID}-user-bubble-bg`,
             selector: `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE}`,
-            property: 'background-color'
+            property: 'background-color',
         },
         {
             configKey: 'user.bubblePadding',
             fallbackKey: 'defaultSet.user.bubblePadding',
             cssVar: `--${APPID}-user-bubble-padding`,
             selector: `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE}`,
-            property: 'padding'
+            property: 'padding',
         },
         {
             configKey: 'user.bubbleBorderRadius',
             fallbackKey: 'defaultSet.user.bubbleBorderRadius',
             cssVar: `--${APPID}-user-bubble-radius`,
             selector: `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE}`,
-            property: 'border-radius'
+            property: 'border-radius',
         },
         {
             configKey: 'user.bubbleMaxWidth',
             fallbackKey: 'defaultSet.user.bubbleMaxWidth',
             cssVar: `--${APPID}-user-bubble-maxwidth`,
-            cssBlockGenerator: (value) => value ? `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE} { max-width: var(--${APPID}-user-bubble-maxwidth)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''
+            cssBlockGenerator: (value) => (value ? `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE} { max-width: var(--${APPID}-user-bubble-maxwidth)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''),
         },
 
         // -----------------------------------------------------------------------------
@@ -1984,7 +2000,7 @@
             configKey: 'assistant.name',
             fallbackKey: 'defaultSet.assistant.name',
             cssVar: `--${APPID}-assistant-name`,
-            transformer: (value) => value ? `'${value.replace(/'/g, "\\'")}'` : null
+            transformer: (value) => (value ? `'${value.replace(/'/g, "\\'")}'` : null),
         },
         {
             configKey: 'assistant.icon',
@@ -2006,37 +2022,37 @@
             cssBlockGenerator: (value) => {
                 if (!value) return '';
                 const childSelectors = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul li', 'ol li', 'ul li::marker', 'ol li::marker', 'strong', 'em', 'blockquote', 'table', 'th', 'td'];
-                const fullSelectors = childSelectors.map(s => `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT} ${s}`);
+                const fullSelectors = childSelectors.map((s) => `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT} ${s}`);
                 return `${fullSelectors.join(', ')} { color: var(--${APPID}-assistant-textColor); }`;
-            }
+            },
         },
         {
             configKey: 'assistant.font',
             fallbackKey: 'defaultSet.assistant.font',
             cssVar: `--${APPID}-assistant-font`,
             selector: `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT}`,
-            property: 'font-family'
+            property: 'font-family',
         },
         {
             configKey: 'assistant.bubbleBackgroundColor',
             fallbackKey: 'defaultSet.assistant.bubbleBackgroundColor',
             cssVar: `--${APPID}-assistant-bubble-bg`,
             selector: `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE}`,
-            property: 'background-color'
+            property: 'background-color',
         },
         {
             configKey: 'assistant.bubblePadding',
             fallbackKey: 'defaultSet.assistant.bubblePadding',
             cssVar: `--${APPID}-assistant-bubble-padding`,
             selector: `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE}`,
-            property: 'padding'
+            property: 'padding',
         },
         {
             configKey: 'assistant.bubbleBorderRadius',
             fallbackKey: 'defaultSet.assistant.bubbleBorderRadius',
             cssVar: `--${APPID}-assistant-bubble-radius`,
             selector: `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE}`,
-            property: 'border-radius'
+            property: 'border-radius',
         },
         {
             configKey: 'assistant.bubbleMaxWidth',
@@ -2045,7 +2061,7 @@
             cssBlockGenerator: (value) => {
                 if (!value) return '';
                 return `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE} { max-width: var(--${APPID}-assistant-bubble-maxwidth)${SITE_STYLES.CSS_IMPORTANT_FLAG}; margin-left: 0; margin-right: auto; }`;
-            }
+            },
         },
 
         // -----------------------------------------------------------------------------
@@ -2056,31 +2072,31 @@
             fallbackKey: 'defaultSet.window.backgroundColor',
             cssVar: `--${APPID}-window-bg-color`,
             selector: CONSTANTS.SELECTORS.MAIN_APP_CONTAINER,
-            property: 'background-color'
+            property: 'background-color',
         },
         {
             configKey: 'window.backgroundImageUrl',
             fallbackKey: 'defaultSet.window.backgroundImageUrl',
             cssVar: `--${APPID}-window-bg-image`,
-            cssBlockGenerator: (value) => value ? `${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} { background-image: var(--${APPID}-window-bg-image)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''
+            cssBlockGenerator: (value) => (value ? `${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} { background-image: var(--${APPID}-window-bg-image)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''),
         },
         {
             configKey: 'window.backgroundSize',
             fallbackKey: 'defaultSet.window.backgroundSize',
             cssVar: `--${APPID}-window-bg-size`,
-            cssBlockGenerator: (value) => value ? `${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} { background-size: var(--${APPID}-window-bg-size)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''
+            cssBlockGenerator: (value) => (value ? `${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} { background-size: var(--${APPID}-window-bg-size)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''),
         },
         {
             configKey: 'window.backgroundPosition',
             fallbackKey: 'defaultSet.window.backgroundPosition',
             cssVar: `--${APPID}-window-bg-pos`,
-            cssBlockGenerator: (value) => value ? `${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} { background-position: var(--${APPID}-window-bg-pos)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''
+            cssBlockGenerator: (value) => (value ? `${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} { background-position: var(--${APPID}-window-bg-pos)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''),
         },
         {
             configKey: 'window.backgroundRepeat',
             fallbackKey: 'defaultSet.window.backgroundRepeat',
             cssVar: `--${APPID}-window-bg-repeat`,
-            cssBlockGenerator: (value) => value ? `${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} { background-repeat: var(--${APPID}-window-bg-repeat)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''
+            cssBlockGenerator: (value) => (value ? `${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} { background-repeat: var(--${APPID}-window-bg-repeat)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''),
         },
 
         // -----------------------------------------------------------------------------
@@ -2092,14 +2108,14 @@
             cssVar: `--${APPID}-input-bg`,
             // Use 'background' property to override potential gradients in Gemini's input area.
             selector: CONSTANTS.SELECTORS.INPUT_AREA_BG_TARGET,
-            property: 'background'
+            property: 'background',
         },
         {
             configKey: 'inputArea.textColor',
             fallbackKey: 'defaultSet.inputArea.textColor',
             cssVar: `--${APPID}-input-color`,
             selector: CONSTANTS.SELECTORS.INPUT_TEXT_FIELD_TARGET,
-            property: 'color'
+            property: 'color',
         },
     ];
 
@@ -2123,14 +2139,12 @@
             const important = SITE_STYLES.CSS_IMPORTANT_FLAG || '';
 
             for (const definition of STYLE_DEFINITIONS) {
-                const value = getPropertyByPath(currentThemeSet, definition.configKey) ??
-                      getPropertyByPath(fullConfig, definition.fallbackKey);
+                const value = getPropertyByPath(currentThemeSet, definition.configKey) ?? getPropertyByPath(fullConfig, definition.fallbackKey);
 
                 if (value === null || value === undefined) continue;
                 // Generate rules for direct selector-property mappings
                 if (definition.selector && definition.property) {
-                    const selectors = Array.isArray(definition.selector) ?
-                          definition.selector.join(', ') : definition.selector;
+                    const selectors = Array.isArray(definition.selector) ? definition.selector.join(', ') : definition.selector;
                     dynamicRules.push(`${selectors} { ${definition.property}: var(${definition.cssVar})${important}; }`);
                 }
 
@@ -2155,17 +2169,14 @@
             const themeVars = {};
             for (const definition of STYLE_DEFINITIONS) {
                 if (!definition.cssVar) continue;
-                const value = getPropertyByPath(currentThemeSet, definition.configKey) ??
-                      getPropertyByPath(fullConfig, definition.fallbackKey);
+                const value = getPropertyByPath(currentThemeSet, definition.configKey) ?? getPropertyByPath(fullConfig, definition.fallbackKey);
 
                 if (value === null || value === undefined) {
                     themeVars[definition.cssVar] = null;
                     continue;
                 }
 
-                themeVars[definition.cssVar] = typeof definition.transformer === 'function' ?
-                    definition.transformer(value, fullConfig) :
-                value;
+                themeVars[definition.cssVar] = typeof definition.transformer === 'function' ? definition.transformer(value, fullConfig) : value;
             }
 
             return themeVars;
@@ -2223,7 +2234,9 @@
                             const flags = title.slice(lastSlash + 1);
                             try {
                                 regexArr.push({ pattern: new RegExp(pattern, flags), set });
-                            } catch { /* ignore invalid regex strings in config */ }
+                            } catch {
+                                /* ignore invalid regex strings in config */
+                            }
                         } else {
                             Logger.error(`Invalid match pattern format (must be /pattern/flags): ${title}`);
                         }
@@ -2235,7 +2248,7 @@
 
             const name = this.cachedTitle;
             if (name) {
-                const regexHit = regexArr.find(r => r.pattern.test(name));
+                const regexHit = regexArr.find((r) => r.pattern.test(name));
                 if (regexHit) {
                     this.cachedThemeSet = regexHit.set;
                     return regexHit.set;
@@ -2280,7 +2293,7 @@
             if (!this.themeStyleElem) {
                 this.themeStyleElem = h('style', {
                     id: `${APPID}-theme-style`,
-                    textContent: this.styleGenerator.generateStaticCss()
+                    textContent: this.styleGenerator.generateStaticCss(),
                 });
                 document.head.appendChild(this.themeStyleElem);
             }
@@ -2328,8 +2341,7 @@
             };
             for (const definition of STYLE_DEFINITIONS) {
                 if (!definition.cssVar) continue;
-                const value = getPropertyByPath(currentThemeSet, definition.configKey) ??
-                      getPropertyByPath(fullConfig, `defaultSet.${definition.configKey}`);
+                const value = getPropertyByPath(currentThemeSet, definition.configKey) ?? getPropertyByPath(fullConfig, `defaultSet.${definition.configKey}`);
 
                 if (value === null || typeof value === 'undefined') {
                     rootStyle.removeProperty(definition.cssVar);
@@ -2380,9 +2392,12 @@
                 const iconSize = config.options.icon_size;
 
                 // Check if standing images are active in the current theme or default.
-                const hasStandingImage = getPropertyByPath(themeSet, 'user.standingImageUrl') || getPropertyByPath(themeSet, 'assistant.standingImageUrl') ||
-                      getPropertyByPath(config.defaultSet, 'user.standingImageUrl') || getPropertyByPath(config.defaultSet, 'assistant.standingImageUrl');
-                let requiredMarginPerSide = iconSize + (CONSTANTS.ICON_MARGIN * 2);
+                const hasStandingImage =
+                    getPropertyByPath(themeSet, 'user.standingImageUrl') ||
+                    getPropertyByPath(themeSet, 'assistant.standingImageUrl') ||
+                    getPropertyByPath(config.defaultSet, 'user.standingImageUrl') ||
+                    getPropertyByPath(config.defaultSet, 'assistant.standingImageUrl');
+                let requiredMarginPerSide = iconSize + CONSTANTS.ICON_MARGIN * 2;
                 if (hasStandingImage) {
                     const minStandingImageWidth = iconSize * 2;
                     requiredMarginPerSide = Math.max(requiredMarginPerSide, minStandingImageWidth);
@@ -2390,7 +2405,7 @@
 
                 const sidebarWidth = getSidebarWidth();
                 // Calculate max allowed width based on the full window, sidebar, and required margins.
-                const totalRequiredMargin = sidebarWidth + (requiredMarginPerSide * 2);
+                const totalRequiredMargin = sidebarWidth + requiredMarginPerSide * 2;
                 const maxAllowedWidth = window.innerWidth - totalRequiredMargin;
                 // Use CSS min() to ensure the user's value does not exceed the calculated available space.
                 const finalMaxWidth = `min(${userMaxWidth}, ${maxAllowedWidth}px)`;
@@ -2538,12 +2553,12 @@
             for (const turnNode of this.pendingTurnNodes) {
                 // For streaming turns, continuously inject avatars to handle React re-renders.
                 const allElementsInTurn = turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
-                allElementsInTurn.forEach(elem => {
+                allElementsInTurn.forEach((elem) => {
                     EventBus.publish(`${APPID}:avatarInject`, elem);
                 });
                 if (this._isTurnComplete(turnNode)) {
                     // Re-run messageComplete event for all elements in the now-completed turn
-                    allElementsInTurn.forEach(elem => {
+                    allElementsInTurn.forEach((elem) => {
                         EventBus.publish(`${APPID}:messageComplete`, elem);
                     });
                     EventBus.publish(`${APPID}:turnComplete`, turnNode);
@@ -2562,12 +2577,12 @@
             if (turnNode.nodeType !== Node.ELEMENT_NODE || this.pendingTurnNodes.has(turnNode)) return;
             // --- Initial State Processing ---
             const messageElements = turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
-            messageElements.forEach(elem => {
+            messageElements.forEach((elem) => {
                 EventBus.publish(`${APPID}:avatarInject`, elem);
             });
             if (this._isTurnComplete(turnNode)) {
                 // If the turn is already complete when we first see it, process it immediately.
-                messageElements.forEach(elem => {
+                messageElements.forEach((elem) => {
                     EventBus.publish(`${APPID}:messageComplete`, elem);
                 });
                 EventBus.publish(`${APPID}:turnComplete`, turnNode);
@@ -2602,7 +2617,7 @@
          */
         updateAllMessageHeights() {
             const allMessageElements = document.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
-            allMessageElements.forEach(msgElem => {
+            allMessageElements.forEach((msgElem) => {
                 const nameDiv = msgElem.querySelector(CONSTANTS.SELECTORS.SIDE_AVATAR_NAME);
                 if (!nameDiv) return;
 
@@ -2612,7 +2627,7 @@
                         const nameHeight = nameDiv.offsetHeight;
 
                         if (nameHeight > 0 && iconSize) {
-                            msgElem.style.minHeight = (iconSize + nameHeight) + "px";
+                            msgElem.style.minHeight = iconSize + nameHeight + 'px';
                         } else if (retryCount < 5) {
                             setTimeout(() => setMinHeight(retryCount + 1), 50);
                         }
@@ -2634,10 +2649,7 @@
             const role = PlatformAdapter.getMessageRole(msgElem);
             if (!role) return;
             // This is the main container that gets the icon and name.
-            const container = h(`div${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER}`, [
-                h(`span${CONSTANTS.SELECTORS.SIDE_AVATAR_ICON}`),
-                h(`div${CONSTANTS.SELECTORS.SIDE_AVATAR_NAME}`)
-            ]);
+            const container = h(`div${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER}`, [h(`span${CONSTANTS.SELECTORS.SIDE_AVATAR_ICON}`), h(`div${CONSTANTS.SELECTORS.SIDE_AVATAR_NAME}`)]);
             // Add the container to the message element and mark as processed.
             msgElem.prepend(container);
             msgElem.classList.add(processedClass);
@@ -2730,7 +2742,7 @@
                 ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {
                     align-self: flex-start !important;
                 }
-            `
+            `,
             });
             document.head.appendChild(avatarStyle);
         }
@@ -2773,9 +2785,10 @@
             const styleId = `${APPID}-standing-image-style`;
             if (document.getElementById(styleId)) return;
 
-            document.head.appendChild(h('style', {
-                id: styleId,
-                textContent: `
+            document.head.appendChild(
+                h('style', {
+                    id: styleId,
+                    textContent: `
                 #${APPID}-standing-image-user,
                 #${APPID}-standing-image-assistant {
                     position: fixed;
@@ -2808,13 +2821,14 @@
                     mask-image: var(--${APPID}-standing-image-user-mask, none);
                     -webkit-mask-image: var(--${APPID}-standing-image-user-mask, none);
                 }
-            `
-            }));
+            `,
+                })
+            );
         }
 
         createContainers() {
             if (document.getElementById(`${APPID}-standing-image-assistant`)) return;
-            ['user', 'assistant'].forEach(actor => {
+            ['user', 'assistant'].forEach((actor) => {
                 document.body.appendChild(h(`div`, { id: `${APPID}-standing-image-${actor}` }));
             });
         }
@@ -2834,13 +2848,13 @@
             const hasMessages = !!document.querySelector(CONSTANTS.SELECTORS.USER_MESSAGE);
             const shouldShowActors = isActiveChat && hasMessages;
 
-            ['user', 'assistant'].forEach(actor => {
+            ['user', 'assistant'].forEach((actor) => {
                 const container = document.getElementById(`${APPID}-standing-image-${actor}`);
                 if (!container) return;
 
                 const hasStandingImage = getPropertyByPath(theme, `${actor}.standingImageUrl`) ?? getPropertyByPath(config, `defaultSet.${actor}.standingImageUrl`);
 
-                container.style.opacity = (shouldShowActors && hasStandingImage) ? '1' : '0';
+                container.style.opacity = shouldShowActors && hasStandingImage ? '1' : '0';
             });
             this.debouncedRecalculateStandingImagesLayout();
         }
@@ -2866,10 +2880,10 @@
             const config = this.configManager.get();
             const iconSize = this.configManager.getIconSize();
             const respectAvatarSpace = config.options.respect_avatar_space;
-            const avatarGap = respectAvatarSpace ? (iconSize + (CONSTANTS.ICON_MARGIN * 2)) : 0;
+            const avatarGap = respectAvatarSpace ? iconSize + CONSTANTS.ICON_MARGIN * 2 : 0;
 
-            const assistantWidth = Math.max(0, (messageRect.left - chatRect.left) - avatarGap);
-            const userWidth = Math.max(0, (chatRect.right - messageRect.right) - avatarGap);
+            const assistantWidth = Math.max(0, messageRect.left - chatRect.left - avatarGap);
+            const userWidth = Math.max(0, chatRect.right - messageRect.right - avatarGap);
 
             rootStyle.setProperty(`--${APPID}-standing-image-assistant-left`, `${chatRect.left}px`);
             rootStyle.setProperty(`--${APPID}-standing-image-assistant-width`, `${assistantWidth}px`);
@@ -2878,13 +2892,13 @@
             // Masking
             const maskValue = `linear-gradient(to bottom, transparent 0px, rgb(0 0 0 / 1) 60px, rgb(0 0 0 / 1) 100%)`;
             const assistantImg = document.getElementById(`${APPID}-standing-image-assistant`);
-            if (assistantImg && assistantImg.offsetHeight >= (windowHeight - 32)) {
+            if (assistantImg && assistantImg.offsetHeight >= windowHeight - 32) {
                 rootStyle.setProperty(`--${APPID}-standing-image-assistant-mask`, maskValue);
             } else {
                 rootStyle.setProperty(`--${APPID}-standing-image-assistant-mask`, 'none');
             }
             const userImg = document.getElementById(`${APPID}-standing-image-user`);
-            if (userImg && userImg.offsetHeight >= (windowHeight - 32)) {
+            if (userImg && userImg.offsetHeight >= windowHeight - 32) {
                 rootStyle.setProperty(`--${APPID}-standing-image-user-mask`, maskValue);
             } else {
                 rootStyle.setProperty(`--${APPID}-standing-image-user-mask`, 'none');
@@ -2929,7 +2943,7 @@
             if (document.getElementById(styleId)) return;
             const style = h('style', {
                 id: styleId,
-                textContent: this.generateCss()
+                textContent: this.generateCss(),
             });
             document.head.appendChild(style);
         }
@@ -2939,12 +2953,12 @@
          */
         updateAll() {
             const allMessageElements = this.messageCacheManager.getTotalMessages();
-            allMessageElements.forEach(elem => this.processElement(elem));
+            allMessageElements.forEach((elem) => this.processElement(elem));
 
             const turnContainerSelector = CONSTANTS.SELECTORS.BUBBLE_FEATURE_TURN_CONTAINERS;
             if (turnContainerSelector) {
                 const allTurnNodes = document.querySelectorAll(turnContainerSelector);
-                allTurnNodes.forEach(turn => this.processTurn(turn));
+                allTurnNodes.forEach((turn) => this.processTurn(turn));
             }
         }
 
@@ -2966,9 +2980,7 @@
             positioningParent.style.position = 'relative';
             positioningParent.classList.add(`${APPID}-bubble-parent-with-nav`);
 
-            container = h(`div.${APPID}-bubble-nav-container`, [
-                h(`div.${APPID}-nav-buttons`)
-            ]);
+            container = h(`div.${APPID}-bubble-nav-container`, [h(`div.${APPID}-nav-buttons`)]);
 
             positioningParent.appendChild(container);
             this.navContainers.set(messageElement, container);
@@ -3046,24 +3058,30 @@
                 if (toggleBtn) toggleBtn.classList.remove(`${APPID}-hidden`);
             } else {
                 messageElement.classList.add(`${APPID}-collapsible-processed`, `${APPID}-collapsible`);
-                const toggleBtn = h(`button.${APPID}-collapsible-toggle-btn`, {
-                    type: 'button',
-                    title: 'Toggle message',
-                    onclick: (e) => {
-                        e.stopPropagation();
-                        messageElement.classList.toggle(`${APPID}-bubble-collapsed`);
-                    }
-                }, [
-                    h('svg', {
-                        xmlns: 'http://www.w3.org/2000/svg',
-                        height: '24px',
-                        viewBox: '0 -960 960 960',
-                        width: '24px',
-                        fill: 'currentColor'
-                    }, [
-                        h('path', { d: 'M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z' })
-                    ])
-                ]);
+                const toggleBtn = h(
+                    `button.${APPID}-collapsible-toggle-btn`,
+                    {
+                        type: 'button',
+                        title: 'Toggle message',
+                        onclick: (e) => {
+                            e.stopPropagation();
+                            messageElement.classList.toggle(`${APPID}-bubble-collapsed`);
+                        },
+                    },
+                    [
+                        h(
+                            'svg',
+                            {
+                                xmlns: 'http://www.w3.org/2000/svg',
+                                height: '24px',
+                                viewBox: '0 -960 960 960',
+                                width: '24px',
+                                fill: 'currentColor',
+                            },
+                            [h('path', { d: 'M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z' })]
+                        ),
+                    ]
+                );
                 messageElement.appendChild(toggleBtn);
             }
 
@@ -3116,7 +3134,7 @@
          */
         updateAll() {
             const allTurnNodes = document.querySelectorAll(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER);
-            allTurnNodes.forEach(turn => this.processTurn(turn));
+            allTurnNodes.forEach((turn) => this.processTurn(turn));
         }
 
         /**
@@ -3130,7 +3148,7 @@
 
             const topNavEnabled = config.features.scroll_to_top_button.enabled;
 
-            turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS).forEach(messageElement => {
+            turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS).forEach((messageElement) => {
                 if (topNavEnabled) {
                     this.setupScrollToTopButton(messageElement);
                     const bottomGroup = messageElement.querySelector(`.${APPID}-nav-group-bottom`);
@@ -3153,22 +3171,25 @@
             const buttonsWrapper = container.querySelector(`.${APPID}-nav-buttons`);
 
             const turnSelector = CONSTANTS.SELECTORS.BUBBLE_FEATURE_TURN_CONTAINERS;
-            const scrollTarget = turnSelector ?
-                  messageElement.closest(turnSelector) : messageElement;
+            const scrollTarget = turnSelector ? messageElement.closest(turnSelector) : messageElement;
             if (!scrollTarget) return;
 
-            const topBtn = h(`button.${APPID}-bubble-nav-btn.${APPID}-nav-top`, {
-                type: 'button',
-                title: 'Scroll to top of this message',
-                onclick: (e) => {
-                    e.stopPropagation();
-                    scrollToElement(scrollTarget, { offset: CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV });
-                }
-            }, [
-                h('svg', { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, [
-                    h('path', { d: 'M440-160v-480L280-480l-56-56 256-256 256 256-56 56-160-160v480h-80Zm-200-640v-80h400v80H240Z' })
-                ])
-            ]);
+            const topBtn = h(
+                `button.${APPID}-bubble-nav-btn.${APPID}-nav-top`,
+                {
+                    type: 'button',
+                    title: 'Scroll to top of this message',
+                    onclick: (e) => {
+                        e.stopPropagation();
+                        scrollToElement(scrollTarget, { offset: CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV });
+                    },
+                },
+                [
+                    h('svg', { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, [
+                        h('path', { d: 'M440-160v-480L280-480l-56-56 256-256 256 256-56 56-160-160v480h-80Zm-200-640v-80h400v80H240Z' }),
+                    ]),
+                ]
+            );
             const bottomGroup = h(`div.${APPID}-nav-group-bottom`, [topBtn]);
             buttonsWrapper.appendChild(bottomGroup);
         }
@@ -3209,7 +3230,7 @@
         updateAll() {
             // Process visibility for all sequential navigation buttons.
             const allMessageElements = document.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
-            allMessageElements.forEach(elem => this.processElement(elem));
+            allMessageElements.forEach((elem) => this.processElement(elem));
 
             // Finally, update the enabled/disabled state of any visible prev/next buttons.
             this.updateAllPrevNextButtons();
@@ -3258,26 +3279,26 @@
                     }
                 }
             };
-            const prevBtn = h(`button.${APPID}-bubble-nav-btn.${APPID}-nav-prev`, {
-                type: 'button',
-                title: 'Scroll to previous message',
-                dataset: { originalTitle: 'Scroll to previous message' },
-                onclick: createClickHandler(-1)
-            }, [
-                h('svg', { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, [
-                    h('path', { d: 'M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z' })
-                ])
-            ]);
-            const nextBtn = h(`button.${APPID}-bubble-nav-btn.${APPID}-nav-next`, {
-                type: 'button',
-                title: 'Scroll to next message',
-                dataset: { originalTitle: 'Scroll to next message' },
-                onclick: createClickHandler(1)
-            }, [
-                h('svg', { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, [
-                    h('path', { d: 'M480-344 240-584l56-56 184 184 184-184 56 56-240 240Z' })
-                ])
-            ]);
+            const prevBtn = h(
+                `button.${APPID}-bubble-nav-btn.${APPID}-nav-prev`,
+                {
+                    type: 'button',
+                    title: 'Scroll to previous message',
+                    dataset: { originalTitle: 'Scroll to previous message' },
+                    onclick: createClickHandler(-1),
+                },
+                [h('svg', { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, [h('path', { d: 'M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z' })])]
+            );
+            const nextBtn = h(
+                `button.${APPID}-bubble-nav-btn.${APPID}-nav-next`,
+                {
+                    type: 'button',
+                    title: 'Scroll to next message',
+                    dataset: { originalTitle: 'Scroll to next message' },
+                    onclick: createClickHandler(1),
+                },
+                [h('svg', { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, [h('path', { d: 'M480-344 240-584l56-56 184 184 184-184 56 56-240 240Z' })])]
+            );
             const topGroup = h(`div.${APPID}-nav-group-top`, [prevBtn, nextBtn]);
             buttonsWrapper.prepend(topGroup);
         }
@@ -3291,15 +3312,14 @@
 
                     const prevBtn = container.querySelector(`.${APPID}-nav-prev`);
                     if (prevBtn) {
-                        const isDisabled = (index === 0);
+                        const isDisabled = index === 0;
                         prevBtn.disabled = isDisabled;
-                        prevBtn.title = isDisabled ? `${prevBtn.dataset.originalTitle} ${disabledHint}` :
-                        prevBtn.dataset.originalTitle;
+                        prevBtn.title = isDisabled ? `${prevBtn.dataset.originalTitle} ${disabledHint}` : prevBtn.dataset.originalTitle;
                     }
 
                     const nextBtn = container.querySelector(`.${APPID}-nav-next`);
                     if (nextBtn) {
-                        const isDisabled = (index === messages.length - 1);
+                        const isDisabled = index === messages.length - 1;
                         nextBtn.disabled = isDisabled;
                         nextBtn.title = isDisabled ? `${nextBtn.dataset.originalTitle} ${disabledHint}` : nextBtn.dataset.originalTitle;
                     }
@@ -3368,7 +3388,7 @@
             }
 
             // Call all unsubscribe functions
-            this.unsubscribers.forEach(unsub => unsub());
+            this.unsubscribers.forEach((unsub) => unsub());
             this.unsubscribers = [];
 
             this.navConsole?.remove();
@@ -3398,39 +3418,27 @@
                     h(`button.${APPID}-nav-btn`, { 'data-nav': 'asst-prev', title: 'Previous assistant message' }, [svgIcons.prev()]),
                     h(`button.${APPID}-nav-btn`, { 'data-nav': 'asst-next', title: 'Next assistant message' }, [svgIcons.next()]),
                     h(`span.${APPID}-nav-label`, 'Assistant:'),
-                    h(`span.${APPID}-nav-counter`, { 'data-role': 'asst', title: 'Click to jump to a message' }, [
-                        h(`span.${APPID}-counter-current`, '--'),
-                        ' / ',
-                        h(`span.${APPID}-counter-total`, '--')
-                    ])
+                    h(`span.${APPID}-nav-counter`, { 'data-role': 'asst', title: 'Click to jump to a message' }, [h(`span.${APPID}-counter-current`, '--'), ' / ', h(`span.${APPID}-counter-total`, '--')]),
                 ]),
                 h(`div.${APPID}-nav-separator`),
                 h(`div#${APPID}-nav-group-total.${APPID}-nav-group`, [
                     h(`button.${APPID}-nav-btn`, { 'data-nav': 'total-first', title: 'First message' }, [svgIcons.first()]),
                     h(`button.${APPID}-nav-btn`, { 'data-nav': 'total-prev', title: 'Previous message' }, [svgIcons.prev()]),
                     h(`span.${APPID}-nav-label`, 'Total:'),
-                    h(`span.${APPID}-nav-counter`, { 'data-role': 'total', title: 'Click to jump to a message' }, [
-                        h(`span.${APPID}-counter-current`, '--'),
-                        ' / ',
-                        h(`span.${APPID}-counter-total`, '--')
-                    ]),
+                    h(`span.${APPID}-nav-counter`, { 'data-role': 'total', title: 'Click to jump to a message' }, [h(`span.${APPID}-counter-current`, '--'), ' / ', h(`span.${APPID}-counter-total`, '--')]),
                     h(`button.${APPID}-nav-btn`, { 'data-nav': 'total-next', title: 'Next message' }, [svgIcons.next()]),
-                    h(`button.${APPID}-nav-btn`, { 'data-nav': 'total-last', title: 'Last message' }, [svgIcons.last()])
+                    h(`button.${APPID}-nav-btn`, { 'data-nav': 'total-last', title: 'Last message' }, [svgIcons.last()]),
                 ]),
                 h(`div.${APPID}-nav-separator`),
                 h(`div#${APPID}-nav-group-user.${APPID}-nav-group`, [
                     h(`span.${APPID}-nav-label`, 'User:'),
-                    h(`span.${APPID}-nav-counter`, { 'data-role': 'user', title: 'Click to jump to a message' }, [
-                        h(`span.${APPID}-counter-current`, '--'),
-                        ' / ',
-                        h(`span.${APPID}-counter-total`, '--')
-                    ]),
+                    h(`span.${APPID}-nav-counter`, { 'data-role': 'user', title: 'Click to jump to a message' }, [h(`span.${APPID}-counter-current`, '--'), ' / ', h(`span.${APPID}-counter-total`, '--')]),
                     h(`button.${APPID}-nav-btn`, { 'data-nav': 'user-prev', title: 'Previous user message' }, [svgIcons.prev()]),
-                    h(`button.${APPID}-nav-btn`, { 'data-nav': 'user-next', title: 'Next user message' }, [svgIcons.next()])
-                ])
+                    h(`button.${APPID}-nav-btn`, { 'data-nav': 'user-next', title: 'Next user message' }, [svgIcons.next()]),
+                ]),
             ];
             this.navConsole.textContent = '';
-            navUI.forEach(el => this.navConsole.appendChild(el));
+            navUI.forEach((el) => this.navConsole.appendChild(el));
         }
 
         attachEventListeners() {
@@ -3586,7 +3594,7 @@
                         const roleMap = {
                             user: this.messageCacheManager.getUserMessages(),
                             asst: this.messageCacheManager.getAssistantMessages(),
-                            total: this.messageCacheManager.getTotalMessages()
+                            total: this.messageCacheManager.getTotalMessages(),
                         };
                         const targetArray = roleMap[role];
                         const index = num - 1;
@@ -3642,7 +3650,7 @@
             if (this.navConsole) {
                 const formCenter = formRect.left + formRect.width / 2;
                 const centerWidth = this.navConsole.offsetWidth;
-                this.navConsole.style.left = `${formCenter - (centerWidth / 2)}px`;
+                this.navConsole.style.left = `${formCenter - centerWidth / 2}px`;
                 this.navConsole.style.bottom = bottomPosition;
             }
         }
@@ -3747,7 +3755,7 @@
                         border-radius: ${styles.highlight_border_radius} !important;
                         box-shadow: 0 0 8px ${styles.highlight_outline} !important;
                     }
-                `
+                `,
             });
             document.head.appendChild(style);
         }
@@ -3787,19 +3795,23 @@
         render() {
             const collapseIcon = h('svg', { className: 'icon-collapse', viewBox: '0 -960 960 960' }, [h('path', { d: 'M440-440v240h-80v-160H200v-80h240Zm160-320v160h160v80H520v-240h80Z' })]);
             const expandIcon = h('svg', { className: 'icon-expand', viewBox: '0 -960 960 960' }, [h('path', { d: 'M200-200v-240h80v160h160v80H200Zm480-320v-160H520v-80h240v240h-80Z' })]);
-            this.button = h('button', {
-                id: `${APPID}-bulk-collapse-btn`,
-                title: 'Toggle all messages',
-                dataset: { state: 'expanded' }, // Initial state
-                style: { visibility: 'hidden' },
-                onclick: (e) => {
-                    e.stopPropagation();
-                    const currentState = this.button.dataset.state;
-                    const nextState = currentState === 'expanded' ? 'collapsed' : 'expanded';
-                    this.button.dataset.state = nextState;
-                    this._toggleAllMessages(nextState);
-                }
-            }, [collapseIcon, expandIcon]);
+            this.button = h(
+                'button',
+                {
+                    id: `${APPID}-bulk-collapse-btn`,
+                    title: 'Toggle all messages',
+                    dataset: { state: 'expanded' }, // Initial state
+                    style: { visibility: 'hidden' },
+                    onclick: (e) => {
+                        e.stopPropagation();
+                        const currentState = this.button.dataset.state;
+                        const nextState = currentState === 'expanded' ? 'collapsed' : 'expanded';
+                        this.button.dataset.state = nextState;
+                        this._toggleAllMessages(nextState);
+                    },
+                },
+                [collapseIcon, expandIcon]
+            );
             document.body.appendChild(this.button);
         }
 
@@ -3839,7 +3851,7 @@
                     #${APPID}-bulk-collapse-btn[data-state="expanded"] .icon-collapse { display: block; }
                     #${APPID}-bulk-collapse-btn[data-state="collapsed"] .icon-expand { display: block; }
                     #${APPID}-bulk-collapse-btn[data-state="collapsed"] .icon-collapse { display: none; }
-                `
+                `,
             });
             document.head.appendChild(style);
         }
@@ -3854,7 +3866,7 @@
             const formRect = inputForm.getBoundingClientRect();
             const buttonHeight = this.button.offsetHeight;
 
-            const top = formRect.top + (formRect.height / 2) - (buttonHeight / 2);
+            const top = formRect.top + formRect.height / 2 - buttonHeight / 2;
             const left = formRect.right + 12; // 12px margin
 
             this.button.style.top = `${top}px`;
@@ -3880,7 +3892,7 @@
             const shouldCollapse = state === 'collapsed';
             const highlightedMessage = this.fixedNavManager?.highlightedMessage;
 
-            messages.forEach(msg => {
+            messages.forEach((msg) => {
                 msg.classList.toggle(`${APPID}-bubble-collapsed`, shouldCollapse);
             });
 
@@ -3912,7 +3924,7 @@
 
         /** @abstract */
         render() {
-            throw new Error("Component must implement render method.");
+            throw new Error('Component must implement render method.');
         }
 
         destroy() {
@@ -3974,8 +3986,7 @@
             textInput.classList.toggle('is-invalid', value !== '' && !isValid);
             const swatch = wrapper.querySelector(`.${APPID}-color-swatch`);
             if (swatch) {
-                swatch.querySelector(`.${APPID}-color-swatch-value`).style.backgroundColor = (value === '' || isValid) ?
-                    value : 'transparent';
+                swatch.querySelector(`.${APPID}-color-swatch-value`).style.backgroundColor = value === '' || isValid ? value : 'transparent';
             }
         }
 
@@ -4001,14 +4012,12 @@
             if (!textInput) return;
 
             let pickerRoot;
-            const popupWrapper = h(`div.${APPID}-color-picker-popup`, [
-                pickerRoot = h('div')
-            ]);
+            const popupWrapper = h(`div.${APPID}-color-picker-popup`, [(pickerRoot = h('div'))]);
             this.container.appendChild(popupWrapper);
 
             const picker = new CustomColorPicker(pickerRoot, {
                 initialColor: textInput.value || 'rgb(128 128 128 / 1)',
-                cssPrefix: `${APPID}-ccp`
+                cssPrefix: `${APPID}-ccp`,
             });
             picker.render();
 
@@ -4039,7 +4048,7 @@
             textInput.classList.remove('is-invalid');
             this._isSyncing = false;
             // Picker -> Text Input: This remains crucial for updating the text when the user drags the picker.
-            picker.rootElement.addEventListener('color-change', e => {
+            picker.rootElement.addEventListener('color-change', (e) => {
                 if (this._isSyncing) return;
                 this._isSyncing = true;
                 textInput.value = e.detail.color;
@@ -4058,10 +4067,10 @@
             let top = swatchRect.bottom - dialogRect.top + margin;
             let left = swatchRect.left - dialogRect.left;
             if (swatchRect.bottom + pickerHeight + margin > dialogRect.bottom) {
-                top = (swatchRect.top - dialogRect.top) - pickerHeight - margin;
+                top = swatchRect.top - dialogRect.top - pickerHeight - margin;
             }
             if (swatchRect.left + pickerWidth > dialogRect.right) {
-                left = (swatchRect.right - dialogRect.left) - pickerWidth;
+                left = swatchRect.right - dialogRect.left - pickerWidth;
             }
 
             left = Math.max(margin, left);
@@ -4100,7 +4109,7 @@
             this.options = {
                 initialColor: 'rgb(255 0 0 / 1)',
                 cssPrefix: 'ccp',
-                ...options
+                ...options,
             };
             this.state = { h: 0, s: 100, v: 100, a: 1 };
             this.dom = {};
@@ -4125,14 +4134,47 @@
             v /= 100;
             let r, g, b;
             const i = Math.floor(h / 60);
-            const f = (h / 60) - i, p = v * (1 - s), q = v * (1 - s * f), t = v * (1 - s * (1 - f));
+            const f = h / 60 - i,
+                p = v * (1 - s),
+                q = v * (1 - s * f),
+                t = v * (1 - s * (1 - f));
             switch (i % 6) {
-                case 0: { r = v; g = t; b = p; break; }
-                case 1: { r = q; g = v; b = p; break; }
-                case 2: { r = p; g = v; b = t; break; }
-                case 3: { r = p; g = q; b = v; break; }
-                case 4: { r = t; g = p; b = v; break; }
-                case 5: { r = v; g = p; b = q; break; }
+                case 0: {
+                    r = v;
+                    g = t;
+                    b = p;
+                    break;
+                }
+                case 1: {
+                    r = q;
+                    g = v;
+                    b = p;
+                    break;
+                }
+                case 2: {
+                    r = p;
+                    g = v;
+                    b = t;
+                    break;
+                }
+                case 3: {
+                    r = p;
+                    g = q;
+                    b = v;
+                    break;
+                }
+                case 4: {
+                    r = t;
+                    g = p;
+                    b = v;
+                    break;
+                }
+                case 5: {
+                    r = v;
+                    g = p;
+                    b = q;
+                    break;
+                }
             }
             return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) };
         }
@@ -4146,17 +4188,31 @@
          */
         static rgbToHsv(r, g, b) {
             r /= 255;
-            g /= 255; b /= 255;
-            const max = Math.max(r, g, b), min = Math.min(r, g, b);
-            let h, s, v = max;
+            g /= 255;
+            b /= 255;
+            const max = Math.max(r, g, b),
+                min = Math.min(r, g, b);
+            let h,
+                s,
+                v = max;
             const d = max - min;
             s = max === 0 ? 0 : d / max;
-            if (max === min) { h = 0; }
-            else {
+            if (max === min) {
+                h = 0;
+            } else {
                 switch (max) {
-                    case r: { h = (g - b) / d + (g < b ? 6 : 0); break; }
-                    case g: { h = (b - r) / d + 2; break; }
-                    case b: { h = (r - g) / d + 4; break; }
+                    case r: {
+                        h = (g - b) / d + (g < b ? 6 : 0);
+                        break;
+                    }
+                    case g: {
+                        h = (b - r) / d + 2;
+                        break;
+                    }
+                    case b: {
+                        h = (r - g) / d + 4;
+                        break;
+                    }
                 }
                 h /= 6;
             }
@@ -4213,12 +4269,11 @@
                     r: parseInt(rgbaMatch[1], 10),
                     g: parseInt(rgbaMatch[2], 10),
                     b: parseInt(rgbaMatch[3], 10),
-                    a: rgbaMatch[4] !== undefined ? parseFloat(rgbaMatch[4]) : 1
+                    a: rgbaMatch[4] !== undefined ? parseFloat(rgbaMatch[4]) : 1,
                 };
             }
             return null;
         }
-
 
         // =================================================================================
         // SECTION: Public and Private Instance Methods
@@ -4313,36 +4368,36 @@
             let svPlane, svThumb, hueSlider, alphaSlider, alphaTrack;
 
             const colorPicker = h(`div.${p}-color-picker`, { 'aria-label': 'Color picker' }, [
-                svPlane = h(`div.${p}-sv-plane`, {
-                    role: 'slider',
-                    tabIndex: 0,
-                    'aria-label': 'Saturation and Value'
-                }, [
-                    h(`div.${p}-gradient-white`),
-                    h(`div.${p}-gradient-black`),
-                    svThumb = h(`div.${p}-sv-thumb`)
-                ]),
+                (svPlane = h(
+                    `div.${p}-sv-plane`,
+                    {
+                        role: 'slider',
+                        tabIndex: 0,
+                        'aria-label': 'Saturation and Value',
+                    },
+                    [h(`div.${p}-gradient-white`), h(`div.${p}-gradient-black`), (svThumb = h(`div.${p}-sv-thumb`))]
+                )),
                 h(`div.${p}-slider-group.${p}-hue-slider`, [
                     h(`div.${p}-slider-track.${p}-hue-track`),
-                    hueSlider = h('input', {
+                    (hueSlider = h('input', {
                         type: 'range',
                         min: '0',
                         max: '360',
                         step: '1',
-                        'aria-label': 'Hue'
-                    })
+                        'aria-label': 'Hue',
+                    })),
                 ]),
                 h(`div.${p}-slider-group.${p}-alpha-slider`, [
                     h(`div.${p}-alpha-checkerboard`),
-                    alphaTrack = h(`div.${p}-slider-track`),
-                    alphaSlider = h('input', {
+                    (alphaTrack = h(`div.${p}-slider-track`)),
+                    (alphaSlider = h('input', {
                         type: 'range',
                         min: '0',
                         max: '1',
                         step: '0.01',
-                        'aria-label': 'Alpha'
-                    })
-                ])
+                        'aria-label': 'Alpha',
+                    })),
+                ]),
             ]);
 
             this.rootElement.appendChild(colorPicker);
@@ -4386,15 +4441,33 @@
                 const sStep = e.shiftKey ? 10 : 1;
                 const vStep = e.shiftKey ? 10 : 1;
                 switch (e.key) {
-                    case 'ArrowLeft': { this.state.s = Math.max(0, this.state.s - sStep); break; }
-                    case 'ArrowRight': { this.state.s = Math.min(100, this.state.s + sStep); break; }
-                    case 'ArrowUp': { this.state.v = Math.min(100, this.state.v + vStep); break; }
-                    case 'ArrowDown': { this.state.v = Math.max(0, this.state.v - vStep); break; }
+                    case 'ArrowLeft': {
+                        this.state.s = Math.max(0, this.state.s - sStep);
+                        break;
+                    }
+                    case 'ArrowRight': {
+                        this.state.s = Math.min(100, this.state.s + sStep);
+                        break;
+                    }
+                    case 'ArrowUp': {
+                        this.state.v = Math.min(100, this.state.v + vStep);
+                        break;
+                    }
+                    case 'ArrowDown': {
+                        this.state.v = Math.max(0, this.state.v - vStep);
+                        break;
+                    }
                 }
                 this._requestUpdate();
             });
-            hueSlider.addEventListener('input', () => { this.state.h = parseInt(hueSlider.value, 10); this._requestUpdate(); });
-            alphaSlider.addEventListener('input', () => { this.state.a = parseFloat(alphaSlider.value); this._requestUpdate(); });
+            hueSlider.addEventListener('input', () => {
+                this.state.h = parseInt(hueSlider.value, 10);
+                this._requestUpdate();
+            });
+            alphaSlider.addEventListener('input', () => {
+                this.state.a = parseFloat(alphaSlider.value);
+                this._requestUpdate();
+            });
         }
 
         _requestUpdate() {
@@ -4426,12 +4499,14 @@
 
         _dispatchChangeEvent() {
             if (this.rootElement) {
-                this.rootElement.dispatchEvent(new CustomEvent('color-change', {
-                    detail: {
-                        color: this.getColor()
-                    },
-                    bubbles: true
-                }));
+                this.rootElement.dispatchEvent(
+                    new CustomEvent('color-change', {
+                        detail: {
+                            color: this.getColor(),
+                        },
+                        bubbles: true,
+                    })
+                );
             }
         }
     }
@@ -4461,7 +4536,7 @@
                 closeOnBackdropClick: true,
                 buttons: [],
                 onDestroy: null,
-                ...options
+                ...options,
             };
             this.element = null;
             this.dom = {}; // To hold references to internal elements like header, content, footer
@@ -4548,28 +4623,30 @@
             // Define variables to hold references to key elements.
             let header, content, footer, modalBox, footerMessage;
             // Create footer buttons declaratively using map and h().
-            const buttons = this.options.buttons.map(btnDef => {
+            const buttons = this.options.buttons.map((btnDef) => {
                 const fullClassName = [`${p}-button`, btnDef.className].filter(Boolean).join(' ');
-                return h('button', {
-                    id: btnDef.id,
-                    className: fullClassName,
-                    onclick: (e) => btnDef.onClick(this, e)
-                }, btnDef.text);
+                return h(
+                    'button',
+                    {
+                        id: btnDef.id,
+                        className: fullClassName,
+                        onclick: (e) => btnDef.onClick(this, e),
+                    },
+                    btnDef.text
+                );
             });
 
             const buttonGroup = h(`div.${p}-button-group`, buttons);
 
             // Create the entire modal structure using h().
-            this.element = h(`dialog.${p}-dialog`,
-                             modalBox = h(`div.${p}-box`, { style: { width: this.options.width } }, [
-                header = h(`div.${p}-header`, this.options.title),
-                content = h(`div.${p}-content`),
-                footer = h(`div.${p}-footer`, [
-                    footerMessage = h(`div.${p}-footer-message`),
-                    buttonGroup
-                ])
-            ])
-                            );
+            this.element = h(
+                `dialog.${p}-dialog`,
+                (modalBox = h(`div.${p}-box`, { style: { width: this.options.width } }, [
+                    (header = h(`div.${p}-header`, this.options.title)),
+                    (content = h(`div.${p}-content`)),
+                    (footer = h(`div.${p}-footer`, [(footerMessage = h(`div.${p}-footer-message`)), buttonGroup])),
+                ]))
+            );
             // The 'close' event is the single source of truth for when the dialog has been dismissed.
             this.element.addEventListener('close', () => this.destroy());
 
@@ -4609,7 +4686,7 @@
                         left: `${Math.max(left, margin)}px`,
                         top: `${Math.max(top, margin)}px`,
                         margin: '0',
-                        transform: 'none'
+                        transform: 'none',
                     });
                 } else {
                     // DEFAULT CENTERING
@@ -4618,7 +4695,7 @@
                         left: '50%',
                         top: '50%',
                         transform: 'translate(-50%, -50%)',
-                        margin: '0'
+                        margin: '0',
                     });
                 }
             }
@@ -4691,7 +4768,7 @@
                 onclick: (e) => {
                     e.stopPropagation();
                     this.callbacks.onClick?.();
-                }
+                },
             });
 
             const iconDef = this.options.siteStyles.iconDef;
@@ -4745,7 +4822,7 @@
                     background: ${siteStyles.backgroundHover};
                     border-color: ${siteStyles.borderColorHover};
                 }
-            `
+            `,
             });
             document.head.appendChild(style);
         }
@@ -4841,11 +4918,21 @@
         }
 
         // --- Abstract methods to be implemented by subclasses ---
-        _createPanelContent() { throw new Error("Subclass must implement _createPanelContent()"); }
-        _injectStyles() { throw new Error("Subclass must implement _injectStyles()"); }
-        populateForm() { throw new Error("Subclass must implement populateForm()"); }
-        _collectDataFromForm() { throw new Error("Subclass must implement _collectDataFromForm()"); }
-        _setupEventListeners() { throw new Error("Subclass must implement _setupEventListeners()"); }
+        _createPanelContent() {
+            throw new Error('Subclass must implement _createPanelContent()');
+        }
+        _injectStyles() {
+            throw new Error('Subclass must implement _injectStyles()');
+        }
+        populateForm() {
+            throw new Error('Subclass must implement populateForm()');
+        }
+        _collectDataFromForm() {
+            throw new Error('Subclass must implement _collectDataFromForm()');
+        }
+        _setupEventListeners() {
+            throw new Error('Subclass must implement _setupEventListeners()');
+        }
     }
 
     /**
@@ -4873,98 +4960,101 @@
         _createPanelContent() {
             const widthConfig = CONSTANTS.SLIDER_CONFIGS.CHAT_WIDTH;
             const createToggle = (id) => {
-                return h(`label.${APPID}-toggle-switch`, [
-                    h('input', { type: 'checkbox', id: id }),
-                    h(`span.${APPID}-toggle-slider`)
-                ]);
+                return h(`label.${APPID}-toggle-switch`, [h('input', { type: 'checkbox', id: id }), h(`span.${APPID}-toggle-slider`)]);
             };
 
-            return h('div', [ // Return a fragment or a wrapper div
+            return h('div', [
+                // Return a fragment or a wrapper div
                 h(`fieldset.${APPID}-submenu-fieldset`, [
                     h('legend', 'Applied Theme'),
-                    h(`button#${APPID}-applied-theme-name.${APPID}-modal-button`, {
-                        title: 'Click to edit this theme',
-                        style: { width: '100%' },
-                        onclick: () => {
-                            if (this.activeThemeSet) {
-                                const themeKey = this.activeThemeSet.metadata?.id || 'defaultSet';
-                                this.callbacks.onShowThemeModal?.(themeKey);
-                                this.hide();
-                            }
-                        }
-                    }, 'Loading...')
+                    h(
+                        `button#${APPID}-applied-theme-name.${APPID}-modal-button`,
+                        {
+                            title: 'Click to edit this theme',
+                            style: { width: '100%' },
+                            onclick: () => {
+                                if (this.activeThemeSet) {
+                                    const themeKey = this.activeThemeSet.metadata?.id || 'defaultSet';
+                                    this.callbacks.onShowThemeModal?.(themeKey);
+                                    this.hide();
+                                }
+                            },
+                        },
+                        'Loading...'
+                    ),
                 ]),
                 h(`div.${APPID}-submenu-top-row`, [
                     h(`fieldset.${APPID}-submenu-fieldset`, [
                         h('legend', 'Themes'),
-                        h(`button#${APPID}-submenu-edit-themes-btn.${APPID}-modal-button`, {
-                            style: { width: '100%' },
-                            title: 'Open the theme editor to create and modify themes.'
-                        }, 'Edit Themes...')
+                        h(
+                            `button#${APPID}-submenu-edit-themes-btn.${APPID}-modal-button`,
+                            {
+                                style: { width: '100%' },
+                                title: 'Open the theme editor to create and modify themes.',
+                            },
+                            'Edit Themes...'
+                        ),
                     ]),
                     h(`fieldset.${APPID}-submenu-fieldset`, [
                         h('legend', 'JSON'),
-                        h(`button#${APPID}-submenu-json-btn.${APPID}-modal-button`, {
-                            style: { width: '100%' },
-                            title: 'Opens the advanced settings modal to directly edit, import, or export the entire configuration in JSON format.'
-                        }, 'JSON...')
-                    ])
+                        h(
+                            `button#${APPID}-submenu-json-btn.${APPID}-modal-button`,
+                            {
+                                style: { width: '100%' },
+                                title: 'Opens the advanced settings modal to directly edit, import, or export the entire configuration in JSON format.',
+                            },
+                            'JSON...'
+                        ),
+                    ]),
                 ]),
                 h(`fieldset.${APPID}-submenu-fieldset`, [
                     h('legend', 'Options'),
                     h(`div.${APPID}-submenu-row.${APPID}-submenu-row-stacked`, [
                         h('label', { htmlFor: `${APPID}-opt-icon-size-slider`, title: 'Specifies the size of the chat icons in pixels.' }, 'Icon size:'),
-                        h(`div.${APPID}-slider-container`, [
-                            h(`input#${APPID}-opt-icon-size-slider`, { type: 'range', min: '0', max: CONSTANTS.ICON_SIZE_VALUES.length - 1, step: '1' }),
-                            h(`span#${APPID}-opt-icon-size-display.${APPID}-slider-display`)
-                        ])
+                        h(`div.${APPID}-slider-container`, [h(`input#${APPID}-opt-icon-size-slider`, { type: 'range', min: '0', max: CONSTANTS.ICON_SIZE_VALUES.length - 1, step: '1' }), h(`span#${APPID}-opt-icon-size-display.${APPID}-slider-display`)]),
                     ]),
                     h(`div.${APPID}-submenu-row.${APPID}-submenu-row-stacked`, [
-                        h('label', {
-                            htmlFor: `${APPID}-opt-chat-max-width-slider`,
-                            title: `Adjusts the maximum width of the chat content.\nMove slider to the far left for default.\nRange: ${widthConfig.NULL_THRESHOLD}vw to ${widthConfig.MAX}vw.`
-                        }, 'Chat content max width:'),
-                        h(`div.${APPID}-slider-container`, [
-                            h(`input#${APPID}-opt-chat-max-width-slider`, { type: 'range', min: widthConfig.MIN, max: widthConfig.MAX, step: '1' }),
-                            h(`span#${APPID}-opt-chat-max-width-display.${APPID}-slider-display`)
-                        ])
+                        h(
+                            'label',
+                            {
+                                htmlFor: `${APPID}-opt-chat-max-width-slider`,
+                                title: `Adjusts the maximum width of the chat content.\nMove slider to the far left for default.\nRange: ${widthConfig.NULL_THRESHOLD}vw to ${widthConfig.MAX}vw.`,
+                            },
+                            'Chat content max width:'
+                        ),
+                        h(`div.${APPID}-slider-container`, [h(`input#${APPID}-opt-chat-max-width-slider`, { type: 'range', min: widthConfig.MIN, max: widthConfig.MAX, step: '1' }), h(`span#${APPID}-opt-chat-max-width-display.${APPID}-slider-display`)]),
                     ]),
                     h(`div.${APPID}-submenu-separator`),
                     h(`div.${APPID}-submenu-row`, [
-                        h('label', {
-                            htmlFor: `${APPID}-opt-respect-avatar-space`,
-                            title: 'When enabled, adjusts the standing image area to not overlap the avatar icon.\nWhen disabled, the standing image is maximized but may overlap the icon.'
-                        }, 'Prevent image/avatar overlap:'),
-                        createToggle(`${APPID}-opt-respect-avatar-space`)
-                    ])
+                        h(
+                            'label',
+                            {
+                                htmlFor: `${APPID}-opt-respect-avatar-space`,
+                                title: 'When enabled, adjusts the standing image area to not overlap the avatar icon.\nWhen disabled, the standing image is maximized but may overlap the icon.',
+                            },
+                            'Prevent image/avatar overlap:'
+                        ),
+                        createToggle(`${APPID}-opt-respect-avatar-space`),
+                    ]),
                 ]),
                 h(`fieldset.${APPID}-submenu-fieldset`, [
                     h('legend', 'Features'),
                     h(`div.${APPID}-feature-group`, [
-                        h(`div.${APPID}-submenu-row`, [
-                            h('label', { htmlFor: `${APPID}-feat-collapsible-enabled`, title: 'Enables a button to collapse large message bubbles.' }, 'Collapsible button'),
-                            createToggle(`${APPID}-feat-collapsible-enabled`)
-                        ])
+                        h(`div.${APPID}-submenu-row`, [h('label', { htmlFor: `${APPID}-feat-collapsible-enabled`, title: 'Enables a button to collapse large message bubbles.' }, 'Collapsible button'), createToggle(`${APPID}-feat-collapsible-enabled`)]),
                     ]),
                     h(`div.${APPID}-feature-group`, [
-                        h(`div.${APPID}-submenu-row`, [
-                            h('label', { htmlFor: `${APPID}-feat-scroll-top-enabled`, title: 'Enables a button to scroll to the top of a message.' }, 'Scroll to top button'),
-                            createToggle(`${APPID}-feat-scroll-top-enabled`)
-                        ])
+                        h(`div.${APPID}-submenu-row`, [h('label', { htmlFor: `${APPID}-feat-scroll-top-enabled`, title: 'Enables a button to scroll to the top of a message.' }, 'Scroll to top button'), createToggle(`${APPID}-feat-scroll-top-enabled`)]),
                     ]),
                     h(`div.${APPID}-feature-group`, [
-                        h(`div.${APPID}-submenu-row`, [
-                            h('label', { htmlFor: `${APPID}-feat-seq-nav-enabled`, title: 'Enables buttons to jump to the previous/next message.' }, 'Sequential nav buttons'),
-                            createToggle(`${APPID}-feat-seq-nav-enabled`)
-                        ])
+                        h(`div.${APPID}-submenu-row`, [h('label', { htmlFor: `${APPID}-feat-seq-nav-enabled`, title: 'Enables buttons to jump to the previous/next message.' }, 'Sequential nav buttons'), createToggle(`${APPID}-feat-seq-nav-enabled`)]),
                     ]),
                     h(`div.${APPID}-feature-group`, [
                         h(`div.${APPID}-submenu-row`, [
                             h('label', { htmlFor: `${APPID}-feat-fixed-nav-enabled`, title: 'When enabled, a navigation console with message counters will be displayed next to the text input area.' }, 'Navigation console'),
-                            createToggle(`${APPID}-feat-fixed-nav-enabled`)
-                        ])
-                    ])
-                ])
+                            createToggle(`${APPID}-feat-fixed-nav-enabled`),
+                        ]),
+                    ]),
+                ]),
             ]);
         }
 
@@ -5204,7 +5294,7 @@
                 .${APPID}-toggle-switch input:checked + .${APPID}-toggle-slider:before {
                     transform: translateX(18px);
                 }
-            `
+            `,
             });
             document.head.appendChild(style);
         }
@@ -5242,7 +5332,7 @@
                 onDestroy: () => {
                     this.callbacks.onModalOpenStateChange?.(false);
                     this.modal = null;
-                }
+                },
             });
             // Apply App specific theme to the generic modal
             this._applyTheme();
@@ -5280,13 +5370,17 @@
             modalBox.style.setProperty(`--${p}-border-color`, styles.border);
             const footer = this.modal.dom.footer;
             const buttons = footer.querySelectorAll(`.${p}-button`);
-            buttons.forEach(button => {
+            buttons.forEach((button) => {
                 button.classList.add(`${APPID}-modal-button`);
                 button.style.background = styles.btn_bg;
                 button.style.color = styles.btn_text;
                 button.style.border = `1px solid ${styles.btn_border}`;
-                button.addEventListener('mouseover', () => { button.style.background = styles.btn_hover_bg;});
-                button.addEventListener('mouseout', () => { button.style.background = styles.btn_bg;});
+                button.addEventListener('mouseover', () => {
+                    button.style.background = styles.btn_hover_bg;
+                });
+                button.addEventListener('mouseout', () => {
+                    button.style.background = styles.btn_bg;
+                });
             });
         }
 
@@ -5306,14 +5400,14 @@
                     border: `1px solid ${styles.textarea_border}`,
                     background: styles.textarea_bg,
                     color: styles.textarea_text,
-                }
+                },
             });
             const msgDiv = h(`div.${APPID}-modal-msg`, {
                 style: {
                     color: styles.msg_error_text,
                     marginTop: '4px',
-                    fontSize: '0.9em'
-                }
+                    fontSize: '0.9em',
+                },
             });
             parent.append(textarea, msgDiv);
         }
@@ -5344,7 +5438,7 @@
                 const url = URL.createObjectURL(blob);
                 const a = h('a', {
                     href: url,
-                    download: `${APPID}_config.json`
+                    download: `${APPID}_config.json`,
                 });
                 a.click();
 
@@ -5381,7 +5475,7 @@
                         };
                         reader.readAsText(file);
                     }
-                }
+                },
             });
             fileInput.click();
         }
@@ -5395,7 +5489,7 @@
 
         getContextForReopen() {
             return { type: 'json' };
-    }
+        }
     }
 
     /**
@@ -5442,7 +5536,7 @@
                     this.colorPickerManager = null;
                     this.modal = null;
                     this._exitDeleteConfirmationMode(false);
-                }
+                },
             });
             this._applyThemeToModal();
             const headerControls = this._createHeaderControls();
@@ -5458,8 +5552,7 @@
 
             const config = await this.callbacks.getCurrentConfig();
             if (config) {
-                const keyToSelect = selectThemeKey ||
-                    this.activeThemeKey || 'defaultSet';
+                const keyToSelect = selectThemeKey || this.activeThemeKey || 'defaultSet';
                 this.activeThemeKey = keyToSelect;
                 await this._refreshModalState();
             }
@@ -5511,7 +5604,7 @@
                 const defaultOption = h('option', { value: 'defaultSet' }, 'Default Settings');
                 select.appendChild(defaultOption);
                 config.themeSets.forEach((theme, index) => {
-                    const themeName = (typeof theme.metadata?.name === 'string' && theme.metadata.name.trim() !== '') ? theme.metadata.name : `Theme ${index + 1}`;
+                    const themeName = typeof theme.metadata?.name === 'string' && theme.metadata.name.trim() !== '' ? theme.metadata.name : `Theme ${index + 1}`;
                     const option = h('option', { value: theme.metadata.id }, themeName);
                     select.appendChild(option);
                 });
@@ -5522,16 +5615,16 @@
                 }
                 select.scrollTop = scroll;
             } else {
-                const theme = this.activeThemeKey === 'defaultSet' ? { metadata: { name: 'Default Settings' } } : config.themeSets.find(t => t.metadata.id === this.activeThemeKey);
+                const theme = this.activeThemeKey === 'defaultSet' ? { metadata: { name: 'Default Settings' } } : config.themeSets.find((t) => t.metadata.id === this.activeThemeKey);
                 renameInput.value = theme?.metadata?.name || '';
             }
 
             const isAnyActionInProgress = isAnyRenaming || isAnyDeleting;
             const isDefault = this.activeThemeKey === 'defaultSet';
-            const index = config.themeSets.findIndex(t => t.metadata.id === this.activeThemeKey);
+            const index = config.themeSets.findIndex((t) => t.metadata.id === this.activeThemeKey);
 
-            headerRow.querySelector(`#${APPID}-theme-up-btn`).disabled = isAnyActionInProgress || isDefault || (index <= 0);
-            headerRow.querySelector(`#${APPID}-theme-down-btn`).disabled = isAnyActionInProgress || isDefault || (index >= config.themeSets.length - 1);
+            headerRow.querySelector(`#${APPID}-theme-up-btn`).disabled = isAnyActionInProgress || isDefault || index <= 0;
+            headerRow.querySelector(`#${APPID}-theme-down-btn`).disabled = isAnyActionInProgress || isDefault || index >= config.themeSets.length - 1;
             headerRow.querySelector(`#${APPID}-theme-delete-btn`).disabled = isAnyActionInProgress || isDefault;
             headerRow.querySelector(`#${APPID}-theme-new-btn`).disabled = isAnyActionInProgress;
             headerRow.querySelector(`#${APPID}-theme-copy-btn`).disabled = isAnyActionInProgress;
@@ -5558,15 +5651,18 @@
             modalBox.style.setProperty(`--${p}-border-color`, styles.modal_border);
             Object.assign(this.modal.dom.header.style, {
                 borderBottom: `1px solid ${styles.modal_border}`,
-                paddingBottom: '12px', display: 'flex', flexDirection: 'column',
-                alignItems: 'stretch', gap: '12px'
+                paddingBottom: '12px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'stretch',
+                gap: '12px',
             });
             Object.assign(this.modal.dom.footer.style, {
                 borderTop: `1px solid ${styles.modal_border}`,
-                paddingTop: '16px'
+                paddingTop: '16px',
             });
             const buttons = this.modal.dom.footer.querySelectorAll(`.${p}-button`);
-            buttons.forEach(button => {
+            buttons.forEach((button) => {
                 Object.assign(button.style, {
                     background: styles.btn_bg,
                     color: styles.btn_text,
@@ -5575,8 +5671,12 @@
                     padding: CONSTANTS.MODAL.BTN_PADDING,
                     fontSize: `${CONSTANTS.MODAL.BTN_FONT_SIZE}px`,
                 });
-                button.addEventListener('mouseover', () => { button.style.background = styles.btn_hover_bg; });
-                button.addEventListener('mouseout', () => { button.style.background = styles.btn_bg; });
+                button.addEventListener('mouseover', () => {
+                    button.style.background = styles.btn_hover_bg;
+                });
+                button.addEventListener('mouseout', () => {
+                    button.style.background = styles.btn_bg;
+                });
             });
         }
 
@@ -5586,10 +5686,7 @@
             return h(`div.${APPID}-theme-modal-header-controls`, [
                 h(`div.${APPID}-header-row`, { 'data-type': type }, [
                     h('label', { htmlFor: `${APPID}-${type}-select` }, 'Theme:'),
-                    h(`div.${APPID}-rename-area`, [
-                        h(`select#${APPID}-${type}-select`),
-                        h('input', { type: 'text', id: `${APPID}-${type}-rename-input`, style: { display: 'none' } }),
-                    ]),
+                    h(`div.${APPID}-rename-area`, [h(`select#${APPID}-${type}-select`), h('input', { type: 'text', id: `${APPID}-${type}-rename-input`, style: { display: 'none' } })]),
                     h(`div.${APPID}-action-area`, [
                         h(`div#${APPID}-${type}-main-actions`, [
                             h(`button#${APPID}-${type}-rename-btn.${APPID}-modal-button`, 'Rename'),
@@ -5599,17 +5696,14 @@
                             h(`button#${APPID}-${type}-copy-btn.${APPID}-modal-button`, 'Copy'),
                             h(`button#${APPID}-${type}-delete-btn.${APPID}-modal-button`, 'Delete'),
                         ]),
-                        h(`div#${APPID}-${type}-rename-actions`, { style: { display: 'none' } }, [
-                            h(`button#${APPID}-${type}-rename-ok-btn.${APPID}-modal-button`, 'OK'),
-                            h(`button#${APPID}-${type}-rename-cancel-btn.${APPID}-modal-button`, 'Cancel'),
-                        ]),
+                        h(`div#${APPID}-${type}-rename-actions`, { style: { display: 'none' } }, [h(`button#${APPID}-${type}-rename-ok-btn.${APPID}-modal-button`, 'OK'), h(`button#${APPID}-${type}-rename-cancel-btn.${APPID}-modal-button`, 'Cancel')]),
                         h(`div#${APPID}-${type}-delete-confirm-group.${APPID}-delete-confirm-group`, { style: { display: 'none' } }, [
                             h(`span.${APPID}-delete-confirm-label`, 'Are you sure?'),
                             h(`button#${APPID}-${type}-delete-confirm-btn.${APPID}-modal-button.${APPID}-delete-confirm-btn-yes`, 'Confirm Delete'),
                             h(`button#${APPID}-${type}-delete-cancel-btn.${APPID}-modal-button`, 'Cancel'),
                         ]),
-                    ])
-                ])
+                    ]),
+                ]),
             ]);
         }
 
@@ -5621,10 +5715,7 @@
                 if (isImageField) {
                     inputWrapperChildren.push(h(`button.${APPID}-local-file-btn`, { type: 'button', 'data-target-id': id, title: 'Select local file' }, [createIconFromDef(styles.folderIconDef)]));
                 }
-                const fieldChildren = [
-                    h('label', { htmlFor: `${APPID}-form-${id}`, title: tooltip }, label),
-                    h(`div.${APPID}-input-wrapper`, inputWrapperChildren)
-                ];
+                const fieldChildren = [h('label', { htmlFor: `${APPID}-form-${id}`, title: tooltip }, label), h(`div.${APPID}-input-wrapper`, inputWrapperChildren)];
                 if (['image', 'icon', 'name', 'patterns'].includes(fieldType)) {
                     fieldChildren.push(h(`div.${APPID}-form-error-msg`, { 'data-error-for': id.replace(/\./g, '-') }));
                 }
@@ -5637,63 +5728,48 @@
                     h('label', { htmlFor: `${APPID}-form-${id}`, title: fullTooltip }, label),
                     h(`div.${APPID}-color-field-wrapper`, [
                         h('input', { type: 'text', id: `${APPID}-form-${id}`, autocomplete: 'off' }),
-                        h(`button.${APPID}-color-swatch`, { type: 'button', 'data-controls-color': id, title: 'Open color picker' }, [
-                            h(`span.${APPID}-color-swatch-checkerboard`),
-                            h(`span.${APPID}-color-swatch-value`)
-                        ])
-                    ])
+                        h(`button.${APPID}-color-swatch`, { type: 'button', 'data-controls-color': id, title: 'Open color picker' }, [h(`span.${APPID}-color-swatch-checkerboard`), h(`span.${APPID}-color-swatch-value`)]),
+                    ]),
                 ]);
             };
             const createSelectField = (label, id, options, tooltip = '') =>
-            h(`div.${APPID}-form-field`, [
-                h('label', { htmlFor: `${APPID}-form-${id}`, title: tooltip }, label),
-                h('select', { id: `${APPID}-form-${id}` }, [
-                    h('option', { value: '' }, '(not set)'), ...options.map(o => h('option', { value: o }, o))
-                ])
-            ]);
+                h(`div.${APPID}-form-field`, [h('label', { htmlFor: `${APPID}-form-${id}`, title: tooltip }, label), h('select', { id: `${APPID}-form-${id}` }, [h('option', { value: '' }, '(not set)'), ...options.map((o) => h('option', { value: o }, o))])]);
             const createSliderField = (containerClass, label, id, min, max, step, tooltip = '', isPercent = false, nullThreshold = -1) =>
-            h(`div`, { className: containerClass }, [
-                h('label', { htmlFor: `${APPID}-form-${id}-slider`, title: tooltip }, label),
-                h(`div.${APPID}-slider-subgroup-control`, [
-                    h('input', {
-                        type: 'range', id: `${APPID}-form-${id}-slider`, min, max, step,
-                        dataset: { sliderFor: id, isPercent, nullThreshold }
-                    }),
-                    h('span', { 'data-slider-display-for': id })
-                ])
-            ]);
+                h(`div`, { className: containerClass }, [
+                    h('label', { htmlFor: `${APPID}-form-${id}-slider`, title: tooltip }, label),
+                    h(`div.${APPID}-slider-subgroup-control`, [
+                        h('input', {
+                            type: 'range',
+                            id: `${APPID}-form-${id}-slider`,
+                            min,
+                            max,
+                            step,
+                            dataset: { sliderFor: id, isPercent, nullThreshold },
+                        }),
+                        h('span', { 'data-slider-display-for': id }),
+                    ]),
+                ]);
             const createPaddingSliders = (actor) => {
                 const createSubgroup = (name, id, min, max, step) =>
-                h(`div.${APPID}-slider-subgroup`, [
-                    h('label', { htmlFor: id }, name),
-                    h(`div.${APPID}-slider-subgroup-control`, [
-                        h('input', { type: 'range', id, min, max, step, dataset: { sliderFor: id, nullThreshold: 0 } }),
-                        h('span', { 'data-slider-display-for': id })
-                    ])
-                ]);
+                    h(`div.${APPID}-slider-subgroup`, [
+                        h('label', { htmlFor: id }, name),
+                        h(`div.${APPID}-slider-subgroup-control`, [h('input', { type: 'range', id, min, max, step, dataset: { sliderFor: id, nullThreshold: 0 } }), h('span', { 'data-slider-display-for': id })]),
+                    ]);
                 return h(`div.${APPID}-form-field`, [
-                    h(`div.${APPID}-compound-slider-container`, [
-                        createSubgroup('Padding Top/Bottom:', `${APPID}-form-${actor}-bubblePadding-tb`, -1, 30, 1),
-                        createSubgroup('Padding Left/Right:', `${APPID}-form-${actor}-bubblePadding-lr`, -1, 30, 1)
-                    ])
+                    h(`div.${APPID}-compound-slider-container`, [createSubgroup('Padding Top/Bottom:', `${APPID}-form-${actor}-bubblePadding-tb`, -1, 30, 1), createSubgroup('Padding Left/Right:', `${APPID}-form-${actor}-bubblePadding-lr`, -1, 30, 1)]),
                 ]);
             };
             const createPreview = (actor) => {
                 const wrapperClass = `${APPID}-preview-bubble-wrapper ${actor === 'user' ? 'user-preview' : ''}`;
-                return h(`div.${APPID}-preview-container`, [
-                    h('label', 'Preview:'),
-                    h('div', { className: wrapperClass }, [
-                        h(`div.${APPID}-preview-bubble`, { 'data-preview-for': actor }, [h('span', 'Sample Text')])
-                    ])
-                ]);
+                return h(`div.${APPID}-preview-container`, [h('label', 'Preview:'), h('div', { className: wrapperClass }, [h(`div.${APPID}-preview-bubble`, { 'data-preview-for': actor }, [h('span', 'Sample Text')])])]);
             };
             return h(`div.${APPID}-theme-modal-content`, [
                 h(`div.${APPID}-theme-general-settings`, [
                     h(`div.${APPID}-form-field`, [
                         h('label', { htmlFor: `${APPID}-form-metadata-matchPatterns`, title: 'Enter one RegEx pattern per line to automatically apply this theme (e.g., /My Project/i).' }, 'Patterns (one per line):'),
                         h(`textarea`, { id: `${APPID}-form-metadata-matchPatterns`, rows: 3 }),
-                        h(`div.${APPID}-form-error-msg`, { 'data-error-for': 'metadata-matchPatterns' })
-                    ])
+                        h(`div.${APPID}-form-error-msg`, { 'data-error-for': 'metadata-matchPatterns' }),
+                    ]),
                 ]),
                 h(`hr.${APPID}-theme-separator`, { tabIndex: -1 }),
                 h(`div.${APPID}-theme-scrollable-area`, [
@@ -5711,12 +5787,12 @@
                                 createPaddingSliders('assistant'),
                                 h(`div.${APPID}-compound-slider-container`, [
                                     createSliderField(`${APPID}-slider-subgroup`, 'Radius:', 'assistant-bubbleBorderRadius', -1, 50, 1, 'Corner roundness of the bubble (e.g., 10px).\nSet to the far left for (auto).', false, 0),
-                                    createSliderField(`${APPID}-slider-subgroup`, 'max Width:', 'assistant-bubbleMaxWidth', 29, 100, 1, 'Maximum width of the bubble.\nSet to the far left for (auto).', true, 30)
+                                    createSliderField(`${APPID}-slider-subgroup`, 'max Width:', 'assistant-bubbleMaxWidth', 29, 100, 1, 'Maximum width of the bubble.\nSet to the far left for (auto).', true, 30),
                                 ]),
                                 h(`hr.${APPID}-theme-separator`),
 
-                                createPreview('assistant')
-                            ])
+                                createPreview('assistant'),
+                            ]),
                         ]),
                         h('fieldset', [
                             h('legend', 'User'),
@@ -5727,14 +5803,15 @@
                                 h('legend', 'Bubble Settings'),
                                 createColorField('Background color:', 'user-bubbleBackgroundColor', 'Background color of the message bubble.'),
                                 createColorField('Text color:', 'user-textColor', 'Color of the text inside the bubble.'),
-                                createTextField('Font:', 'user-font', 'Font family for the text.\nFont names with spaces must be quoted (e.g., "Times New Roman").'), createPaddingSliders('user'),
+                                createTextField('Font:', 'user-font', 'Font family for the text.\nFont names with spaces must be quoted (e.g., "Times New Roman").'),
+                                createPaddingSliders('user'),
                                 h(`div.${APPID}-compound-slider-container`, [
                                     createSliderField(`${APPID}-slider-subgroup`, 'Radius:', 'user-bubbleBorderRadius', -1, 50, 1, 'Corner roundness of the bubble (e.g., 10px).\nSet to the far left for (auto).', false, 0),
-                                    createSliderField(`${APPID}-slider-subgroup`, 'max Width:', 'user-bubbleMaxWidth', 29, 100, 1, 'Maximum width of the bubble.\nSet to the far left for (auto).', true, 30)
+                                    createSliderField(`${APPID}-slider-subgroup`, 'max Width:', 'user-bubbleMaxWidth', 29, 100, 1, 'Maximum width of the bubble.\nSet to the far left for (auto).', true, 30),
                                 ]),
                                 h(`hr.${APPID}-theme-separator`),
-                                createPreview('user')
-                            ])
+                                createPreview('user'),
+                            ]),
                         ]),
                         h('fieldset', [
                             h('legend', 'Background'),
@@ -5742,33 +5819,24 @@
                             createTextField('Background image:', 'window-backgroundImageUrl', 'URL or Data URI for the main background image.', 'image'),
                             h(`div.${APPID}-compound-form-field-container`, [
                                 createSelectField('Size:', 'window-backgroundSize', ['auto', 'cover', 'contain'], 'How the background image is sized.'),
-                                createSelectField('Position:', 'window-backgroundPosition', [
-                                    'top left', 'top center', 'top right',
-                                    'center left', 'center center', 'center right',
-                                    'bottom left', 'bottom center', 'bottom right'
-                                ], 'Position of the background image.')
+                                createSelectField(
+                                    'Position:',
+                                    'window-backgroundPosition',
+                                    ['top left', 'top center', 'top right', 'center left', 'center center', 'center right', 'bottom left', 'bottom center', 'bottom right'],
+                                    'Position of the background image.'
+                                ),
                             ]),
-                            h(`div.${APPID}-compound-form-field-container`, [
-                                createSelectField('Repeat:', 'window-backgroundRepeat', ['no-repeat', 'repeat'], 'How the background image is repeated.'),
-                            ])
+                            h(`div.${APPID}-compound-form-field-container`, [createSelectField('Repeat:', 'window-backgroundRepeat', ['no-repeat', 'repeat'], 'How the background image is repeated.')]),
                         ]),
                         h('fieldset', [
                             h('legend', 'Input area'),
                             createColorField('Background color:', 'inputArea-backgroundColor', 'Background color of the text input area.'),
                             createColorField('Text color:', 'inputArea-textColor', 'Color of the text you type.'),
                             h(`hr.${APPID}-theme-separator`),
-                            h(`div.${APPID}-preview-container`, [
-
-                                h('label', 'Preview:'),
-                                h(`div.${APPID}-preview-bubble-wrapper`, [
-                                    h(`div.${APPID}-preview-input-area`, { 'data-preview-for': 'inputArea' }, [
-                                        h('span', 'Sample input text')
-                                    ])
-                                ])
-                            ])
-                        ])
-                    ])
-                ])
+                            h(`div.${APPID}-preview-container`, [h('label', 'Preview:'), h(`div.${APPID}-preview-bubble-wrapper`, [h(`div.${APPID}-preview-input-area`, { 'data-preview-for': 'inputArea' }, [h('span', 'Sample input text')])])]),
+                        ]),
+                    ]),
+                ]),
             ]);
         }
 
@@ -5803,18 +5871,18 @@
                 // Padding
                 const paddingTBSlider = form.querySelector(`#${APPID}-form-${actor}-bubblePadding-tb`);
                 const paddingLRSlider = form.querySelector(`#${APPID}-form-${actor}-bubblePadding-lr`);
-                let tbVal = (paddingTBSlider && paddingTBSlider.value < 0) ? null : paddingTBSlider?.value;
-                let lrVal = (paddingLRSlider && paddingLRSlider.value < 0) ? null : paddingLRSlider?.value;
+                let tbVal = paddingTBSlider && paddingTBSlider.value < 0 ? null : paddingTBSlider?.value;
+                let lrVal = paddingLRSlider && paddingLRSlider.value < 0 ? null : paddingLRSlider?.value;
 
                 const defaultSetValue = fallbackActorSet.bubblePadding;
                 if (tbVal === null && lrVal === null && defaultSetValue === null) {
                     previewBubble.style.padding = ''; // No value in current theme or defaultSet.
                 } else {
-                    const defaultPaddingParts = (defaultSetValue || "6px 10px").split(' ');
+                    const defaultPaddingParts = (defaultSetValue || '6px 10px').split(' ');
                     const defaultTB = parseInt(defaultPaddingParts[0], 10);
                     const defaultLR = parseInt(defaultPaddingParts[1] || defaultPaddingParts[0], 10);
-                    const finalTB = (tbVal !== null) ? tbVal : defaultTB;
-                    const finalLR = (lrVal !== null) ? lrVal : defaultLR;
+                    const finalTB = tbVal !== null ? tbVal : defaultTB;
+                    const finalLR = lrVal !== null ? lrVal : defaultLR;
                     previewBubble.style.padding = `${finalTB}px ${finalLR}px`;
                 }
 
@@ -5823,7 +5891,7 @@
                 if (radiusSlider) {
                     const radiusVal = parseInt(radiusSlider.value, 10);
                     const nullThreshold = parseInt(radiusSlider.dataset.nullThreshold, 10);
-                    const currentRadius = (!isNaN(nullThreshold) && radiusVal < nullThreshold) ? null : `${radiusVal}px`;
+                    const currentRadius = !isNaN(nullThreshold) && radiusVal < nullThreshold ? null : `${radiusVal}px`;
                     previewBubble.style.borderRadius = currentRadius ?? fallbackActorSet.bubbleBorderRadius ?? '';
                 }
 
@@ -5832,7 +5900,7 @@
                 if (widthSlider) {
                     const widthVal = parseInt(widthSlider.value, 10);
                     const nullThreshold = parseInt(widthSlider.dataset.nullThreshold, 10);
-                    const currentWidth = (!isNaN(nullThreshold) && widthVal < nullThreshold) ? null : `${widthVal}%`;
+                    const currentWidth = !isNaN(nullThreshold) && widthVal < nullThreshold ? null : `${widthVal}%`;
                     const finalWidth = currentWidth ?? fallbackActorSet.bubbleMaxWidth ?? (actor === 'user' ? '50%' : '90%');
                     previewBubble.style.width = finalWidth;
                     previewBubble.style.maxWidth = finalWidth;
@@ -5877,10 +5945,10 @@
 
         _clearAllFieldErrors() {
             if (!this.modal) return;
-            this.modal.element.querySelectorAll(`.${APPID}-form-error-msg`).forEach(el => {
+            this.modal.element.querySelectorAll(`.${APPID}-form-error-msg`).forEach((el) => {
                 el.textContent = '';
             });
-            this.modal.element.querySelectorAll('.is-invalid').forEach(el => {
+            this.modal.element.querySelectorAll('.is-invalid').forEach((el) => {
                 el.classList.remove('is-invalid');
             });
         }
@@ -5981,7 +6049,6 @@
                 // Handle local file selection button
                 const fileBtn = target.closest(`.${APPID}-local-file-btn`);
                 if (fileBtn) {
-
                     this._handleLocalFileSelect(fileBtn);
                     return;
                 }
@@ -6015,10 +6082,7 @@
                 const id = target.id || '';
 
                 // Trigger preview for text-based inputs
-                const isTextPreviewable = id.includes('textColor') || id.includes('font') ||
-
-                      id.includes('bubbleBackgroundColor') ||
-                      id.includes('inputArea-backgroundColor') || id.includes('inputArea-textColor');
+                const isTextPreviewable = id.includes('textColor') || id.includes('font') || id.includes('bubbleBackgroundColor') || id.includes('inputArea-backgroundColor') || id.includes('inputArea-textColor');
                 if (isTextPreviewable) {
                     this.debouncedUpdatePreview();
                 }
@@ -6028,21 +6092,20 @@
                     this._updateSliderDisplay(target);
                     // Always trigger a preview update when any slider is changed.
                     this.debouncedUpdatePreview();
-
                 }
             });
-            modalElement.addEventListener('mouseover', e => {
+            modalElement.addEventListener('mouseover', (e) => {
                 if (e.target.matches('input[type="text"], textarea') && (e.target.offsetWidth < e.target.scrollWidth || e.target.offsetHeight < e.target.scrollHeight)) {
                     e.target.title = e.target.value;
                 }
             });
-            modalElement.addEventListener('mouseout', e => {
+            modalElement.addEventListener('mouseout', (e) => {
                 if (e.target.matches('input[type="text"], textarea')) {
                     e.target.title = '';
                 }
             });
             modalElement.addEventListener('keydown', (e) => {
-                if(e.target.matches(`#${APPID}-theme-rename-input`)) {
+                if (e.target.matches(`#${APPID}-theme-rename-input`)) {
                     if (e.key === 'Enter') {
                         e.preventDefault();
                         this._handleRenameConfirm('theme');
@@ -6088,7 +6151,7 @@
             }
 
             const isDefault = themeKey === 'defaultSet';
-            const theme = isDefault ? config.defaultSet : config.themeSets.find(t => t.metadata.id === themeKey);
+            const theme = isDefault ? config.defaultSet : config.themeSets.find((t) => t.metadata.id === themeKey);
             if (!theme) {
                 if (scrollableArea) scrollableArea.style.visibility = 'visible';
                 return;
@@ -6102,7 +6165,7 @@
                 if (!slider) return;
                 const nullThreshold = parseInt(slider.dataset.nullThreshold, 10);
                 const numVal = parseInt(value, 10);
-                slider.value = (value === null || isNaN(numVal)) ? (nullThreshold - 1) : numVal;
+                slider.value = value === null || isNaN(numVal) ? nullThreshold - 1 : numVal;
                 this._updateSliderDisplay(slider);
             };
             const setPaddingSliders = (actor, value) => {
@@ -6114,7 +6177,11 @@
                     tbSlider.value = -1;
                     lrSlider.value = -1;
                 } else {
-                    const parts = String(value).replace(/px/g, '').trim().split(/\s+/).map(p => parseInt(p, 10));
+                    const parts = String(value)
+                        .replace(/px/g, '')
+                        .trim()
+                        .split(/\s+/)
+                        .map((p) => parseInt(p, 10));
                     if (parts.length === 1 && !isNaN(parts[0])) {
                         tbSlider.value = lrSlider.value = parts[0];
                     } else if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
@@ -6135,7 +6202,7 @@
             }
 
             // Populate actor fields
-            ['user', 'assistant'].forEach(actor => {
+            ['user', 'assistant'].forEach((actor) => {
                 const actorConf = theme[actor] || {};
                 setVal(`${actor}-name`, actorConf.name);
                 setVal(`${actor}-icon`, actorConf.icon);
@@ -6160,7 +6227,7 @@
             setVal('inputArea-textColor', inputConf.textColor);
 
             // Update all color swatches based on the new text values
-            modalElement.querySelectorAll(`.${APPID}-color-swatch-value`).forEach(swatchValue => {
+            modalElement.querySelectorAll(`.${APPID}-color-swatch-value`).forEach((swatchValue) => {
                 const swatch = swatchValue.closest(`.${APPID}-color-swatch`);
                 const targetId = swatch.dataset.controlsColor;
                 const textInput = modalElement.querySelector(`#${APPID}-form-${targetId}`);
@@ -6210,9 +6277,13 @@
 
             // Collect metadata
             const themeData = { metadata: {}, user: {}, assistant: {}, window: {}, inputArea: {} };
-            themeData.metadata.matchPatterns = modalElement.querySelector(`#${APPID}-form-metadata-matchPatterns`).value.split('\n').map(p => p.trim()).filter(p => p);
+            themeData.metadata.matchPatterns = modalElement
+                .querySelector(`#${APPID}-form-metadata-matchPatterns`)
+                .value.split('\n')
+                .map((p) => p.trim())
+                .filter((p) => p);
             // Collect actor data
-            ['user', 'assistant'].forEach(actor => {
+            ['user', 'assistant'].forEach((actor) => {
                 themeData[actor].name = getVal(`${actor}-name`);
                 themeData[actor].icon = getVal(`${actor}-icon`);
                 themeData[actor].standingImageUrl = getVal(`${actor}-standingImageUrl`);
@@ -6285,7 +6356,7 @@
                 newConfig.defaultSet.window = themeData.window;
                 newConfig.defaultSet.inputArea = themeData.inputArea;
             } else {
-                const index = newConfig.themeSets.findIndex(t => t.metadata.id === this.activeThemeKey);
+                const index = newConfig.themeSets.findIndex((t) => t.metadata.id === this.activeThemeKey);
                 if (index !== -1) {
                     // Preserve existing metadata not edited in this form (like name and id)
                     const existingMetadata = newConfig.themeSets[index].metadata;
@@ -6312,20 +6383,23 @@
 
         async _handleThemeNew() {
             const config = await this.callbacks.getCurrentConfig();
-            const existingNames = new Set(config.themeSets.map(t => t.metadata.name?.trim().toLowerCase()));
+            const existingNames = new Set(config.themeSets.map((t) => t.metadata.name?.trim().toLowerCase()));
             const newName = proposeUniqueName('New Theme', existingNames);
             const newTheme = {
                 metadata: { id: generateUniqueId(), name: newName, matchPatterns: [] },
-                user: {}, assistant: {}, window: {}, inputArea: {}
+                user: {},
+                assistant: {},
+                window: {},
+                inputArea: {},
             };
             const newConfig = JSON.parse(JSON.stringify(config));
             newConfig.themeSets.push(newTheme);
             try {
-            await this.callbacks.onSave(newConfig);
+                await this.callbacks.onSave(newConfig);
 
-            this.activeThemeKey = newTheme.metadata.id;
-            await this._refreshModalState();
-            this._enterRenameMode('theme');
+                this.activeThemeKey = newTheme.metadata.id;
+                await this._refreshModalState();
+                this._enterRenameMode('theme');
             } catch (e) {
                 if (this.modal?.dom?.footerMessage) {
                     const footerMsg = this.modal.dom.footerMessage;
@@ -6342,13 +6416,13 @@
             if (isDefault) {
                 themeToCopy = { metadata: { name: 'Default' }, ...config.defaultSet };
             } else {
-                themeToCopy = config.themeSets.find(t => t.metadata.id === this.activeThemeKey);
+                themeToCopy = config.themeSets.find((t) => t.metadata.id === this.activeThemeKey);
             }
             if (!themeToCopy) return;
 
             const originalName = themeToCopy.metadata.name || 'Theme';
             const baseName = `${originalName} Copy`;
-            const existingNames = new Set(config.themeSets.map(t => t.metadata.name?.trim().toLowerCase()));
+            const existingNames = new Set(config.themeSets.map((t) => t.metadata.name?.trim().toLowerCase()));
             const newName = proposeUniqueName(baseName, existingNames);
             const newTheme = JSON.parse(JSON.stringify(themeToCopy));
 
@@ -6362,9 +6436,9 @@
             const newConfig = JSON.parse(JSON.stringify(config));
             newConfig.themeSets.push(newTheme);
             try {
-            await this.callbacks.onSave(newConfig);
-            this.activeThemeKey = newTheme.metadata.id;
-            await this._refreshModalState();
+                await this.callbacks.onSave(newConfig);
+                this.activeThemeKey = newTheme.metadata.id;
+                await this._refreshModalState();
             } catch (e) {
                 if (this.modal?.dom?.footerMessage) {
                     const footerMsg = this.modal.dom.footerMessage;
@@ -6383,13 +6457,13 @@
 
             const config = await this.callbacks.getCurrentConfig();
             const newConfig = JSON.parse(JSON.stringify(config));
-            newConfig.themeSets = newConfig.themeSets.filter(t => t.metadata.id !== themeKey);
+            newConfig.themeSets = newConfig.themeSets.filter((t) => t.metadata.id !== themeKey);
             try {
-            await this.callbacks.onSave(newConfig);
+                await this.callbacks.onSave(newConfig);
 
-            this.activeThemeKey = 'defaultSet';
-            this._exitDeleteConfirmationMode();
-            await this._refreshModalState();
+                this.activeThemeKey = 'defaultSet';
+                this._exitDeleteConfirmationMode();
+                await this._refreshModalState();
             } catch (e) {
                 if (this.modal?.dom?.footerMessage) {
                     const footerMsg = this.modal.dom.footerMessage;
@@ -6404,7 +6478,7 @@
             if (themeKey === 'defaultSet') return;
 
             const config = await this.callbacks.getCurrentConfig();
-            const currentIndex = config.themeSets.findIndex(t => t.metadata.id === themeKey);
+            const currentIndex = config.themeSets.findIndex((t) => t.metadata.id === themeKey);
             if (currentIndex === -1) return;
 
             const newIndex = currentIndex + direction;
@@ -6414,8 +6488,8 @@
             newConfig.themeSets.splice(newIndex, 0, item);
 
             try {
-            await this.callbacks.onSave(newConfig);
-            await this._refreshModalState();
+                await this.callbacks.onSave(newConfig);
+                await this._refreshModalState();
             } catch (e) {
                 if (this.modal?.dom?.footerMessage) {
                     const footerMsg = this.modal.dom.footerMessage;
@@ -6429,7 +6503,7 @@
             if (this.renameState.isActive) return;
             this.renameState = {
                 type: type,
-                isActive: true
+                isActive: true,
             };
             await this._refreshModalState();
 
@@ -6451,7 +6525,7 @@
 
                 const footerMessage = this.modal.dom.footerMessage;
                 if (footerMessage) footerMessage.textContent = '';
-                if(refresh) await this._refreshModalState();
+                if (refresh) await this._refreshModalState();
             }
         }
 
@@ -6462,9 +6536,7 @@
             const input = this.modal.element.querySelector(`#${APPID}-${type}-rename-input`);
             const newName = input.value.trim();
             const config = await this.callbacks.getCurrentConfig();
-            const oldTheme = this.activeThemeKey === 'defaultSet' ?
-                  { metadata: { name: 'Default Settings' } } :
-            config.themeSets.find(t => t.metadata.id === this.activeThemeKey);
+            const oldTheme = this.activeThemeKey === 'defaultSet' ? { metadata: { name: 'Default Settings' } } : config.themeSets.find((t) => t.metadata.id === this.activeThemeKey);
             const oldName = oldTheme?.metadata?.name || '';
 
             // Validation
@@ -6477,9 +6549,9 @@
                 return;
             }
 
-            const existingKeys = config.themeSets.map(t => t.metadata.name);
+            const existingKeys = config.themeSets.map((t) => t.metadata.name);
 
-            if (newName.toLowerCase() !== oldName.toLowerCase() && existingKeys.some(k => k.toLowerCase() === newName.toLowerCase())) {
+            if (newName.toLowerCase() !== oldName.toLowerCase() && existingKeys.some((k) => k.toLowerCase() === newName.toLowerCase())) {
                 if (footerMessage) {
                     footerMessage.textContent = `Name "${newName}" is already in use.`;
                     footerMessage.style.color = this.callbacks.siteStyles.error_text;
@@ -6490,8 +6562,8 @@
 
             // Config Update
             const newConfig = JSON.parse(JSON.stringify(config));
-            const themeToUpdate = newConfig.themeSets.find(t => t.metadata.id === this.activeThemeKey);
-            if(themeToUpdate){
+            const themeToUpdate = newConfig.themeSets.find((t) => t.metadata.id === this.activeThemeKey);
+            if (themeToUpdate) {
                 themeToUpdate.metadata.name = newName;
             } else {
                 if (footerMessage) {
@@ -6856,7 +6928,6 @@
         getContextForReopen() {
             return { type: 'theme', key: this.activeThemeKey };
         }
-
     }
 
     class UIManager {
@@ -6877,18 +6948,20 @@
             const modalCallbacks = {
                 onSave: (newConfig) => this.onSave(newConfig),
                 getCurrentConfig: () => this.getCurrentConfig(),
-                onModalOpenStateChange: (isOpen) => this.setModalState(isOpen)
+                onModalOpenStateChange: (isOpen) => this.setModalState(isOpen),
             };
             this.settingsButton = new CustomSettingsButton(
-                { // Callbacks
-                    onClick: () => this.settingsPanel.toggle()
+                {
+                    // Callbacks
+                    onClick: () => this.settingsPanel.toggle(),
                 },
-                { // Options
+                {
+                    // Options
                     id: `${APPID}-settings-button`,
                     title: `Settings (${APPNAME})`,
                     zIndex: CONSTANTS.Z_INDICES.SETTINGS_BUTTON,
                     position: { top: '10px', right: '320px' },
-                    siteStyles: this.siteStyles.SETTINGS_BUTTON
+                    siteStyles: this.siteStyles.SETTINGS_BUTTON,
                 }
             );
             this.settingsPanel = new SettingsPanelComponent({
@@ -6899,18 +6972,18 @@
                 getAnchorElement: () => this.settingsButton.element,
                 siteStyles: this.siteStyles.SETTINGS_PANEL,
                 onShow: () => this.displayConfigWarning(),
-                getCurrentThemeSet: getCurrentThemeSetCallback // Pass callback directly
+                getCurrentThemeSet: getCurrentThemeSetCallback, // Pass callback directly
             });
             this.jsonModal = new JsonModalComponent({
                 ...modalCallbacks,
                 siteStyles: this.siteStyles.JSON_MODAL,
-                onModalOpen: () => this.displayConfigWarning()
+                onModalOpen: () => this.displayConfigWarning(),
             });
             this.themeModal = new ThemeModalComponent({
                 ...modalCallbacks,
                 dataConverter: this.dataConverter,
                 siteStyles: this.siteStyles.THEME_MODAL,
-                onModalOpen: () => this.displayConfigWarning()
+                onModalOpen: () => this.displayConfigWarning(),
             });
         }
 
@@ -6946,25 +7019,29 @@
         }
 
         _createWarningBanner() {
-            return h(`div.${APPID}-config-warning-banner`, {
-                style: {
-                    backgroundColor: 'var(--bg-danger, #ffdddd)',
-                    color: 'var(--text-on-danger, #a00)',
-                    padding: '8px 12px',
-                    fontSize: '0.85em',
-                    textAlign: 'center',
-                    borderRadius: '4px',
-                    margin: '0 0 12px 0',
-                    border: '1px solid var(--border-danger-heavy, #c00)',
-                    whiteSpace: 'pre-wrap',
-                }
-            }, this.app.configWarningMessage);
+            return h(
+                `div.${APPID}-config-warning-banner`,
+                {
+                    style: {
+                        backgroundColor: 'var(--bg-danger, #ffdddd)',
+                        color: 'var(--text-on-danger, #a00)',
+                        padding: '8px 12px',
+                        fontSize: '0.85em',
+                        textAlign: 'center',
+                        borderRadius: '4px',
+                        margin: '0 0 12px 0',
+                        border: '1px solid var(--border-danger-heavy, #c00)',
+                        whiteSpace: 'pre-wrap',
+                    },
+                },
+                this.app.configWarningMessage
+            );
         }
 
         displayConfigWarning() {
             const components = [this.settingsPanel, this.jsonModal, this.themeModal];
             // First, remove any existing banners from all components
-            components.forEach(component => {
+            components.forEach((component) => {
                 const modalElement = component?.modal?.element || component?.element;
                 if (modalElement) {
                     modalElement.querySelector(`.${APPID}-config-warning-banner`)?.remove();
@@ -7006,7 +7083,7 @@
          * @param {boolean} [forceState] - If true, shows borders. If false, hides them. If undefined, toggles the current state.
          */
         toggleBorders(forceState) {
-            this.isBordersVisible = (forceState === undefined) ? !this.isBordersVisible : forceState;
+            this.isBordersVisible = forceState === undefined ? !this.isBordersVisible : forceState;
             const styleId = `${APPID}-debug-style`;
             const existingStyle = document.getElementById(styleId);
             if (this.isBordersVisible) {
@@ -7019,7 +7096,7 @@
                     ${CONSTANTS.SELECTORS.DEBUG_CONTAINER_TURN} { border: 1px dashed blue !important; }
                     ${CONSTANTS.SELECTORS.DEBUG_CONTAINER_ASSISTANT} { border: 1px dashed black !important; }
                     ${CONSTANTS.SELECTORS.DEBUG_CONTAINER_USER} { border: 1px solid orange !important; }
-                `
+                `,
                 });
                 document.head.appendChild(debugStyle);
                 Logger.log('Borders ON');
@@ -7042,7 +7119,7 @@
          * Displays available debug commands in the console.
          */
         help() {
-            console.group(LOG_PREFIX, "Debug Commands");
+            console.group(LOG_PREFIX, 'Debug Commands');
             Logger.log(`${APPID}Debug.help() - Displays this help message.`);
             Logger.log(`${APPID}Debug.toggleBorders() - Toggles visibility of layout borders.`);
             Logger.log(`${APPID}Debug.checkSelectors() - Validates all critical CSS selectors.`);
@@ -7083,7 +7160,7 @@
 
             const style = h('style', {
                 id: this.styleId,
-                textContent: `@keyframes ${this.animationName} { from { transform: none; } to { transform: none; } }`
+                textContent: `@keyframes ${this.animationName} { from { transform: none; } to { transform: none; } }`,
             });
             document.head.appendChild(style);
         }
@@ -7096,7 +7173,7 @@
             // Check if the target element matches any of this instance's selectors.
             for (const [selector, callbacks] of this.listeners.entries()) {
                 if (target.matches(selector)) {
-                    callbacks.forEach(cb => cb(target));
+                    callbacks.forEach((cb) => cb(target));
                 }
             }
         }
@@ -7108,7 +7185,7 @@
                 // All rules will point to the same, shared animation name.
                 const style = h('style', {
                     className: this.ruleClassName,
-                    textContent: `${selector} { animation-duration: 0.001s; animation-name: ${this.animationName}; }`
+                    textContent: `${selector} { animation-duration: 0.001s; animation-name: ${this.animationName}; }`,
                 });
                 document.head.appendChild(style);
             }
@@ -7212,13 +7289,9 @@
 
         _processConfig(newConfig) {
             const currentConfig = this.configManager.get();
-            const themeChanged = JSON.stringify(currentConfig.themeSets) !== JSON.stringify(newConfig.themeSets) ||
-                  JSON.stringify(currentConfig.defaultSet) !== JSON.stringify(newConfig.defaultSet);
+            const themeChanged = JSON.stringify(currentConfig.themeSets) !== JSON.stringify(newConfig.themeSets) || JSON.stringify(currentConfig.defaultSet) !== JSON.stringify(newConfig.defaultSet);
             // Create a complete config object by merging the incoming data with defaults.
-            const completeConfig = deepMerge(
-                JSON.parse(JSON.stringify(DEFAULT_THEME_CONFIG)),
-                newConfig
-            );
+            const completeConfig = deepMerge(JSON.parse(JSON.stringify(DEFAULT_THEME_CONFIG)), newConfig);
             // Ensure all theme IDs are unique before proceeding to validation and saving.
             this._ensureUniqueThemeIds(completeConfig);
             // Validate the configuration object before processing.
@@ -7252,7 +7325,7 @@
 
             // Sanitize all theme sets to ensure slider values are valid
             if (Array.isArray(completeConfig.themeSets)) {
-                completeConfig.themeSets.forEach(theme => {
+                completeConfig.themeSets.forEach((theme) => {
                     const validate = (value, type) => {
                         const result = validateImageString(value, type);
                         if (!result.isValid) throw new Error(`Theme "${theme.metadata.name}": ${result.message}`);
@@ -7263,7 +7336,7 @@
                     validate(theme.assistant.standingImageUrl, 'image');
                     validate(theme.window.backgroundImageUrl, 'image');
 
-                    ['user', 'assistant'].forEach(actor => {
+                    ['user', 'assistant'].forEach((actor) => {
                         if (!theme[actor]) theme[actor] = {};
                         const actorConf = theme[actor];
                         const defaultActorConf = DEFAULT_THEME_CONFIG.defaultSet[actor];
@@ -7339,7 +7412,7 @@
         _ensureUniqueThemeIds(config) {
             if (!config || !Array.isArray(config.themeSets)) return;
             const seenIds = new Set();
-            config.themeSets.forEach(theme => {
+            config.themeSets.forEach((theme) => {
                 const id = theme.metadata?.id;
                 if (typeof id !== 'string' || id.trim() === '' || seenIds.has(id)) {
                     if (!theme.metadata) theme.metadata = {};
@@ -7381,18 +7454,18 @@
             // Automatically create the checklist from the CONSTANTS.SELECTORS object.
             const selectorsToCheck = Object.entries(CONSTANTS.SELECTORS).map(([key, selector]) => {
                 // Create a description from the key name.
-                const desc = key.replace(/_/g, ' ').toLowerCase().replace(/ \w/g, L => L.toUpperCase());
+                const desc = key
+                    .replace(/_/g, ' ')
+                    .toLowerCase()
+                    .replace(/ \w/g, (L) => L.toUpperCase());
                 return {
                     selector,
-                    desc
+                    desc,
                 };
             });
             let allOK = true;
-            console.groupCollapsed(LOG_PREFIX, "CSS Selector Check");
-            for (const {
-                selector,
-                desc
-            } of selectorsToCheck) {
+            console.groupCollapsed(LOG_PREFIX, 'CSS Selector Check');
+            for (const { selector, desc } of selectorsToCheck) {
                 try {
                     const el = document.querySelector(selector);
                     if (el) {
@@ -7407,14 +7480,13 @@
                 }
             }
             if (allOK) {
-                Logger.log("🎉 All essential selectors are currently valid!");
+                Logger.log('🎉 All essential selectors are currently valid!');
             } else {
-                Logger.warn("⚠ One or more essential selectors are NOT found or invalid. The script might not function correctly.");
+                Logger.warn('⚠ One or more essential selectors are NOT found or invalid. The script might not function correctly.');
             }
             console.groupEnd();
             return allOK;
         }
-
     }
 
     // ---- Script Entry Point ----
@@ -7443,29 +7515,24 @@
         const debugApi = {};
         if (automator.debugManager) {
             const proto = Object.getPrototypeOf(automator.debugManager);
-            const methodNames = Object.getOwnPropertyNames(proto)
-            .filter(key =>
-                    typeof automator.debugManager[key] === 'function' &&
-                    key !== 'constructor' &&
-                    !key.startsWith('_')
-                   );
+            const methodNames = Object.getOwnPropertyNames(proto).filter((key) => typeof automator.debugManager[key] === 'function' && key !== 'constructor' && !key.startsWith('_'));
 
             for (const key of methodNames) {
                 debugApi[key] = automator.debugManager[key].bind(automator.debugManager);
             }
         }
 
-        if (typeof automator.checkSelectors === "function") {
+        if (typeof automator.checkSelectors === 'function') {
             debugApi.checkSelectors = automator.checkSelectors.bind(automator);
         }
 
         // fallback help if not defined
-        if (typeof debugApi.help !== "function") {
+        if (typeof debugApi.help !== 'function') {
             debugApi.help = () => {
                 console.table(Object.keys(debugApi));
-                Logger.log("All available debug commands listed above.");
+                Logger.log('All available debug commands listed above.');
             };
-            Logger.warn("debugManager.help not found, fallback help() defined.");
+            Logger.warn('debugManager.help not found, fallback help() defined.');
         }
 
         if (typeof exportFunction === 'function') {
@@ -7476,7 +7543,6 @@
 
         Logger.log(`Debug tools are available. Use \`${APPID}Debug.help()\` in the console for a list of commands.`);
     } catch (e) {
-        Logger.error("Could not expose debug object to console.", e);
+        Logger.error('Could not expose debug object to console.', e);
     }
-
 })();
