@@ -109,6 +109,7 @@
                     platformId: 'chatgpt',
                     selectors: {
                         ANCHOR_ELEMENT: 'div.ProseMirror#prompt-textarea',
+                        CANVAS_CONTAINER: 'section.popover header h2',
                     },
                 };
             }
@@ -117,6 +118,7 @@
                     platformId: 'gemini',
                     selectors: {
                         ANCHOR_ELEMENT: 'rich-textarea .ql-editor',
+                        CANVAS_CONTAINER: 'immersive-panel',
                     },
                 };
             }
@@ -272,6 +274,50 @@
                 editor.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
             }, 100);
         }
+
+        static repositionButtons(uiManager) {
+            const platform = this.getPlatformDetails();
+            if (!platform || !uiManager) return;
+
+            // --- No-op for Gemini ---
+            if (platform.platformId === 'gemini') {
+                return;
+            }
+
+            // --- ChatGPT Logic ---
+            if (platform.platformId === 'chatgpt') {
+                const { settingsBtn, insertBtn } = uiManager.components;
+                if (!settingsBtn?.element || !insertBtn?.element) return;
+
+                const canvasTitle = document.querySelector(platform.selectors.CANVAS_CONTAINER);
+
+                if (canvasTitle) {
+                    const canvasPanel = canvasTitle.closest('section.popover');
+                    if (canvasPanel) {
+                        const canvasRect = canvasPanel.getBoundingClientRect();
+                        const offset = CONSTANTS.POSITIONING.GPT_CANVAS_OFFSET_PX;
+                        const gap = CONSTANTS.POSITIONING.GPT_BUTTON_GAP_PX;
+
+                        // Position Settings Button to the left of the canvas
+                        settingsBtn.element.style.right = '';
+                        settingsBtn.element.style.left = `${canvasRect.left - offset}px`;
+
+                        // Position Insert Button to the left of the Settings Button
+                        const settingsBtnWidth = settingsBtn.element.offsetWidth;
+                        insertBtn.element.style.right = '';
+                        insertBtn.element.style.left = `${canvasRect.left - offset - settingsBtnWidth - gap}px`;
+                        return;
+                    }
+                }
+
+                // --- Fallback / Revert to default position ---
+                settingsBtn.element.style.left = '';
+                settingsBtn.element.style.right = settingsBtn.options.position.right;
+
+                insertBtn.element.style.left = '';
+                insertBtn.element.style.right = insertBtn.options.position.right;
+            }
+        }
     }
 
     // =================================================================================
@@ -295,6 +341,15 @@
             TITLE_MARGIN_BOTTOM: 8,
             BTN_GROUP_GAP: 8,
             TEXTAREA_HEIGHT: 200,
+        },
+        POSITIONING: {
+            RECALC_DEBOUNCE_MS: 150,
+            GPT_CANVAS_OFFSET_PX: 136,
+            GPT_BUTTON_GAP_PX: 8,
+        },
+        UI_DEFAULTS: {
+            SETTINGS_BUTTON_POSITION: { top: '10px', right: '360px' },
+            INSERT_BUTTON_POSITION: { top: '10px', right: '400px' },
         },
     };
 
@@ -3326,7 +3381,7 @@
                     id: `${CONSTANTS.ID_PREFIX}settings-btn`,
                     title: `Settings (${APPNAME})`,
                     zIndex: 10000,
-                    position: { top: '10px', right: '360px' },
+                    position: CONSTANTS.UI_DEFAULTS.SETTINGS_BUTTON_POSITION,
                     siteStyles: this.siteStyles.SETTINGS_BUTTON,
                 }
             );
@@ -3350,7 +3405,7 @@
                     id: `${CONSTANTS.ID_PREFIX}insert-btn`,
                     title: 'Add quick text',
                     zIndex: 10000,
-                    position: { top: '10px', right: '400px' },
+                    position: CONSTANTS.UI_DEFAULTS.INSERT_BUTTON_POSITION,
                     siteStyles: this.siteStyles.INSERT_BUTTON,
                 }
             );
@@ -3389,6 +3444,12 @@
                     this.components.textEditorModal.open(key);
                 }
             });
+            // Add event listener for dynamic UI changes
+            EventBus.subscribe(`${APPID}:layoutRecalculate`, () => this.repositionAllButtons());
+        }
+
+        repositionAllButtons() {
+            PlatformAdapter.repositionButtons(this);
         }
 
         getActiveModal() {
@@ -3712,6 +3773,11 @@
             );
             this.uiManager.init();
             this.syncManager.init();
+
+            // Setup MutationObserver to watch for dynamic UI changes like Canvas opening
+            const debouncedLayoutRecalculate = debounce(() => EventBus.publish(`${APPID}:layoutRecalculate`), CONSTANTS.POSITIONING.RECALC_DEBOUNCE_MS);
+            const mainObserver = new MutationObserver(debouncedLayoutRecalculate);
+            mainObserver.observe(document.body, { childList: true, subtree: true });
         }
 
         // Method required by the SyncManager's interface for silent updates
