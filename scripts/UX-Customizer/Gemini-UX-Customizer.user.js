@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.2.1
+// @version      1.2.2-b1
 // @license      MIT
 // @description  Automatically applies a theme based on the chat name (changes user/assistant names, text color, icon, bubble style, window background, input area style, standing images, etc.)
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=gemini.google.com
@@ -299,7 +299,6 @@
         static handleMainMutations(instance, mutations) {
             instance._garbageCollectPendingTurns(mutations);
             instance._dispatchNodeAddedTasks(mutations);
-            instance._checkPendingTurns();
             instance.debouncedCacheUpdate();
             instance.debouncedVisibilityCheck();
         }
@@ -1834,7 +1833,7 @@
         _rebuildCache() {
             this.userMessages = Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.USER_MESSAGE));
             this.assistantMessages = Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.ASSISTANT_MESSAGE));
-            this.totalMessages = Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS)).sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top);
+            this.totalMessages = Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS));
 
             this.notify();
         }
@@ -2447,7 +2446,8 @@
             this.mainObserver = null;
             this.layoutResizeObserver = null;
             this.registeredNodeAddedTasks = [];
-            this.pendingTurnNodes = new Set();
+            this.turnCompletionObservers = new Map(); // Manages all turn-specific observers
+
             this.debouncedNavUpdate = debounce(() => EventBus.publish(`${APPID}:navButtonsUpdate`), 100);
             this.debouncedCacheUpdate = debounce(() => EventBus.publish(`${APPID}:cacheUpdateRequest`), 250);
             this.debouncedLayoutRecalculate = debounce(() => EventBus.publish(`${APPID}:layoutRecalculate`), 150);
@@ -2470,8 +2470,6 @@
             PlatformAdapter.handleMainMutations(this, mutations);
         }
 
-        // --- Common Methods ---
-
         /**
          * A public method to register a task that runs when a node matching the selector is added.
          * @param {string} selector
@@ -2486,7 +2484,10 @@
          * Useful when navigating away from a chat.
          */
         cleanupPendingTurns() {
-            this.pendingTurnNodes.clear();
+            for (const observer of this.turnCompletionObservers.values()) {
+                observer.disconnect();
+            }
+            this.turnCompletionObservers.clear();
         }
 
         /**
@@ -2529,21 +2530,20 @@
          * @private
          */
         _garbageCollectPendingTurns(mutations) {
-            if (this.pendingTurnNodes.size === 0) return;
+            if (this.turnCompletionObservers.size === 0) return;
+
             for (const mutation of mutations) {
                 if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
                     for (const removedNode of mutation.removedNodes) {
                         if (removedNode.nodeType !== Node.ELEMENT_NODE) continue;
-                        // Check if the removed node itself was a pending turn
-                        if (this.pendingTurnNodes.has(removedNode)) {
-                            this.pendingTurnNodes.delete(removedNode);
-                        }
 
-                        // Check if any descendants of the removed node were pending turns
-                        const descendantTurns = removedNode.querySelectorAll(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER);
-                        for (const turnNode of descendantTurns) {
-                            if (this.pendingTurnNodes.has(turnNode)) {
-                                this.pendingTurnNodes.delete(turnNode);
+                        // Check if the removed node itself was a pending turn or had an observer
+                        const nodesToCheck = [removedNode, ...Array.from(removedNode.querySelectorAll(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER))];
+
+                        for (const node of nodesToCheck) {
+                            if (this.turnCompletionObservers.has(node)) {
+                                this.turnCompletionObservers.get(node).disconnect();
+                                this.turnCompletionObservers.delete(node);
                             }
                         }
                     }
@@ -2566,51 +2566,54 @@
         }
 
         /**
-         * Checks all pending conversation turns for completion.
-         * @private
-         */
-        _checkPendingTurns() {
-            if (this.pendingTurnNodes.size === 0) return;
-            for (const turnNode of this.pendingTurnNodes) {
-                // For streaming turns, continuously inject avatars to handle React re-renders.
-                const allElementsInTurn = turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
-                allElementsInTurn.forEach((elem) => {
-                    EventBus.publish(`${APPID}:avatarInject`, elem);
-                });
-                if (this._isTurnComplete(turnNode)) {
-                    // Re-run messageComplete event for all elements in the now-completed turn
-                    allElementsInTurn.forEach((elem) => {
-                        EventBus.publish(`${APPID}:messageComplete`, elem);
-                    });
-                    EventBus.publish(`${APPID}:turnComplete`, turnNode);
-
-                    this.debouncedNavUpdate();
-                    this.pendingTurnNodes.delete(turnNode);
-                }
-            }
-        }
-
-        /**
-         * Processes a single turnNode, adding it to the pending queue if it's not already complete.
+         * Processes a single turnNode, applying the final observer strategy.
          * @param {HTMLElement} turnNode
          */
         _processTurnSingle(turnNode) {
-            if (turnNode.nodeType !== Node.ELEMENT_NODE || this.pendingTurnNodes.has(turnNode)) return;
+            if (turnNode.nodeType !== Node.ELEMENT_NODE || this.turnCompletionObservers.has(turnNode)) {
+                return;
+            }
+
             // --- Initial State Processing ---
-            const messageElements = turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
-            messageElements.forEach((elem) => {
+            const initialMessageElements = turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
+            initialMessageElements.forEach((elem) => {
                 EventBus.publish(`${APPID}:avatarInject`, elem);
             });
+
             if (this._isTurnComplete(turnNode)) {
                 // If the turn is already complete when we first see it, process it immediately.
-                messageElements.forEach((elem) => {
+                initialMessageElements.forEach((elem) => {
                     EventBus.publish(`${APPID}:messageComplete`, elem);
                 });
                 EventBus.publish(`${APPID}:turnComplete`, turnNode);
                 this.debouncedNavUpdate();
             } else {
-                // Otherwise, add it to the pending list to be checked by the main observer.
-                this.pendingTurnNodes.add(turnNode);
+                // For incomplete turns, set up a dedicated observer.
+                const observer = new MutationObserver(() => {
+                    // On every mutation, try to inject the avatar. This makes it appear instantly
+                    // and also protects against React re-renders.
+                    const currentMessageElements = turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
+                    currentMessageElements.forEach((elem) => {
+                        EventBus.publish(`${APPID}:avatarInject`, elem);
+                    });
+
+                    // After ensuring avatar exists, check if the turn is now complete.
+                    if (this._isTurnComplete(turnNode)) {
+                        // If complete, fire final events.
+                        currentMessageElements.forEach((elem) => {
+                            EventBus.publish(`${APPID}:messageComplete`, elem);
+                        });
+                        EventBus.publish(`${APPID}:turnComplete`, turnNode);
+                        this.debouncedNavUpdate();
+
+                        // Cleanup: disconnect and remove the observer.
+                        observer.disconnect();
+                        this.turnCompletionObservers.delete(turnNode);
+                    }
+                });
+
+                observer.observe(turnNode, { childList: true, subtree: true });
+                this.turnCompletionObservers.set(turnNode, observer);
             }
         }
     }
@@ -2784,7 +2787,6 @@
          */
         constructor(configManager) {
             this.configManager = configManager;
-            this.lastThemeData = null;
             this.debouncedRecalculateStandingImagesLayout = debounce(this.recalculateStandingImagesLayout.bind(this), CONSTANTS.RETRY.STANDING_IMAGES_INTERVAL);
             EventBus.subscribe(`${APPID}:layoutRecalculate`, this.debouncedRecalculateStandingImagesLayout);
         }
@@ -2795,9 +2797,10 @@
         init() {
             this.createContainers();
             this.injectStyles();
-            EventBus.subscribe(`${APPID}:themeApplied`, (data) => {
-                this.lastThemeData = data;
+            EventBus.subscribe(`${APPID}:layoutRecalculate`, this.debouncedRecalculateStandingImagesLayout);
+            EventBus.subscribe(`${APPID}:themeApplied`, () => {
                 this.updateVisibility();
+                this.debouncedRecalculateStandingImagesLayout();
             });
             EventBus.subscribe(`${APPID}:visibilityRecheck`, () => this.updateVisibility());
         }
@@ -2862,21 +2865,19 @@
         }
 
         updateVisibility() {
-            if (!this.lastThemeData) return;
-            const { theme, config } = this.lastThemeData;
-
             const isActiveChat = this._isChatActive();
             const hasMessages = !!document.querySelector(CONSTANTS.SELECTORS.USER_MESSAGE);
             const shouldShowActors = isActiveChat && hasMessages;
             const isCanvasActive = PlatformAdapter.isCanvasModeActive();
 
             ['user', 'assistant'].forEach((actor) => {
-                const container = document.getElementById(`${APPID}-standing-image-${actor}`);
-                if (!container) return;
+                const imgElement = document.getElementById(`${APPID}-standing-image-${actor}`);
+                if (!imgElement) return;
 
-                const hasStandingImage = getPropertyByPath(theme, `${actor}.standingImageUrl`) ?? getPropertyByPath(config, `defaultSet.${actor}.standingImageUrl`);
+                const hasImage = !!document.documentElement.style.getPropertyValue(`--${APPID}-${actor}-standing-image`);
 
-                container.style.opacity = shouldShowActors && hasStandingImage && !isCanvasActive ? '1' : '0';
+                // Combine all visibility checks
+                imgElement.style.opacity = shouldShowActors && hasImage && !isCanvasActive ? '1' : '0';
             });
             this.debouncedRecalculateStandingImagesLayout();
             EventBus.publish(`${APPID}:uiReposition`);
