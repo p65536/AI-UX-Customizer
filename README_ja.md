@@ -19,8 +19,11 @@
 
 ## 最近の更新
 
+### 2025/08/18
+- `ChatGPT UX Customizer`/`Gemini UX Customizer`を更新（v1.2.1 -> v1.3.0）
+
 ### 2025/08/15
-- `ChatGPT UX Customizer`/`Gemini UX Customizer`を更新（v1.2.0 -> v1.2.1）
+- `ChatGPT UX Customizer`/`Gemini UX Customizer`を更新（v1.2.1 -> v1.2.1）
 - `Quick Text Buttons`を更新（v1.0.0 -> v.1.0.1）
 
 ### 2025/08/05
@@ -37,8 +40,8 @@
 
 | 対象 | GitHub | Greasy Fork | バージョン | 最終更新日 | 変更履歴 |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **ChatGPT** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/UX-Customizer/ChatGPT-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/543703-chatgpt-ux-customizer) | 1.2.1 | 2025/08/15 | [参照](./docs/UX-Customizer/CHANGELOG_GPTUX_ja.md) |
-| **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/UX-Customizer/Gemini-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/543704-gemini-ux-customizer) | 1.2.1 | 2025/08/15 | [参照](./docs/UX-Customizer/CHANGELOG_GGGUX_ja.md) |
+| **ChatGPT** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/UX-Customizer/ChatGPT-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/543703-chatgpt-ux-customizer) | 1.3.0 | 2025/08/18 | [参照](./docs/UX-Customizer/CHANGELOG_GPTUX_ja.md) |
+| **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/UX-Customizer/Gemini-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/543704-gemini-ux-customizer) | 1.3.0 | 2025/08/18 | [参照](./docs/UX-Customizer/CHANGELOG_GGGUX_ja.md) |
 
 **[UX Customizer の詳細はこちら](./docs/UX-Customizer/README_ja.md)**
 

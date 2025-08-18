@@ -19,6 +19,9 @@ Each script is developed independently and can be installed separately.
 
 ## Recent Updates
 
+### 2025/08/18
+- Updated `ChatGPT UX Customizer`/`Gemini UX Customizer` (v1.2.1 -> v1.3.0)
+
 ### 2025/08/15
 - Updated `ChatGPT UX Customizer`/`Gemini UX Customizer` (v1.2.0 -> v1.2.1)
 - Updated `Quick Text Buttons` (v1.0.0 -> v.1.0.1)
@@ -37,8 +40,8 @@ A script that adds powerful theme and navigation features. For each chat, you ca
 
 | Platform | GitHub | Greasy Fork | Version | Last Updated | Changelog |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **ChatGPT** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/UX-Customizer/ChatGPT-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/543703-chatgpt-ux-customizer) | 1.2.1 | 2025/08/15 | [View](./docs/UX-Customizer/CHANGELOG_GPTUX.md) |
-| **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/UX-Customizer/Gemini-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/543704-gemini-ux-customizer) | 1.2.1 | 2025/08/15 | [View](./docs/UX-Customizer/CHANGELOG_GGGUX.md) |
+| **ChatGPT** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/UX-Customizer/ChatGPT-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/543703-chatgpt-ux-customizer) | 1.3.0 | 2025/08/18 | [View](./docs/UX-Customizer/CHANGELOG_GPTUX.md) |
+| **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/UX-Customizer/Gemini-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/543704-gemini-ux-customizer) | 1.3.0 | 2025/08/18 | [View](./docs/UX-Customizer/CHANGELOG_GGGUX.md) |
 
 **[View Detailed Features & Manual for UX Customizer](./docs/UX-Customizer/README.md)**
 
