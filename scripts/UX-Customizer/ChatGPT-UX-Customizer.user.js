@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.2.2-b1
+// @version      1.2.2-b2
 // @license      MIT
 // @description  Automatically applies a theme based on the chat name (changes user/assistant names, text color, icon, bubble style, window background, input area style, standing images, etc.)
 // @icon         https://chatgpt.com/favicon.ico
@@ -2989,7 +2989,6 @@
         init() {
             this.injectStyle();
             EventBus.subscribe(`${APPID}:messageComplete`, (elem) => this.processElement(elem));
-            EventBus.subscribe(`${APPID}:turnComplete`, (turnNode) => this.processTurn(turnNode));
         }
 
         /**
@@ -3053,14 +3052,6 @@
          */
         processElement(messageElement) {
             // To be implemented by subclasses if they operate on a per-message basis.
-        }
-
-        /**
-         * Processes a conversation turn element, typically for features that depend on the turn context.
-         * @param {HTMLElement} turnNode
-         */
-        processTurn(turnNode) {
-            // To be implemented by subclasses if they operate on a per-turn basis.
         }
 
         /** @returns {string} The unique ID for the style element. */
@@ -3178,6 +3169,7 @@
         /** @override */
         init() {
             super.init();
+            EventBus.subscribe(`${APPID}:cacheUpdated`, () => this.updateAll());
             EventBus.subscribe(`${APPID}:navigation`, () => this.navContainers.clear());
         }
 
@@ -3195,40 +3187,40 @@
          * @override
          */
         updateAll() {
-            const allTurnNodes = document.querySelectorAll(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER);
-            allTurnNodes.forEach((turn) => this.processTurn(turn));
+            const allMessageElements = this.messageCacheManager.getTotalMessages();
+            allMessageElements.forEach((elem) => this.processElement(elem));
         }
 
         /**
          * @override
-         * Processes a conversation turn for the scroll-to-top button.
-         * @param {HTMLElement} turnNode
+         * Processes a single message element for the scroll-to-top button.
+         * @param {HTMLElement} messageElement
          */
-        processTurn(turnNode) {
-            const config = this.configManager.get();
-            if (!config) return;
+        processElement(messageElement) {
+            requestAnimationFrame(() => {
+                const config = this.configManager.get();
+                if (!config) return;
 
-            const topNavEnabled = config.features.scroll_to_top_button.enabled;
+                const topNavEnabled = config.features.scroll_to_top_button.enabled;
 
-            turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS).forEach((messageElement) => {
-                requestAnimationFrame(() => {
-                    if (topNavEnabled) {
-                        this.setupScrollToTopButton(messageElement);
-                    }
+                if (topNavEnabled) {
+                    this.setupScrollToTopButton(messageElement);
+                }
 
-                    const bottomGroup = messageElement.querySelector(`.${APPID}-nav-group-bottom`);
-                    if (bottomGroup) {
-                        const bubbleElement = messageElement.querySelector(CONSTANTS.SELECTORS.RAW_USER_BUBBLE) || messageElement.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE);
+                const bottomGroup = messageElement.querySelector(`.${APPID}-nav-group-bottom`);
+                if (bottomGroup) {
+                    const bubbleElement = messageElement.querySelector(CONSTANTS.SELECTORS.RAW_USER_BUBBLE) || messageElement.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE);
+                    const shouldShow = topNavEnabled && bubbleElement && bubbleElement.scrollHeight > CONSTANTS.BUTTON_VISIBILITY_THRESHOLD_PX;
 
-                        const shouldShow = topNavEnabled && bubbleElement && bubbleElement.scrollHeight > CONSTANTS.BUTTON_VISIBILITY_THRESHOLD_PX;
-
-                        // Also show if it's part of a multi-message response (excluding the first message)
+                    const turnNode = messageElement.closest(CONSTANTS.SELECTORS.BUBBLE_FEATURE_TURN_CONTAINERS);
+                    let isMultiPart = false;
+                    if (turnNode) {
                         const assistantMessages = Array.from(turnNode.querySelectorAll(CONSTANTS.SELECTORS.ASSISTANT_MESSAGE));
-                        const isMultiPart = assistantMessages.length > 1 && assistantMessages.indexOf(messageElement) > 0;
-
-                        bottomGroup.classList.toggle(`${APPID}-hidden`, !(shouldShow || isMultiPart));
+                        isMultiPart = assistantMessages.length > 1 && assistantMessages.indexOf(messageElement) > 0;
                     }
-                });
+
+                    bottomGroup.classList.toggle(`${APPID}-hidden`, !(shouldShow || isMultiPart));
+                }
             });
         }
 
