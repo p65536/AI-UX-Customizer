@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.2.2-b2
+// @version      1.3.0
 // @license      MIT
 // @description  Automatically applies a theme based on the chat name (changes user/assistant names, text color, icon, bubble style, window background, input area style, standing images, etc.)
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=gemini.google.com
