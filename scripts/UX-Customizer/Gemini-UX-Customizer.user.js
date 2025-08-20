@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.3.3-b3
+// @version      1.3.3-b4
 // @license      MIT
 // @description  Automatically applies a theme based on the chat name (changes user/assistant names, text color, icon, bubble style, window background, input area style, standing images, etc.)
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=gemini.google.com
@@ -810,10 +810,10 @@
             collapsible_button: {
                 enabled: true,
             },
-            scroll_to_top_button: {
+            sequential_nav_buttons: {
                 enabled: true,
             },
-            sequential_nav_buttons: {
+            scroll_to_top_button: {
                 enabled: true,
             },
             fixed_nav_console: {
@@ -3234,103 +3234,6 @@
         }
     }
 
-    class ScrollToTopManager extends BubbleFeatureManagerBase {
-        constructor(configManager, messageCacheManager) {
-            super(configManager, messageCacheManager);
-        }
-
-        /**
-         * @override
-         */
-        init() {
-            super.init();
-            EventBus.subscribe(`${APPID}:navigation`, () => this.navContainers.clear());
-        }
-
-        /**
-         * @override
-         */
-        getStyleId() {
-            return `${APPID}-bubble-nav-style`;
-        }
-
-        /**
-         * @override
-         */
-        generateCss() {
-            return SITE_STYLES.BUBBLE_NAV_CSS;
-        }
-
-        /**
-         * @override
-         */
-        updateAll() {
-            const allTurnNodes = document.querySelectorAll(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER);
-            allTurnNodes.forEach((turn) => this.processTurn(turn));
-        }
-
-        /**
-         * @override
-         * Processes a conversation turn for the scroll-to-top button.
-         * @param {HTMLElement} turnNode
-         */
-        processTurn(turnNode) {
-            const config = this.configManager.get();
-            if (!config) return;
-
-            const topNavEnabled = config.features.scroll_to_top_button.enabled;
-
-            turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS).forEach((messageElement) => {
-                if (topNavEnabled) {
-                    this.setupScrollToTopButton(messageElement);
-                    const bottomGroup = messageElement.querySelector(`.${APPID}-nav-group-bottom`);
-                    if (bottomGroup) {
-                        bottomGroup.classList.remove(`${APPID}-hidden`);
-                    }
-                } else {
-                    const bottomGroup = messageElement.querySelector(`.${APPID}-nav-group-bottom`);
-                    if (bottomGroup) {
-                        bottomGroup.classList.add(`${APPID}-hidden`);
-                    }
-                }
-            });
-        }
-
-        /**
-         * Sets up the scroll-to-top button for a message element.
-         * @param {HTMLElement} messageElement The message element to process.
-         */
-        setupScrollToTopButton(messageElement) {
-            const container = this._getOrCreateNavContainer(messageElement);
-            if (!container || container.querySelector(`.${APPID}-nav-group-bottom`)) return;
-
-            const buttonsWrapper = container.querySelector(`.${APPID}-nav-buttons`);
-
-            const turnSelector = CONSTANTS.SELECTORS.BUBBLE_FEATURE_TURN_CONTAINERS;
-            const scrollTarget = turnSelector ? messageElement.closest(turnSelector) : messageElement;
-            if (!scrollTarget) return;
-
-            const topBtn = h(
-                `button.${APPID}-bubble-nav-btn.${APPID}-nav-top`,
-                {
-                    type: 'button',
-                    title: 'Scroll to top of this message',
-                    onclick: (e) => {
-                        e.stopPropagation();
-                        scrollToElement(scrollTarget, { offset: CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV });
-                    },
-                },
-                [
-                    h('svg', { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, [
-                        h('path', { d: 'M440-160v-480L280-480l-56-56 256-256 256 256-56 56-160-160v480h-80Zm-200-640v-80h400v80H240Z' }),
-                    ]),
-                ]
-            );
-            const bottomGroup = h(`div.${APPID}-nav-group-bottom`, [topBtn]);
-            buttonsWrapper.appendChild(bottomGroup);
-        }
-    }
-
     class SequentialNavManager extends BubbleFeatureManagerBase {
         constructor(configManager, messageCacheManager) {
             super(configManager, messageCacheManager);
@@ -3468,6 +3371,103 @@
 
             updateActorButtons(this.messageCacheManager.getUserMessages());
             updateActorButtons(this.messageCacheManager.getAssistantMessages());
+        }
+    }
+
+    class ScrollToTopManager extends BubbleFeatureManagerBase {
+        constructor(configManager, messageCacheManager) {
+            super(configManager, messageCacheManager);
+        }
+
+        /**
+         * @override
+         */
+        init() {
+            super.init();
+            EventBus.subscribe(`${APPID}:navigation`, () => this.navContainers.clear());
+        }
+
+        /**
+         * @override
+         */
+        getStyleId() {
+            return `${APPID}-bubble-nav-style`;
+        }
+
+        /**
+         * @override
+         */
+        generateCss() {
+            return SITE_STYLES.BUBBLE_NAV_CSS;
+        }
+
+        /**
+         * @override
+         */
+        updateAll() {
+            const allTurnNodes = document.querySelectorAll(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER);
+            allTurnNodes.forEach((turn) => this.processTurn(turn));
+        }
+
+        /**
+         * @override
+         * Processes a conversation turn for the scroll-to-top button.
+         * @param {HTMLElement} turnNode
+         */
+        processTurn(turnNode) {
+            const config = this.configManager.get();
+            if (!config) return;
+
+            const topNavEnabled = config.features.scroll_to_top_button.enabled;
+
+            turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS).forEach((messageElement) => {
+                if (topNavEnabled) {
+                    this.setupScrollToTopButton(messageElement);
+                    const bottomGroup = messageElement.querySelector(`.${APPID}-nav-group-bottom`);
+                    if (bottomGroup) {
+                        bottomGroup.classList.remove(`${APPID}-hidden`);
+                    }
+                } else {
+                    const bottomGroup = messageElement.querySelector(`.${APPID}-nav-group-bottom`);
+                    if (bottomGroup) {
+                        bottomGroup.classList.add(`${APPID}-hidden`);
+                    }
+                }
+            });
+        }
+
+        /**
+         * Sets up the scroll-to-top button for a message element.
+         * @param {HTMLElement} messageElement The message element to process.
+         */
+        setupScrollToTopButton(messageElement) {
+            const container = this._getOrCreateNavContainer(messageElement);
+            if (!container || container.querySelector(`.${APPID}-nav-group-bottom`)) return;
+
+            const buttonsWrapper = container.querySelector(`.${APPID}-nav-buttons`);
+
+            const turnSelector = CONSTANTS.SELECTORS.BUBBLE_FEATURE_TURN_CONTAINERS;
+            const scrollTarget = turnSelector ? messageElement.closest(turnSelector) : messageElement;
+            if (!scrollTarget) return;
+
+            const topBtn = h(
+                `button.${APPID}-bubble-nav-btn.${APPID}-nav-top`,
+                {
+                    type: 'button',
+                    title: 'Scroll to top of this message',
+                    onclick: (e) => {
+                        e.stopPropagation();
+                        scrollToElement(scrollTarget, { offset: CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV });
+                    },
+                },
+                [
+                    h('svg', { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, [
+                        h('path', { d: 'M440-160v-480L280-480l-56-56 256-256 256 256-56 56-160-160v480h-80Zm-200-640v-80h400v80H240Z' }),
+                    ]),
+                ]
+            );
+            const bottomGroup = h(`div.${APPID}-nav-group-bottom`, [topBtn]);
+            buttonsWrapper.appendChild(bottomGroup);
         }
     }
 
@@ -5261,10 +5261,10 @@
                         h(`div.${APPID}-submenu-row`, [h('label', { htmlFor: `${APPID}-feat-collapsible-enabled`, title: 'Enables a button to collapse large message bubbles.' }, 'Collapsible button'), createToggle(`${APPID}-feat-collapsible-enabled`)]),
                     ]),
                     h(`div.${APPID}-feature-group`, [
-                        h(`div.${APPID}-submenu-row`, [h('label', { htmlFor: `${APPID}-feat-scroll-top-enabled`, title: 'Enables a button to scroll to the top of a message.' }, 'Scroll to top button'), createToggle(`${APPID}-feat-scroll-top-enabled`)]),
+                        h(`div.${APPID}-submenu-row`, [h('label', { htmlFor: `${APPID}-feat-seq-nav-enabled`, title: 'Enables buttons to jump to the previous/next message.' }, 'Sequential nav buttons'), createToggle(`${APPID}-feat-seq-nav-enabled`)]),
                     ]),
                     h(`div.${APPID}-feature-group`, [
-                        h(`div.${APPID}-submenu-row`, [h('label', { htmlFor: `${APPID}-feat-seq-nav-enabled`, title: 'Enables buttons to jump to the previous/next message.' }, 'Sequential nav buttons'), createToggle(`${APPID}-feat-seq-nav-enabled`)]),
+                        h(`div.${APPID}-submenu-row`, [h('label', { htmlFor: `${APPID}-feat-scroll-top-enabled`, title: 'Enables a button to scroll to the top of a message.' }, 'Scroll to top button'), createToggle(`${APPID}-feat-scroll-top-enabled`)]),
                     ]),
                     h(`div.${APPID}-feature-group`, [
                         h(`div.${APPID}-submenu-row`, [
