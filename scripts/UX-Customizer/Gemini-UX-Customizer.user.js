@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.3.1
+// @version      1.3.2
 // @license      MIT
 // @description  Automatically applies a theme based on the chat name (changes user/assistant names, text color, icon, bubble style, window background, input area style, standing images, etc.)
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=gemini.google.com
@@ -2572,11 +2572,17 @@
         _checkPendingTurns() {
             if (this.pendingTurnNodes.size === 0) return;
             for (const turnNode of this.pendingTurnNodes) {
-                // For streaming turns, continuously inject avatars to handle React re-renders.
+                // For streaming turns, continuously check for the avatar and re-inject if it's missing.
+                // This handles cases where the platform's framework re-renders the DOM, removing our injected avatar.
                 const allElementsInTurn = turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
                 allElementsInTurn.forEach((elem) => {
-                    EventBus.publish(`${APPID}:avatarInject`, elem);
+                    // By checking for the avatar's existence before publishing the event,
+                    // we avoid the performance overhead of the original implementation on most DOM mutations.
+                    if (!elem.querySelector(CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER)) {
+                        EventBus.publish(`${APPID}:avatarInject`, elem);
+                    }
                 });
+
                 if (this._isTurnComplete(turnNode)) {
                     // Re-run messageComplete event for all elements in the now-completed turn
                     allElementsInTurn.forEach((elem) => {
