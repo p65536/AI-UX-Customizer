@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.3.3-b1
+// @version      1.3.3-b2
 // @license      MIT
 // @description  Automatically applies a theme based on the chat name (changes user/assistant names, text color, icon, bubble style, window background, input area style, standing images, etc.)
 // @icon         https://chatgpt.com/favicon.ico
@@ -292,9 +292,7 @@
          * @param {MutationRecord[]} mutations The mutations to handle.
          */
         static handleMainMutations(instance, mutations) {
-            instance._garbageCollectPendingTurns(mutations);
             instance._dispatchNodeAddedTasks(mutations);
-            instance._checkPendingTurns();
             instance.debouncedCacheUpdate();
             instance.debouncedVisibilityCheck();
         }
@@ -321,7 +319,7 @@
             const handler = () => {
                 if (location.href !== lastHref) {
                     lastHref = location.href;
-                    instance.cleanupPendingTurns();
+                    instance.cleanupActiveTurnObservers();
                     EventBus.publish(`${APPID}:themeUpdate`);
                     EventBus.publish(`${APPID}:navigation`);
                     // Give the DOM a moment to settle after navigation, then re-scan existing turns.
@@ -2575,13 +2573,24 @@
             this.mainObserver = null;
             this.layoutResizeObserver = null;
             this.registeredNodeAddedTasks = [];
-            this.pendingTurnNodes = new Set();
+            this.activeTurnObservers = new Map();
             this.debouncedNavUpdate = debounce(() => EventBus.publish(`${APPID}:navButtonsUpdate`), TIMING.DEBOUNCE_DELAYS.NAVIGATION_UPDATE);
             this.debouncedCacheUpdate = debounce(() => EventBus.publish(`${APPID}:cacheUpdateRequest`), TIMING.DEBOUNCE_DELAYS.CACHE_UPDATE);
             this.debouncedLayoutRecalculate = debounce(() => EventBus.publish(`${APPID}:layoutRecalculate`), TIMING.DEBOUNCE_DELAYS.LAYOUT_RECALCULATION);
 
             // Delegate platform-specific property initialization to the adapter
             PlatformAdapter.initializeObserver(this);
+        }
+
+        /**
+         * Disconnects all active turn-specific observers and clears the tracking map.
+         * Essential for preventing memory leaks on navigation.
+         */
+        cleanupActiveTurnObservers() {
+            for (const observer of this.activeTurnObservers.values()) {
+                observer.disconnect();
+            }
+            this.activeTurnObservers.clear();
         }
 
         /**
@@ -2609,14 +2618,6 @@
          */
         registerNodeAddedTask(selector, callback) {
             this.registeredNodeAddedTasks.push({ selector, callback });
-        }
-
-        /**
-         * Clears all pending conversation turns.
-         * Useful when navigating away from a chat.
-         */
-        cleanupPendingTurns() {
-            this.pendingTurnNodes.clear();
         }
 
         /**
@@ -2654,34 +2655,6 @@
         }
 
         /**
-         * Removes any pending turn nodes that have been removed from the DOM to prevent memory leaks.
-         * @param {MutationRecord[]} mutations
-         * @private
-         */
-        _garbageCollectPendingTurns(mutations) {
-            if (this.pendingTurnNodes.size === 0) return;
-            for (const mutation of mutations) {
-                if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
-                    for (const removedNode of mutation.removedNodes) {
-                        if (removedNode.nodeType !== Node.ELEMENT_NODE) continue;
-                        // Check if the removed node itself was a pending turn
-                        if (this.pendingTurnNodes.has(removedNode)) {
-                            this.pendingTurnNodes.delete(removedNode);
-                        }
-
-                        // Check if any descendants of the removed node were pending turns
-                        const descendantTurns = removedNode.querySelectorAll(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER);
-                        for (const turnNode of descendantTurns) {
-                            if (this.pendingTurnNodes.has(turnNode)) {
-                                this.pendingTurnNodes.delete(turnNode);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        /**
          * Checks if a conversation turn is complete.
          * @param {HTMLElement} turnNode
          * @returns {boolean}
@@ -2696,47 +2669,20 @@
         }
 
         /**
-         * Checks all pending conversation turns for completion.
-         * @private
-         */
-        _checkPendingTurns() {
-            if (this.pendingTurnNodes.size === 0) return;
-            for (const turnNode of this.pendingTurnNodes) {
-                // For streaming turns, continuously check for the avatar and re-inject if it's missing.
-                // This handles cases where the platform's framework re-renders the DOM, removing our injected avatar.
-                const allElementsInTurn = turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
-                allElementsInTurn.forEach((elem) => {
-                    // By checking for the avatar's existence before publishing the event,
-                    // we avoid the performance overhead of the original implementation on most DOM mutations.
-                    if (!elem.querySelector(CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER)) {
-                        EventBus.publish(`${APPID}:avatarInject`, elem);
-                    }
-                });
-
-                if (this._isTurnComplete(turnNode)) {
-                    // Re-run messageComplete event for all elements in the now-completed turn
-                    allElementsInTurn.forEach((elem) => {
-                        EventBus.publish(`${APPID}:messageComplete`, elem);
-                    });
-                    EventBus.publish(`${APPID}:turnComplete`, turnNode);
-
-                    this.debouncedNavUpdate();
-                    this.pendingTurnNodes.delete(turnNode);
-                }
-            }
-        }
-
-        /**
-         * Processes a single turnNode, adding it to the pending queue if it's not already complete.
+         * Processes a single turnNode. If it's already complete, it's processed immediately.
+         * If it's incomplete (streaming), a dedicated MutationObserver is attached to watch for its completion
+         * and to re-inject avatars if they are removed by the platform's re-rendering.
          * @param {HTMLElement} turnNode
          */
         _processTurnSingle(turnNode) {
-            if (turnNode.nodeType !== Node.ELEMENT_NODE || this.pendingTurnNodes.has(turnNode)) return;
+            if (turnNode.nodeType !== Node.ELEMENT_NODE || this.activeTurnObservers.has(turnNode)) return;
+
             // --- Initial State Processing ---
             const messageElements = turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
             messageElements.forEach((elem) => {
                 EventBus.publish(`${APPID}:avatarInject`, elem);
             });
+
             if (this._isTurnComplete(turnNode)) {
                 // If the turn is already complete when we first see it, process it immediately.
                 messageElements.forEach((elem) => {
@@ -2745,8 +2691,36 @@
                 EventBus.publish(`${APPID}:turnComplete`, turnNode);
                 this.debouncedNavUpdate();
             } else {
-                // Otherwise, add it to the pending list to be checked by the main observer.
-                this.pendingTurnNodes.add(turnNode);
+                // The turn is not yet complete (streaming response).
+                // Create a dedicated observer for this specific turn.
+                const turnObserver = new MutationObserver((turnMutations, observer) => {
+                    // Continuously check for and re-inject the avatar if it's removed by a re-render during streaming.
+                    const allElementsInTurn = turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
+                    allElementsInTurn.forEach((elem) => {
+                        if (!elem.querySelector(CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER)) {
+                            EventBus.publish(`${APPID}:avatarInject`, elem);
+                        }
+                    });
+
+                    // Check if the turn has now completed.
+                    if (this._isTurnComplete(turnNode)) {
+                        // The completion element has been added.
+                        // Process the now-completed turn.
+                        allElementsInTurn.forEach((elem) => {
+                            EventBus.publish(`${APPID}:messageComplete`, elem);
+                        });
+                        EventBus.publish(`${APPID}:turnComplete`, turnNode);
+                        this.debouncedNavUpdate();
+
+                        // Disconnect and clean up this observer as its job is done.
+                        observer.disconnect();
+                        this.activeTurnObservers.delete(turnNode);
+                    }
+                });
+
+                // Start observing only this turn for child additions/removals.
+                turnObserver.observe(turnNode, { childList: true, subtree: true });
+                this.activeTurnObservers.set(turnNode, turnObserver);
             }
         }
     }
