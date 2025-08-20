@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.3.2
+// @version      1.3.3-b1
 // @license      MIT
 // @description  Automatically applies a theme based on the chat name (changes user/assistant names, text color, icon, bubble style, window background, input area style, standing images, etc.)
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=gemini.google.com
@@ -230,7 +230,10 @@
         }
 
         /**
-         * Gets the platform-specific parent element for attaching navigation buttons.
+         * @description Gets the platform-specific parent element for attaching navigation buttons.
+         * On Gemini, the positioning context differs between user and assistant messages due to the DOM structure.
+         * For user messages, a specific inner container must be used as the anchor.
+         * For assistant messages, the main message element itself is the correct anchor.
          * @param {HTMLElement} messageElement The message element.
          * @returns {HTMLElement | null} The parent element for the nav container.
          */
@@ -261,7 +264,7 @@
          * @param {ObserverManager} instance The ObserverManager instance.
          */
         static initializeObserver(instance) {
-            instance.debouncedVisibilityCheck = debounce(() => EventBus.publish(`${APPID}:visibilityRecheck`), 250);
+            instance.debouncedVisibilityCheck = debounce(() => EventBus.publish(`${APPID}:visibilityRecheck`), TIMING.DEBOUNCE_DELAYS.VISIBILITY_CHECK);
         }
 
         /**
@@ -333,7 +336,7 @@
                     setTimeout(() => {
                         instance.scanForExistingTurns();
                         instance.debouncedCacheUpdate();
-                    }, 200);
+                    }, TIMING.TIMEOUTS.POST_NAVIGATION_DOM_SETTLE);
                 }
             };
             for (const m of ['pushState', 'replaceState']) {
@@ -365,7 +368,7 @@
                 return;
             }
 
-            const debouncedThemeUpdate = debounce(() => EventBus.publish(`${APPID}:themeUpdate`), 150);
+            const debouncedThemeUpdate = debounce(() => EventBus.publish(`${APPID}:themeUpdate`), TIMING.DEBOUNCE_DELAYS.THEME_UPDATE);
             const sidebarObserver = new MutationObserver(() => {
                 debouncedThemeUpdate();
                 instance.debouncedLayoutRecalculate();
@@ -391,6 +394,40 @@
     // SECTION: Configuration and Constants
     // Description: Defines default settings, global constants, and CSS selectors.
     // =================================================================================
+
+    const TIMING = {
+        DEBOUNCE_DELAYS: {
+            // Delay for recalculating UI elements after visibility changes
+            VISIBILITY_CHECK: 250,
+            // Delay for updating the message cache after DOM mutations
+            CACHE_UPDATE: 250,
+            // Delay for recalculating layout-dependent elements (e.g., standing images) after resize
+            LAYOUT_RECALCULATION: 150,
+            // Delay for updating navigation buttons after a message is completed
+            NAVIGATION_UPDATE: 100,
+            // Delay for updating the theme after sidebar mutations (Gemini-specific)
+            THEME_UPDATE: 150,
+            // Delay for saving settings after user input in the settings panel
+            SETTINGS_SAVE: 300,
+            // Delay for updating the theme editor's preview pane
+            THEME_PREVIEW: 50,
+        },
+        TIMEOUTS: {
+            // Delay to wait for the DOM to settle after a URL change before re-scanning
+            POST_NAVIGATION_DOM_SETTLE: 200,
+            // Delay before removing the temporary anchor element used for smooth scrolling with an offset
+            VIRTUAL_ANCHOR_CLEANUP: 1500,
+            // Delay before reopening a modal after a settings sync conflict is resolved
+            MODAL_REOPEN_DELAY: 100,
+            // Delay between retries for calculating avatar heights
+            AVATAR_HEIGHT_RETRY: 50,
+        },
+    };
+
+    const RETRY_CONFIG = {
+        // Maximum number of times to retry calculating avatar height if it's zero
+        MAX_AVATAR_HEIGHT_ATTEMPTS: 5,
+    };
 
     // ---- Default Settings & Theme Configuration ----
     const CONSTANTS = {
@@ -1330,9 +1367,9 @@
 
     /**
      * @description Scrolls to a target element, with an optional pixel offset.
-     * It's platform-aware for simple (non-offset) scrolls. For offset scrolls,
-     * it uses a "virtual anchor" method: it temporarily creates an invisible element
-     * positioned above the target, scrolls to it using `scrollIntoView`, and then removes it.
+     * It's platform-aware. For platforms with a dedicated scroll container (like ChatGPT), it uses the reliable `scrollTo` method.
+     * For others (like Gemini), it falls back to a "virtual anchor" method for offset scrolls.
+     * This method temporarily injects an invisible element positioned above the target, scrolls to it, and then removes it.
      * @param {HTMLElement} element The target element to scroll to.
      * @param {object} [options] - Scrolling options.
      * @param {number} [options.offset=0] - A pixel offset to apply above the target element.
@@ -1387,7 +1424,7 @@
                 if (originalPosition === 'static') {
                     target.style.position = originalPosition;
                 }
-            }, 1500);
+            }, TIMING.TIMEOUTS.VIRTUAL_ANCHOR_CLEANUP);
         }
     }
 
@@ -1648,6 +1685,9 @@
     // =================================================================================
 
     class SyncManager {
+        /**
+         * @param {ThemeAutomator} appInstance The main application controller instance.
+         */
         constructor(appInstance) {
             this.app = appInstance;
             this.pendingRemoteConfig = null;
@@ -1679,6 +1719,11 @@
             }
         }
 
+        /**
+         * Handles the config change event from another tab/window.
+         * @private
+         * @param {string} rawValue The new configuration value from storage.
+         */
         async _handleRemoteChange(rawValue) {
             Logger.log('SyncManager: Remote config change detected.');
             try {
@@ -1698,6 +1743,11 @@
             }
         }
 
+        /**
+         * Displays a conflict notification within an active modal.
+         * @private
+         * @param {object} modalComponent The active modal component instance (e.g., JsonModalComponent).
+         */
         _showConflictNotification(modalComponent) {
             if (!modalComponent?.modal) return;
             this._clearConflictNotification(modalComponent); // Clear previous state first
@@ -1727,7 +1777,7 @@
                         // Request to reopen the modal after a short delay to ensure sync completion.
                         setTimeout(() => {
                             EventBus.publish(`${APPID}:reOpenModal`, reopenContext);
-                        }, 100);
+                        }, TIMING.TIMEOUTS.MODAL_REOPEN_DELAY);
                     },
                 });
 
@@ -1738,6 +1788,11 @@
             }
         }
 
+        /**
+         * Clears any visible conflict notification from a modal.
+         * @private
+         * @param {object} modalComponent The active modal component instance.
+         */
         _clearConflictNotification(modalComponent) {
             if (!modalComponent?.modal) return;
             const messageArea = modalComponent.modal.dom.footerMessage;
@@ -1822,7 +1877,7 @@
             this.userMessages = [];
             this.assistantMessages = [];
             this.totalMessages = [];
-            this.debouncedRebuildCache = debounce(this._rebuildCache.bind(this), 250);
+            this.debouncedRebuildCache = debounce(this._rebuildCache.bind(this), TIMING.DEBOUNCE_DELAYS.CACHE_UPDATE);
         }
 
         init() {
@@ -1887,14 +1942,26 @@
             this.notify();
         }
 
+        /**
+         * Gets the cached user message elements.
+         * @returns {HTMLElement[]} An array of user message elements.
+         */
         getUserMessages() {
             return this.userMessages;
         }
 
+        /**
+         * Gets the cached assistant message elements.
+         * @returns {HTMLElement[]} An array of assistant message elements.
+         */
         getAssistantMessages() {
             return this.assistantMessages;
         }
 
+        /**
+         * Gets all cached message elements (user and assistant combined).
+         * @returns {HTMLElement[]} An array of all message elements.
+         */
         getTotalMessages() {
             return this.totalMessages;
         }
@@ -1952,193 +2019,187 @@
         }
     `;
 
-    const STYLE_DEFINITIONS = [
-        // -----------------------------------------------------------------------------
-        // SECTION: User Actor Styles
-        // -----------------------------------------------------------------------------
-        {
-            configKey: 'user.name',
-            fallbackKey: 'defaultSet.user.name',
-            cssVar: `--${APPID}-user-name`,
-            transformer: (value) => (value ? `'${value.replace(/'/g, "\\'")}'` : null),
-        },
-        {
-            configKey: 'user.icon',
-            fallbackKey: 'defaultSet.user.icon',
-            cssVar: `--${APPID}-user-icon`,
-        },
-        {
-            configKey: 'user.standingImageUrl',
-            fallbackKey: 'defaultSet.user.standingImageUrl',
-            cssVar: `--${APPID}-user-standing-image`,
-        },
-        {
-            configKey: 'user.textColor',
-            fallbackKey: 'defaultSet.user.textColor',
-            cssVar: `--${APPID}-user-textColor`,
-            selector: `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.USER_TEXT_CONTENT}`,
-            property: 'color',
-        },
-        {
-            configKey: 'user.font',
-            fallbackKey: 'defaultSet.user.font',
-            cssVar: `--${APPID}-user-font`,
-            selector: `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.USER_TEXT_CONTENT}`,
-            property: 'font-family',
-        },
-        {
-            configKey: 'user.bubbleBackgroundColor',
-            fallbackKey: 'defaultSet.user.bubbleBackgroundColor',
-            cssVar: `--${APPID}-user-bubble-bg`,
-            selector: `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE}`,
-            property: 'background-color',
-        },
-        {
-            configKey: 'user.bubblePadding',
-            fallbackKey: 'defaultSet.user.bubblePadding',
-            cssVar: `--${APPID}-user-bubble-padding`,
-            selector: `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE}`,
-            property: 'padding',
-        },
-        {
-            configKey: 'user.bubbleBorderRadius',
-            fallbackKey: 'defaultSet.user.bubbleBorderRadius',
-            cssVar: `--${APPID}-user-bubble-radius`,
-            selector: `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE}`,
-            property: 'border-radius',
-        },
-        {
-            configKey: 'user.bubbleMaxWidth',
-            fallbackKey: 'defaultSet.user.bubbleMaxWidth',
-            cssVar: `--${APPID}-user-bubble-maxwidth`,
-            cssBlockGenerator: (value) => (value ? `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE} { max-width: var(--${APPID}-user-bubble-maxwidth)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''),
-        },
-
-        // -----------------------------------------------------------------------------
-        // SECTION: Assistant Actor Styles
-        // -----------------------------------------------------------------------------
-        {
-            configKey: 'assistant.name',
-            fallbackKey: 'defaultSet.assistant.name',
-            cssVar: `--${APPID}-assistant-name`,
-            transformer: (value) => (value ? `'${value.replace(/'/g, "\\'")}'` : null),
-        },
-        {
-            configKey: 'assistant.icon',
-            fallbackKey: 'defaultSet.assistant.icon',
-            cssVar: `--${APPID}-assistant-icon`,
-        },
-        {
-            configKey: 'assistant.standingImageUrl',
-            fallbackKey: 'defaultSet.assistant.standingImageUrl',
-            cssVar: `--${APPID}-assistant-standing-image`,
-        },
-        {
-            configKey: 'assistant.textColor',
-            fallbackKey: 'defaultSet.assistant.textColor',
-            cssVar: `--${APPID}-assistant-textColor`,
-            selector: `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT}`,
-            property: 'color',
-            // Also apply color to all markdown child elements for consistency
-            cssBlockGenerator: (value) => {
-                if (!value) return '';
-                const childSelectors = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul li', 'ol li', 'ul li::marker', 'ol li::marker', 'strong', 'em', 'blockquote', 'table', 'th', 'td'];
-                const fullSelectors = childSelectors.map((s) => `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT} ${s}`);
-                return `${fullSelectors.join(', ')} { color: var(--${APPID}-assistant-textColor); }`;
+    const STYLE_DEFINITIONS = {
+        user: [
+            {
+                configKey: 'user.name',
+                fallbackKey: 'defaultSet.user.name',
+                cssVar: `--${APPID}-user-name`,
+                transformer: (value) => (value ? `'${value.replace(/'/g, "\\'")}'` : null),
             },
-        },
-        {
-            configKey: 'assistant.font',
-            fallbackKey: 'defaultSet.assistant.font',
-            cssVar: `--${APPID}-assistant-font`,
-            selector: `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT}`,
-            property: 'font-family',
-        },
-        {
-            configKey: 'assistant.bubbleBackgroundColor',
-            fallbackKey: 'defaultSet.assistant.bubbleBackgroundColor',
-            cssVar: `--${APPID}-assistant-bubble-bg`,
-            selector: `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE}`,
-            property: 'background-color',
-        },
-        {
-            configKey: 'assistant.bubblePadding',
-            fallbackKey: 'defaultSet.assistant.bubblePadding',
-            cssVar: `--${APPID}-assistant-bubble-padding`,
-            selector: `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE}`,
-            property: 'padding',
-        },
-        {
-            configKey: 'assistant.bubbleBorderRadius',
-            fallbackKey: 'defaultSet.assistant.bubbleBorderRadius',
-            cssVar: `--${APPID}-assistant-bubble-radius`,
-            selector: `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE}`,
-            property: 'border-radius',
-        },
-        {
-            configKey: 'assistant.bubbleMaxWidth',
-            fallbackKey: 'defaultSet.assistant.bubbleMaxWidth',
-            cssVar: `--${APPID}-assistant-bubble-maxwidth`,
-            cssBlockGenerator: (value) => {
-                if (!value) return '';
-                return `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE} { max-width: var(--${APPID}-assistant-bubble-maxwidth)${SITE_STYLES.CSS_IMPORTANT_FLAG}; margin-left: 0; margin-right: auto; }`;
+            {
+                configKey: 'user.icon',
+                fallbackKey: 'defaultSet.user.icon',
+                cssVar: `--${APPID}-user-icon`,
             },
-        },
-
-        // -----------------------------------------------------------------------------
-        // SECTION: Window Styles
-        // -----------------------------------------------------------------------------
-        {
-            configKey: 'window.backgroundColor',
-            fallbackKey: 'defaultSet.window.backgroundColor',
-            cssVar: `--${APPID}-window-bg-color`,
-            selector: CONSTANTS.SELECTORS.MAIN_APP_CONTAINER,
-            property: 'background-color',
-        },
-        {
-            configKey: 'window.backgroundImageUrl',
-            fallbackKey: 'defaultSet.window.backgroundImageUrl',
-            cssVar: `--${APPID}-window-bg-image`,
-            cssBlockGenerator: (value) => (value ? `${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} { background-image: var(--${APPID}-window-bg-image)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''),
-        },
-        {
-            configKey: 'window.backgroundSize',
-            fallbackKey: 'defaultSet.window.backgroundSize',
-            cssVar: `--${APPID}-window-bg-size`,
-            cssBlockGenerator: (value) => (value ? `${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} { background-size: var(--${APPID}-window-bg-size)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''),
-        },
-        {
-            configKey: 'window.backgroundPosition',
-            fallbackKey: 'defaultSet.window.backgroundPosition',
-            cssVar: `--${APPID}-window-bg-pos`,
-            cssBlockGenerator: (value) => (value ? `${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} { background-position: var(--${APPID}-window-bg-pos)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''),
-        },
-        {
-            configKey: 'window.backgroundRepeat',
-            fallbackKey: 'defaultSet.window.backgroundRepeat',
-            cssVar: `--${APPID}-window-bg-repeat`,
-            cssBlockGenerator: (value) => (value ? `${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} { background-repeat: var(--${APPID}-window-bg-repeat)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''),
-        },
-
-        // -----------------------------------------------------------------------------
-        // SECTION: Input Area Styles
-        // -----------------------------------------------------------------------------
-        {
-            configKey: 'inputArea.backgroundColor',
-            fallbackKey: 'defaultSet.inputArea.backgroundColor',
-            cssVar: `--${APPID}-input-bg`,
-            // Use 'background' property to override potential gradients in Gemini's input area.
-            selector: CONSTANTS.SELECTORS.INPUT_AREA_BG_TARGET,
-            property: 'background',
-        },
-        {
-            configKey: 'inputArea.textColor',
-            fallbackKey: 'defaultSet.inputArea.textColor',
-            cssVar: `--${APPID}-input-color`,
-            selector: CONSTANTS.SELECTORS.INPUT_TEXT_FIELD_TARGET,
-            property: 'color',
-        },
-    ];
+            {
+                configKey: 'user.standingImageUrl',
+                fallbackKey: 'defaultSet.user.standingImageUrl',
+                cssVar: `--${APPID}-user-standing-image`,
+            },
+            {
+                configKey: 'user.textColor',
+                fallbackKey: 'defaultSet.user.textColor',
+                cssVar: `--${APPID}-user-textColor`,
+                selector: `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.USER_TEXT_CONTENT}`,
+                property: 'color',
+            },
+            {
+                configKey: 'user.font',
+                fallbackKey: 'defaultSet.user.font',
+                cssVar: `--${APPID}-user-font`,
+                selector: `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.USER_TEXT_CONTENT}`,
+                property: 'font-family',
+            },
+            {
+                configKey: 'user.bubbleBackgroundColor',
+                fallbackKey: 'defaultSet.user.bubbleBackgroundColor',
+                cssVar: `--${APPID}-user-bubble-bg`,
+                selector: `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE}`,
+                property: 'background-color',
+            },
+            {
+                configKey: 'user.bubblePadding',
+                fallbackKey: 'defaultSet.user.bubblePadding',
+                cssVar: `--${APPID}-user-bubble-padding`,
+                selector: `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE}`,
+                property: 'padding',
+            },
+            {
+                configKey: 'user.bubbleBorderRadius',
+                fallbackKey: 'defaultSet.user.bubbleBorderRadius',
+                cssVar: `--${APPID}-user-bubble-radius`,
+                selector: `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE}`,
+                property: 'border-radius',
+            },
+            {
+                configKey: 'user.bubbleMaxWidth',
+                fallbackKey: 'defaultSet.user.bubbleMaxWidth',
+                cssVar: `--${APPID}-user-bubble-maxwidth`,
+                generator: (value) => (value ? `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE} { max-width: var(--${APPID}-user-bubble-maxwidth)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''),
+            },
+        ],
+        assistant: [
+            {
+                configKey: 'assistant.name',
+                fallbackKey: 'defaultSet.assistant.name',
+                cssVar: `--${APPID}-assistant-name`,
+                transformer: (value) => (value ? `'${value.replace(/'/g, "\\'")}'` : null),
+            },
+            {
+                configKey: 'assistant.icon',
+                fallbackKey: 'defaultSet.assistant.icon',
+                cssVar: `--${APPID}-assistant-icon`,
+            },
+            {
+                configKey: 'assistant.standingImageUrl',
+                fallbackKey: 'defaultSet.assistant.standingImageUrl',
+                cssVar: `--${APPID}-assistant-standing-image`,
+            },
+            {
+                configKey: 'assistant.textColor',
+                fallbackKey: 'defaultSet.assistant.textColor',
+                cssVar: `--${APPID}-assistant-textColor`,
+                selector: `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT}`,
+                property: 'color',
+                generator: (value) => {
+                    if (!value) return '';
+                    const childSelectors = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul li', 'ol li', 'ul li::marker', 'ol li::marker', 'strong', 'em', 'blockquote', 'table', 'th', 'td'];
+                    const fullSelectors = childSelectors.map((s) => `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT} ${s}`);
+                    return `${fullSelectors.join(', ')} { color: var(--${APPID}-assistant-textColor); }`;
+                },
+            },
+            {
+                configKey: 'assistant.font',
+                fallbackKey: 'defaultSet.assistant.font',
+                cssVar: `--${APPID}-assistant-font`,
+                selector: `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT}`,
+                property: 'font-family',
+            },
+            {
+                configKey: 'assistant.bubbleBackgroundColor',
+                fallbackKey: 'defaultSet.assistant.bubbleBackgroundColor',
+                cssVar: `--${APPID}-assistant-bubble-bg`,
+                selector: `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE}`,
+                property: 'background-color',
+            },
+            {
+                configKey: 'assistant.bubblePadding',
+                fallbackKey: 'defaultSet.assistant.bubblePadding',
+                cssVar: `--${APPID}-assistant-bubble-padding`,
+                selector: `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE}`,
+                property: 'padding',
+            },
+            {
+                configKey: 'assistant.bubbleBorderRadius',
+                fallbackKey: 'defaultSet.assistant.bubbleBorderRadius',
+                cssVar: `--${APPID}-assistant-bubble-radius`,
+                selector: `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE}`,
+                property: 'border-radius',
+            },
+            {
+                configKey: 'assistant.bubbleMaxWidth',
+                fallbackKey: 'defaultSet.assistant.bubbleMaxWidth',
+                cssVar: `--${APPID}-assistant-bubble-maxwidth`,
+                generator: (value) => {
+                    if (!value) return '';
+                    return `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE} { max-width: var(--${APPID}-assistant-bubble-maxwidth)${SITE_STYLES.CSS_IMPORTANT_FLAG}; margin-left: 0; margin-right: auto; }`;
+                },
+            },
+        ],
+        window: [
+            {
+                configKey: 'window.backgroundColor',
+                fallbackKey: 'defaultSet.window.backgroundColor',
+                cssVar: `--${APPID}-window-bg-color`,
+                selector: CONSTANTS.SELECTORS.MAIN_APP_CONTAINER,
+                property: 'background-color',
+            },
+            {
+                configKey: 'window.backgroundImageUrl',
+                fallbackKey: 'defaultSet.window.backgroundImageUrl',
+                cssVar: `--${APPID}-window-bg-image`,
+                generator: (value) => (value ? `${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} { background-image: var(--${APPID}-window-bg-image)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''),
+            },
+            {
+                configKey: 'window.backgroundSize',
+                fallbackKey: 'defaultSet.window.backgroundSize',
+                cssVar: `--${APPID}-window-bg-size`,
+                generator: (value) => (value ? `${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} { background-size: var(--${APPID}-window-bg-size)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''),
+            },
+            {
+                configKey: 'window.backgroundPosition',
+                fallbackKey: 'defaultSet.window.backgroundPosition',
+                cssVar: `--${APPID}-window-bg-pos`,
+                generator: (value) => (value ? `${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} { background-position: var(--${APPID}-window-bg-pos)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''),
+            },
+            {
+                configKey: 'window.backgroundRepeat',
+                fallbackKey: 'defaultSet.window.backgroundRepeat',
+                cssVar: `--${APPID}-window-bg-repeat`,
+                generator: (value) => (value ? `${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} { background-repeat: var(--${APPID}-window-bg-repeat)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''),
+            },
+        ],
+        inputArea: [
+            {
+                configKey: 'inputArea.backgroundColor',
+                fallbackKey: 'defaultSet.inputArea.backgroundColor',
+                cssVar: `--${APPID}-input-bg`,
+                // Use 'background' property to override potential gradients in Gemini's input area.
+                selector: CONSTANTS.SELECTORS.INPUT_AREA_BG_TARGET,
+                property: 'background',
+            },
+            {
+                configKey: 'inputArea.textColor',
+                fallbackKey: 'defaultSet.inputArea.textColor',
+                cssVar: `--${APPID}-input-color`,
+                selector: CONSTANTS.SELECTORS.INPUT_TEXT_FIELD_TARGET,
+                property: 'color',
+            },
+        ],
+    };
+    // Flatten the structured definitions into a single array for easier iteration.
+    const ALL_STYLE_DEFINITIONS = Object.values(STYLE_DEFINITIONS).flat();
 
     class StyleGenerator {
         /**
@@ -2159,7 +2220,7 @@
             const dynamicRules = [];
             const important = SITE_STYLES.CSS_IMPORTANT_FLAG || '';
 
-            for (const definition of STYLE_DEFINITIONS) {
+            for (const definition of ALL_STYLE_DEFINITIONS) {
                 const value = getPropertyByPath(currentThemeSet, definition.configKey) ?? getPropertyByPath(fullConfig, definition.fallbackKey);
 
                 if (value === null || value === undefined) continue;
@@ -2170,8 +2231,8 @@
                 }
 
                 // Generate additional complex CSS blocks if a generator function is defined
-                if (typeof definition.cssBlockGenerator === 'function') {
-                    const block = definition.cssBlockGenerator(value);
+                if (typeof definition.generator === 'function') {
+                    const block = definition.generator(value);
                     if (block) {
                         dynamicRules.push(block);
                     }
@@ -2188,7 +2249,8 @@
          */
         generateThemeVariables(currentThemeSet, fullConfig) {
             const themeVars = {};
-            for (const definition of STYLE_DEFINITIONS) {
+
+            for (const definition of ALL_STYLE_DEFINITIONS) {
                 if (!definition.cssVar) continue;
                 const value = getPropertyByPath(currentThemeSet, definition.configKey) ?? getPropertyByPath(fullConfig, definition.fallbackKey);
 
@@ -2360,7 +2422,8 @@
                     rootStyle.removeProperty(cssVar);
                 }
             };
-            for (const definition of STYLE_DEFINITIONS) {
+
+            for (const definition of ALL_STYLE_DEFINITIONS) {
                 if (!definition.cssVar) continue;
                 const value = getPropertyByPath(currentThemeSet, definition.configKey) ?? getPropertyByPath(fullConfig, `defaultSet.${definition.configKey}`);
 
@@ -2448,14 +2511,18 @@
             this.layoutResizeObserver = null;
             this.registeredNodeAddedTasks = [];
             this.pendingTurnNodes = new Set();
-            this.debouncedNavUpdate = debounce(() => EventBus.publish(`${APPID}:navButtonsUpdate`), 100);
-            this.debouncedCacheUpdate = debounce(() => EventBus.publish(`${APPID}:cacheUpdateRequest`), 250);
-            this.debouncedLayoutRecalculate = debounce(() => EventBus.publish(`${APPID}:layoutRecalculate`), 150);
+            this.debouncedNavUpdate = debounce(() => EventBus.publish(`${APPID}:navButtonsUpdate`), TIMING.DEBOUNCE_DELAYS.NAVIGATION_UPDATE);
+            this.debouncedCacheUpdate = debounce(() => EventBus.publish(`${APPID}:cacheUpdateRequest`), TIMING.DEBOUNCE_DELAYS.CACHE_UPDATE);
+            this.debouncedLayoutRecalculate = debounce(() => EventBus.publish(`${APPID}:layoutRecalculate`), TIMING.DEBOUNCE_DELAYS.LAYOUT_RECALCULATION);
 
             // Delegate platform-specific property initialization to the adapter
             PlatformAdapter.initializeObserver(this);
         }
 
+        /**
+         * Starts the main mutation observer and all other specialized observers.
+         * @returns {Promise<void>}
+         */
         async start() {
             // Delegate the entire start logic to the platform-specific adapter
             await PlatformAdapter.start(this);
@@ -2469,8 +2536,6 @@
             // Delegate the mutation handling to the platform-specific adapter
             PlatformAdapter.handleMainMutations(this, mutations);
         }
-
-        // --- Common Methods ---
 
         /**
          * A public method to register a task that runs when a node matching the selector is added.
@@ -2627,7 +2692,7 @@
          */
         constructor(configManager) {
             this.configManager = configManager;
-            this.debouncedUpdateAllMessageHeights = debounce(this.updateAllMessageHeights.bind(this), 250);
+            this.debouncedUpdateAllMessageHeights = debounce(this.updateAllMessageHeights.bind(this), TIMING.DEBOUNCE_DELAYS.VISIBILITY_CHECK);
         }
 
         /**
@@ -2655,8 +2720,8 @@
 
                         if (nameHeight > 0 && iconSize) {
                             msgElem.style.minHeight = iconSize + nameHeight + 'px';
-                        } else if (retryCount < 5) {
-                            setTimeout(() => setMinHeight(retryCount + 1), 50);
+                        } else if (retryCount < RETRY_CONFIG.MAX_AVATAR_HEIGHT_ATTEMPTS) {
+                            setTimeout(() => setMinHeight(retryCount + 1), TIMING.TIMEOUTS.AVATAR_HEIGHT_RETRY);
                         }
                     });
                 };
@@ -2887,6 +2952,7 @@
 
         /**
          * Recalculates the layout for the standing images.
+         * @returns {Promise<void>}
          */
         async recalculateStandingImagesLayout() {
             const rootStyle = document.documentElement.style;
@@ -2988,6 +3054,12 @@
             }
         }
 
+        /**
+         * Retrieves or creates the navigation button container for a given message element.
+         * @private
+         * @param {HTMLElement} messageElement The message element to attach the nav container to.
+         * @returns {HTMLElement | null} The navigation container element or null if creation failed.
+         */
         _getOrCreateNavContainer(messageElement) {
             if (this.navContainers.has(messageElement)) {
                 return this.navContainers.get(messageElement);
@@ -3047,10 +3119,16 @@
             super(configManager, messageCacheManager);
         }
 
+        /**
+         * @override
+         */
         getStyleId() {
             return `${APPID}-collapsible-bubble-style`;
         }
 
+        /**
+         * @override
+         */
         generateCss() {
             return SITE_STYLES.COLLAPSIBLE_CSS;
         }
@@ -3075,7 +3153,7 @@
 
         /**
          * Sets up the collapsible feature on a message element.
-         * @param {HTMLElement} messageElement
+         * @param {HTMLElement} messageElement The message element to process.
          */
         setupFeature(messageElement) {
             if (messageElement.classList.contains(`${APPID}-collapsible-processed`)) {
@@ -3139,18 +3217,24 @@
             super(configManager, messageCacheManager);
         }
 
-        /** @override */
+        /**
+         * @override
+         */
         init() {
             super.init();
             EventBus.subscribe(`${APPID}:navigation`, () => this.navContainers.clear());
         }
 
-        /** @override */
+        /**
+         * @override
+         */
         getStyleId() {
             return `${APPID}-bubble-nav-style`;
         }
 
-        /** @override */
+        /**
+         * @override
+         */
         generateCss() {
             return SITE_STYLES.BUBBLE_NAV_CSS;
         }
@@ -3190,6 +3274,10 @@
             });
         }
 
+        /**
+         * Sets up the scroll-to-top button for a message element.
+         * @param {HTMLElement} messageElement The message element to process.
+         */
         setupScrollToTopButton(messageElement) {
             const container = this._getOrCreateNavContainer(messageElement);
             if (!container || container.querySelector(`.${APPID}-nav-group-bottom`)) return;
@@ -3239,12 +3327,16 @@
             EventBus.subscribe(`${APPID}:navigation`, () => this.navContainers.clear());
         }
 
-        /** @override */
+        /**
+         * @override
+         */
         getStyleId() {
             return `${APPID}-bubble-nav-style`;
         }
 
-        /** @override */
+        /**
+         * @override
+         */
         generateCss() {
             return SITE_STYLES.BUBBLE_NAV_CSS;
         }
@@ -3363,6 +3455,9 @@
     // =================================================================================
 
     class FixedNavigationManager {
+        /**
+         * @param {MessageCacheManager} messageCacheManager An instance of the message cache manager.
+         */
         constructor(messageCacheManager) {
             this.navConsole = null;
             this.messageCacheManager = messageCacheManager;
@@ -3370,12 +3465,16 @@
             this.highlightedMessage = null;
             this.unsubscribers = [];
 
-            this.debouncedUpdateUI = debounce(this._updateUI.bind(this), 50);
-            this.debouncedReposition = debounce(this.repositionContainers.bind(this), 100);
+            this.debouncedUpdateUI = debounce(this._updateUI.bind(this), TIMING.DEBOUNCE_DELAYS.THEME_PREVIEW);
+            this.debouncedReposition = debounce(this.repositionContainers.bind(this), TIMING.DEBOUNCE_DELAYS.NAVIGATION_UPDATE);
 
             this.handleBodyClick = this.handleBodyClick.bind(this);
         }
 
+        /**
+         * Initializes the fixed navigation console.
+         * @returns {Promise<void>}
+         */
         async init() {
             this.injectStyle();
             this.createContainers();
@@ -3407,6 +3506,10 @@
             }
         }
 
+        /**
+         * Destroys the component and cleans up all related DOM elements and listeners.
+         * @returns {void}
+         */
         destroy() {
             if (this.highlightedMessage) {
                 this.highlightedMessage.classList.remove(`${APPID}-highlight-message`);
@@ -3471,6 +3574,11 @@
             document.body.addEventListener('click', this.handleBodyClick);
         }
 
+        /**
+         * Handles clicks on the document body to delegate actions for the nav console.
+         * @param {MouseEvent} e The click event object.
+         * @returns {void}
+         */
         handleBodyClick(e) {
             const navButton = e.target.closest(`.${APPID}-nav-btn`);
             if (navButton && this.navConsole?.contains(navButton)) {
@@ -3519,6 +3627,11 @@
             this.repositionContainers();
         }
 
+        /**
+         * Highlights a target message and updates the navigation counters to reflect its position.
+         * @param {HTMLElement} targetMsg The message element to highlight and use as the reference for indices.
+         * @returns {void}
+         */
         setHighlightAndIndices(targetMsg) {
             if (!targetMsg || !this.navConsole) return;
             this.highlightMessage(targetMsg);
@@ -3543,6 +3656,16 @@
             this.navConsole.querySelector(`#${APPID}-nav-group-total .${APPID}-counter-current`).textContent = this.currentIndices.total > -1 ? this.currentIndices.total + 1 : '--';
         }
 
+        /**
+         * @private
+         * @description Finds the index of the message in a given array that is nearest to (but not after) the current message's vertical position.
+         * This is used to synchronize the 'user' and 'assistant' counters.
+         * For example, when an assistant message is highlighted, this finds the most recent user message that appeared before it on the screen.
+         * It iterates backwards for efficiency and to correctly find the last message that meets the criteria.
+         * @param {HTMLElement} currentMsg The reference message element.
+         * @param {HTMLElement[]} messageArray The array of messages to search within.
+         * @returns {number} The index of the nearest message in the array, or -1 if not found.
+         */
         findNearestIndex(currentMsg, messageArray) {
             const currentMsgTop = currentMsg.getBoundingClientRect().top;
             let nearestIndex = -1;
@@ -3555,6 +3678,11 @@
             return nearestIndex;
         }
 
+        /**
+         * Handles clicks on the main navigation buttons (prev, next, etc.).
+         * @param {HTMLElement} buttonElement The navigation button element that was clicked.
+         * @returns {void}
+         */
         handleButtonClick(buttonElement) {
             let targetMsg = null;
             const userMessages = this.messageCacheManager.getUserMessages();
@@ -3607,6 +3735,12 @@
             this.navigateToMessage(targetMsg);
         }
 
+        /**
+         * Handles clicks on the navigation counters, allowing the user to jump to a specific message number.
+         * @param {MouseEvent} e The click event object.
+         * @param {HTMLElement} counterSpan The counter span element that was clicked.
+         * @returns {void}
+         */
         handleCounterClick(e, counterSpan) {
             const role = counterSpan.dataset.role;
             const input = h(`input.${APPID}-nav-jump-input`, { type: 'text' });
@@ -3653,6 +3787,11 @@
             scrollToElement(targetToScroll, { offset: CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV });
         }
 
+        /**
+         * Applies a highlight class to a given message element and removes it from the previously highlighted one.
+         * @param {HTMLElement} element The message element to highlight.
+         * @returns {void}
+         */
         highlightMessage(element) {
             if (this.highlightedMessage === element) return;
             if (this.highlightedMessage) {
@@ -3667,6 +3806,10 @@
             }
         }
 
+        /**
+         * Repositions the navigation console to align with the main input form.
+         * @returns {void}
+         */
         repositionContainers() {
             const inputForm = document.querySelector(CONSTANTS.SELECTORS.FIXED_NAV_INPUT_AREA_TARGET);
             if (!inputForm || !this.navConsole) return;
@@ -3791,7 +3934,7 @@
         constructor(configManager) {
             this.configManager = configManager;
             this.button = null;
-            this.debouncedReposition = debounce(this.repositionButton.bind(this), 100);
+            this.debouncedReposition = debounce(this.repositionButton.bind(this), TIMING.DEBOUNCE_DELAYS.NAVIGATION_UPDATE);
             this.fixedNavManager = null;
         }
 
@@ -3803,6 +3946,11 @@
             this.fixedNavManager = manager;
         }
 
+        /**
+         * Initializes the bulk collapse/expand button.
+         * Renders the button, injects styles, and sets up event listeners.
+         * @returns {Promise<void>}
+         */
         async init() {
             this.render();
             this.injectStyle();
@@ -3913,6 +4061,11 @@
             }
         }
 
+        /**
+         * Toggles the collapsed state of all applicable messages.
+         * @private
+         * @param {'expanded' | 'collapsed'} state The target state to apply to all messages.
+         */
         _toggleAllMessages(state) {
             const messages = document.querySelectorAll(`.${APPID}-collapsible`);
             const shouldCollapse = state === 'collapsed';
@@ -3948,11 +4101,19 @@
             this.element = null;
         }
 
-        /** @abstract */
+        /**
+         * @abstract
+         * Renders the component's DOM structure. Must be implemented by subclasses.
+         * @returns {void}
+         */
         render() {
             throw new Error('Component must implement render method.');
         }
 
+        /**
+         * Removes the component's element from the DOM and performs cleanup.
+         * @returns {void}
+         */
         destroy() {
             this.element?.remove();
             this.element = null;
@@ -4765,14 +4926,14 @@
     class CustomSettingsButton extends UIComponentBase {
         /**
          * @param {object} callbacks - Functions to be called on component events.
-         * @param {function} callbacks.onClick - Called when the button is clicked.
+         * @param {function(): void} callbacks.onClick - Called when the button is clicked.
          * @param {object} options - Configuration for the button's appearance and behavior.
          * @param {string} options.id - The DOM ID for the button element.
          * @param {string} options.textContent - The text or emoji to display inside the button.
          * @param {string} options.title - The tooltip text for the button.
          * @param {number|string} options.zIndex - The z-index for the button.
          * @param {{top?: string, right?: string, bottom?: string, left?: string}} options.position - The fixed position of the button.
-         * @param {{background: string, borderColor: string, backgroundHover: string, borderColorHover: string}} options.siteStyles - CSS variables for theming.
+         * @param {object} options.siteStyles - CSS variables for theming.
          */
         constructor(callbacks, options) {
             super(callbacks);
@@ -4781,6 +4942,10 @@
             this.styleId = `${this.id}-style`;
         }
 
+        /**
+         * Renders the settings button element and appends it to the document body.
+         * @returns {HTMLElement} The created button element.
+         */
         render() {
             this._injectStyles();
             const oldElement = document.getElementById(this.id);
@@ -4864,7 +5029,7 @@
             this.debouncedSave = debounce(async () => {
                 const newConfig = await this._collectDataFromForm();
                 this.callbacks.onSave?.(newConfig);
-            }, 300);
+            }, TIMING.DEBOUNCE_DELAYS.SETTINGS_SAVE);
             this._handleDocumentClick = this._handleDocumentClick.bind(this);
             this._handleDocumentKeydown = this._handleDocumentKeydown.bind(this);
         }
@@ -4970,6 +5135,11 @@
             this.activeThemeSet = null;
         }
 
+        /**
+         * @override
+         * Updates the displayed theme name and then shows the panel.
+         * @returns {Promise<void>}
+         */
         async show() {
             // Update applied theme name display (if callback is available)
             if (this.callbacks.getCurrentThemeSet) {
@@ -5529,7 +5699,7 @@
             this.pendingDeletionKey = null;
             this.modal = null;
             this.dataConverter = callbacks.dataConverter;
-            this.debouncedUpdatePreview = debounce(() => this._updateAllPreviews(), 50);
+            this.debouncedUpdatePreview = debounce(() => this._updateAllPreviews(), TIMING.DEBOUNCE_DELAYS.THEME_PREVIEW);
             this.renameState = {
                 type: null,
                 isActive: false,
