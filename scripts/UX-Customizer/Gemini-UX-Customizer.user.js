@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.3.3-b2
+// @version      1.3.3-b3
 // @license      MIT
 // @description  Automatically applies a theme based on the chat name (changes user/assistant names, text color, icon, bubble style, window background, input area style, standing images, etc.)
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=gemini.google.com
@@ -174,6 +174,9 @@
 
             // --- Canvas ---
             CANVAS_CONTAINER: 'immersive-panel',
+
+            // --- File Panel ---
+            FILE_PANEL_CONTAINER: 'context-sidebar',
         };
 
         /**
@@ -290,6 +293,7 @@
             PlatformAdapter.startGlobalTitleObserver(instance);
             PlatformAdapter.startSidebarObserver(instance);
             PlatformAdapter.startURLChangeObserver(instance);
+            PlatformAdapter.startFilePanelObserver();
 
             window.addEventListener('resize', instance.debouncedLayoutRecalculate);
         }
@@ -345,6 +349,50 @@
                 };
             }
             window.addEventListener('popstate', handler);
+        }
+
+        /**
+         * @private
+         * @description Sets up an observer to detect the "Files in this chat" panel (`context-sidebar`).
+         * When the panel's visibility is toggled (via class/style attribute changes),
+         * it dynamically adjusts the z-index of the user's standing image to ensure the panel is displayed on top.
+         */
+        static async startFilePanelObserver() {
+            const userImage = document.getElementById(`${APPID}-standing-image-user`);
+            if (!userImage) return;
+
+            const Z_INDEX_DEFAULT = CONSTANTS.Z_INDICES.STANDING_IMAGE;
+            const Z_INDEX_BEHIND_PANEL = '0';
+
+            const panelObserverCallback = () => {
+                const filePanel = document.querySelector(this.SELECTORS.FILE_PANEL_CONTAINER);
+                if (filePanel) {
+                    // Panel is open, move standing image behind it.
+                    userImage.style.zIndex = Z_INDEX_BEHIND_PANEL;
+                } else {
+                    // Panel is closed, restore default z-index from the stylesheet.
+                    userImage.style.zIndex = Z_INDEX_DEFAULT;
+                }
+            };
+
+            // Wait for the main container to exist before observing.
+            const mainContainer = await waitForElement(this.SELECTORS.MAIN_APP_CONTAINER);
+            if (!mainContainer) {
+                Logger.warn('File panel observer could not start: main container not found.');
+                return;
+            }
+
+            const observer = new MutationObserver(panelObserverCallback);
+            // Observe attribute changes within the entire main container, as this is how
+            // the file panel's visibility is toggled.
+            observer.observe(mainContainer, {
+                attributes: true,
+                subtree: true,
+                attributeFilter: ['class', 'style'],
+            });
+
+            // Initial check in case the panel is already open when the script loads.
+            panelObserverCallback();
         }
 
         /**
