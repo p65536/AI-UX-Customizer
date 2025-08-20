@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.3.2] - 2025-08-20
+- **Feature Improvements**
+  - **Performance**: Optimized processing during Assistant response streaming, significantly reducing CPU load. (Minimal patch for performance improvements targeted for 1.3.0).
+
 ## [1.3.1] - 2025-08-20
 - **Fixed**: Fixed a regression introduced in v1.3.0 where toggles in the settings panel would not apply immediately. The root cause was a performance-oriented refactor of the `ObserverManager`; this logic has been reverted to the stable v1.2.1 implementation.
 - **Improved**: The following improvements from v1.3.0 have been retained:
