@@ -27,10 +27,10 @@
     "collapsible_button": {
       "enabled": true
     },
-    "scroll_to_top_button": {
+    "sequential_nav_buttons": {
       "enabled": true
     },
-    "sequential_nav_buttons": {
+    "scroll_to_top_button": {
       "enabled": true
     },
     "fixed_nav_console": {
@@ -160,8 +160,8 @@
 | プロパティ名 | 用途・説明 | 記述例 | 備考・指定可能な値 |
 | --- | --- | --- | --- |
 | `collapsible_button` | メッセージを折りたたむボタンを各メッセージバブル上部に表示する。 | `{ "enabled": true }` | `true`/`false`<br>アシスタント側は左上に、ユーザー側は右上に表示する。<br>なおGeminiにおいてはユーザーバブルにサイト標準の折りたたみボタンが付いているため、Gemini用スクリプトではユーザーバブルに対しては処理しない。<br>また本機能が有効な場合、メッセージ入力欄右側に、全メッセージの折りたたみ状態をトグルするボタンを表示する。 |
-| `scroll_to_top_button` | メッセージの先頭（ターンの先頭）へスクロールするボタンを、各メッセージバブル下部に表示する。 | `{ "enabled": true }` | `true`/`false`<br>アシスタント側は左下に、ユーザー側は右下に表示する。 |
 | `sequential_nav_buttons` | 同じ作者（ユーザーまたはアシスタント）の次/前のメッセージへジャンプするボタンを、各メッセージバブルの横に表示する。 | `{ "enabled": true }` | `true`/`false`<br>アシスタント側は左上に、ユーザー側は右上に表示する。 |
+| `scroll_to_top_button` | メッセージの先頭（ターンの先頭）へスクロールするボタンを、各メッセージバブル下部に表示する。 | `{ "enabled": true }` | `true`/`false`<br>アシスタント側は左下に、ユーザー側は右下に表示する。 |
 | `fixed_nav_console` | 統合ナビコンソールをメッセージ入力欄上部に表示する。 | `{ "enabled": true }` | `true`/`false`<br>メッセージの移動を効率的に行うためのボタンを集約したコンソールバーを表示する。 |
 
 -----

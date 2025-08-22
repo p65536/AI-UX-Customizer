@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.3.3] - 2025-08-22
+- **Refactoring**
+  - **Style Management**: Restructured `STYLE_DEFINITIONS` by UI section and introduced `ALL_STYLE_DEFINITIONS` for unified processing, improving readability and maintainability.
+  - **Constants**: Replaced magic numbers for delays and retry counts with constant objects, enhancing clarity.
+  - **Settings Panel**: Reordered feature toggles to match the UI layout for a more intuitive configuration.
+- **Feature Improvements**
+  - **Performance**: Overhauled DOM Observation: Introduced a hybrid system using CSS animation sentinels for high-frequency events and a lightweight, debounced `MutationObserver` for low-frequency updates, eliminating streaming UI lag.
+  - **Performance**: Avatar Handling Optimization: Replaced constant DOM polling with `animationstart`-based reinjection, ensuring avatars remain visible with minimal performance cost.
+
 ## [1.3.2] - 2025-08-20
 - **Feature Improvements**
   - **Performance**: Optimized processing during Assistant response streaming, significantly reducing CPU load. (Minimal patch for performance improvements targeted for 1.3.0).

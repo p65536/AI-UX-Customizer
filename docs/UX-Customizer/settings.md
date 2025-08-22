@@ -19,8 +19,8 @@
 | **Chat content max width** | Adjusts the maximum display width for the entire conversation. Setting it to the far left will use the platform's default width. |
 | **Prevent image/avatar overlap** | When ON, the display area will automatically adjust so that standing images do not overlap avatar icons. |
 | **Collapsible button** | Adds a button to each message to collapse long messages. |
-| **Scroll to top button** | Adds a button to each message to scroll to the top of that message. |
 | **Sequential nav buttons** | Adds buttons to each message to jump to the next/previous message by the same speaker (user/assistant). |
+| **Scroll to top button** | Adds a button to each message to scroll to the top of that message. |
 | **Navigation console** | Displays an operation panel above the text input field for quick navigation between messages. |
 
 ### 3. Theme Settings Screen Items

@@ -27,10 +27,10 @@ The following is a sample to illustrate the JSON structure. **Ready-to-use sampl
     "collapsible_button": {
       "enabled": true
     },
-    "scroll_to_top_button": {
+    "sequential_nav_buttons": {
       "enabled": true
     },
-    "sequential_nav_buttons": {
+    "scroll_to_top_button": {
       "enabled": true
     },
     "fixed_nav_console": {
@@ -160,8 +160,8 @@ Configure ON/OFF and thresholds for convenient UI improvement features.
 | Property Name | Description | Example | Notes/Allowed Values |
 | --- | --- | --- | --- |
 | `collapsible_button` | Displays a button to collapse messages at the top of each message bubble.  | `{ "enabled": true }` | `true`/`false`<br>Displays on the top-left for assistant and top-right for user.<br>Note: For Gemini, user bubbles have a standard collapse button, so this script does not process user bubbles for Gemini.<br>When this feature is enabled, a button to toggle the collapse state of all messages is displayed to the right of the message input field.  |
-| `scroll_to_top_button` | Displays a button to scroll to the top of a message (or turn) at the bottom of each message bubble.  | `{ "enabled": true }` | `true`/`false`<br>Displays on the bottom-left for assistant and bottom-right for user.  |
 | `sequential_nav_buttons` | Displays buttons next to each message bubble to jump to the next/previous message from the same author (user or assistant).  | `{ "enabled": true }` | `true`/`false`<br>Displays on the top-left for assistant and top-right for user.  |
+| `scroll_to_top_button` | Displays a button to scroll to the top of a message (or turn) at the bottom of each message bubble.  | `{ "enabled": true }` | `true`/`false`<br>Displays on the bottom-left for assistant and bottom-right for user.  |
 | `fixed_nav_console` | Displays an integrated navigation console at the top of the message input field.  | `{ "enabled": true }` | `true`/`false`<br>Displays a console bar consolidating navigation-related features for efficient message movement.  |
 
 -----
