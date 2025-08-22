@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.3.3-b4
+// @version      1.3.3-b5
 // @license      MIT
 // @description  Automatically applies a theme based on the chat name (changes user/assistant names, text color, icon, bubble style, window background, input area style, standing images, etc.)
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=gemini.google.com
@@ -2577,21 +2577,48 @@
         }
 
         /**
-         * Starts the main mutation observer and all other specialized observers.
-         * @returns {Promise<void>}
+         * Starts all platform-specific observers.
+         * @param {ObserverManager} instance The ObserverManager instance.
          */
         async start() {
-            // Delegate the entire start logic to the platform-specific adapter
-            await PlatformAdapter.start(this);
+            // This is a simplified version of the PlatformAdapter.start method.
+            // It sets up the main MutationObserver and the ResizeObserver.
+            const container = await waitForElement(PlatformAdapter.SELECTORS.MAIN_APP_CONTAINER);
+            if (!container) {
+                Logger.error('Main container not found. Observer not started.');
+                return;
+            }
+
+            this.mainObserver = new MutationObserver((mutations) => this._handleMainMutations(mutations));
+            this.mainObserver.observe(document.body, { childList: true, subtree: true });
+
+            // Centralized ResizeObserver for layout changes
+            this.layoutResizeObserver = new ResizeObserver(this.debouncedLayoutRecalculate);
+            this.layoutResizeObserver.observe(document.body);
+
+            // Start other platform-specific observers (e.g., sidebar, URL).
+            PlatformAdapter.startSidebarObserver(this);
+            PlatformAdapter.startURLChangeObserver(this);
+            PlatformAdapter.startGlobalTitleObserver(this);
+            if (PlatformAdapter.startFilePanelObserver) {
+                PlatformAdapter.startFilePanelObserver(); // Platform-specific
+            }
+
+            window.addEventListener('resize', this.debouncedLayoutRecalculate);
         }
 
         /**
          * The main callback, a dispatcher that calls specialized handlers.
+         * This is a lightweight version that only triggers debounced updates.
          * @param {MutationRecord[]} mutations
          */
         _handleMainMutations(mutations) {
-            // Delegate the mutation handling to the platform-specific adapter
-            PlatformAdapter.handleMainMutations(this, mutations);
+            // The simple occurrence of mutations is enough to trigger debounced updates.
+            // We don't need to inspect the mutations themselves here, as Sentinel handles new turns.
+            this._dispatchNodeAddedTasks(mutations);
+            this.debouncedCacheUpdate();
+            this.debouncedLayoutRecalculate();
+            this.debouncedVisibilityCheck();
         }
 
         /**
@@ -2652,56 +2679,67 @@
         }
 
         /**
-         * Processes a single turnNode. If it's already complete, it's processed immediately.
-         * If it's incomplete (streaming), a dedicated MutationObserver is attached to watch for its completion
-         * and to re-inject avatars if they are removed by the platform's re-rendering.
+         * Processes a single turnNode. It handles both completed and streaming turns.
+         * For streaming turns, this observer performs the crucial *initial* avatar injection
+         * as soon as a message element appears. Subsequent re-injections are handled
+         * performantly by the CSS animation listener in AvatarManager.
          * @param {HTMLElement} turnNode
          */
         _processTurnSingle(turnNode) {
             if (turnNode.nodeType !== Node.ELEMENT_NODE || this.activeTurnObservers.has(turnNode)) return;
 
-            // --- Initial State Processing ---
-            const messageElements = turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
-            messageElements.forEach((elem) => {
-                EventBus.publish(`${APPID}:avatarInject`, elem);
-            });
-
             if (this._isTurnComplete(turnNode)) {
-                // If the turn is already complete when we first see it, process it immediately.
+                // This branch handles turns that are already complete when they are first detected.
+                // It's safe to query and inject everything at once.
+                const messageElements = turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
                 messageElements.forEach((elem) => {
+                    EventBus.publish(`${APPID}:avatarInject`, elem);
                     EventBus.publish(`${APPID}:messageComplete`, elem);
                 });
                 EventBus.publish(`${APPID}:turnComplete`, turnNode);
                 this.debouncedNavUpdate();
             } else {
-                // The turn is not yet complete (streaming response).
-                // Create a dedicated observer for this specific turn.
+                // This branch handles streaming turns.
                 const turnObserver = new MutationObserver((turnMutations, observer) => {
-                    // Continuously check for and re-inject the avatar if it's removed by a re-render during streaming.
-                    const allElementsInTurn = turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
-                    allElementsInTurn.forEach((elem) => {
-                        if (!elem.querySelector(CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER)) {
-                            EventBus.publish(`${APPID}:avatarInject`, elem);
-                        }
-                    });
+                    let isNowComplete = false;
 
-                    // Check if the turn has now completed.
-                    if (this._isTurnComplete(turnNode)) {
-                        // The completion element has been added.
-                        // Process the now-completed turn.
+                    for (const mutation of turnMutations) {
+                        if (mutation.type === 'childList') {
+                            for (const addedNode of mutation.addedNodes) {
+                                if (addedNode.nodeType !== Node.ELEMENT_NODE) continue;
+
+                                // 1. Initial Injection: Find any message elements that were just added and inject their avatars.
+                                const messagesInNode = addedNode.matches(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS) ? [addedNode] : Array.from(addedNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS));
+
+                                messagesInNode.forEach((elem) => {
+                                    // Inject only if it hasn't been processed before.
+                                    if (!elem.classList.contains(`${APPID}-avatar-processed`)) {
+                                        EventBus.publish(`${APPID}:avatarInject`, elem);
+                                    }
+                                });
+
+                                // 2. Completion Check: See if the completion signal was added in this batch.
+                                if (addedNode.querySelector(CONSTANTS.SELECTORS.TURN_COMPLETE_SELECTOR)) {
+                                    isNowComplete = true;
+                                }
+                            }
+                        }
+                    }
+
+                    // 3. Finalize: If the turn is now complete, run final processing and disconnect.
+                    if (isNowComplete || this._isTurnComplete(turnNode)) {
+                        const allElementsInTurn = turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
                         allElementsInTurn.forEach((elem) => {
                             EventBus.publish(`${APPID}:messageComplete`, elem);
                         });
                         EventBus.publish(`${APPID}:turnComplete`, turnNode);
                         this.debouncedNavUpdate();
 
-                        // Disconnect and clean up this observer as its job is done.
                         observer.disconnect();
                         this.activeTurnObservers.delete(turnNode);
                     }
                 });
 
-                // Start observing only this turn for child additions/removals.
                 turnObserver.observe(turnNode, { childList: true, subtree: true });
                 this.activeTurnObservers.set(turnNode, turnObserver);
             }
@@ -2724,6 +2762,19 @@
             this.injectAvatarStyle();
             EventBus.subscribe(`${APPID}:avatarInject`, (elem) => this.injectAvatar(elem));
             EventBus.subscribe(`${APPID}:cacheUpdateRequest`, () => this.debouncedUpdateAllMessageHeights());
+
+            // Add a global listener for the animation that detects removed avatars.
+            // This is highly performant as it avoids JS-based DOM polling.
+            document.addEventListener(
+                'animationstart',
+                (e) => {
+                    if (e.animationName === `${APPID}-avatar-removed-check`) {
+                        // Re-inject the avatar only on the element that triggered the animation.
+                        this.injectAvatar(e.target);
+                    }
+                },
+                true
+            );
         }
 
         /**
@@ -2783,6 +2834,14 @@
             const avatarStyle = h('style', {
                 id: styleId,
                 textContent: `
+                /* Define a dummy animation used to detect when an avatar is removed. */
+                @keyframes ${APPID}-avatar-removed-check { from { transform: none; } to { transform: none; } }
+
+                /* This rule applies the animation only to elements that should have an avatar but don't. */
+                .${APPID}-avatar-processed:not(:has(${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER})) {
+                    animation: ${APPID}-avatar-removed-check 0.001s;
+                }
+
                 /* Set message containers as positioning contexts */
                 ${CONSTANTS.SELECTORS.AVATAR_USER},
                 ${CONSTANTS.SELECTORS.AVATAR_ASSISTANT} {
@@ -7730,7 +7789,16 @@
         Logger.log('Anchor element detected. Initializing the script...');
         automator.init().then(() => {
             PlatformAdapter.applyFixes(automator);
+            // Scan for turns that already exist on the page when the script is initialized.
+            automator.observerManager.scanForExistingTurns();
         });
+    });
+
+    // Use the Sentinel to detect when a new conversation turn is added to the DOM.
+    // This is more performant than using the main MutationObserver for this high-frequency event.
+    sentinel.on(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER, (turnNode) => {
+        if (!isInitialized) return;
+        automator.observerManager._processTurnSingle(turnNode);
     });
 
     // ---- Debugging ----
