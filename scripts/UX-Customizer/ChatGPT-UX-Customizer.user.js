@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.3.3
+// @version      1.3.4
 // @license      MIT
 // @description  Automatically applies a theme based on the chat name (changes user/assistant names, text color, icon, bubble style, window background, input area style, standing images, etc.)
 // @icon         https://chatgpt.com/favicon.ico
@@ -278,12 +278,9 @@
             instance.layoutResizeObserver.observe(document.body);
 
             // Call the static methods on the PlatformAdapter class, passing the instance.
-            PlatformAdapter.startConversationTurnObserver(instance);
             PlatformAdapter.startGlobalTitleObserver(instance);
             PlatformAdapter.startSidebarObserver(instance);
             PlatformAdapter.startURLChangeObserver(instance);
-
-            window.addEventListener('resize', instance.debouncedLayoutRecalculate);
         }
 
         /**
@@ -299,19 +296,6 @@
 
         /**
          * @private
-         * @description Sets up the monitoring for conversation turns.
-         */
-        static startConversationTurnObserver(instance) {
-            // Register a task for newly added turn nodes.
-            instance.registerNodeAddedTask(this.SELECTORS.CONVERSATION_CONTAINER, (turnNode) => {
-                instance._processTurnSingle(turnNode);
-            });
-            // Initial batch processing for all existing turnNodes on page load.
-            instance.scanForExistingTurns();
-        }
-
-        /**
-         * @private
          * @description Sets up the monitoring for URL changes.
          */
         static startURLChangeObserver(instance) {
@@ -320,6 +304,8 @@
                 if (location.href !== lastHref) {
                     lastHref = location.href;
                     instance.cleanupActiveTurnObservers();
+                    // Re-bind the title observer to handle cases where the title element is replaced during SPA navigation.
+                    PlatformAdapter.startGlobalTitleObserver(instance);
                     EventBus.publish(`${APPID}:themeUpdate`);
                     EventBus.publish(`${APPID}:navigation`);
                     // Give the DOM a moment to settle after navigation, then re-scan existing turns.
@@ -398,7 +384,8 @@
                     attributeObserver = new MutationObserver(() => {
                         instance.debouncedLayoutRecalculate();
                     });
-                    attributeObserver.observe(sidebar, { attributes: true });
+                    // Observe only attributes relevant to layout changes to reduce unnecessary firing.
+                    attributeObserver.observe(sidebar, { attributes: true, attributeFilter: ['class', 'style', 'aria-hidden'] });
                     // Also trigger a recalculation immediately, as its appearance is a layout change.
                     instance.debouncedLayoutRecalculate();
                 }
@@ -2598,30 +2585,8 @@
          * @param {ObserverManager} instance The ObserverManager instance.
          */
         async start() {
-            // This is a simplified version of the PlatformAdapter.start method.
-            // It sets up the main MutationObserver and the ResizeObserver.
-            const container = await waitForElement(PlatformAdapter.SELECTORS.MAIN_APP_CONTAINER);
-            if (!container) {
-                Logger.error('Main container not found. Observer not started.');
-                return;
-            }
-
-            this.mainObserver = new MutationObserver((mutations) => this._handleMainMutations(mutations));
-            this.mainObserver.observe(document.body, { childList: true, subtree: true });
-
-            // Centralized ResizeObserver for layout changes
-            this.layoutResizeObserver = new ResizeObserver(this.debouncedLayoutRecalculate);
-            this.layoutResizeObserver.observe(document.body);
-
-            // Start other platform-specific observers (e.g., sidebar, URL).
-            PlatformAdapter.startSidebarObserver(this);
-            PlatformAdapter.startURLChangeObserver(this);
-            PlatformAdapter.startGlobalTitleObserver(this);
-            if (PlatformAdapter.startFilePanelObserver) {
-                PlatformAdapter.startFilePanelObserver(); // Platform-specific
-            }
-
-            window.addEventListener('resize', this.debouncedLayoutRecalculate);
+            // Delegate all platform-specific observer setup to the adapter.
+            await PlatformAdapter.start(this);
         }
 
         /**
@@ -2717,6 +2682,16 @@
                 this.debouncedNavUpdate();
             } else {
                 // This branch handles streaming turns.
+
+                // Perform an initial scan for message elements that may have been added in the same DOM update batch as the turn container itself.
+                // This closes a race condition window where the observer starts after the initial element is already present.
+                const existingMessages = turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
+                existingMessages.forEach((elem) => {
+                    if (!elem.classList.contains(`${APPID}-avatar-processed`)) {
+                        EventBus.publish(`${APPID}:avatarInject`, elem);
+                    }
+                });
+                
                 const turnObserver = new MutationObserver((turnMutations, observer) => {
                     let isNowComplete = false;
 
@@ -2741,6 +2716,14 @@
                                 }
                             }
                         }
+                    }
+
+                    // If the turn node has been disconnected from the DOM (e.g., by user action or error),
+                    // clean up its observer immediately to prevent memory leaks.
+                    if (!turnNode.isConnected) {
+                        observer.disconnect();
+                        this.activeTurnObservers.delete(turnNode);
+                        return; // No further processing needed for a disconnected node.
                     }
 
                     // 3. Finalize: If the turn is now complete, run final processing and disconnect.
