@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.3.4
+// @version      1.3.6
 // @license      MIT
 // @description  Automatically applies a theme based on the chat name (changes user/assistant names, text color, icon, bubble style, window background, input area style, standing images, etc.)
 // @icon         https://chatgpt.com/favicon.ico
@@ -43,12 +43,13 @@
             warn: 1,
             info: 2,
             log: 3,
+            debug: 4,
         },
         /** @property {string} level - The current active log level. */
         level: 'log', // Default level
         /**
          * Sets the current log level.
-         * @param {string} level The new log level. Must be one of 'error', 'warn', 'info', 'log'.
+         * @param {string} level The new log level. Must be one of 'error', 'warn', 'info', 'log', 'debug'.
          */
         setLevel(level) {
             if (Object.prototype.hasOwnProperty.call(this.levels, level)) {
@@ -81,12 +82,79 @@
                 console.log(LOG_PREFIX, ...args);
             }
         },
+        /**
+         * Logs messages for debugging. Only active in 'debug' level.
+         * @param {...any} args The messages or objects to log.
+         */
+        debug(...args) {
+            if (this.levels[this.level] >= this.levels.debug) {
+                // Use console.debug for better filtering in browser dev tools.
+                console.debug(LOG_PREFIX, ...args);
+            }
+        },
+        /**
+         * Starts a timer for performance measurement. Only active in 'debug' level.
+         * @param {string} label The label for the timer.
+         */
+        time(label) {
+            if (this.levels[this.level] >= this.levels.debug) {
+                console.time(`${LOG_PREFIX} ${label}`);
+            }
+        },
+        /**
+         * Ends a timer and logs the elapsed time. Only active in 'debug' level.
+         * @param {string} label The label for the timer, must match the one used in time().
+         */
+        timeEnd(label) {
+            if (this.levels[this.level] >= this.levels.debug) {
+                console.timeEnd(`${LOG_PREFIX} ${label}`);
+            }
+        },
         /** @param {...any} args The title for the log group. */
         group: (...args) => console.group(LOG_PREFIX, ...args),
         /** @param {...any} args The title for the collapsed log group. */
         groupCollapsed: (...args) => console.groupCollapsed(LOG_PREFIX, ...args),
         /** Closes the current log group. */
         groupEnd: () => console.groupEnd(),
+    };
+
+    /**
+     * @description A lightweight performance monitor to track event frequency.
+     * Only active when Logger.level is set to 'debug'.
+     */
+    const PerfMonitor = {
+        _events: {},
+        /**
+         * Logs the frequency of an event, throttled by a specified delay.
+         * @param {string} key A unique key for the event to track.
+         * @param {number} [delay=1000] The time window in milliseconds to aggregate calls.
+         */
+        throttleLog(key, delay = 1000) {
+            if (Logger.levels[Logger.level] < Logger.levels.debug) {
+                return;
+            }
+
+            const now = Date.now();
+            if (!this._events[key]) {
+                this._events[key] = { count: 1, startTime: now };
+                return;
+            }
+
+            this._events[key].count++;
+
+            if (now - this._events[key].startTime >= delay) {
+                const callsPerSecond = (this._events[key].count / ((now - this._events[key].startTime) / 1000)).toFixed(2);
+                // Use Logger.debug to ensure the output is prefixed and controlled.
+                Logger.debug(`[PerfMonitor] ${key}: ${this._events[key].count} calls in ${now - this._events[key].startTime}ms (${callsPerSecond} calls/sec)`);
+                delete this._events[key];
+            }
+        },
+        /**
+         * Resets all performance counters.
+         */
+        reset() {
+            this._events = {};
+        },
     };
 
     // =================================================================================
@@ -260,6 +328,53 @@
         }
 
         /**
+         * Starts a dedicated observer for UI elements rendered outside the main chat container, like the Canvas.
+         * This uses a MutationObserver to detect when the Canvas appears/disappears.
+         */
+        static startCanvasObserver() {
+            let isCurrentlyActive = this.isCanvasModeActive();
+            let canvasResizeObserver = null;
+            const debouncedUiReposition = debounce(() => EventBus.publish(`${APPID}:uiReposition`), TIMING.DEBOUNCE_DELAYS.UI_REPOSITION);
+
+            const checkCanvasState = () => {
+                const newState = this.isCanvasModeActive();
+                if (newState === isCurrentlyActive) {
+                    return; // No change in state.
+                }
+
+                // --- State has changed ---
+                isCurrentlyActive = newState;
+                EventBus.publish(`${APPID}:visibilityRecheck`);
+
+                // Disconnect any existing resize observer.
+                if (canvasResizeObserver) {
+                    canvasResizeObserver.disconnect();
+                    canvasResizeObserver = null;
+                }
+
+                if (newState) {
+                    // Canvas just became active, find the panel and set up a ResizeObserver.
+                    const canvasTrigger = document.querySelector(this.SELECTORS.CANVAS_CONTAINER);
+                    const resizeTarget = canvasTrigger ? canvasTrigger.closest('section.popover') : null;
+
+                    if (resizeTarget) {
+                        canvasResizeObserver = new ResizeObserver(() => {
+                            debouncedUiReposition();
+                        });
+                        canvasResizeObserver.observe(resizeTarget);
+                    }
+                }
+            };
+
+            const debouncedStateCheck = debounce(checkCanvasState, TIMING.DEBOUNCE_DELAYS.LAYOUT_RECALCULATION);
+            const mutationObserver = new MutationObserver(() => {
+                debouncedStateCheck();
+            });
+
+            mutationObserver.observe(document.body, { childList: true, subtree: true });
+        }
+
+        /**
          * Starts all platform-specific observers.
          * @param {ObserverManager} instance The ObserverManager instance.
          */
@@ -271,7 +386,6 @@
             }
 
             instance.mainObserver = new MutationObserver((mutations) => instance._handleMainMutations(mutations));
-            instance.mainObserver.observe(document.body, { childList: true, subtree: true });
 
             // Centralized ResizeObserver for layout changes
             instance.layoutResizeObserver = new ResizeObserver(instance.debouncedLayoutRecalculate);
@@ -281,6 +395,11 @@
             PlatformAdapter.startGlobalTitleObserver(instance);
             PlatformAdapter.startSidebarObserver(instance);
             PlatformAdapter.startURLChangeObserver(instance);
+            PlatformAdapter.startCanvasObserver();
+
+            // Initial static scan, then start the main observer.
+            instance.scanForExistingTurns();
+            instance.startMainObserver(container);
         }
 
         /**
@@ -300,19 +419,30 @@
          */
         static startURLChangeObserver(instance) {
             let lastHref = location.href;
-            const handler = () => {
+            const handler = async () => {
                 if (location.href !== lastHref) {
                     lastHref = location.href;
+                    Logger.debug('URL changed:', location.href);
+
+                    instance.stopMainObserver();
                     instance.cleanupActiveTurnObservers();
-                    // Re-bind the title observer to handle cases where the title element is replaced during SPA navigation.
+
                     PlatformAdapter.startGlobalTitleObserver(instance);
                     EventBus.publish(`${APPID}:themeUpdate`);
                     EventBus.publish(`${APPID}:navigation`);
-                    // Give the DOM a moment to settle after navigation, then re-scan existing turns.
-                    setTimeout(() => {
-                        instance.scanForExistingTurns();
-                        instance.debouncedCacheUpdate();
-                    }, TIMING.TIMEOUTS.POST_NAVIGATION_DOM_SETTLE);
+
+                    const chatContainer = await waitForElement(this.SELECTORS.MAIN_APP_CONTAINER);
+                    if (chatContainer) {
+                        const waiterObserver = new MutationObserver(() => {
+                            if (chatContainer.querySelector(this.SELECTORS.CONVERSATION_CONTAINER)) {
+                                waiterObserver.disconnect();
+                                instance.scanForExistingTurns();
+                                instance.startMainObserver(chatContainer);
+                                instance.debouncedCacheUpdate();
+                            }
+                        });
+                        waiterObserver.observe(chatContainer, { childList: true, subtree: true });
+                    }
                 }
             };
             for (const m of ['pushState', 'replaceState']) {
@@ -429,6 +559,11 @@
                 button.style.right = style.value;
             }
         }
+
+        static handleInfiniteScroll(fixedNavManagerInstance, highlightedMessage, previousTotalMessages) {
+            // No-op for ChatGPT as it does not use infinite scrolling for chat history.
+            // This method exists to maintain architectural consistency with the Gemini version.
+        }
     }
 
     // =================================================================================
@@ -446,6 +581,8 @@
             LAYOUT_RECALCULATION: 150,
             // Delay for updating navigation buttons after a message is completed
             NAVIGATION_UPDATE: 100,
+            // Delay for repositioning UI elements like the settings button
+            UI_REPOSITION: 100,
             // Delay for updating the theme after sidebar mutations (Gemini-specific)
             THEME_UPDATE: 150,
             // Delay for saving settings after user input in the settings panel
@@ -815,6 +952,9 @@
             fixed_nav_console: {
                 enabled: true,
             },
+        },
+        developer: {
+            logger_level: 'log', // 'error', 'warn', 'info', 'log', 'debug'
         },
         themeSets: [
             {
@@ -1929,11 +2069,22 @@
         }
 
         _rebuildCache() {
+            Logger.time('MessageCacheManager._rebuildCache');
+            // Guard clause: If no conversation turns are on the page (e.g., on the homepage),
+            // clear the cache if it's not already empty and exit early to prevent unnecessary queries.
+            if (!document.querySelector(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER)) {
+                if (this.totalMessages.length > 0) {
+                    this.clear();
+                }
+                Logger.timeEnd('MessageCacheManager._rebuildCache');
+                return;
+            }
             this.userMessages = Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.USER_MESSAGE));
             this.assistantMessages = Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.ASSISTANT_MESSAGE));
             this.totalMessages = Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS));
 
             this.notify();
+            Logger.timeEnd('MessageCacheManager._rebuildCache');
         }
 
         /**
@@ -2397,6 +2548,7 @@
          * Main theme update handler.
          */
         updateTheme() {
+            Logger.debug('Theme update triggered.');
             const currentLiveURL = location.href;
             const currentTitle = this.getChatTitleAndCache();
             const urlChanged = currentLiveURL !== this.lastURL;
@@ -2421,6 +2573,7 @@
          * @param {AppConfig} fullConfig The entire configuration object, including defaultSet.
          */
         async applyThemeStyles(currentThemeSet, fullConfig) {
+            Logger.time('ThemeManager.applyThemeStyles');
             this.lastAppliedThemeSet = currentThemeSet;
             // Static styles
             if (!this.themeStyleElem) {
@@ -2501,6 +2654,7 @@
 
             await Promise.all(asyncImageTasks);
             EventBus.publish(`${APPID}:themeApplied`, { theme: currentThemeSet, config: fullConfig });
+            Logger.timeEnd('ThemeManager.applyThemeStyles');
         }
 
         /**
@@ -2556,11 +2710,13 @@
     // =================================================================================
 
     class ObserverManager {
-        constructor() {
+        constructor(automator) {
+            this.automator = automator; // Store a reference to the main controller.
             this.mainObserver = null;
             this.layoutResizeObserver = null;
             this.registeredNodeAddedTasks = [];
             this.activeTurnObservers = new Map();
+            this.processedTurnNodes = new Set();
             this.debouncedNavUpdate = debounce(() => EventBus.publish(`${APPID}:navButtonsUpdate`), TIMING.DEBOUNCE_DELAYS.NAVIGATION_UPDATE);
             this.debouncedCacheUpdate = debounce(() => EventBus.publish(`${APPID}:cacheUpdateRequest`), TIMING.DEBOUNCE_DELAYS.CACHE_UPDATE);
             this.debouncedLayoutRecalculate = debounce(() => EventBus.publish(`${APPID}:layoutRecalculate`), TIMING.DEBOUNCE_DELAYS.LAYOUT_RECALCULATION);
@@ -2581,6 +2737,25 @@
         }
 
         /**
+         * Starts the main MutationObserver to watch for DOM changes.
+         * @param {HTMLElement} container The main container element to observe.
+         */
+        startMainObserver(container) {
+            if (this.mainObserver && container) {
+                this.mainObserver.observe(container, { childList: true, subtree: true });
+            }
+        }
+
+        /**
+         * Stops the main MutationObserver.
+         */
+        stopMainObserver() {
+            if (this.mainObserver) {
+                this.mainObserver.disconnect();
+            }
+        }
+
+        /**
          * Starts all platform-specific observers.
          * @param {ObserverManager} instance The ObserverManager instance.
          */
@@ -2595,12 +2770,54 @@
          * @param {MutationRecord[]} mutations
          */
         _handleMainMutations(mutations) {
-            // The simple occurrence of mutations is enough to trigger debounced updates.
-            // We don't need to inspect the mutations themselves here, as Sentinel handles new turns.
+            PerfMonitor.throttleLog('_handleMainMutations');
+
+            const inputFormSelector = CONSTANTS.SELECTORS.FIXED_NAV_INPUT_AREA_TARGET;
+
+            // Check if all mutations occurred within the input form area.
+            const isOnlyInputFormChanges = mutations.every((mutation) => {
+                return mutation.target.closest(inputFormSelector);
+            });
+
+            // If all changes are confined to the input form, we can skip message-related checks.
+            if (isOnlyInputFormChanges) {
+                this.debouncedLayoutRecalculate();
+                return;
+            }
+
+            // Log here to confirm that the mutation is not just an input form change and will be fully processed.
+            PerfMonitor.throttleLog('_handleMainMutations (Processing)');
+
             this._dispatchNodeAddedTasks(mutations);
-            this.debouncedCacheUpdate();
+
+            // Check if any mutation involves adding or removing message containers.
+            // This is primarily to detect message deletions, as additions are handled by Sentinel.
+            const hasMessageChanges = mutations.some((mutation) => {
+                const checkNodes = (nodes) => {
+                    for (const node of nodes) {
+                        if (node.nodeType !== Node.ELEMENT_NODE) continue;
+                        // Check if the node itself is a turn container or if it contains one.
+                        if (node.matches(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER) || node.querySelector(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER)) {
+                            return true;
+                        }
+                    }
+                    return false;
+                };
+                // We are interested in both added (e.g., undo delete) and removed nodes.
+                return checkNodes(mutation.addedNodes) || checkNodes(mutation.removedNodes);
+            });
+
+            // Do not rebuild the cache if a turn is actively streaming content.
+            // The cache will be updated once the turn is complete.
+            if (this.activeTurnObservers.size === 0 && hasMessageChanges) {
+                this.debouncedCacheUpdate();
+            }
+
             this.debouncedLayoutRecalculate();
-            this.debouncedVisibilityCheck();
+
+            if (this.debouncedVisibilityCheck) {
+                this.debouncedVisibilityCheck();
+            }
         }
 
         /**
@@ -2668,11 +2885,18 @@
          * @param {HTMLElement} turnNode
          */
         _processTurnSingle(turnNode) {
+            // If this turn contains a user message, it signifies the start of a new interaction.
+            // Resetting the performance monitor here ensures that subsequent logs for this interaction (like the assistant's response) start with a fresh timer.
+            if (turnNode.querySelector(CONSTANTS.SELECTORS.USER_MESSAGE)) {
+                PerfMonitor.reset();
+            }
+
+            PerfMonitor.throttleLog('_processTurnSingle');
+            // Do not re-process turns that have already been handled by checking the in-memory Set.
+            if (this.processedTurnNodes.has(turnNode)) return;
             if (turnNode.nodeType !== Node.ELEMENT_NODE || this.activeTurnObservers.has(turnNode)) return;
 
             if (this._isTurnComplete(turnNode)) {
-                // This branch handles turns that are already complete when they are first detected.
-                // It's safe to query and inject everything at once.
                 const messageElements = turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
                 messageElements.forEach((elem) => {
                     EventBus.publish(`${APPID}:avatarInject`, elem);
@@ -2680,6 +2904,9 @@
                 });
                 EventBus.publish(`${APPID}:turnComplete`, turnNode);
                 this.debouncedNavUpdate();
+                this.debouncedCacheUpdate(); // Update cache for completed turns to immediately reflect the message count in the navigation console.
+                // Mark this turn as processed to prevent redundant executions.
+                this.processedTurnNodes.add(turnNode);
             } else {
                 // This branch handles streaming turns.
 
@@ -2691,7 +2918,7 @@
                         EventBus.publish(`${APPID}:avatarInject`, elem);
                     }
                 });
-                
+
                 const turnObserver = new MutationObserver((turnMutations, observer) => {
                     let isNowComplete = false;
 
@@ -2735,8 +2962,13 @@
                         EventBus.publish(`${APPID}:turnComplete`, turnNode);
                         this.debouncedNavUpdate();
 
+                        // Manually trigger a cache update now that streaming is complete.
+                        this.debouncedCacheUpdate();
+
                         observer.disconnect();
                         this.activeTurnObservers.delete(turnNode);
+                        // Mark this turn as processed to prevent redundant executions.
+                        this.processedTurnNodes.add(turnNode);
                     }
                 });
 
@@ -2810,6 +3042,7 @@
          * @param {HTMLElement} msgElem
          */
         injectAvatar(msgElem) {
+            PerfMonitor.throttleLog('avatar.inject');
             const role = msgElem.getAttribute('data-message-author-role');
             if (!role) return;
 
@@ -3007,6 +3240,14 @@
          */
         async recalculateStandingImagesLayout() {
             const rootStyle = document.documentElement.style;
+
+            // If canvas mode is active, immediately hide standing images by setting their width to 0 and skip the rest of the layout calculation. This prevents flicker.
+            if (PlatformAdapter.isCanvasModeActive()) {
+                rootStyle.setProperty(`--${APPID}-standing-image-assistant-width`, '0px');
+                rootStyle.setProperty(`--${APPID}-standing-image-user-width`, '0px');
+                return;
+            }
+
             const chatContent = await waitForElement(CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH);
             if (!chatContent) {
                 return;
@@ -3524,6 +3765,9 @@
             this.currentIndices = { user: -1, asst: -1, total: -1 };
             this.highlightedMessage = null;
             this.unsubscribers = [];
+            this.resizeObserver = null;
+            this.isInitialSelectionDone = false;
+            this.previousTotalMessages = 0;
 
             this.debouncedUpdateUI = debounce(this._updateUI.bind(this), TIMING.DEBOUNCE_DELAYS.THEME_PREVIEW);
             this.debouncedReposition = debounce(this.repositionContainers.bind(this), TIMING.DEBOUNCE_DELAYS.NAVIGATION_UPDATE);
@@ -3547,8 +3791,6 @@
                 EventBus.subscribe(`${APPID}:layoutRecalculate`, () => this.debouncedReposition())
             );
 
-            // Wait for the input area to be ready
-            await waitForElement(CONSTANTS.SELECTORS.FIXED_NAV_INPUT_AREA_TARGET);
             // After the main UI is ready, trigger an initial UI update.
             this.debouncedUpdateUI();
         }
@@ -3564,6 +3806,8 @@
                 this.navConsole.querySelector(`#${APPID}-nav-group-assistant .${APPID}-counter-current`).textContent = '--';
                 this.navConsole.querySelector(`#${APPID}-nav-group-total .${APPID}-counter-current`).textContent = '--';
             }
+            this.isInitialSelectionDone = false;
+            this.previousTotalMessages = 0;
         }
 
         /**
@@ -3575,6 +3819,10 @@
                 this.highlightedMessage.classList.remove(`${APPID}-highlight-message`);
                 this.highlightedMessage = null;
             }
+
+            // Disconnect the dedicated resize observer.
+            this.resizeObserver?.disconnect();
+            this.resizeObserver = null;
 
             // Call all unsubscribe functions
             this.unsubscribers.forEach((unsub) => unsub());
@@ -3665,6 +3913,10 @@
             const asstMessages = this.messageCacheManager.getAssistantMessages();
             const totalMessages = this.messageCacheManager.getTotalMessages();
 
+            // Disconnect any existing observer before making changes.
+            this.resizeObserver?.disconnect();
+            this.resizeObserver = null;
+
             // Toggle visibility based on message count
             if (totalMessages.length === 0) {
                 this.navConsole.classList.add(`${APPID}-nav-hidden`);
@@ -3674,17 +3926,32 @@
                 if (this.navConsole.classList.contains(`${APPID}-nav-unpositioned`)) {
                     this.navConsole.classList.remove(`${APPID}-nav-unpositioned`);
                 }
+
+                // Find the input form and attach a new ResizeObserver.
+                // This ensures the observer is always attached to the correct, visible element.
+                const inputForm = document.querySelector(CONSTANTS.SELECTORS.FIXED_NAV_INPUT_AREA_TARGET);
+                if (inputForm) {
+                    this.resizeObserver = new ResizeObserver(() => this.debouncedReposition());
+                    this.resizeObserver.observe(inputForm);
+                }
             }
 
             this.navConsole.querySelector(`#${APPID}-nav-group-user .${APPID}-counter-total`).textContent = userMessages.length || '--';
             this.navConsole.querySelector(`#${APPID}-nav-group-assistant .${APPID}-counter-total`).textContent = asstMessages.length || '--';
             this.navConsole.querySelector(`#${APPID}-nav-group-total .${APPID}-counter-total`).textContent = totalMessages.length || '--';
 
-            if (!this.highlightedMessage && totalMessages.length > 0) {
+            PlatformAdapter.handleInfiniteScroll(this, this.highlightedMessage, this.previousTotalMessages);
+
+            // Select the last message on initial load, otherwise default to the first if no message is highlighted.
+            if (!this.isInitialSelectionDone && totalMessages.length > 0) {
+                this.selectLastMessage();
+                this.isInitialSelectionDone = true;
+            } else if (!this.highlightedMessage && totalMessages.length > 0) {
                 this.setHighlightAndIndices(totalMessages[0]);
             }
 
             this.repositionContainers();
+            this.previousTotalMessages = totalMessages.length;
         }
 
         /**
@@ -3881,6 +4148,17 @@
                 const centerWidth = this.navConsole.offsetWidth;
                 this.navConsole.style.left = `${formCenter - centerWidth / 2}px`;
                 this.navConsole.style.bottom = bottomPosition;
+            }
+        }
+
+        /**
+         * Selects the last message in the chat and updates the navigation console.
+         */
+        selectLastMessage() {
+            const totalMessages = this.messageCacheManager.getTotalMessages();
+            if (totalMessages.length > 0) {
+                const lastMessage = totalMessages[totalMessages.length - 1];
+                this.setHighlightAndIndices(lastMessage);
             }
         }
 
@@ -7349,13 +7627,68 @@
             if (this.isBordersVisible) {
                 // Already visible
                 if (existingStyle) return;
+
+                const userFrameSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none"><rect x="1" y="1" width="98" height="98" fill="rgb(231 76 60 / 0.1)" stroke="rgb(231 76 60 / 0.9)" stroke-width="2" /></svg>`;
+                const asstFrameSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none"><rect x="1" y="1" width="98" height="98" fill="rgb(52 152 219 / 0.1)" stroke="rgb(52 152 219 / 0.9)" stroke-width="2" /></svg>`;
+                const userFrameDataUri = svgToDataUrl(userFrameSvg);
+                const asstFrameDataUri = svgToDataUrl(asstFrameSvg);
+
                 const debugStyle = h('style', {
                     id: styleId,
                     textContent: `
                     /* --- DEBUG BORDERS --- */
-                    ${CONSTANTS.SELECTORS.DEBUG_CONTAINER_TURN} { border: 1px dashed blue !important; }
-                    ${CONSTANTS.SELECTORS.DEBUG_CONTAINER_ASSISTANT} { border: 1px dashed black !important; }
-                    ${CONSTANTS.SELECTORS.DEBUG_CONTAINER_USER} { border: 1px solid orange !important; }
+                    :root {
+                        --dbg-layout-color: rgb(26 188 156 / 0.8); /* Greenish */
+                        --dbg-user-color: rgb(231 76 60 / 0.8); /* Reddish */
+                        --dbg-asst-color: rgb(52 152 219 / 0.8); /* Blueish */
+                        --dbg-comp-color: rgb(22 160 133 / 0.8); /* Cyan */
+                        --dbg-zone-color: rgb(142 68 173 / 0.9); /* Purplish */
+                        --dbg-neutral-color: rgb(128 128 128 / 0.7); /* Gray */
+                    }
+
+                    /* Layout Containers */
+                    ${CONSTANTS.SELECTORS.SIDEBAR_WIDTH_TARGET} { outline: 2px solid var(--dbg-layout-color) !important; }
+                    ${CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH} { outline: 2px dashed var(--dbg-layout-color) !important; }
+                    ${CONSTANTS.SELECTORS.INPUT_AREA_BG_TARGET} { outline: 1px solid var(--dbg-layout-color) !important; }
+                    #${APPID}-nav-console { outline: 1px dotted var(--dbg-layout-color) !important; }
+
+                    /* Message Containers */
+                    ${CONSTANTS.SELECTORS.DEBUG_CONTAINER_TURN} { outline: 1px solid var(--dbg-neutral-color) !important; outline-offset: -1px; }
+                    ${CONSTANTS.SELECTORS.DEBUG_CONTAINER_USER} { outline: 2px solid var(--dbg-user-color) !important; outline-offset: -2px; }
+                    ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE} { outline: 1px dashed var(--dbg-user-color) !important; outline-offset: -4px; }
+                    ${CONSTANTS.SELECTORS.DEBUG_CONTAINER_ASSISTANT} { outline: 2px solid var(--dbg-asst-color) !important; outline-offset: -2px; }
+                    ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE} { outline: 1px dashed var(--dbg-asst-color) !important; outline-offset: -4px; }
+
+                    /* Components */
+                    ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} { outline: 1px solid var(--dbg-comp-color) !important; }
+                    ${CONSTANTS.SELECTORS.SIDE_AVATAR_ICON} { outline: 1px dotted var(--dbg-comp-color) !important; }
+                    ${CONSTANTS.SELECTORS.SIDE_AVATAR_NAME} { outline: 1px dotted var(--dbg-comp-color) !important; }
+
+                    /* Standing Image Debug Overrides */
+                    #${APPID}-standing-image-user {
+                        background-image: url("${userFrameDataUri}") !important;
+                        z-index: 15000 !important;
+                        opacity: 0.7 !important;
+                        min-width: 30px !important;
+                    }
+                    #${APPID}-standing-image-assistant {
+                        background-image: url("${asstFrameDataUri}") !important;
+                        z-index: 15000 !important;
+                        opacity: 0.7 !important;
+                        min-width: 30px !important;
+                    }
+
+                    /* Interactive Zones */
+                    .${APPID}-collapsible-parent::before {
+                        outline: 1px solid var(--dbg-zone-color) !important;
+                        content: 'HOVER AREA' !important;
+                        color: var(--dbg-zone-color);
+                        font-size: 10px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    }
+                    .${APPID}-bubble-nav-container { outline: 1px dashed var(--dbg-zone-color) !important; }
                 `,
                 });
                 document.head.appendChild(debugStyle);
@@ -7459,8 +7792,8 @@
             this.configManager = new ConfigManager(this.dataConverter);
             this.imageDataManager = new ImageDataManager();
             this.uiManager = null;
-            // Initialized in init
-            this.observerManager = new ObserverManager();
+            // Pass the automator instance to the observer manager upon creation.
+            this.observerManager = new ObserverManager(this);
             this.debugManager = new DebugManager(this);
 
             // Create the central message cache manager first
@@ -7481,6 +7814,12 @@
 
         async init() {
             await this.configManager.load();
+
+            // Set logger level from config, which includes developer settings.
+            // The setLevel method itself handles invalid values gracefully.
+            Logger.setLevel(this.configManager.get().developer.logger_level);
+            Logger.log(`Logger level is set to '${Logger.level}'.`);
+
             this._ensureUniqueThemeIds(this.configManager.get());
 
             this.uiManager = new UIManager(
@@ -7514,6 +7853,11 @@
             this.syncManager = new SyncManager(this);
             this.syncManager.init();
 
+            // Reset caches and counters on navigation.
+            EventBus.subscribe(`${APPID}:navigation`, () => {
+                PerfMonitor.reset();
+                this.observerManager.processedTurnNodes.clear();
+            });
             EventBus.subscribe(`${APPID}:configSizeExceeded`, ({ message }) => {
                 this.isConfigSizeExceeded = true;
                 this.configWarningMessage = message;
@@ -7655,6 +7999,12 @@
             try {
                 const { completeConfig, themeChanged } = this._processConfig(newConfig);
                 await this.configManager.save(completeConfig);
+
+                // Apply the new logger level immediately and provide feedback.
+                Logger.setLevel(completeConfig.developer.logger_level);
+                // Use console.warn to ensure the message is visible regardless of the new level.
+                console.warn(LOG_PREFIX, `Logger level is '${Logger.level}'.`);
+
                 this.syncManager.onSave(); // Notify SyncManager of the successful save
                 await this._applyUiUpdates(completeConfig, themeChanged);
             } catch (e) {
@@ -7766,8 +8116,6 @@
         Logger.log('Anchor element detected. Initializing the script...');
         automator.init().then(() => {
             PlatformAdapter.applyFixes(automator);
-            // Scan for turns that already exist on the page when the script is initialized.
-            automator.observerManager.scanForExistingTurns();
         });
     });
 
