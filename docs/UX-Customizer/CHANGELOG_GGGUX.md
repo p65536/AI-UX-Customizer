@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.3.6] - 2025-08-26
+- **New Features**
+  - **Auto-select Latest Message**: The navigation console now automatically selects the most recent message when a chat is opened.
+- **Bug Fixes**
+  - [GGGUX] **Infinite Scroll Handling**: Fixed an issue where the navigation console index became misaligned after older messages were loaded via infinite scroll.
+- **Improvements & Refactoring**
+  - **Observer Overhaul**: Reduced DOM observation scope to the minimum necessary, with observers now pausing during page transitions and resuming afterward. Added dedicated observers for Canvas and file panel.
+  - **Event Handling Optimization**: Input field changes are now skipped early, and already-processed turns are not re-processed, reducing redundant operations.
+- **For Developers**
+  - **Feature (Logger Extension)**: Added a `debug` log level and support for `time()` / `timeEnd()` for simple performance measurement.
+  - **Feature (PerfMonitor)**: Introduced a lightweight monitor that aggregates and logs function call frequency, useful for diagnosing issues such as excessive observer firing.
+  - **Feature**: Added a `developer` section to the JSON configuration, allowing log level customization.
+  - **Improvement**: Extended functionality of the debug utility `toggleBorders`.
+
+## [1.3.5] - 2025-08-25 (private)
+- Internal development version
+
+## [1.3.4] - 2025-08-23 (private)
+- **Refactoring**
+  - **Observer Initialization**: Centralized all observer startup logic into the `PlatformAdapter` class to improve code structure and maintainability. This change also removed a redundant resize event listener and other obsolete code.
+- **Fixes**
+  - **Stability**: Resolved a potential memory leak in the streaming message observer and fixed a race condition in the avatar injection logic, improving long-term stability.
+
 ## [1.3.3] - 2025-08-22
 - **Refactoring**
   - **Style Management**: Restructured `STYLE_DEFINITIONS` by UI section and introduced `ALL_STYLE_DEFINITIONS` for unified processing, improving readability and maintainability.
