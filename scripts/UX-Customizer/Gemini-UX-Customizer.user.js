@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.3.6
+// @version      1.3.7
 // @license      MIT
 // @description  Automatically applies a theme based on the chat name (changes user/assistant names, text color, icon, bubble style, window background, input area style, standing images, etc.)
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=gemini.google.com
@@ -343,12 +343,39 @@
          * @param {ObserverManager} instance The ObserverManager instance.
          */
         static initializeObserver(instance) {
-            instance.debouncedVisibilityCheck = debounce(() => EventBus.publish(`${APPID}:visibilityRecheck`), TIMING.DEBOUNCE_DELAYS.VISIBILITY_CHECK);
+            instance.debouncedVisibilityCheck = debounce(instance._publishVisibilityRecheck.bind(instance), TIMING.DEBOUNCE_DELAYS.VISIBILITY_CHECK);
         }
 
         /**
-         * Starts a dedicated observer for UI elements rendered outside the main chat container, like the Immersive Panel.
-         * This uses a MutationObserver to detect when the panel appears/disappears.
+         * Returns an array of platform-specific observer initialization functions.
+         * @returns {Function[]} An array of functions to be called by ObserverManager.
+         */
+        // prettier-ignore
+        static getObserverInitializers() {
+            return [
+                this.startGlobalTitleObserver,
+                this.startURLChangeObserver,
+                this.startSidebarObserver,
+                this.startFilePanelObserver,
+                this.startCanvasObserver,
+            ];
+        }
+
+        /**
+         * Handles platform-specific logic within the main mutation observer callback.
+         * @param {ObserverManager} instance The ObserverManager instance.
+         * @param {MutationRecord[]} mutations The mutations to handle.
+         */
+        static handleMainMutations(instance, mutations) {
+            instance._dispatchNodeAddedTasks(mutations);
+            instance.debouncedCacheUpdate();
+            instance.debouncedVisibilityCheck();
+        }
+
+        /**
+         * @private
+         * @description Starts an observer to detect the appearance and disappearance of the Immersive Panel.
+         * It monitors DOM changes and, upon detecting a state change, publishes a `visibilityRecheck` event to allow other components (like standing images) to update their visibility.
          */
         static startCanvasObserver() {
             let isCurrentlyActive = this.isCanvasModeActive();
@@ -365,88 +392,6 @@
             });
 
             mutationObserver.observe(document.body, { childList: true, subtree: true });
-        }
-
-        /**
-         * Starts all platform-specific observers.
-         * @param {ObserverManager} instance The ObserverManager instance.
-         */
-        static async start(instance) {
-            const container = await waitForElement(this.SELECTORS.MAIN_APP_CONTAINER);
-            if (!container) {
-                Logger.error('Main container not found. Observer not started.');
-                return;
-            }
-
-            instance.mainObserver = new MutationObserver((mutations) => instance._handleMainMutations(mutations));
-
-            // Centralized ResizeObserver for layout changes
-            instance.layoutResizeObserver = new ResizeObserver(instance.debouncedLayoutRecalculate);
-            instance.layoutResizeObserver.observe(document.body);
-
-            // Call the static methods on the PlatformAdapter class, passing the instance.
-            PlatformAdapter.startGlobalTitleObserver(instance);
-            PlatformAdapter.startSidebarObserver(instance);
-            PlatformAdapter.startURLChangeObserver(instance);
-            PlatformAdapter.startFilePanelObserver();
-            PlatformAdapter.startCanvasObserver();
-
-            // Initial static scan, then start the main observer.
-            instance.scanForExistingTurns();
-            instance.startMainObserver(container);
-        }
-
-        /**
-         * Handles platform-specific logic within the main mutation observer callback.
-         * @param {ObserverManager} instance The ObserverManager instance.
-         * @param {MutationRecord[]} mutations The mutations to handle.
-         */
-        static handleMainMutations(instance, mutations) {
-            instance._dispatchNodeAddedTasks(mutations);
-            instance.debouncedCacheUpdate();
-            instance.debouncedVisibilityCheck();
-        }
-
-        /**
-         * @private
-         * @description Sets up the monitoring for URL changes.
-         */
-        static startURLChangeObserver(instance) {
-            let lastHref = location.href;
-            const handler = async () => {
-                if (location.href !== lastHref) {
-                    lastHref = location.href;
-                    Logger.debug('URL changed:', location.href);
-
-                    instance.stopMainObserver();
-                    instance.cleanupActiveTurnObservers();
-
-                    PlatformAdapter.startGlobalTitleObserver(instance);
-                    EventBus.publish(`${APPID}:themeUpdate`);
-                    EventBus.publish(`${APPID}:navigation`);
-
-                    const chatContainer = await waitForElement(this.SELECTORS.MAIN_APP_CONTAINER);
-                    if (chatContainer) {
-                        const waiterObserver = new MutationObserver(() => {
-                            if (chatContainer.querySelector(this.SELECTORS.CONVERSATION_CONTAINER)) {
-                                waiterObserver.disconnect();
-                                instance.scanForExistingTurns();
-                                instance.startMainObserver(chatContainer);
-                                instance.debouncedCacheUpdate();
-                            }
-                        });
-                        waiterObserver.observe(chatContainer, { childList: true, subtree: true });
-                    }
-                }
-            };
-            for (const m of ['pushState', 'replaceState']) {
-                const orig = history[m];
-                history[m] = function (...args) {
-                    orig.apply(this, args);
-                    handler();
-                };
-            }
-            window.addEventListener('popstate', handler);
         }
 
         /**
@@ -500,7 +445,7 @@
          * @description Sets up the monitoring for title changes.
          */
         static startGlobalTitleObserver(instance) {
-            // Not required for Gemini
+            // Not required for Gemini at the moment but reserved
         }
 
         /**
@@ -529,6 +474,49 @@
             debouncedThemeUpdate();
         }
 
+        /**
+         * @private
+         * @description Sets up the monitoring for URL changes.
+         */
+        static startURLChangeObserver(instance) {
+            let lastHref = location.href;
+            const handler = async () => {
+                if (location.href !== lastHref) {
+                    lastHref = location.href;
+                    Logger.debug('URL changed:', location.href);
+
+                    instance.stopMainObserver();
+                    instance.cleanupActiveTurnObservers();
+
+                    PlatformAdapter.startGlobalTitleObserver(instance);
+                    EventBus.publish(`${APPID}:themeUpdate`);
+                    EventBus.publish(`${APPID}:navigation`);
+
+                    const chatContainer = await waitForElement(this.SELECTORS.MAIN_APP_CONTAINER);
+                    if (chatContainer) {
+                        const waiterObserver = new MutationObserver(() => {
+                            // This observer now only waits for the container to start re-populating.
+                            // The actual processing of elements is handled by the more precise Sentinel.
+                            if (chatContainer.querySelector(this.SELECTORS.CONVERSATION_CONTAINER)) {
+                                waiterObserver.disconnect();
+                                instance.startMainObserver(chatContainer);
+                                instance.debouncedCacheUpdate();
+                            }
+                        });
+                        waiterObserver.observe(chatContainer, { childList: true, subtree: true });
+                    }
+                }
+            };
+            for (const m of ['pushState', 'replaceState']) {
+                const orig = history[m];
+                history[m] = function (...args) {
+                    orig.apply(this, args);
+                    handler();
+                };
+            }
+            window.addEventListener('popstate', handler);
+        }
+
         static repositionSettingsButton(settingsButton) {
             // This method is a no-op for Gemini, as dynamic repositioning is not needed.
             // It exists to make the UIManager class identical across platforms.
@@ -543,6 +531,151 @@
                 // Re-calculate the indices based on the updated (larger) message cache.
                 fixedNavManagerInstance.setHighlightAndIndices(highlightedMessage);
             }
+        }
+
+        static applyBubbleFeatures(messageElement, managerInstance, config) {
+            this._applyCollapsibleFeature(messageElement, config);
+            this._applySequentialNavFeature(messageElement, managerInstance, config);
+            this._applyScrollToTopFeature(messageElement, managerInstance, config);
+        }
+
+        static _applyCollapsibleFeature(messageElement, config) {
+            if (messageElement.tagName.toLowerCase() !== this.SELECTORS.ASSISTANT_MESSAGE) {
+                return;
+            }
+
+            const featureEnabled = config.features.collapsible_button.enabled;
+            if (featureEnabled) {
+                // The setup logic
+                if (messageElement.classList.contains(`${APPID}-collapsible-processed`)) {
+                    const toggleBtn = messageElement.querySelector(`.${APPID}-collapsible-toggle-btn`);
+                    if (toggleBtn) toggleBtn.classList.remove(`${APPID}-hidden`);
+                } else {
+                    messageElement.classList.add(`${APPID}-collapsible-processed`, `${APPID}-collapsible`);
+                    const toggleBtn = h(
+                        `button.${APPID}-collapsible-toggle-btn`,
+                        {
+                            type: 'button',
+                            title: 'Toggle message',
+                            onclick: (e) => {
+                                e.stopPropagation();
+                                messageElement.classList.toggle(`${APPID}-bubble-collapsed`);
+                            },
+                        },
+                        [h('svg', { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, [h('path', { d: 'M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z' })])]
+                    );
+                    messageElement.appendChild(toggleBtn);
+                }
+                const bubble = messageElement.querySelector(this.SELECTORS.RAW_ASSISTANT_BUBBLE);
+                if (bubble && !bubble.classList.contains(`${APPID}-collapsible-content`)) {
+                    bubble.classList.add(`${APPID}-collapsible-content`);
+                }
+            } else {
+                // The cleanup logic
+                if (messageElement.classList.contains(`${APPID}-collapsible-processed`)) {
+                    const toggleBtn = messageElement.querySelector(`.${APPID}-collapsible-toggle-btn`);
+                    if (toggleBtn) toggleBtn.classList.add(`${APPID}-hidden`);
+                    // Ensure message is expanded when feature is disabled
+                    messageElement.classList.remove(`${APPID}-bubble-collapsed`);
+                }
+            }
+        }
+
+        static _applySequentialNavFeature(messageElement, managerInstance, config) {
+            if (!this.getNavPositioningParent(messageElement)) return;
+
+            const featureEnabled = config.features.sequential_nav_buttons.enabled;
+            const container = managerInstance._getOrCreateNavContainer(messageElement);
+
+            if (featureEnabled && container && !container.querySelector(`.${APPID}-nav-group-top`)) {
+                const buttonsWrapper = container.querySelector(`.${APPID}-nav-buttons`);
+                const createClickHandler = (direction) => (e) => {
+                    e.stopPropagation();
+                    const roleInfo = managerInstance.messageCacheManager.findMessageIndex(messageElement);
+                    if (!roleInfo) return;
+                    const newIndex = roleInfo.index + direction;
+                    const targetMsg = managerInstance.messageCacheManager.getMessageAtIndex(roleInfo.role, newIndex);
+                    if (targetMsg) {
+                        scrollToElement(targetMsg, { offset: CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV });
+                        EventBus.publish(`${APPID}:nav:highlightMessage`, targetMsg);
+                    }
+                };
+                const prevBtn = h(`button.${APPID}-bubble-nav-btn.${APPID}-nav-prev`, { type: 'button', title: 'Scroll to previous message', dataset: { originalTitle: 'Scroll to previous message' }, onclick: createClickHandler(-1) }, [
+                    h('svg', { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, [h('path', { d: 'M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z' })]),
+                ]);
+                const nextBtn = h(`button.${APPID}-bubble-nav-btn.${APPID}-nav-next`, { type: 'button', title: 'Scroll to next message', dataset: { originalTitle: 'Scroll to next message' }, onclick: createClickHandler(1) }, [
+                    h('svg', { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, [h('path', { d: 'M480-344 240-584l56-56 184 184 184-184 56 56-240 240Z' })]),
+                ]);
+                const topGroup = h(`div.${APPID}-nav-group-top`, [prevBtn, nextBtn]);
+                buttonsWrapper.prepend(topGroup);
+            }
+            const topGroup = messageElement.querySelector(`.${APPID}-nav-group-top`);
+            if (topGroup) topGroup.classList.toggle(`${APPID}-hidden`, !featureEnabled);
+        }
+
+        static _applyScrollToTopFeature(messageElement, managerInstance, config) {
+            if (!this.getNavPositioningParent(messageElement)) return;
+            const featureEnabled = config.features.scroll_to_top_button.enabled;
+
+            const container = managerInstance._getOrCreateNavContainer(messageElement);
+            if (featureEnabled && container && !container.querySelector(`.${APPID}-nav-group-bottom`)) {
+                const buttonsWrapper = container.querySelector(`.${APPID}-nav-buttons`);
+                const topBtn = h(
+                    `button.${APPID}-bubble-nav-btn.${APPID}-nav-top`,
+                    {
+                        type: 'button',
+                        title: 'Scroll to top of this message',
+                        onclick: (e) => {
+                            e.stopPropagation();
+                            scrollToElement(messageElement, { offset: CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV });
+                        },
+                    },
+                    [
+                        h('svg', { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, [
+                            h('path', { d: 'M440-160v-480L280-480l-56-56 256-256 256 256-56 56-160-160v480h-80Zm-200-640v-80h400v80H240Z' }),
+                        ]),
+                    ]
+                );
+                const bottomGroup = h(`div.${APPID}-nav-group-bottom`, [topBtn]);
+                buttonsWrapper.appendChild(bottomGroup);
+            }
+            const bottomGroup = messageElement.querySelector(`.${APPID}-nav-group-bottom`);
+            if (bottomGroup) bottomGroup.classList.toggle(`${APPID}-hidden`, !featureEnabled);
+        }
+
+        static updateAllBubbleFeatures(managerInstance) {
+            const config = managerInstance.configManager.get();
+            if (!config) return;
+
+            const allMessageElements = managerInstance.messageCacheManager.getTotalMessages();
+
+            // Re-evaluate and apply all features for all existing messages.
+            allMessageElements.forEach((element) => {
+                this.applyBubbleFeatures(element, managerInstance, config);
+            });
+
+            // Update the enabled/disabled state of any visible sequential nav buttons.
+            const disabledHint = '(No message to scroll to)';
+            const updateActorButtons = (messages) => {
+                messages.forEach((message, index) => {
+                    const container = managerInstance.navContainers.get(message);
+                    if (!container) return;
+                    const prevBtn = container.querySelector(`.${APPID}-nav-prev`);
+                    if (prevBtn) {
+                        const isDisabled = index === 0;
+                        prevBtn.disabled = isDisabled;
+                        prevBtn.title = isDisabled ? `${prevBtn.dataset.originalTitle} ${disabledHint}` : prevBtn.dataset.originalTitle;
+                    }
+                    const nextBtn = container.querySelector(`.${APPID}-nav-next`);
+                    if (nextBtn) {
+                        const isDisabled = index === messages.length - 1;
+                        nextBtn.disabled = isDisabled;
+                        nextBtn.title = isDisabled ? `${nextBtn.dataset.originalTitle} ${disabledHint}` : nextBtn.dataset.originalTitle;
+                    }
+                });
+            };
+            updateActorButtons(managerInstance.messageCacheManager.getUserMessages());
+            updateActorButtons(managerInstance.messageCacheManager.getAssistantMessages());
         }
     }
 
@@ -591,6 +724,7 @@
     const CONSTANTS = {
         CONFIG_KEY: `${APPID}_config`,
         CONFIG_SIZE_LIMIT_BYTES: 5033164, // 4.8MB
+        CACHE_SIZE_LIMIT_BYTES: 10 * 1024 * 1024, // 10MB
         ICON_SIZE: 64,
         ICON_SIZE_VALUES: [64, 96, 128, 160, 192],
         ICON_MARGIN: 16,
@@ -1971,25 +2105,50 @@
 
     class ImageDataManager {
         constructor() {
-            /** @type {Map<string, string>} */
+            /** @type {Map<string, {data: string, size: number}>} */
             this.cache = new Map();
+            this.currentCacheSize = 0;
         }
 
         /**
-         * Fetches an image and converts it to a base64 data URL.
-         * Caches the result to avoid redundant requests.
+         * Ensures there is enough space in the cache for a new item.
+         * If not, it evicts the least recently used items until there is space.
+         * @private
+         * @param {number} newItemSize - The size of the new item to be added.
+         */
+        _makeSpaceForNewItem(newItemSize) {
+            if (newItemSize > CONSTANTS.CACHE_SIZE_LIMIT_BYTES) {
+                Logger.warn(`Item size (${newItemSize}) exceeds cache limit (${CONSTANTS.CACHE_SIZE_LIMIT_BYTES}). Cannot be cached.`);
+                return;
+            }
+            while (this.currentCacheSize + newItemSize > CONSTANTS.CACHE_SIZE_LIMIT_BYTES && this.cache.size > 0) {
+                // Evict the least recently used item (first item in map iterator)
+                const oldestKey = this.cache.keys().next().value;
+                const oldestItem = this.cache.get(oldestKey);
+                if (oldestItem) {
+                    this.currentCacheSize -= oldestItem.size;
+                    this.cache.delete(oldestKey);
+                    Logger.log(`Evicted ${oldestKey} from cache to free up space.`);
+                }
+            }
+        }
+
+        /**
+         * Gets an image as a data URL. Returns a cached version immediately if available.
          * @param {string} url The URL of the image to fetch.
          * @returns {Promise<string|null>} A promise that resolves with the data URL or null on failure.
          */
         async getImageAsDataUrl(url) {
-            if (!url || typeof url !== 'string') {
-                return null;
+            if (!url || typeof url !== 'string' || !url.startsWith('http')) {
+                return url; // Return data URIs or other values directly
             }
-            if (url.trim().startsWith('data:image')) {
-                return url;
-            }
+
             if (this.cache.has(url)) {
-                return this.cache.get(url);
+                const cached = this.cache.get(url);
+                // Move to the end of the map to mark as recently used
+                this.cache.delete(url);
+                this.cache.set(url, cached);
+                return cached.data;
             }
 
             return new Promise((resolve) => {
@@ -2002,7 +2161,11 @@
                             const reader = new FileReader();
                             reader.onloadend = () => {
                                 const dataUrl = reader.result;
-                                this.cache.set(url, dataUrl);
+                                const size = dataUrl.length;
+
+                                this._makeSpaceForNewItem(size);
+                                this.cache.set(url, { data: dataUrl, size });
+                                this.currentCacheSize += size;
                                 resolve(dataUrl);
                             };
                             reader.onerror = () => {
@@ -2039,12 +2202,18 @@
             this.assistantMessages = [];
             this.totalMessages = [];
             this.debouncedRebuildCache = debounce(this._rebuildCache.bind(this), TIMING.DEBOUNCE_DELAYS.CACHE_UPDATE);
+            this.unsubscribers = [];
         }
 
         init() {
-            EventBus.subscribe(`${APPID}:cacheUpdateRequest`, () => this.debouncedRebuildCache());
-            EventBus.subscribe(`${APPID}:navigation`, () => this.clear());
+            this.unsubscribers.push(EventBus.subscribe(`${APPID}:cacheUpdateRequest`, () => this.debouncedRebuildCache()));
+            this.unsubscribers.push(EventBus.subscribe(`${APPID}:navigation`, () => this.clear()));
             this._rebuildCache();
+        }
+
+        destroy() {
+            this.unsubscribers.forEach((unsub) => unsub());
+            this.unsubscribers = [];
         }
 
         _rebuildCache() {
@@ -2164,6 +2333,9 @@
     // =================================================================================
 
     const STATIC_CSS = `
+        ${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} {
+            transition: background-image 0.3s ease-in-out;
+        }
         /* This rule is now conditional on a body class, which is toggled by applyChatContentMaxWidth. */
         body.${APPID}-max-width-active ${CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH}{
             max-width: var(--${APPID}-chat-content-max-width) !important;
@@ -2412,30 +2584,6 @@
             }
             return dynamicRules;
         }
-
-        /**
-         * Generates an object of all CSS variables for the theme.
-         * @param {ThemeSet} currentThemeSet The active theme configuration.
-         * @param {AppConfig} fullConfig The entire configuration object, including defaultSet.
-         * @returns {Object<string, string|null>} Key-value pairs of CSS variables.
-         */
-        generateThemeVariables(currentThemeSet, fullConfig) {
-            const themeVars = {};
-
-            for (const definition of ALL_STYLE_DEFINITIONS) {
-                if (!definition.cssVar) continue;
-                const value = getPropertyByPath(currentThemeSet, definition.configKey) ?? getPropertyByPath(fullConfig, definition.fallbackKey);
-
-                if (value === null || value === undefined) {
-                    themeVars[definition.cssVar] = null;
-                    continue;
-                }
-
-                themeVars[definition.cssVar] = typeof definition.transformer === 'function' ? definition.transformer(value, fullConfig) : value;
-            }
-
-            return themeVars;
-        }
     }
 
     class ThemeManager {
@@ -2450,14 +2598,22 @@
             this.standingImageManager = standingImageManager;
             this.styleGenerator = new StyleGenerator();
             this.themeStyleElem = null;
+            this.dynamicRulesStyleElem = null;
             this.lastURL = null;
             this.lastTitle = null;
             this.lastAppliedThemeSet = null;
             this.cachedTitle = null;
             this.cachedThemeSet = null;
-            EventBus.subscribe(`${APPID}:themeUpdate`, () => this.updateTheme());
-            EventBus.subscribe(`${APPID}:layoutRecalculate`, () => this.applyChatContentMaxWidth());
-            EventBus.subscribe(`${APPID}:widthPreview`, (newWidth) => this.applyChatContentMaxWidth(newWidth));
+            this.unsubscribers = [];
+            this.debouncedUpdateTheme = debounce(this.updateTheme.bind(this), TIMING.DEBOUNCE_DELAYS.THEME_UPDATE);
+            this.unsubscribers.push(EventBus.subscribe(`${APPID}:themeUpdate`, this.debouncedUpdateTheme));
+            this.unsubscribers.push(EventBus.subscribe(`${APPID}:layoutRecalculate`, () => this.applyChatContentMaxWidth()));
+            this.unsubscribers.push(EventBus.subscribe(`${APPID}:widthPreview`, (newWidth) => this.applyChatContentMaxWidth(newWidth)));
+        }
+
+        destroy() {
+            this.unsubscribers.forEach((unsub) => unsub());
+            this.unsubscribers = [];
         }
 
         /**
@@ -2529,7 +2685,8 @@
 
             const config = this.configManager.get();
             const currentThemeSet = PlatformAdapter.selectThemeForUpdate(this, config, urlChanged, titleChanged);
-            const contentChanged = currentThemeSet !== this.lastAppliedThemeSet;
+            // Deep comparison to detect changes from the settings panel
+            const contentChanged = JSON.stringify(currentThemeSet) !== JSON.stringify(this.lastAppliedThemeSet);
 
             const themeShouldUpdate = urlChanged || titleChanged || contentChanged;
             if (themeShouldUpdate) {
@@ -2539,14 +2696,11 @@
         }
 
         /**
-         * Applies all theme-related styles to the document.
-         * @param {ThemeSet} currentThemeSet The active theme configuration.
-         * @param {AppConfig} fullConfig The entire configuration object, including defaultSet.
+         * @private
+         * Ensures that the <style> elements for static and dynamic CSS exist in the document head.
+         * Creates them if they don't exist and stores references in `this`.
          */
-        async applyThemeStyles(currentThemeSet, fullConfig) {
-            Logger.time('ThemeManager.applyThemeStyles');
-            this.lastAppliedThemeSet = currentThemeSet;
-            // Static styles
+        _ensureStylesheets() {
             if (!this.themeStyleElem) {
                 this.themeStyleElem = h('style', {
                     id: `${APPID}-theme-style`,
@@ -2554,77 +2708,86 @@
                 });
                 document.head.appendChild(this.themeStyleElem);
             }
-            // Dynamic rules
-            const dynamicRulesStyleId = `${APPID}-dynamic-rules-style`;
-            let dynamicRulesStyleElem = document.getElementById(dynamicRulesStyleId);
-            if (!dynamicRulesStyleElem) {
-                dynamicRulesStyleElem = h('style', { id: dynamicRulesStyleId });
-                document.head.appendChild(dynamicRulesStyleElem);
+
+            if (!this.dynamicRulesStyleElem) {
+                const dynamicRulesStyleId = `${APPID}-dynamic-rules-style`;
+                this.dynamicRulesStyleElem = document.getElementById(dynamicRulesStyleId);
+                if (!this.dynamicRulesStyleElem) {
+                    this.dynamicRulesStyleElem = h('style', { id: dynamicRulesStyleId });
+                    document.head.appendChild(this.dynamicRulesStyleElem);
+                }
             }
-            // Generate and apply dynamic styles
+        }
+
+        /**
+         * Applies all theme-related styles to the document by orchestrating helper methods.
+         * @param {ThemeSet} currentThemeSet The active theme configuration.
+         * @param {AppConfig} fullConfig The entire configuration object, including defaultSet.
+         */
+        async applyThemeStyles(currentThemeSet, fullConfig) {
+            Logger.time('ThemeManager.applyThemeStyles');
+            this.lastAppliedThemeSet = currentThemeSet;
+
+            this._ensureStylesheets();
+
             const dynamicRules = this.styleGenerator.generateDynamicCss(currentThemeSet, fullConfig);
-            dynamicRulesStyleElem.textContent = dynamicRules.join('\n');
+            this.dynamicRulesStyleElem.textContent = dynamicRules.join('\n');
 
             const rootStyle = document.documentElement.style;
-            const asyncImageTasks = [];
-            const processImageValue = async (value, cssVar) => {
-                if (!value) {
-                    rootStyle.removeProperty(cssVar);
-                    return;
-                }
-                const val = value.trim();
-                let finalCssValue = val; // Default to using the value as-is
-
-                if (val.startsWith('<svg')) {
-                    // Case 1: Raw SVG string -> Convert to data URL and wrap
-                    finalCssValue = `url("${svgToDataUrl(val)}")`;
-                } else if (val.startsWith('http')) {
-                    // Case 2: Raw http URL -> Fetch, convert to data URL, and wrap
-                    const dataUrl = await this.imageDataManager.getImageAsDataUrl(val);
-                    finalCssValue = dataUrl ? `url("${dataUrl}")` : 'none';
-                } else if (val.startsWith('data:image')) {
-                    // Case 3: Raw data: URI string, needs to be wrapped in url()
-                    finalCssValue = `url("${val}")`;
-                } else {
-                    // Case 4: Assumed to be a complete CSS value (linear-gradient, pre-wrapped url(), etc.) -> Use as-is
-                    finalCssValue = val;
-                }
-
-                if (finalCssValue && finalCssValue !== 'none') {
-                    rootStyle.setProperty(cssVar, finalCssValue);
-                } else {
-                    rootStyle.removeProperty(cssVar);
-                }
-            };
+            const imageProcessingPromises = [];
 
             for (const definition of ALL_STYLE_DEFINITIONS) {
                 if (!definition.cssVar) continue;
-                const value = getPropertyByPath(currentThemeSet, definition.configKey) ?? getPropertyByPath(fullConfig, `defaultSet.${definition.configKey}`);
 
-                if (value === null || typeof value === 'undefined') {
-                    rootStyle.removeProperty(definition.cssVar);
-                    continue;
-                }
+                const value = getPropertyByPath(currentThemeSet, definition.configKey) ?? getPropertyByPath(fullConfig, definition.fallbackKey);
+                const isImage = definition.configKey.endsWith('icon') || definition.configKey.includes('ImageUrl');
 
-                if (definition.configKey.endsWith('icon') || definition.configKey.includes('ImageUrl')) {
-                    asyncImageTasks.push(processImageValue(value, definition.cssVar));
-                } else if (typeof definition.transformer === 'function') {
-                    rootStyle.setProperty(definition.cssVar, definition.transformer(value, fullConfig));
+                if (isImage) {
+                    // Stage 1 (Sync): Immediately set to 'none' to prevent flicker of default images.
+                    rootStyle.setProperty(definition.cssVar, 'none');
+
+                    if (value) {
+                        // Stage 2 (Async): Start processing the image in the background.
+                        const processImage = async () => {
+                            const val = String(value).trim();
+                            let finalCssValue = val;
+
+                            if (val.startsWith('<svg')) {
+                                finalCssValue = `url("${svgToDataUrl(val)}")`;
+                            } else if (val.startsWith('http')) {
+                                const dataUrl = await this.imageDataManager.getImageAsDataUrl(val);
+                                finalCssValue = dataUrl ? `url("${dataUrl}")` : 'none';
+                            } else if (val.startsWith('data:image')) {
+                                finalCssValue = `url("${val}")`;
+                            }
+
+                            // When ready, update the CSS variable to show the themed image.
+                            if (finalCssValue !== 'none') {
+                                rootStyle.setProperty(definition.cssVar, finalCssValue);
+                            }
+                        };
+                        imageProcessingPromises.push(processImage());
+                    }
                 } else {
-                    rootStyle.setProperty(definition.cssVar, value);
+                    // This is a non-image style, apply it synchronously.
+                    if (value !== null && value !== undefined) {
+                        // Apply the transformer function if it exists (e.g., for actor names).
+                        const finalValue = typeof definition.transformer === 'function' ? definition.transformer(value, fullConfig) : value;
+                        rootStyle.setProperty(definition.cssVar, finalValue);
+                    } else {
+                        rootStyle.removeProperty(definition.cssVar);
+                    }
                 }
             }
 
-            const themeVars = this.styleGenerator.generateThemeVariables(currentThemeSet, fullConfig);
-            for (const [key, value] of Object.entries(themeVars)) {
-                // Let processImageValue handle image vars asynchronously
-                if (value !== null && value !== undefined && !key.includes('icon') && !key.includes('standing-image')) {
-                    rootStyle.setProperty(key, value);
-                }
-            }
-
-            await Promise.all(asyncImageTasks);
+            // Publish the first event immediately after synchronous styles are set.
             EventBus.publish(`${APPID}:themeApplied`, { theme: currentThemeSet, config: fullConfig });
+
+            // After all image processing promises have resolved, publish the final event.
+            Promise.all(imageProcessingPromises).then(() => {
+                EventBus.publish(`${APPID}:imagesApplied`, { theme: currentThemeSet, config: fullConfig });
+            });
+
             Logger.timeEnd('ThemeManager.applyThemeStyles');
         }
 
@@ -2688,9 +2851,9 @@
             this.registeredNodeAddedTasks = [];
             this.activeTurnObservers = new Map();
             this.processedTurnNodes = new Set();
-            this.debouncedNavUpdate = debounce(() => EventBus.publish(`${APPID}:navButtonsUpdate`), TIMING.DEBOUNCE_DELAYS.NAVIGATION_UPDATE);
-            this.debouncedCacheUpdate = debounce(() => EventBus.publish(`${APPID}:cacheUpdateRequest`), TIMING.DEBOUNCE_DELAYS.CACHE_UPDATE);
-            this.debouncedLayoutRecalculate = debounce(() => EventBus.publish(`${APPID}:layoutRecalculate`), TIMING.DEBOUNCE_DELAYS.LAYOUT_RECALCULATION);
+            this.debouncedNavUpdate = debounce(this._publishNavUpdate.bind(this), TIMING.DEBOUNCE_DELAYS.NAVIGATION_UPDATE);
+            this.debouncedCacheUpdate = debounce(this._publishCacheUpdate.bind(this), TIMING.DEBOUNCE_DELAYS.CACHE_UPDATE);
+            this.debouncedLayoutRecalculate = debounce(this._publishLayoutRecalculate.bind(this), TIMING.DEBOUNCE_DELAYS.LAYOUT_RECALCULATION);
 
             // Delegate platform-specific property initialization to the adapter
             PlatformAdapter.initializeObserver(this);
@@ -2731,8 +2894,27 @@
          * @param {ObserverManager} instance The ObserverManager instance.
          */
         async start() {
-            // Delegate all platform-specific observer setup to the adapter.
-            await PlatformAdapter.start(this);
+            const container = await waitForElement(PlatformAdapter.SELECTORS.MAIN_APP_CONTAINER);
+            if (!container) {
+                Logger.error('Main container not found. Observer not started.');
+                return;
+            }
+
+            this.mainObserver = new MutationObserver((mutations) => this._handleMainMutations(mutations));
+
+            // Centralized ResizeObserver for layout changes
+            this.layoutResizeObserver = new ResizeObserver(this.debouncedLayoutRecalculate);
+            this.layoutResizeObserver.observe(document.body);
+
+            // Get the list of platform-specific observer initializers and run them.
+            const initializers = PlatformAdapter.getObserverInitializers();
+            for (const init of initializers) {
+                // Since these are static methods on PlatformAdapter, call them with PlatformAdapter as `this`.
+                init.call(PlatformAdapter, this);
+            }
+
+            // Initial static scan, then start the main observer.
+            this.startMainObserver(container);
         }
 
         /**
@@ -2741,47 +2923,54 @@
          * @param {MutationRecord[]} mutations
          */
         _handleMainMutations(mutations) {
-            PerfMonitor.throttleLog('_handleMainMutations');
+            PerfMonitor.throttleLog('_handleMainMutations (Entry)');
 
             const inputFormSelector = CONSTANTS.SELECTORS.FIXED_NAV_INPUT_AREA_TARGET;
 
-            // Check if all mutations occurred within the input form area.
+            // First filter: Check if all mutations occurred within the input form area.
             const isOnlyInputFormChanges = mutations.every((mutation) => {
                 return mutation.target.closest(inputFormSelector);
             });
 
             // If all changes are confined to the input form, we can skip message-related checks.
             if (isOnlyInputFormChanges) {
+                PerfMonitor.throttleLog('_handleMainMutations (Exit: Input Form)');
                 this.debouncedLayoutRecalculate();
                 return;
             }
 
-            // Log here to confirm that the mutation is not just an input form change and will be fully processed.
-            PerfMonitor.throttleLog('_handleMainMutations (Processing)');
-
             this._dispatchNodeAddedTasks(mutations);
 
-            // Check if any mutation involves adding or removing message containers.
-            // This is primarily to detect message deletions, as additions are handled by Sentinel.
-            const hasMessageChanges = mutations.some((mutation) => {
-                const checkNodes = (nodes) => {
-                    for (const node of nodes) {
-                        if (node.nodeType !== Node.ELEMENT_NODE) continue;
-                        // Check if the node itself is a turn container or if it contains one.
-                        if (node.matches(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER) || node.querySelector(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER)) {
-                            return true;
+            // Second filter: Efficiently check for relevant message/turn changes.
+            let hasRelevantChanges = false;
+            // This check is only needed if no turn is actively streaming, to avoid redundant cache updates.
+            if (this.activeTurnObservers.size === 0) {
+                for (const mutation of mutations) {
+                    const checkNodes = (nodes) => {
+                        for (const node of nodes) {
+                            if (node.nodeType !== Node.ELEMENT_NODE) continue;
+                            if (node.matches(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER) || node.querySelector(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER)) {
+                                return true;
+                            }
                         }
-                    }
-                    return false;
-                };
-                // We are interested in both added (e.g., undo delete) and removed nodes.
-                return checkNodes(mutation.addedNodes) || checkNodes(mutation.removedNodes);
-            });
+                        return false;
+                    };
 
-            // Do not rebuild the cache if a turn is actively streaming content.
-            // The cache will be updated once the turn is complete.
-            if (this.activeTurnObservers.size === 0 && hasMessageChanges) {
+                    if (checkNodes(mutation.addedNodes) || checkNodes(mutation.removedNodes)) {
+                        hasRelevantChanges = true;
+                        break; // Found a relevant change, no need to check further.
+                    }
+                }
+            }
+
+            if (hasRelevantChanges) {
+                PerfMonitor.throttleLog('_handleMainMutations (Processing: Message Changes)');
                 this.debouncedCacheUpdate();
+            } else {
+                // Log only if we performed the check and found nothing.
+                if (this.activeTurnObservers.size === 0) {
+                    PerfMonitor.throttleLog('_handleMainMutations (Skip: No Message Changes)');
+                }
             }
 
             this.debouncedLayoutRecalculate();
@@ -2801,15 +2990,59 @@
         }
 
         /**
-         * Scans the document for all existing conversation turns and processes them.
-         * This is crucial for applying themes after page loads or navigations.
+         * Processes a single turnNode. It handles both completed and streaming turns.
+         * For streaming turns, this observer performs the crucial *initial* avatar injection
+         * as soon as a message element appears. Subsequent re-injections are handled
+         * performantly by the CSS animation listener in AvatarManager.
+         * @param {HTMLElement} turnNode
          */
-        scanForExistingTurns() {
-            const existingTurnNodes = Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER));
-            if (existingTurnNodes.length > 0) {
-                for (const turnNode of existingTurnNodes) {
-                    this._processTurnSingle(turnNode);
-                }
+        _processTurnSingle(turnNode) {
+            // If this turn contains a user message, it signifies the start of a new interaction.
+            // Resetting the performance monitor here ensures that subsequent logs for this interaction (like the assistant's response) start with a fresh timer.
+            if (turnNode.querySelector(CONSTANTS.SELECTORS.USER_MESSAGE)) {
+                PerfMonitor.reset();
+            }
+
+            PerfMonitor.throttleLog('_processTurnSingle');
+            // Do not re-process turns that have already been handled by checking the in-memory Set.
+            if (this.processedTurnNodes.has(turnNode)) return;
+            if (turnNode.nodeType !== Node.ELEMENT_NODE || this.activeTurnObservers.has(turnNode)) return;
+
+            if (this._isTurnComplete(turnNode)) {
+                EventBus.publish(`${APPID}:turnComplete`, turnNode);
+                this.debouncedNavUpdate();
+                this.debouncedCacheUpdate(); // Update cache for completed turns to immediately reflect the message count in the navigation console.
+                // Mark this turn as processed to prevent redundant executions.
+                this.processedTurnNodes.add(turnNode);
+            } else {
+                // This branch handles streaming turns.
+
+                const turnObserver = new MutationObserver((turnMutations, observer) => {
+                    // If the turn node has been disconnected from the DOM (e.g., by user action or error),
+                    // clean up its observer immediately to prevent memory leaks.
+                    if (!turnNode.isConnected) {
+                        observer.disconnect();
+                        this.activeTurnObservers.delete(turnNode);
+                        return; // No further processing needed for a disconnected node.
+                    }
+
+                    // Finalize: If the turn is now complete, run final processing and disconnect.
+                    if (this._isTurnComplete(turnNode)) {
+                        EventBus.publish(`${APPID}:turnComplete`, turnNode);
+                        this.debouncedNavUpdate();
+
+                        // Manually trigger a cache update now that streaming is complete.
+                        this.debouncedCacheUpdate();
+
+                        observer.disconnect();
+                        this.activeTurnObservers.delete(turnNode);
+                        // Mark this turn as processed to prevent redundant executions.
+                        this.processedTurnNodes.add(turnNode);
+                    }
+                });
+
+                turnObserver.observe(turnNode, { childList: true, subtree: true });
+                this.activeTurnObservers.set(turnNode, turnObserver);
             }
         }
 
@@ -2848,104 +3081,24 @@
             return !!(userMessage || assistantActions);
         }
 
-        /**
-         * Processes a single turnNode. It handles both completed and streaming turns.
-         * For streaming turns, this observer performs the crucial *initial* avatar injection
-         * as soon as a message element appears. Subsequent re-injections are handled
-         * performantly by the CSS animation listener in AvatarManager.
-         * @param {HTMLElement} turnNode
-         */
-        _processTurnSingle(turnNode) {
-            // If this turn contains a user message, it signifies the start of a new interaction.
-            // Resetting the performance monitor here ensures that subsequent logs for this interaction (like the assistant's response) start with a fresh timer.
-            if (turnNode.querySelector(CONSTANTS.SELECTORS.USER_MESSAGE)) {
-                PerfMonitor.reset();
-            }
+        /** @private */
+        _publishNavUpdate() {
+            EventBus.publish(`${APPID}:navButtonsUpdate`);
+        }
 
-            PerfMonitor.throttleLog('_processTurnSingle');
-            // Do not re-process turns that have already been handled by checking the in-memory Set.
-            if (this.processedTurnNodes.has(turnNode)) return;
-            if (turnNode.nodeType !== Node.ELEMENT_NODE || this.activeTurnObservers.has(turnNode)) return;
+        /** @private */
+        _publishCacheUpdate() {
+            EventBus.publish(`${APPID}:cacheUpdateRequest`);
+        }
 
-            if (this._isTurnComplete(turnNode)) {
-                const messageElements = turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
-                messageElements.forEach((elem) => {
-                    EventBus.publish(`${APPID}:avatarInject`, elem);
-                    EventBus.publish(`${APPID}:messageComplete`, elem);
-                });
-                EventBus.publish(`${APPID}:turnComplete`, turnNode);
-                this.debouncedNavUpdate();
-                this.debouncedCacheUpdate(); // Update cache for completed turns to immediately reflect the message count in the navigation console.
-                // Mark this turn as processed to prevent redundant executions.
-                this.processedTurnNodes.add(turnNode);
-            } else {
-                // This branch handles streaming turns.
+        /** @private */
+        _publishLayoutRecalculate() {
+            EventBus.publish(`${APPID}:layoutRecalculate`);
+        }
 
-                // Perform an initial scan for message elements that may have been added in the same DOM update batch as the turn container itself.
-                // This closes a race condition window where the observer starts after the initial element is already present.
-                const existingMessages = turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
-                existingMessages.forEach((elem) => {
-                    if (!elem.classList.contains(`${APPID}-avatar-processed`)) {
-                        EventBus.publish(`${APPID}:avatarInject`, elem);
-                    }
-                });
-
-                const turnObserver = new MutationObserver((turnMutations, observer) => {
-                    let isNowComplete = false;
-
-                    for (const mutation of turnMutations) {
-                        if (mutation.type === 'childList') {
-                            for (const addedNode of mutation.addedNodes) {
-                                if (addedNode.nodeType !== Node.ELEMENT_NODE) continue;
-
-                                // 1. Initial Injection: Find any message elements that were just added and inject their avatars.
-                                const messagesInNode = addedNode.matches(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS) ? [addedNode] : Array.from(addedNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS));
-
-                                messagesInNode.forEach((elem) => {
-                                    // Inject only if it hasn't been processed before.
-                                    if (!elem.classList.contains(`${APPID}-avatar-processed`)) {
-                                        EventBus.publish(`${APPID}:avatarInject`, elem);
-                                    }
-                                });
-
-                                // 2. Completion Check: See if the completion signal was added in this batch.
-                                if (addedNode.querySelector(CONSTANTS.SELECTORS.TURN_COMPLETE_SELECTOR)) {
-                                    isNowComplete = true;
-                                }
-                            }
-                        }
-                    }
-
-                    // If the turn node has been disconnected from the DOM (e.g., by user action or error),
-                    // clean up its observer immediately to prevent memory leaks.
-                    if (!turnNode.isConnected) {
-                        observer.disconnect();
-                        this.activeTurnObservers.delete(turnNode);
-                        return; // No further processing needed for a disconnected node.
-                    }
-
-                    // 3. Finalize: If the turn is now complete, run final processing and disconnect.
-                    if (isNowComplete || this._isTurnComplete(turnNode)) {
-                        const allElementsInTurn = turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
-                        allElementsInTurn.forEach((elem) => {
-                            EventBus.publish(`${APPID}:messageComplete`, elem);
-                        });
-                        EventBus.publish(`${APPID}:turnComplete`, turnNode);
-                        this.debouncedNavUpdate();
-
-                        // Manually trigger a cache update now that streaming is complete.
-                        this.debouncedCacheUpdate();
-
-                        observer.disconnect();
-                        this.activeTurnObservers.delete(turnNode);
-                        // Mark this turn as processed to prevent redundant executions.
-                        this.processedTurnNodes.add(turnNode);
-                    }
-                });
-
-                turnObserver.observe(turnNode, { childList: true, subtree: true });
-                this.activeTurnObservers.set(turnNode, turnObserver);
-            }
+        /** @private */
+        _publishVisibilityRecheck() {
+            EventBus.publish(`${APPID}:visibilityRecheck`);
         }
     }
 
@@ -2956,6 +3109,7 @@
         constructor(configManager) {
             this.configManager = configManager;
             this.debouncedUpdateAllMessageHeights = debounce(this.updateAllMessageHeights.bind(this), TIMING.DEBOUNCE_DELAYS.VISIBILITY_CHECK);
+            this.unsubscribers = [];
         }
 
         /**
@@ -2963,8 +3117,8 @@
          */
         init() {
             this.injectAvatarStyle();
-            EventBus.subscribe(`${APPID}:avatarInject`, (elem) => this.injectAvatar(elem));
-            EventBus.subscribe(`${APPID}:cacheUpdateRequest`, () => this.debouncedUpdateAllMessageHeights());
+            this.unsubscribers.push(EventBus.subscribe(`${APPID}:avatarInject`, (elem) => this.injectAvatar(elem)));
+            this.unsubscribers.push(EventBus.subscribe(`${APPID}:cacheUpdateRequest`, () => this.debouncedUpdateAllMessageHeights()));
 
             // Add a global listener for the animation that detects removed avatars.
             // This is highly performant as it avoids JS-based DOM polling.
@@ -2980,28 +3134,45 @@
             );
         }
 
+        destroy() {
+            this.unsubscribers.forEach((unsub) => unsub());
+            this.unsubscribers = [];
+            // Note: The global document.addEventListener is not removed as it's lightweight
+            // and tied to the script's lifecycle, not this specific instance.
+        }
+
+        /**
+         * Schedules a min-height update for a message element.
+         * Retries if the element's height is not yet available.
+         * @private
+         * @param {HTMLElement} msgElem The element to apply the min-height style to.
+         */
+        _scheduleMinHeightUpdate(msgElem) {
+            const nameDiv = msgElem.querySelector(CONSTANTS.SELECTORS.SIDE_AVATAR_NAME);
+            if (!nameDiv) return;
+
+            const setMinHeight = (retryCount = 0) => {
+                requestAnimationFrame(() => {
+                    const iconSize = this.configManager.getIconSize();
+                    const nameHeight = nameDiv.offsetHeight;
+
+                    if (nameHeight > 0 && iconSize) {
+                        msgElem.style.minHeight = iconSize + nameHeight + 'px';
+                    } else if (retryCount < RETRY_CONFIG.MAX_AVATAR_HEIGHT_ATTEMPTS) {
+                        setTimeout(() => setMinHeight(retryCount + 1), TIMING.TIMEOUTS.AVATAR_HEIGHT_RETRY);
+                    }
+                });
+            };
+            setMinHeight();
+        }
+
         /**
          * Updates the min-height of all message wrappers on the page.
          */
         updateAllMessageHeights() {
             const allMessageElements = document.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
             allMessageElements.forEach((msgElem) => {
-                const nameDiv = msgElem.querySelector(CONSTANTS.SELECTORS.SIDE_AVATAR_NAME);
-                if (!nameDiv) return;
-
-                const setMinHeight = (retryCount = 0) => {
-                    requestAnimationFrame(() => {
-                        const iconSize = this.configManager.getIconSize();
-                        const nameHeight = nameDiv.offsetHeight;
-
-                        if (nameHeight > 0 && iconSize) {
-                            msgElem.style.minHeight = iconSize + nameHeight + 'px';
-                        } else if (retryCount < RETRY_CONFIG.MAX_AVATAR_HEIGHT_ATTEMPTS) {
-                            setTimeout(() => setMinHeight(retryCount + 1), TIMING.TIMEOUTS.AVATAR_HEIGHT_RETRY);
-                        }
-                    });
-                };
-                setMinHeight();
+                this._scheduleMinHeightUpdate(msgElem);
             });
         }
 
@@ -3022,6 +3193,8 @@
             // Add the container to the message element and mark as processed.
             msgElem.prepend(container);
             msgElem.classList.add(processedClass);
+            // Schedule the height update for the newly injected avatar.
+            this._scheduleMinHeightUpdate(msgElem);
         }
 
         /**
@@ -3082,6 +3255,7 @@
                     background-size: cover;
                     background-position: center;
                     background-repeat: no-repeat;
+                    transition: background-image 0.3s ease-in-out;
                 }
                 ${CONSTANTS.SELECTORS.SIDE_AVATAR_NAME} {
                     font-size: 0.75rem;
@@ -3141,6 +3315,7 @@
         constructor(configManager) {
             this.configManager = configManager;
             this.debouncedRecalculateStandingImagesLayout = debounce(this.recalculateStandingImagesLayout.bind(this), CONSTANTS.RETRY.STANDING_IMAGES_INTERVAL);
+            this.unsubscribers = [];
         }
 
         /**
@@ -3149,12 +3324,25 @@
         init() {
             this.createContainers();
             this.injectStyles();
-            EventBus.subscribe(`${APPID}:layoutRecalculate`, this.debouncedRecalculateStandingImagesLayout);
-            EventBus.subscribe(`${APPID}:themeApplied`, () => {
-                this.updateVisibility();
-                this.debouncedRecalculateStandingImagesLayout();
-            });
-            EventBus.subscribe(`${APPID}:visibilityRecheck`, () => this.updateVisibility());
+            this.unsubscribers.push(EventBus.subscribe(`${APPID}:layoutRecalculate`, this.debouncedRecalculateStandingImagesLayout));
+            // Subscribe to the new event that fires after all images are processed.
+            this.unsubscribers.push(
+                EventBus.subscribe(`${APPID}:imagesApplied`, () => {
+                    this.updateVisibility();
+                    this.debouncedRecalculateStandingImagesLayout();
+                })
+            );
+            this.unsubscribers.push(
+                EventBus.subscribe(`${APPID}:visibilityRecheck`, () => {
+                    this.updateVisibility();
+                    this.debouncedRecalculateStandingImagesLayout();
+                })
+            );
+        }
+
+        destroy() {
+            this.unsubscribers.forEach((unsub) => unsub());
+            this.unsubscribers = [];
         }
 
         injectStyles() {
@@ -3176,7 +3364,7 @@
                     margin: 0;
                     padding: 0;
                     opacity: 0;
-                    transition: opacity 0.3s;
+                    transition: opacity 0.3s, background-image 0.3s ease-in-out;
                     background-repeat: no-repeat;
                     background-position: bottom center;
                     background-size: contain;
@@ -3309,6 +3497,7 @@
             this.configManager = configManager;
             this.messageCacheManager = messageCacheManager;
             this.navContainers = new Map();
+            this.unsubscribers = [];
         }
 
         /**
@@ -3316,8 +3505,13 @@
          */
         init() {
             this.injectStyle();
-            EventBus.subscribe(`${APPID}:messageComplete`, (elem) => this.processElement(elem));
-            EventBus.subscribe(`${APPID}:turnComplete`, (turnNode) => this.processTurn(turnNode));
+            this.unsubscribers.push(EventBus.subscribe(`${APPID}:messageComplete`, (elem) => this.processElement(elem)));
+            this.unsubscribers.push(EventBus.subscribe(`${APPID}:turnComplete`, (turnNode) => this.processTurn(turnNode)));
+        }
+
+        destroy() {
+            this.unsubscribers.forEach((unsub) => unsub());
+            this.unsubscribers = [];
         }
 
         /**
@@ -3360,10 +3554,13 @@
             }
 
             const positioningParent = PlatformAdapter.getNavPositioningParent(messageElement);
-            if (!positioningParent) return null;
+            if (!positioningParent) {
+                Logger.warn('Navigation button container could not be attached. Positioning parent not found for:', messageElement);
+                return null;
+            }
 
-            // Check the DOM for an existing container before creating a new one
-            let container = positioningParent.querySelector(`.${APPID}-bubble-nav-container`);
+            // Always query from the messageElement itself to ensure a consistent and reliable search scope.
+            let container = messageElement.querySelector(`.${APPID}-bubble-nav-container`);
             if (container) {
                 this.navContainers.set(messageElement, container);
                 return container;
@@ -3408,338 +3605,48 @@
         }
     }
 
-    class CollapsibleBubbleManager extends BubbleFeatureManagerBase {
+    class BubbleUIManager extends BubbleFeatureManagerBase {
         constructor(configManager, messageCacheManager) {
             super(configManager, messageCacheManager);
         }
 
-        /**
-         * @override
-         */
+        /** @override */
         getStyleId() {
-            return `${APPID}-collapsible-bubble-style`;
+            return `${APPID}-bubble-ui-style`;
         }
 
-        /**
-         * @override
-         */
+        /** @override */
         generateCss() {
-            return SITE_STYLES.COLLAPSIBLE_CSS;
+            // Consolidate CSS from all features.
+            return SITE_STYLES.COLLAPSIBLE_CSS + '\n' + SITE_STYLES.BUBBLE_NAV_CSS;
         }
 
-        /**
-         * @override
-         */
-        processElement(messageElement) {
-            // This feature only applies to assistant messages in Gemini,
-            // as user messages have a native collapse button.
-            if (messageElement.tagName.toLowerCase() !== CONSTANTS.SELECTORS.ASSISTANT_MESSAGE) {
-                return;
-            }
-
-            const featureEnabled = this.configManager.get()?.features.collapsible_button.enabled;
-            if (featureEnabled) {
-                this.setupFeature(messageElement);
-            } else {
-                this.cleanupFeature(messageElement);
-            }
-        }
-
-        /**
-         * Sets up the collapsible feature on a message element.
-         * @param {HTMLElement} messageElement The message element to process.
-         */
-        setupFeature(messageElement) {
-            if (messageElement.classList.contains(`${APPID}-collapsible-processed`)) {
-                // Ensure button is visible if feature was re-enabled
-                const toggleBtn = messageElement.querySelector(`.${APPID}-collapsible-toggle-btn`);
-                if (toggleBtn) toggleBtn.classList.remove(`${APPID}-hidden`);
-            } else {
-                messageElement.classList.add(`${APPID}-collapsible-processed`, `${APPID}-collapsible`);
-                const toggleBtn = h(
-                    `button.${APPID}-collapsible-toggle-btn`,
-                    {
-                        type: 'button',
-                        title: 'Toggle message',
-                        onclick: (e) => {
-                            e.stopPropagation();
-                            messageElement.classList.toggle(`${APPID}-bubble-collapsed`);
-                        },
-                    },
-                    [
-                        h(
-                            'svg',
-                            {
-                                xmlns: 'http://www.w3.org/2000/svg',
-                                height: '24px',
-                                viewBox: '0 -960 960 960',
-                                width: '24px',
-                                fill: 'currentColor',
-                            },
-                            [h('path', { d: 'M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z' })]
-                        ),
-                    ]
-                );
-                messageElement.appendChild(toggleBtn);
-            }
-
-            // Add the generic content class to the bubble itself for unified styling
-            const bubble = messageElement.querySelector(CONSTANTS.SELECTORS.RAW_USER_BUBBLE) || messageElement.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE);
-            if (bubble && !bubble.classList.contains(`${APPID}-collapsible-content`)) {
-                bubble.classList.add(`${APPID}-collapsible-content`);
-            }
-        }
-
-        /**
-         * Cleans up the feature from a message element.
-         * @param {HTMLElement} messageElement
-         */
-        cleanupFeature(messageElement) {
-            if (messageElement.classList.contains(`${APPID}-collapsible-processed`)) {
-                const toggleBtn = messageElement.querySelector(`.${APPID}-collapsible-toggle-btn`);
-                if (toggleBtn) {
-                    toggleBtn.classList.add(`${APPID}-hidden`);
-                }
-                // Ensure message is expanded when feature is disabled
-                messageElement.classList.remove(`${APPID}-bubble-collapsed`);
-            }
-        }
-    }
-
-    class SequentialNavManager extends BubbleFeatureManagerBase {
-        constructor(configManager, messageCacheManager) {
-            super(configManager, messageCacheManager);
-            this.messageCacheManager = messageCacheManager;
-        }
-
-        /**
-         * @override
-         * Initializes the manager by injecting its styles and subscribing to events.
-         * It extends the base init and adds subscriptions for its own complex state management.
-         */
-        init() {
-            // Injects style and subscribes to message/turn completion.
-            super.init();
-            EventBus.subscribe(`${APPID}:cacheUpdated`, () => this.updateAllPrevNextButtons());
-            EventBus.subscribe(`${APPID}:navigation`, () => this.navContainers.clear());
-        }
-
-        /**
-         * @override
-         */
-        getStyleId() {
-            return `${APPID}-bubble-nav-style`;
-        }
-
-        /**
-         * @override
-         */
-        generateCss() {
-            return SITE_STYLES.BUBBLE_NAV_CSS;
-        }
-
-        /**
-         * @override
-         * This comprehensive update method handles all logic when settings change.
-         */
-        updateAll() {
-            // Process visibility for all sequential navigation buttons.
-            const allMessageElements = document.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
-            allMessageElements.forEach((elem) => this.processElement(elem));
-
-            // Finally, update the enabled/disabled state of any visible prev/next buttons.
-            this.updateAllPrevNextButtons();
-        }
-
-        /**
-         * @override
-         * Processes a single message element for sequential navigation buttons.
-         * @param {HTMLElement} messageElement
-         */
+        /** @override */
         processElement(messageElement) {
             const config = this.configManager.get();
             if (!config) return;
 
-            const featureEnabled = config.features.sequential_nav_buttons.enabled;
-            if (featureEnabled) {
-                this.setupNavigationButtons(messageElement);
-            }
-
-            const topGroup = messageElement.querySelector(`.${APPID}-nav-group-top`);
-            if (topGroup) {
-                topGroup.classList.toggle(`${APPID}-hidden`, !featureEnabled);
-            }
-        }
-
-        setupNavigationButtons(messageElement) {
-            const container = this._getOrCreateNavContainer(messageElement);
-            if (!container || container.querySelector(`.${APPID}-nav-group-top`)) return;
-
-            const buttonsWrapper = container.querySelector(`.${APPID}-nav-buttons`);
-
-            const createClickHandler = (direction) => (e) => {
-                e.stopPropagation();
-                const roleInfo = this.messageCacheManager.findMessageIndex(messageElement);
-                if (!roleInfo) return;
-
-                const newIndex = roleInfo.index + direction;
-                const targetMsg = this.messageCacheManager.getMessageAtIndex(roleInfo.role, newIndex);
-
-                if (targetMsg) {
-                    const turnSelector = CONSTANTS.SELECTORS.BUBBLE_FEATURE_TURN_CONTAINERS;
-                    const scrollTarget = turnSelector ? targetMsg.closest(turnSelector) : targetMsg;
-                    if (scrollTarget) {
-                        scrollToElement(scrollTarget, { offset: CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV });
-                        EventBus.publish(`${APPID}:nav:highlightMessage`, targetMsg);
-                    }
-                }
-            };
-            const prevBtn = h(
-                `button.${APPID}-bubble-nav-btn.${APPID}-nav-prev`,
-                {
-                    type: 'button',
-                    title: 'Scroll to previous message',
-                    dataset: { originalTitle: 'Scroll to previous message' },
-                    onclick: createClickHandler(-1),
-                },
-                [h('svg', { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, [h('path', { d: 'M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z' })])]
-            );
-            const nextBtn = h(
-                `button.${APPID}-bubble-nav-btn.${APPID}-nav-next`,
-                {
-                    type: 'button',
-                    title: 'Scroll to next message',
-                    dataset: { originalTitle: 'Scroll to next message' },
-                    onclick: createClickHandler(1),
-                },
-                [h('svg', { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, [h('path', { d: 'M480-344 240-584l56-56 184 184 184-184 56 56-240 240Z' })])]
-            );
-            const topGroup = h(`div.${APPID}-nav-group-top`, [prevBtn, nextBtn]);
-            buttonsWrapper.prepend(topGroup);
-        }
-
-        updateAllPrevNextButtons() {
-            const disabledHint = '(No message to scroll to)';
-            const updateActorButtons = (messages) => {
-                messages.forEach((message, index) => {
-                    const container = this.navContainers.get(message);
-                    if (!container) return;
-
-                    const prevBtn = container.querySelector(`.${APPID}-nav-prev`);
-                    if (prevBtn) {
-                        const isDisabled = index === 0;
-                        prevBtn.disabled = isDisabled;
-                        prevBtn.title = isDisabled ? `${prevBtn.dataset.originalTitle} ${disabledHint}` : prevBtn.dataset.originalTitle;
-                    }
-
-                    const nextBtn = container.querySelector(`.${APPID}-nav-next`);
-                    if (nextBtn) {
-                        const isDisabled = index === messages.length - 1;
-                        nextBtn.disabled = isDisabled;
-                        nextBtn.title = isDisabled ? `${nextBtn.dataset.originalTitle} ${disabledHint}` : nextBtn.dataset.originalTitle;
-                    }
-                });
-            };
-
-            updateActorButtons(this.messageCacheManager.getUserMessages());
-            updateActorButtons(this.messageCacheManager.getAssistantMessages());
-        }
-    }
-
-    class ScrollToTopManager extends BubbleFeatureManagerBase {
-        constructor(configManager, messageCacheManager) {
-            super(configManager, messageCacheManager);
+            // Delegate platform-specific application of features.
+            PlatformAdapter.applyBubbleFeatures(messageElement, this, config);
         }
 
         /**
          * @override
-         */
-        init() {
-            super.init();
-            EventBus.subscribe(`${APPID}:navigation`, () => this.navContainers.clear());
-        }
-
-        /**
-         * @override
-         */
-        getStyleId() {
-            return `${APPID}-bubble-nav-style`;
-        }
-
-        /**
-         * @override
-         */
-        generateCss() {
-            return SITE_STYLES.BUBBLE_NAV_CSS;
-        }
-
-        /**
-         * @override
-         */
-        updateAll() {
-            const allTurnNodes = document.querySelectorAll(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER);
-            allTurnNodes.forEach((turn) => this.processTurn(turn));
-        }
-
-        /**
-         * @override
-         * Processes a conversation turn for the scroll-to-top button.
+         * Processes a conversation turn after it has completed rendering.
+         * This is crucial for features that depend on the final dimensions of a message.
          * @param {HTMLElement} turnNode
          */
         processTurn(turnNode) {
-            const config = this.configManager.get();
-            if (!config) return;
-
-            const topNavEnabled = config.features.scroll_to_top_button.enabled;
-
-            turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS).forEach((messageElement) => {
-                if (topNavEnabled) {
-                    this.setupScrollToTopButton(messageElement);
-                    const bottomGroup = messageElement.querySelector(`.${APPID}-nav-group-bottom`);
-                    if (bottomGroup) {
-                        bottomGroup.classList.remove(`${APPID}-hidden`);
-                    }
-                } else {
-                    const bottomGroup = messageElement.querySelector(`.${APPID}-nav-group-bottom`);
-                    if (bottomGroup) {
-                        bottomGroup.classList.add(`${APPID}-hidden`);
-                    }
-                }
+            const allMessageElements = turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
+            allMessageElements.forEach((messageElement) => {
+                this.processElement(messageElement);
             });
         }
 
-        /**
-         * Sets up the scroll-to-top button for a message element.
-         * @param {HTMLElement} messageElement The message element to process.
-         */
-        setupScrollToTopButton(messageElement) {
-            const container = this._getOrCreateNavContainer(messageElement);
-            if (!container || container.querySelector(`.${APPID}-nav-group-bottom`)) return;
-
-            const buttonsWrapper = container.querySelector(`.${APPID}-nav-buttons`);
-
-            const turnSelector = CONSTANTS.SELECTORS.BUBBLE_FEATURE_TURN_CONTAINERS;
-            const scrollTarget = turnSelector ? messageElement.closest(turnSelector) : messageElement;
-            if (!scrollTarget) return;
-
-            const topBtn = h(
-                `button.${APPID}-bubble-nav-btn.${APPID}-nav-top`,
-                {
-                    type: 'button',
-                    title: 'Scroll to top of this message',
-                    onclick: (e) => {
-                        e.stopPropagation();
-                        scrollToElement(scrollTarget, { offset: CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV });
-                    },
-                },
-                [
-                    h('svg', { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, [
-                        h('path', { d: 'M440-160v-480L280-480l-56-56 256-256 256 256-56 56-160-160v480h-80Zm-200-640v-80h400v80H240Z' }),
-                    ]),
-                ]
-            );
-            const bottomGroup = h(`div.${APPID}-nav-group-bottom`, [topBtn]);
-            buttonsWrapper.appendChild(bottomGroup);
+        /** @override */
+        updateAll() {
+            // Delegate the update logic to the platform adapter.
+            PlatformAdapter.updateAllBubbleFeatures(this);
         }
     }
 
@@ -3778,10 +3685,10 @@
 
             // Store the unsubscribe functions returned by EventBus.subscribe
             this.unsubscribers.push(
-                EventBus.subscribe(`${APPID}:cacheUpdated`, () => this.debouncedUpdateUI()),
-                EventBus.subscribe(`${APPID}:navigation`, () => this.resetState()),
-                EventBus.subscribe(`${APPID}:nav:highlightMessage`, (messageElement) => this.setHighlightAndIndices(messageElement)),
-                EventBus.subscribe(`${APPID}:layoutRecalculate`, () => this.debouncedReposition())
+                EventBus.subscribe(`${APPID}:cacheUpdated`, this.debouncedUpdateUI),
+                EventBus.subscribe(`${APPID}:navigation`, this.resetState.bind(this)),
+                EventBus.subscribe(`${APPID}:nav:highlightMessage`, this.setHighlightAndIndices.bind(this)),
+                EventBus.subscribe(`${APPID}:layoutRecalculate`, this.debouncedReposition)
             );
 
             // After the main UI is ready, trigger an initial UI update.
@@ -3801,6 +3708,11 @@
             }
             this.isInitialSelectionDone = false;
             this.previousTotalMessages = 0;
+
+            // Disconnect the observer on navigation to prevent leaks.
+            // It will be re-initialized by _updateUI when the new page content loads.
+            this.resizeObserver?.disconnect();
+            this.resizeObserver = null;
         }
 
         /**
@@ -4267,6 +4179,7 @@
             this.button = null;
             this.debouncedReposition = debounce(this.repositionButton.bind(this), TIMING.DEBOUNCE_DELAYS.NAVIGATION_UPDATE);
             this.fixedNavManager = null;
+            this.unsubscribers = [];
         }
 
         /**
@@ -4286,8 +4199,8 @@
             this.render();
             this.injectStyle();
 
-            EventBus.subscribe(`${APPID}:cacheUpdateRequest`, this.updateVisibility.bind(this));
-            EventBus.subscribe(`${APPID}:layoutRecalculate`, this.debouncedReposition);
+            this.unsubscribers.push(EventBus.subscribe(`${APPID}:cacheUpdateRequest`, this.updateVisibility.bind(this)));
+            this.unsubscribers.push(EventBus.subscribe(`${APPID}:layoutRecalculate`, this.debouncedReposition));
 
             const inputArea = await waitForElement(CONSTANTS.SELECTORS.FIXED_NAV_INPUT_AREA_TARGET);
             if (inputArea && this.button) {
@@ -4295,6 +4208,13 @@
                 this.updateVisibility(); // Set initial visibility
                 this.button.style.visibility = 'visible';
             }
+        }
+
+        destroy() {
+            this.unsubscribers.forEach((unsub) => unsub());
+            this.unsubscribers = [];
+            this.button?.remove();
+            this.button = null;
         }
 
         render() {
@@ -5357,10 +5277,7 @@
     class SettingsPanelBase extends UIComponentBase {
         constructor(callbacks) {
             super(callbacks);
-            this.debouncedSave = debounce(async () => {
-                const newConfig = await this._collectDataFromForm();
-                this.callbacks.onSave?.(newConfig);
-            }, TIMING.DEBOUNCE_DELAYS.SETTINGS_SAVE);
+            this.debouncedSave = debounce(this._handleDebouncedSave.bind(this), TIMING.DEBOUNCE_DELAYS.SETTINGS_SAVE);
             this._handleDocumentClick = this._handleDocumentClick.bind(this);
             this._handleDocumentKeydown = this._handleDocumentKeydown.bind(this);
         }
@@ -5420,6 +5337,15 @@
             this.element.style.display = 'none';
             document.removeEventListener('click', this._handleDocumentClick, true);
             document.removeEventListener('keydown', this._handleDocumentKeydown, true);
+        }
+
+        /**
+         * @private
+         * Collects data and calls the onSave callback. Designed to be debounced.
+         */
+        async _handleDebouncedSave() {
+            const newConfig = await this._collectDataFromForm();
+            this.callbacks.onSave?.(newConfig);
         }
 
         _createPanelContainer() {
@@ -6030,7 +5956,7 @@
             this.pendingDeletionKey = null;
             this.modal = null;
             this.dataConverter = callbacks.dataConverter;
-            this.debouncedUpdatePreview = debounce(() => this._updateAllPreviews(), TIMING.DEBOUNCE_DELAYS.THEME_PREVIEW);
+            this.debouncedUpdatePreview = debounce(this._updateAllPreviews.bind(this), TIMING.DEBOUNCE_DELAYS.THEME_PREVIEW);
             this.renameState = {
                 type: null,
                 isActive: false,
@@ -6834,6 +6760,26 @@
             return themeData;
         }
 
+        async _saveConfigAndHandleFeedback(newConfig, onSuccessCallback = null) {
+            if (!this.modal) return false;
+            const footerMessage = this.modal.dom.footerMessage;
+            if (footerMessage) footerMessage.textContent = ''; // Clear previous messages
+
+            try {
+                await this.callbacks.onSave(newConfig);
+                if (onSuccessCallback) {
+                    await onSuccessCallback();
+                }
+                return true;
+            } catch (e) {
+                if (footerMessage) {
+                    footerMessage.textContent = e.message;
+                    footerMessage.style.color = this.callbacks.siteStyles.error_text;
+                }
+                return false;
+            }
+        }
+
         async _handleThemeAction(shouldClose) {
             this._clearAllFieldErrors();
             // Clear the global footer message on a new action
@@ -6892,25 +6838,20 @@
                 }
             }
 
-            try {
-                await this.callbacks.onSave(newConfig);
+            const onSuccess = async () => {
                 if (shouldClose) {
                     this.close();
                 } else {
                     await this._refreshModalState();
                 }
-            } catch (e) {
-                if (this.modal?.dom?.footerMessage) {
-                    const footerMsg = this.modal.dom.footerMessage;
-                    footerMsg.textContent = e.message;
-                    footerMsg.style.color = SITE_STYLES.THEME_MODAL.error_text;
-                }
-            }
+            };
+            await this._saveConfigAndHandleFeedback(newConfig, onSuccess);
         }
 
         async _handleThemeNew() {
             const config = await this.callbacks.getCurrentConfig();
             const existingNames = new Set(config.themeSets.map((t) => t.metadata.name?.trim().toLowerCase()));
+            existingNames.add('default settings');
             const newName = proposeUniqueName('New Theme', existingNames);
             const newTheme = {
                 metadata: { id: generateUniqueId(), name: newName, matchPatterns: [] },
@@ -6921,19 +6862,13 @@
             };
             const newConfig = JSON.parse(JSON.stringify(config));
             newConfig.themeSets.push(newTheme);
-            try {
-                await this.callbacks.onSave(newConfig);
 
+            const onSuccess = async () => {
                 this.activeThemeKey = newTheme.metadata.id;
                 await this._refreshModalState();
                 this._enterRenameMode('theme');
-            } catch (e) {
-                if (this.modal?.dom?.footerMessage) {
-                    const footerMsg = this.modal.dom.footerMessage;
-                    footerMsg.textContent = e.message;
-                    footerMsg.style.color = this.callbacks.siteStyles.error_text;
-                }
-            }
+            };
+            await this._saveConfigAndHandleFeedback(newConfig, onSuccess);
         }
 
         async _handleThemeCopy() {
@@ -6950,6 +6885,7 @@
             const originalName = themeToCopy.metadata.name || 'Theme';
             const baseName = `${originalName} Copy`;
             const existingNames = new Set(config.themeSets.map((t) => t.metadata.name?.trim().toLowerCase()));
+            existingNames.add('default settings');
             const newName = proposeUniqueName(baseName, existingNames);
             const newTheme = JSON.parse(JSON.stringify(themeToCopy));
 
@@ -6962,17 +6898,12 @@
 
             const newConfig = JSON.parse(JSON.stringify(config));
             newConfig.themeSets.push(newTheme);
-            try {
-                await this.callbacks.onSave(newConfig);
+
+            const onSuccess = async () => {
                 this.activeThemeKey = newTheme.metadata.id;
                 await this._refreshModalState();
-            } catch (e) {
-                if (this.modal?.dom?.footerMessage) {
-                    const footerMsg = this.modal.dom.footerMessage;
-                    footerMsg.textContent = e.message;
-                    footerMsg.style.color = this.callbacks.siteStyles.error_text;
-                }
-            }
+            };
+            await this._saveConfigAndHandleFeedback(newConfig, onSuccess);
         }
 
         async _handleThemeDelete() {
@@ -6985,19 +6916,13 @@
             const config = await this.callbacks.getCurrentConfig();
             const newConfig = JSON.parse(JSON.stringify(config));
             newConfig.themeSets = newConfig.themeSets.filter((t) => t.metadata.id !== themeKey);
-            try {
-                await this.callbacks.onSave(newConfig);
 
+            const onSuccess = async () => {
                 this.activeThemeKey = 'defaultSet';
                 this._exitDeleteConfirmationMode();
                 await this._refreshModalState();
-            } catch (e) {
-                if (this.modal?.dom?.footerMessage) {
-                    const footerMsg = this.modal.dom.footerMessage;
-                    footerMsg.textContent = e.message;
-                    footerMsg.style.color = this.callbacks.siteStyles.error_text;
-                }
-            }
+            };
+            await this._saveConfigAndHandleFeedback(newConfig, onSuccess);
         }
 
         async _handleThemeMove(direction) {
@@ -7014,16 +6939,7 @@
             const item = newConfig.themeSets.splice(currentIndex, 1)[0];
             newConfig.themeSets.splice(newIndex, 0, item);
 
-            try {
-                await this.callbacks.onSave(newConfig);
-                await this._refreshModalState();
-            } catch (e) {
-                if (this.modal?.dom?.footerMessage) {
-                    const footerMsg = this.modal.dom.footerMessage;
-                    footerMsg.textContent = e.message;
-                    footerMsg.style.color = this.callbacks.siteStyles.error_text;
-                }
-            }
+            await this._saveConfigAndHandleFeedback(newConfig, () => this._refreshModalState());
         }
 
         async _enterRenameMode(type) {
@@ -7077,10 +6993,12 @@
             }
 
             const existingKeys = config.themeSets.map((t) => t.metadata.name);
+            const isNameTaken = existingKeys.some((k) => k?.toLowerCase() === newName.toLowerCase());
+            const isNameReserved = newName.toLowerCase() === 'default settings';
 
-            if (newName.toLowerCase() !== oldName.toLowerCase() && existingKeys.some((k) => k.toLowerCase() === newName.toLowerCase())) {
+            if (newName.toLowerCase() !== oldName.toLowerCase() && (isNameTaken || isNameReserved)) {
                 if (footerMessage) {
-                    footerMessage.textContent = `Name "${newName}" is already in use.`;
+                    footerMessage.textContent = `Name "${newName}" is already in use or is reserved.`;
                     footerMessage.style.color = this.callbacks.siteStyles.error_text;
                 }
                 input.classList.add('is-invalid');
@@ -7100,15 +7018,7 @@
                 return;
             }
 
-            try {
-                await this.callbacks.onSave(newConfig);
-                await this._exitRenameMode(true);
-            } catch (e) {
-                if (footerMessage) {
-                    footerMessage.textContent = `Save failed: ${e.message}`;
-                    footerMessage.style.color = this.callbacks.siteStyles.error_text;
-                }
-            }
+            await this._saveConfigAndHandleFeedback(newConfig, () => this._exitRenameMode(true));
         }
 
         _injectStyles() {
@@ -7472,6 +7382,7 @@
             this.onModalClose = onModalClose;
             this.siteStyles = siteStyles;
             this.isModalOpen = false;
+            this.unsubscribers = [];
             const modalCallbacks = {
                 onSave: (newConfig) => this.onSave(newConfig),
                 getCurrentConfig: () => this.getCurrentConfig(),
@@ -7519,14 +7430,25 @@
             this.settingsPanel.render();
             this.jsonModal.render();
             this.themeModal.render();
-            EventBus.subscribe(`${APPID}:reOpenModal`, ({ type, key }) => {
-                if (type === 'json') {
-                    this.jsonModal.open(this.settingsButton.element);
-                } else if (type === 'theme') {
-                    this.themeModal.open(key);
-                }
-            });
-            EventBus.subscribe(`${APPID}:uiReposition`, () => this.repositionSettingsButton());
+            this.unsubscribers.push(
+                EventBus.subscribe(`${APPID}:reOpenModal`, ({ type, key }) => {
+                    if (type === 'json') {
+                        this.jsonModal.open(this.settingsButton.element);
+                    } else if (type === 'theme') {
+                        this.themeModal.open(key);
+                    }
+                })
+            );
+            this.unsubscribers.push(EventBus.subscribe(`${APPID}:uiReposition`, () => this.repositionSettingsButton()));
+        }
+
+        destroy() {
+            this.unsubscribers.forEach((unsub) => unsub());
+            this.unsubscribers = [];
+            this.settingsButton?.destroy();
+            this.settingsPanel?.destroy();
+            this.jsonModal?.close(); // Modals destroy themselves on close
+            this.themeModal?.close();
         }
 
         repositionSettingsButton() {
@@ -7796,10 +7718,7 @@
             this.avatarManager = new AvatarManager(this.configManager);
             this.standingImageManager = new StandingImageManager(this.configManager);
             this.themeManager = new ThemeManager(this.configManager, this.imageDataManager, this.standingImageManager);
-            this.collapsibleBubbleManager = new CollapsibleBubbleManager(this.configManager, this.messageCacheManager);
-            this.scrollToTopManager = new ScrollToTopManager(this.configManager, this.messageCacheManager);
-            // Inject the cache manager into components that need it
-            this.sequentialNavManager = new SequentialNavManager(this.configManager, this.messageCacheManager);
+            this.bubbleUIManager = new BubbleUIManager(this.configManager, this.messageCacheManager);
             this.fixedNavManager = null;
             this.bulkCollapseManager = new BulkCollapseManager(this.configManager);
             this.syncManager = null;
@@ -7830,9 +7749,7 @@
             this.messageCacheManager.init();
             this.avatarManager.init();
             this.standingImageManager.init();
-            this.collapsibleBubbleManager.init();
-            this.scrollToTopManager.init();
-            this.sequentialNavManager.init();
+            this.bubbleUIManager.init();
             this.uiManager.init();
             if (this.configManager.get().features.fixed_nav_console.enabled) {
                 // Inject the cache manager
@@ -7862,6 +7779,14 @@
                 this.isConfigSizeExceeded = false;
                 this.configWarningMessage = '';
                 this.uiManager.displayConfigWarning();
+            });
+
+            // Listen for message completions to initiate turn observation.
+            EventBus.subscribe(`${APPID}:messageComplete`, (messageElement) => {
+                const turnNode = messageElement.closest(CONSTANTS.SELECTORS.DEBUG_CONTAINER_TURN);
+                if (turnNode) {
+                    this.observerManager._processTurnSingle(turnNode);
+                }
             });
         }
 
@@ -7954,9 +7879,7 @@
 
         async _applyUiUpdates(completeConfig, themeChanged) {
             this.avatarManager.updateIconSizeCss();
-            this.collapsibleBubbleManager.updateAll();
-            this.scrollToTopManager.updateAll();
-            this.sequentialNavManager.updateAll();
+            this.bubbleUIManager.updateAll();
             this.bulkCollapseManager.updateVisibility();
 
             // Repopulate the settings panel form if it is currently open
@@ -8114,12 +8037,30 @@
         });
     });
 
-    // Use the Sentinel to detect when a new conversation turn is added to the DOM.
-    // This is more performant than using the main MutationObserver for this high-frequency event.
-    sentinel.on(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER, (turnNode) => {
+    /**
+     * Processes a message element once its inner bubble is fully rendered and attached to the DOM.
+     * @param {HTMLElement} bubbleElement The bubble element detected by the Sentinel.
+     */
+    const processReadyMessage = (bubbleElement) => {
         if (!isInitialized) return;
-        automator.observerManager._processTurnSingle(turnNode);
-    });
+
+        // Find the parent message container that holds the role attribute
+        const messageElement = bubbleElement.closest(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
+
+        // Process only if found and not already processed to prevent redundant executions
+        if (messageElement && !messageElement.dataset.guxProcessed) {
+            messageElement.dataset.guxProcessed = 'true';
+
+            // Publish events for other managers to act on this fully rendered element
+            EventBus.publish(`${APPID}:avatarInject`, messageElement);
+            EventBus.publish(`${APPID}:messageComplete`, messageElement);
+        }
+    };
+
+    // Listen for the moment the inner bubbles themselves are added to the DOM.
+    // This is the most reliable signal that a message is ready for modification.
+    sentinel.on(CONSTANTS.SELECTORS.RAW_USER_BUBBLE, processReadyMessage);
+    sentinel.on(CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE, processReadyMessage);
 
     // ---- Debugging ----
     // Description: Exposes a debug object to the console.
