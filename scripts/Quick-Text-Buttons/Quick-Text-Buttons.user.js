@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Quick-Text-Buttons
 // @namespace    https://github.com/p65536
-// @version      1.0.1
+// @version      1.1.0
 // @license      MIT
 // @description  Adds customizable buttons to paste predefined text into the input field on ChatGPT/Gemini.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/qtb.ico
@@ -126,7 +126,7 @@
         }
 
         /**
-         * Inserts text into the appropriate input field for the current platform.
+         * Finds the editor element and delegates the text insertion task to the EditorController.
          * @param {string} text The text to insert.
          * @param {object} options The insertion options.
          */
@@ -143,136 +143,8 @@
                 return;
             }
 
-            // Dispatch to the correct insertion method based on the platform.
-            if (platform.platformId === 'chatgpt') {
-                this._insertTextForChatGPT(text, editor, options);
-            } else if (platform.platformId === 'gemini') {
-                this._insertTextForGemini(text, editor, options);
-            }
-        }
-
-        /**
-         * Inserts text for ChatGPT using the Selection and Range APIs.
-         * This version avoids converting newlines to <br> tags, relying on the editor's
-         * native handling of newline characters.
-         * @param {string} text The text to insert.
-         * @param {HTMLElement} editor The target editor element.
-         * @param {object} options The insertion options.
-         * @private
-         */
-        static _insertTextForChatGPT(text, editor, options) {
-            setTimeout(() => {
-                editor.focus();
-
-                const selection = window.getSelection();
-                if (!selection || selection.rangeCount === 0) {
-                    Logger.error('Could not get selection or range.');
-                    return;
-                }
-
-                let range = selection.getRangeAt(0);
-
-                // Determine the correct range based on options and focus state
-                const isEditorFocused = editor.contains(selection.anchorNode);
-
-                if (options.insertion_position === 'start') {
-                    range.selectNodeContents(editor);
-                    range.collapse(true); // Collapse to the start
-                } else if (options.insertion_position === 'end' || (options.insertion_position === 'cursor' && !isEditorFocused)) {
-                    range.selectNodeContents(editor);
-                    range.collapse(false); // Collapse to the end
-                }
-                // If insertion_position is 'cursor' and it is focused, the current range is already correct.
-                selection.removeAllRanges();
-                selection.addRange(range);
-
-                // Insert text using a fragment with <br> elements for newlines,
-                // which is required by the ProseMirror editor.
-                range.deleteContents();
-                let textToInsert = text;
-                if (options.insert_before_newline) textToInsert = '\n' + textToInsert;
-                if (options.insert_after_newline) textToInsert += '\n';
-
-                const fragment = document.createDocumentFragment();
-                const lines = textToInsert.split('\n');
-                lines.forEach((line, index) => {
-                    if (line) {
-                        fragment.appendChild(document.createTextNode(line));
-                    }
-                    if (index < lines.length - 1) {
-                        fragment.appendChild(document.createElement('br'));
-                    }
-                });
-
-                range.insertNode(fragment);
-                // Move cursor to the end of the inserted text
-                range.collapse(false);
-                selection.removeAllRanges();
-                selection.addRange(range);
-
-                // Dispatch events to notify the editor of the change
-                editor.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
-                editor.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
-            }, 100);
-        }
-
-        /**
-         * Inserts text for Gemini using the innerText method, with ql-blank handling.
-         * @param {string} text The text to insert.
-         * @param {HTMLElement} editor The target editor element.
-         * @param {object} options The insertion options.
-         * @private
-         */
-        static _insertTextForGemini(text, editor, options) {
-            setTimeout(() => {
-                editor.focus();
-
-                const selection = window.getSelection();
-                if (!selection || selection.rangeCount === 0) {
-                    Logger.error('Could not get selection or range.');
-                    return;
-                }
-
-                let range = selection.getRangeAt(0);
-
-                // Determine the correct range based on options and focus state
-                const isEditorFocused = editor.contains(selection.anchorNode);
-
-                if (options.insertion_position === 'start') {
-                    range.selectNodeContents(editor);
-                    range.collapse(true); // Collapse to the start
-                } else if (options.insertion_position === 'end' || (options.insertion_position === 'cursor' && !isEditorFocused)) {
-                    range.selectNodeContents(editor);
-                    range.collapse(false); // Collapse to the end
-                }
-                // If insertion_position is 'cursor' and it is focused, the current range is already correct.
-
-                selection.removeAllRanges();
-                selection.addRange(range);
-
-                // Insert text using a TextNode, which is CSP-safe.
-                range.deleteContents();
-
-                let textToInsert = text;
-                if (options.insert_before_newline) textToInsert = '\n' + textToInsert;
-                if (options.insert_after_newline) textToInsert += '\n';
-
-                const textNode = document.createTextNode(textToInsert);
-                range.insertNode(textNode);
-
-                // Move cursor to the end of the inserted text
-                range.setStartAfter(textNode);
-                range.collapse(true);
-                selection.removeAllRanges();
-                selection.addRange(range);
-
-                // Gemini-specific: Remove the placeholder class.
-                editor.classList.remove('ql-blank');
-
-                // Dispatch events to notify the editor of the change
-                editor.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
-                editor.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
-            }, 100);
+            // Delegate the complex insertion logic to the specialized controller.
+            EditorController.insertText(text, editor, options, platform.platformId);
         }
 
         static repositionButtons(uiManager) {
@@ -317,6 +189,281 @@
                 insertBtn.element.style.left = '';
                 insertBtn.element.style.right = insertBtn.options.position.right;
             }
+        }
+
+        static startPlatformSpecificObservers(observerManager) {
+            const platform = this.getPlatformDetails();
+            if (!platform) return;
+
+            // --- ChatGPT-specific observer for Canvas resizing ---
+            if (platform.platformId === 'chatgpt') {
+                let canvasResizeObserver = null;
+                let lastCanvasState = false;
+
+                const checkCanvasState = () => {
+                    const canvasPanel = document.querySelector(platform.selectors.CANVAS_CONTAINER)?.closest('section.popover');
+                    const isCanvasActive = !!canvasPanel;
+
+                    if (isCanvasActive === lastCanvasState) return;
+                    lastCanvasState = isCanvasActive;
+
+                    // Disconnect any previous observer to prevent memory leaks
+                    canvasResizeObserver?.disconnect();
+                    canvasResizeObserver = null;
+
+                    if (isCanvasActive) {
+                        // Canvas appeared, attach resize observer specifically to the canvas panel
+                        canvasResizeObserver = new ResizeObserver(observerManager.debouncedLayoutRecalculate);
+                        canvasResizeObserver.observe(canvasPanel);
+                    }
+                    // Always trigger a reposition when state changes (e.g., to reset buttons when canvas closes)
+                    observerManager.debouncedLayoutRecalculate();
+                };
+
+                const debouncedStateCheck = debounce(checkCanvasState, CONSTANTS.POSITIONING.RECALC_DEBOUTCE_MS);
+                const canvasDetectionObserver = new MutationObserver(debouncedStateCheck);
+                canvasDetectionObserver.observe(document.body, { childList: true, subtree: true });
+
+                // Initial check on load
+                checkCanvasState();
+            }
+
+            // No observers needed for Gemini, as repositioning is not required.
+        }
+    }
+
+    // =================================================================================
+    // SECTION: Editor Controller
+    // Description: Handles all direct DOM manipulation and logic for rich text editors.
+    // =================================================================================
+
+    class EditorController {
+        /**
+         * Inserts text for rich text editors (ChatGPT/Gemini) using a full replacement strategy.
+         * @param {string} text The text to insert.
+         * @param {HTMLElement} editor The target editor element.
+         * @param {object} options The insertion options.
+         * @param {string} platformId The ID of the current platform ('chatgpt' or 'gemini').
+         */
+        static insertText(text, editor, options, platformId) {
+            setTimeout(() => {
+                editor.focus();
+
+                const selection = window.getSelection();
+                if (!selection || selection.rangeCount === 0) {
+                    Logger.error('Could not get selection or range.');
+                    return;
+                }
+                const range = selection.getRangeAt(0);
+
+                // 1. Get existing text, handling ChatGPT's restored state
+                let existingText;
+                const paragraphs = Array.from(editor.childNodes).filter((n) => n.nodeName === 'P');
+                // A restored state in ChatGPT is characterized by a single <p> containing newlines.
+                const isRestoredState = platformId === 'chatgpt' && paragraphs.length === 1 && paragraphs[0].textContent.includes('\n');
+
+                if (isRestoredState) {
+                    // For the restored state, get text content directly from the single paragraph.
+                    existingText = paragraphs[0].textContent;
+                } else {
+                    // For the normal multi-<p> state, use the standard parsing logic.
+                    existingText = this._getTextFromEditor(editor, platformId);
+                }
+
+                let cursorPos = 0;
+                const isEditorFocused = editor.contains(selection.anchorNode);
+
+                if (options.insertion_position === 'cursor' && isEditorFocused) {
+                    cursorPos = this._getCursorPositionInText(editor, platformId);
+                } else if (options.insertion_position === 'start') {
+                    cursorPos = 0;
+                } else {
+                    // 'end' or 'cursor' but not focused
+                    cursorPos = existingText.length;
+                }
+
+                // 2. Prepare the text to be inserted
+                let textToInsert = text;
+                if (options.insert_before_newline) textToInsert = '\n' + textToInsert;
+                if (options.insert_after_newline) textToInsert += '\n';
+
+                // 3. Construct the final, complete text and new cursor position
+                const finalText = existingText.slice(0, cursorPos) + textToInsert + existingText.slice(cursorPos);
+                const newCursorPos = cursorPos + textToInsert.length;
+
+                // 4. Build a single DOM fragment for the entire new content
+                const finalFragment = this._createTextFragmentForEditor(finalText, platformId);
+
+                // 5. Replace editor content safely using Range API
+                range.selectNodeContents(editor);
+                range.deleteContents();
+                range.insertNode(finalFragment);
+
+                // 6. Set the cursor to the end of the inserted text
+                this._setCursorPositionByOffset(editor, newCursorPos);
+
+                // 7. Platform-specific cleanup
+                if (platformId === 'gemini') {
+                    editor.classList.remove('ql-blank');
+                }
+
+                // 8. Dispatch events to notify the editor of the change
+                editor.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+                editor.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+            }, 100);
+        }
+
+        /**
+         * Retrieves the plain text content from the editor (ChatGPT or Gemini).
+         * @param {HTMLElement} editor The target editor element.
+         * @param {string} platformId The ID of the current platform.
+         * @returns {string} The plain text content.
+         * @private
+         */
+        static _getTextFromEditor(editor, platformId) {
+            if (platformId === 'chatgpt' && editor.querySelector('p.placeholder')) {
+                return '';
+            }
+            // Gemini's initial state is <p><br></p>, which should be treated as empty.
+            if (platformId === 'gemini' && editor.childNodes.length === 1 && editor.firstChild.nodeName === 'P' && editor.firstChild.innerHTML === '<br>') {
+                return '';
+            }
+
+            const lines = [];
+
+            for (const p of editor.childNodes) {
+                if (p.nodeName !== 'P') continue;
+
+                const isStructuralEmptyLine = p.childNodes.length === 1 && p.firstChild.nodeName === 'BR';
+                let isEmptyLine = false;
+
+                if (isStructuralEmptyLine) {
+                    if (platformId === 'chatgpt') {
+                        // For ChatGPT, the class must also match for it to be a true empty line paragraph.
+                        isEmptyLine = p.firstChild.className === 'ProseMirror-trailingBreak';
+                    } else {
+                        // For Gemini, the structure alone is sufficient.
+                        isEmptyLine = true;
+                    }
+                }
+
+                if (isEmptyLine) {
+                    lines.push('');
+                } else {
+                    lines.push(p.textContent);
+                }
+            }
+            return lines.join('\n');
+        }
+
+        /**
+         * Calculates the cursor's character offset within the plain text representation of the editor.
+         * @param {HTMLElement} editor The editor element.
+         * @param {string} platformId The ID of the current platform.
+         * @returns {number} The character offset of the cursor.
+         * @private
+         */
+        static _getCursorPositionInText(editor, platformId) {
+            const selection = window.getSelection();
+            if (!selection.rangeCount) return 0;
+
+            const range = selection.getRangeAt(0);
+            if (!editor.contains(range.startContainer)) return 0;
+
+            const preCaretRange = range.cloneRange();
+            preCaretRange.selectNodeContents(editor);
+            preCaretRange.setEnd(range.startContainer, range.startOffset);
+
+            const tempDiv = document.createElement('div');
+            tempDiv.appendChild(preCaretRange.cloneContents());
+
+            const textBeforeCursor = this._getTextFromEditor(tempDiv, platformId);
+            return textBeforeCursor.length;
+        }
+
+        /**
+         * Creates a DocumentFragment based on the editor's expected <p> structure.
+         * @param {string} text The plain text to convert, with newlines as \n.
+         * @param {string} platformId The ID of the current platform.
+         * @returns {DocumentFragment} The constructed fragment.
+         * @private
+         */
+        static _createTextFragmentForEditor(text, platformId) {
+            const fragment = document.createDocumentFragment();
+            const lines = text.split('\n');
+
+            lines.forEach((line) => {
+                const p = document.createElement('p');
+                if (line === '') {
+                    const br = document.createElement('br');
+                    if (platformId === 'chatgpt') {
+                        br.className = 'ProseMirror-trailingBreak';
+                    }
+                    p.appendChild(br);
+                } else {
+                    p.appendChild(document.createTextNode(line));
+                }
+                fragment.appendChild(p);
+            });
+            return fragment;
+        }
+
+        /**
+         * Sets the cursor position within the editor based on a character offset.
+         * @param {HTMLElement} editor The editor element.
+         * @param {number} offset The target character offset from a plain text representation (with \n).
+         * @private
+         */
+        static _setCursorPositionByOffset(editor, offset) {
+            const selection = window.getSelection();
+            if (!selection) return;
+
+            const range = document.createRange();
+            let charCount = 0;
+            let lastNode = editor; // Fallback node
+
+            const paragraphs = Array.from(editor.childNodes).filter((n) => n.nodeName === 'P');
+
+            for (let i = 0; i < paragraphs.length; i++) {
+                const p = paragraphs[i];
+                lastNode = p;
+                const treeWalker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT, null, false);
+                let textNode = null;
+
+                while ((textNode = treeWalker.nextNode())) {
+                    lastNode = textNode;
+                    const nodeLength = textNode.textContent.length;
+                    if (charCount + nodeLength >= offset) {
+                        range.setStart(textNode, offset - charCount);
+                        range.collapse(true);
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                        return; // Position found and set.
+                    }
+                    charCount += nodeLength;
+                }
+
+                // After processing a paragraph, account for the newline character,
+                // but only if it's not the last paragraph.
+                if (i < paragraphs.length - 1) {
+                    if (charCount === offset) {
+                        // This case handles when the cursor position is exactly at the newline.
+                        // We place the cursor at the end of the current paragraph.
+                        range.selectNodeContents(p);
+                        range.collapse(false);
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                        return;
+                    }
+                    charCount++; // Increment for the newline
+                }
+            }
+
+            // If the offset is beyond all text, place cursor at the end of the last node.
+            range.selectNodeContents(lastNode);
+            range.collapse(false);
+            selection.removeAllRanges();
+            selection.addRange(range);
         }
     }
 
@@ -613,7 +760,7 @@
         options: {
             insert_before_newline: false,
             insert_after_newline: false,
-            insertion_position: 'end', // 'cursor', 'start', 'end'
+            insertion_position: 'cursor', // 'cursor', 'start', 'end'
             activeProfileName: 'Default',
         },
         texts: {
@@ -1415,12 +1562,18 @@
     class SettingsPanelBase extends UIComponentBase {
         constructor(callbacks) {
             super(callbacks);
-            this.debouncedSave = debounce(async () => {
-                const newConfig = await this._collectDataFromForm();
-                this.callbacks.onSave?.(newConfig);
-            }, 300);
+            this.debouncedSave = debounce(this._handleDebouncedSave.bind(this), 300);
             this._handleDocumentClick = this._handleDocumentClick.bind(this);
             this._handleDocumentKeydown = this._handleDocumentKeydown.bind(this);
+        }
+
+        /**
+         * @private
+         * Collects data and calls the onSave callback. Designed to be debounced.
+         */
+        async _handleDebouncedSave() {
+            const newConfig = await this._collectDataFromForm();
+            this.callbacks.onSave?.(newConfig);
         }
 
         render() {
@@ -1569,10 +1722,7 @@
                             h(`span#${APPID}-slider-value-display`),
                         ]),
                     ]),
-                    h(
-                        `div.${APPID}-settings-note`,
-                        `Note: The behavior of all 'Options' settings can be influenced by the state of the input field, such as its focus or current content. For the most consistent results, setting 'Insertion position' to 'End' and leaving the 'Insert newline' options off.`
-                    ),
+                    h(`div.${APPID}-settings-note`, `Note: Option behavior may depend on the input field’s state (focus and existing content). For consistent results, click an insert button while the input field is focused.`),
                 ]),
             ]);
         }
@@ -3254,7 +3404,7 @@
                     onmouseenter: (e) => this.callbacks.onMouseEnter?.(e),
                     onmouseleave: (e) => this.callbacks.onMouseLeave?.(e),
                 },
-                [(this.elements.tabsContainer = h('div.cqtb-category-tabs')), h('div.cqtb-category-separator'), (this.elements.optionsContainer = h('div.cqtb-text-options'))]
+                [(this.elements.tabsContainer = h(`div.${APPID}-category-tabs`)), h(`div.${APPID}-category-separator`), (this.elements.optionsContainer = h(`div.${APPID}-text-options`))]
             );
 
             document.body.appendChild(this.element);
@@ -3282,16 +3432,16 @@
                     border: 1px solid ${styles.border};
                     box-shadow: ${styles.shadow};
                 }
-                .cqtb-category-tabs {
+                .${APPID}-category-tabs {
                     display: flex;
                     margin-bottom: 5px;
                 }
-                .cqtb-category-separator {
+                .${APPID}-category-separator {
                     height: 1px;
                     margin: 4px 0;
                     background: ${styles.separator_bg};
                 }
-                .cqtb-category-tab {
+                .${APPID}-category-tab {
                     flex: 1 1 0;
                     min-width: 0;
                     max-width: 90px;
@@ -3306,18 +3456,18 @@
                     cursor: pointer;
                     transition: background 0.15s;
                 }
-                .cqtb-category-tab.active {
+                .${APPID}-category-tab.active {
                     background: ${styles.tab_active_bg};
                     border-color: ${styles.tab_active_border};
                     outline: 2px solid ${styles.tab_active_outline};
                 }
-                .cqtb-category-tab:hover {
+                .${APPID}-category-tab:hover {
                     background: ${styles.tab_hover_bg};
                 }
-                .cqtb-text-options {
+                .${APPID}-text-options {
                     /* No specific styles needed */
                 }
-                .cqtb-text-option {
+                .${APPID}-text-option {
                     display: block;
                     width: 100%;
                     margin: 4px 0;
@@ -3330,7 +3480,7 @@
                     border: 1px solid ${styles.option_border};
                     cursor: pointer;
                 }
-                .cqtb-text-option:hover, .cqtb-text-option:focus {
+                .${APPID}-text-option:hover, .${APPID}-text-option:focus {
                     background: ${styles.option_hover_bg} !important;
                     border-color: ${styles.option_hover_border} !important;
                     outline: 2px solid ${styles.option_hover_outline};
@@ -3360,6 +3510,7 @@
 
             this.hideTimeoutId = null;
             this.isModalOpen = false;
+            this.unsubscribers = [];
             this.components = {
                 settingsBtn: null,
                 settingsPanel: null,
@@ -3437,15 +3588,25 @@
         init() {
             this._renderComponents();
             this.renderContent();
-            EventBus.subscribe(`${APPID}:reOpenModal`, ({ type, key }) => {
-                if (type === 'json') {
-                    this.components.jsonModal.open(this.components.settingsBtn.element);
-                } else if (type === 'textEditor') {
-                    this.components.textEditorModal.open(key);
-                }
-            });
+            this.unsubscribers.push(
+                EventBus.subscribe(`${APPID}:reOpenModal`, ({ type, key }) => {
+                    if (type === 'json') {
+                        this.components.jsonModal.open(this.components.settingsBtn.element);
+                    } else if (type === 'textEditor') {
+                        this.components.textEditorModal.open(key);
+                    }
+                })
+            );
             // Add event listener for dynamic UI changes
-            EventBus.subscribe(`${APPID}:layoutRecalculate`, () => this.repositionAllButtons());
+            this.unsubscribers.push(EventBus.subscribe(`${APPID}:layoutRecalculate`, () => this.repositionAllButtons()));
+        }
+
+        destroy() {
+            this.unsubscribers.forEach((unsub) => unsub());
+            this.unsubscribers = [];
+            for (const key in this.components) {
+                this.components[key]?.destroy();
+            }
         }
 
         repositionAllButtons() {
@@ -3493,7 +3654,7 @@
 
             Object.keys(activeProfile).forEach((cat) => {
                 const tab = h('button', {
-                    className: 'cqtb-category-tab' + (cat === this.activeCategory ? ' active' : ''),
+                    className: `${APPID}-category-tab` + (cat === this.activeCategory ? ' active' : ''),
                     textContent: cat,
                     onmousedown: (e) => {
                         e.stopPropagation();
@@ -3506,7 +3667,7 @@
 
             (activeProfile[this.activeCategory] || []).forEach((txt) => {
                 const btn = h('button', {
-                    className: 'cqtb-text-option',
+                    className: `${APPID}-text-option`,
                     textContent: txt.length > 100 ? `${txt.slice(0, 100)}…` : txt,
                     title: txt,
                     onmousedown: (e) => {
@@ -3673,6 +3834,21 @@
     }
 
     // =================================================================================
+    // SECTION: DOM Observers and Event Listeners
+    // =================================================================================
+
+    class ObserverManager {
+        constructor(app) {
+            this.app = app; // Reference to the main app
+            this.debouncedLayoutRecalculate = debounce(this._publishLayoutRecalculate.bind(this), CONSTANTS.POSITIONING.RECALC_DEBOUNCE_MS);
+        }
+
+        _publishLayoutRecalculate() {
+            EventBus.publish(`${APPID}:layoutRecalculate`);
+        }
+    }
+
+    // =================================================================================
     // SECTION: Main Application Controller
     // =================================================================================
 
@@ -3747,6 +3923,7 @@
             this.uiManager = null;
             this.platformDetails = null;
             this.syncManager = null;
+            this.observerManager = new ObserverManager(this);
         }
 
         async init() {
@@ -3774,10 +3951,8 @@
             this.uiManager.init();
             this.syncManager.init();
 
-            // Setup MutationObserver to watch for dynamic UI changes like Canvas opening
-            const debouncedLayoutRecalculate = debounce(() => EventBus.publish(`${APPID}:layoutRecalculate`), CONSTANTS.POSITIONING.RECALC_DEBOUNCE_MS);
-            const mainObserver = new MutationObserver(debouncedLayoutRecalculate);
-            mainObserver.observe(document.body, { childList: true, subtree: true });
+            // Start platform-specific observers for dynamic UI changes via the adapter
+            PlatformAdapter.startPlatformSpecificObservers(this.observerManager);
         }
 
         // Method required by the SyncManager's interface for silent updates
@@ -3873,6 +4048,11 @@
             }
 
             return completeConfig;
+        }
+
+        destroy() {
+            this.uiManager?.destroy();
+            // In the future, other managers can be destroyed here as well.
         }
     }
 
