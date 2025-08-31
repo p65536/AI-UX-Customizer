@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.3.7] - 2025-08-31
+- **Performance Enhancements**
+  - Made theme application asynchronous: non-image styles (colors, fonts) were applied instantly, while images are loaded in the background with a smooth transition.
+  - Optimized avatar height calculation to run once per message injection instead of recalculating all messages on every update.
+  - Implemented an in-memory cache with an LRU eviction policy and a 10MB size limit to prevent excessive memory usage.
+- **Stability & Bug Fixes**
+  - Re-architected the core event handling model to be fully event-driven using a `Sentinel`, resolving race conditions during SPA navigation.
+  - Removed the old DOM-scanning method (`scanForExistingTurns`) and its related logic in favor of the new event-driven approach.
+  - Hardened UI injection logic by validating target elements before processing.
+  - **Theme Modal**: Fixed a bug where the reserved name **"Default Settings"** could be used for custom themes.
+- **Code Quality & Refactoring**
+  - Standardized all debounced instance method calls to use `.bind(this)` to prevent `this` context errors.
+  - Added a `destroy` method to all manager classes that use the EventBus, and prevented memory leaks by managing and releasing subscriptions as an array.
+  - Moved the main Observer creation process at app startup from `PlatformAdapter` to `ObserverManager`. `PlatformAdapter` now focuses on providing platform-specific processing, and `ObserverManager` clarifies its role as the central orchestrator.
+  - Removed dead code related to the previous sidebar observer.
+  - Improved the robustness of navigation button container creation to prevent duplication.
+  - **Theme Manager**: Decomposed the monolithic `applyThemeStyles` into `_ensureStylesheets`, `_applyNonImageVariables`, and `_applyImageVariables`. This clarified synchronous vs. asynchronous processing and improved maintainability. Also cached the dynamic stylesheet DOM reference to avoid redundant lookups.
+  - **Theme Modal Component**: Introduced `_saveConfigAndHandleFeedback` to consolidate repetitive `try/catch` logic for saving configuration and showing feedback, reducing duplication across multiple handlers.
+  - **Bubble UI Refactoring**: Merged `CollapsibleBubbleManager`, `SequentialNavManager`, and `ScrollToTopManager` into a single, unified `BubbleUIManager`.　Also Moved all platform-specific bubble logic into the `PlatformAdapter`. This simplifies the main controller, reduces code duplication, and improves maintainability.
+
 ## [1.3.6] - 2025-08-26
 - **New Features**
   - **Auto-select Latest Message**: The navigation console now automatically selects the most recent message when a chat is opened.
