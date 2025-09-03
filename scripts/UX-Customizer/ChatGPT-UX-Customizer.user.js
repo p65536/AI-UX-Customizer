@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.3.7
+// @version      1.3.8
 // @license      MIT
 // @description  Automatically applies a theme based on the chat name (changes user/assistant names, text color, icon, bubble style, window background, input area style, standing images, etc.)
 // @icon         https://chatgpt.com/favicon.ico
@@ -3034,20 +3034,20 @@
         }
 
         /**
-         * Processes a single turnNode. It handles both completed and streaming turns.
-         * For streaming turns, this observer performs the crucial *initial* avatar injection
-         * as soon as a message element appears. Subsequent re-injections are handled
-         * performantly by the CSS animation listener in AvatarManager.
-         * @param {HTMLElement} turnNode
+         * @description Processes a turn node, handling both completed and streaming turns.
+         * If the turn is already complete, it triggers final updates (e.g., for navigation).
+         * If the turn is streaming, it attaches a dedicated MutationObserver to watch for its completion.
+         * @private
+         * @param {HTMLElement} turnNode The turn container element to process or observe.
          */
-        _processTurnSingle(turnNode) {
+        observeTurnForCompletion(turnNode) {
             // If this turn contains a user message, it signifies the start of a new interaction.
             // Resetting the performance monitor here ensures that subsequent logs for this interaction (like the assistant's response) start with a fresh timer.
             if (turnNode.querySelector(CONSTANTS.SELECTORS.USER_MESSAGE)) {
                 PerfMonitor.reset();
             }
 
-            PerfMonitor.throttleLog('_processTurnSingle');
+            PerfMonitor.throttleLog('observeTurnForCompletion');
             // Do not re-process turns that have already been handled by checking the in-memory Set.
             if (this.processedTurnNodes.has(turnNode)) return;
             if (turnNode.nodeType !== Node.ELEMENT_NODE || this.activeTurnObservers.has(turnNode)) return;
@@ -3150,8 +3150,9 @@
         /**
          * @param {ConfigManager} configManager
          */
-        constructor(configManager) {
+        constructor(configManager, messageCacheManager) {
             this.configManager = configManager;
+            this.messageCacheManager = messageCacheManager;
             this.debouncedUpdateAllMessageHeights = debounce(this.updateAllMessageHeights.bind(this), TIMING.DEBOUNCE_DELAYS.VISIBILITY_CHECK);
             this.unsubscribers = [];
         }
@@ -3162,7 +3163,7 @@
         init() {
             this.injectAvatarStyle();
             this.unsubscribers.push(EventBus.subscribe(`${APPID}:avatarInject`, (elem) => this.injectAvatar(elem)));
-            this.unsubscribers.push(EventBus.subscribe(`${APPID}:cacheUpdateRequest`, () => this.debouncedUpdateAllMessageHeights()));
+            this.unsubscribers.push(EventBus.subscribe(`${APPID}:cacheUpdated`, () => this.debouncedUpdateAllMessageHeights()));
 
             // Add a global listener for the animation that detects removed avatars.
             // This is highly performant as it avoids JS-based DOM polling.
@@ -3214,7 +3215,7 @@
          * Updates the min-height of all message wrappers on the page.
          */
         updateAllMessageHeights() {
-            const allMessageElements = document.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
+            const allMessageElements = this.messageCacheManager.getTotalMessages();
             allMessageElements.forEach((msgElem) => {
                 const msgWrapper = msgElem.closest(CONSTANTS.SELECTORS.MESSAGE_WRAPPER_FINDER);
                 if (msgWrapper) {
@@ -3340,8 +3341,9 @@
         /**
          * @param {ConfigManager} configManager
          */
-        constructor(configManager) {
+        constructor(configManager, messageCacheManager) {
             this.configManager = configManager;
+            this.messageCacheManager = messageCacheManager;
             this.debouncedRecalculateStandingImagesLayout = debounce(this.recalculateStandingImagesLayout.bind(this), CONSTANTS.RETRY.STANDING_IMAGES_INTERVAL);
             this.unsubscribers = [];
         }
@@ -4186,8 +4188,9 @@
     }
 
     class BulkCollapseManager {
-        constructor(configManager) {
+        constructor(configManager, messageCacheManager) {
             this.configManager = configManager;
+            this.messageCacheManager = messageCacheManager;
             this.button = null;
             this.debouncedReposition = debounce(this.repositionButton.bind(this), TIMING.DEBOUNCE_DELAYS.NAVIGATION_UPDATE);
             this.fixedNavManager = null;
@@ -4211,7 +4214,7 @@
             this.render();
             this.injectStyle();
 
-            this.unsubscribers.push(EventBus.subscribe(`${APPID}:cacheUpdateRequest`, this.updateVisibility.bind(this)));
+            this.unsubscribers.push(EventBus.subscribe(`${APPID}:cacheUpdated`, this.updateVisibility.bind(this)));
             this.unsubscribers.push(EventBus.subscribe(`${APPID}:layoutRecalculate`, this.debouncedReposition));
 
             const inputArea = await waitForElement(CONSTANTS.SELECTORS.FIXED_NAV_INPUT_AREA_TARGET);
@@ -4314,7 +4317,7 @@
             if (!this.button) return;
             const config = this.configManager.get();
             const featureEnabled = config?.features?.collapsible_button?.enabled ?? false;
-            const messagesExist = !!document.querySelector(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
+            const messagesExist = this.messageCacheManager.getTotalMessages().length > 0;
 
             const shouldShow = featureEnabled && messagesExist;
             this.button.style.display = shouldShow ? 'flex' : 'none';
@@ -7727,12 +7730,12 @@
 
             // Create the central message cache manager first
             this.messageCacheManager = new MessageCacheManager();
-            this.avatarManager = new AvatarManager(this.configManager);
-            this.standingImageManager = new StandingImageManager(this.configManager);
+            this.avatarManager = new AvatarManager(this.configManager, this.messageCacheManager);
+            this.standingImageManager = new StandingImageManager(this.configManager, this.messageCacheManager);
             this.themeManager = new ThemeManager(this.configManager, this.imageDataManager, this.standingImageManager);
             this.bubbleUIManager = new BubbleUIManager(this.configManager, this.messageCacheManager);
             this.fixedNavManager = null;
-            this.bulkCollapseManager = new BulkCollapseManager(this.configManager);
+            this.bulkCollapseManager = new BulkCollapseManager(this.configManager, this.messageCacheManager);
             this.syncManager = null;
             this.isConfigSizeExceeded = false;
             this.configWarningMessage = '';
@@ -7797,7 +7800,7 @@
             EventBus.subscribe(`${APPID}:messageComplete`, (messageElement) => {
                 const turnNode = messageElement.closest(CONSTANTS.SELECTORS.DEBUG_CONTAINER_TURN);
                 if (turnNode) {
-                    this.observerManager._processTurnSingle(turnNode);
+                    this.observerManager.observeTurnForCompletion(turnNode);
                 }
             });
         }
