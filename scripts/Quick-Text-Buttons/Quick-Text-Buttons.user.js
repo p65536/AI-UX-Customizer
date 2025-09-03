@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Quick-Text-Buttons
 // @namespace    https://github.com/p65536
-// @version      1.1.0
+// @version      1.1.1
 // @license      MIT
 // @description  Adds customizable buttons to paste predefined text into the input field on ChatGPT/Gemini.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/qtb.ico
@@ -1970,7 +1970,7 @@
             super(callbacks);
             this.activeProfileKey = null;
             this.activeCategoryKey = null;
-            this.pendingDeletionKey = null;
+            this.pendingDeletion = null;
             this.modal = null;
             this.draggedIndex = null;
             this.renameState = {
@@ -1987,7 +1987,7 @@
             // Reset all local UI states every time the modal is opened.
             // This is the simplest and most robust way to ensure a clean state.
             this.renameState = { type: null, isActive: false };
-            this.pendingDeletionKey = null;
+            this.pendingDeletion = null;
 
             if (this.modal) return;
 
@@ -2046,20 +2046,20 @@
             const activeProfile = config.texts[this.activeProfileKey] || {};
             const categoryKeys = Object.keys(activeProfile);
             const isAnyRenaming = this.renameState.isActive;
-            const isAnyDeleting = !!this.pendingDeletionKey;
+            const isAnyDeleting = !!this.pendingDeletion;
 
             const profileRow = this.modal.element.querySelector(`.${APPID}-header-row[data-type="profile"]`);
             const categoryRow = this.modal.element.querySelector(`.${APPID}-header-row[data-type="category"]`);
             const scrollArea = this.modal.element.querySelector(`.${APPID}-editor-scrollable-area`);
 
-            const isProfileDisabled = (isAnyRenaming && this.renameState.type !== 'profile') || (isAnyDeleting && this.pendingDeletionKey !== this.activeProfileKey);
-            const isCategoryDisabled = (isAnyRenaming && this.renameState.type !== 'category') || (isAnyDeleting && this.pendingDeletionKey !== this.activeCategoryKey);
+            const isProfileDisabled = (isAnyRenaming && this.renameState.type !== 'profile') || (isAnyDeleting && this.pendingDeletion?.type !== 'profile');
+            const isCategoryDisabled = (isAnyRenaming && this.renameState.type !== 'category') || (isAnyDeleting && this.pendingDeletion?.type !== 'category');
             profileRow.classList.toggle('is-disabled', isProfileDisabled);
             categoryRow.classList.toggle('is-disabled', isCategoryDisabled);
 
             const updateRow = (row, type, keys, activeKey) => {
                 const isRenamingThis = isAnyRenaming && this.renameState.type === type;
-                const isDeletingThis = this.pendingDeletionKey === activeKey;
+                const isDeletingThis = this.pendingDeletion?.type === type;
 
                 const select = row.querySelector('select');
                 const renameInput = row.querySelector('input[type="text"]');
@@ -2196,19 +2196,22 @@
             return h(`div.${APPID}-editor-modal-content`, [h(`div.${APPID}-editor-scrollable-area`), h(`button#${APPID}-text-new-btn.${APPID}-modal-button`, 'Add New Text')]);
         }
 
-        _enterDeleteConfirmationMode(type) {
+        /**
+         * @private
+         * @param {'profile' | 'category'} itemType The type of item to enter delete confirmation mode for.
+         */
+        _enterDeleteConfirmationMode(itemType) {
             if (!this.modal || this.renameState.isActive) return;
-            this.pendingDeletionKey = type === 'profile' ? this.activeProfileKey : this.activeCategoryKey;
-            if (!this.pendingDeletionKey) return;
-            // The UI update is now centralized in _refreshModalState
+
+            const keyToDelete = itemType === 'profile' ? this.activeProfileKey : this.activeCategoryKey;
+            if (!keyToDelete) return;
+
+            this.pendingDeletion = { key: keyToDelete, type: itemType };
             this._refreshModalState();
         }
 
-        _exitDeleteConfirmationMode(resetKey = true) {
-            if (resetKey) {
-                this.pendingDeletionKey = null;
-            }
-            // The UI update is now centralized in _refreshModalState
+        _exitDeleteConfirmationMode() {
+            this.pendingDeletion = null;
             if (this.modal) {
                 this._refreshModalState();
             }
@@ -2239,24 +2242,24 @@
 
                 const actionMap = {
                     // Profile Actions
-                    [`${APPID}-profile-new-btn`]: () => this._handleProfileNew(),
-                    [`${APPID}-profile-copy-btn`]: () => this._handleProfileCopy(),
+                    [`${APPID}-profile-new-btn`]: () => this._handleItemNew('profile'),
+                    [`${APPID}-profile-copy-btn`]: () => this._handleItemCopy('profile'),
                     [`${APPID}-profile-delete-btn`]: () => this._enterDeleteConfirmationMode('profile'),
-                    [`${APPID}-profile-delete-confirm-btn`]: () => this._handleProfileDelete(),
+                    [`${APPID}-profile-delete-confirm-btn`]: () => this._handleItemDelete(),
                     [`${APPID}-profile-delete-cancel-btn`]: () => this._exitDeleteConfirmationMode(),
-                    [`${APPID}-profile-up-btn`]: () => this._handleProfileMove(-1),
-                    [`${APPID}-profile-down-btn`]: () => this._handleProfileMove(1),
+                    [`${APPID}-profile-up-btn`]: () => this._handleItemMove('profile', -1),
+                    [`${APPID}-profile-down-btn`]: () => this._handleItemMove('profile', 1),
                     [`${APPID}-profile-rename-btn`]: () => this._enterRenameMode('profile'),
                     [`${APPID}-profile-rename-ok-btn`]: () => this._handleRenameConfirm('profile'),
                     [`${APPID}-profile-rename-cancel-btn`]: () => this._exitRenameMode(true),
                     // Category Actions
-                    [`${APPID}-category-new-btn`]: () => this._handleCategoryNew(),
-                    [`${APPID}-category-copy-btn`]: () => this._handleCategoryCopy(),
+                    [`${APPID}-category-new-btn`]: () => this._handleItemNew('category'),
+                    [`${APPID}-category-copy-btn`]: () => this._handleItemCopy('category'),
                     [`${APPID}-category-delete-btn`]: () => this._enterDeleteConfirmationMode('category'),
-                    [`${APPID}-category-delete-confirm-btn`]: () => this._handleCategoryDelete(),
+                    [`${APPID}-category-delete-confirm-btn`]: () => this._handleItemDelete(),
                     [`${APPID}-category-delete-cancel-btn`]: () => this._exitDeleteConfirmationMode(),
-                    [`${APPID}-category-up-btn`]: () => this._handleCategoryMove(-1),
-                    [`${APPID}-category-down-btn`]: () => this._handleCategoryMove(1),
+                    [`${APPID}-category-up-btn`]: () => this._handleItemMove('category', -1),
+                    [`${APPID}-category-down-btn`]: () => this._handleItemMove('category', 1),
                     [`${APPID}-category-rename-btn`]: () => this._enterRenameMode('category'),
                     [`${APPID}-category-rename-ok-btn`]: () => this._handleRenameConfirm('category'),
                     [`${APPID}-category-rename-cancel-btn`]: () => this._exitRenameMode(true),
@@ -2553,205 +2556,169 @@
             this._updateTextItemsUI();
         }
 
-        _proposeUniqueCategoryName(baseName, existingKeys) {
-            return proposeUniqueName(baseName, new Set(existingKeys.map((k) => k.toLowerCase())));
-        }
-
-        _proposeUniqueProfileName(baseName, existingKeys) {
-            return proposeUniqueName(baseName, new Set(existingKeys.map((k) => k.toLowerCase())));
-        }
-
-        async _handleProfileNew() {
+        /**
+         * @private
+         * @param {'profile' | 'category'} itemType The type of item to create.
+         */
+        async _handleItemNew(itemType) {
             const config = await this.callbacks.getCurrentConfig();
-            const existingKeys = Object.keys(config.texts);
-            const newName = this._proposeUniqueProfileName('New Profile', existingKeys);
-
             const newConfig = JSON.parse(JSON.stringify(config));
-            newConfig.texts[newName] = {
-                'New Category': [],
-            };
-            await this.callbacks.onSave(newConfig);
 
-            this.activeProfileKey = newName;
-            this.activeCategoryKey = 'New Category';
+            if (itemType === 'profile') {
+                const existingKeys = Object.keys(newConfig.texts);
+                const newName = proposeUniqueName('New Profile', existingKeys);
+                newConfig.texts[newName] = { 'New Category': [] };
+                await this.callbacks.onSave(newConfig);
+
+                this.activeProfileKey = newName;
+                this.activeCategoryKey = 'New Category';
+            } else {
+                // category
+                if (!this.activeProfileKey) return;
+                const activeProfile = newConfig.texts[this.activeProfileKey] || {};
+                const existingKeys = Object.keys(activeProfile);
+                const newName = proposeUniqueName('New Category', existingKeys);
+                newConfig.texts[this.activeProfileKey][newName] = [];
+                await this.callbacks.onSave(newConfig);
+
+                this.activeCategoryKey = newName;
+            }
+
             await this._refreshModalState();
-            // Enter rename mode for the new profile
-            this._enterRenameMode('profile');
+            this._enterRenameMode(itemType);
         }
 
-        async _handleProfileCopy() {
-            if (!this.activeProfileKey) return;
+        /**
+         * @private
+         * @param {'profile' | 'category'} itemType The type of item to copy.
+         */
+        async _handleItemCopy(itemType) {
             const config = await this.callbacks.getCurrentConfig();
-            const profileToCopy = JSON.parse(JSON.stringify(config.texts[this.activeProfileKey]));
-
-            const baseName = `${this.activeProfileKey} Copy`;
-            const existingKeys = Object.keys(config.texts);
-            const newName = this._proposeUniqueProfileName(baseName, existingKeys);
-
             const newConfig = JSON.parse(JSON.stringify(config));
-            const keys = Object.keys(newConfig.texts);
-            const insertIndex = keys.indexOf(this.activeProfileKey) + 1;
-            const reorderedConfigTexts = {};
-            keys.slice(0, insertIndex).forEach((key) => {
-                reorderedConfigTexts[key] = newConfig.texts[key];
-            });
-            reorderedConfigTexts[newName] = profileToCopy;
-            keys.slice(insertIndex).forEach((key) => {
-                reorderedConfigTexts[key] = newConfig.texts[key];
-            });
-            newConfig.texts = reorderedConfigTexts;
+
+            if (itemType === 'profile') {
+                if (!this.activeProfileKey) return;
+                const itemToCopy = JSON.parse(JSON.stringify(newConfig.texts[this.activeProfileKey]));
+                const existingKeys = Object.keys(newConfig.texts);
+                const newName = proposeUniqueName(`${this.activeProfileKey} Copy`, existingKeys);
+
+                const keys = Object.keys(newConfig.texts);
+                const insertIndex = keys.indexOf(this.activeProfileKey) + 1;
+                const reorderedItems = {};
+                keys.slice(0, insertIndex).forEach((key) => (reorderedItems[key] = newConfig.texts[key]));
+                reorderedItems[newName] = itemToCopy;
+                keys.slice(insertIndex).forEach((key) => (reorderedItems[key] = newConfig.texts[key]));
+                newConfig.texts = reorderedItems;
+
+                this.activeProfileKey = newName;
+                this.activeCategoryKey = Object.keys(itemToCopy)[0] || null;
+            } else {
+                // category
+                if (!this.activeProfileKey || !this.activeCategoryKey) return;
+                const activeProfile = newConfig.texts[this.activeProfileKey];
+                const itemToCopy = JSON.parse(JSON.stringify(activeProfile[this.activeCategoryKey]));
+                const existingKeys = Object.keys(activeProfile);
+                const newName = proposeUniqueName(`${this.activeCategoryKey} Copy`, existingKeys);
+
+                const keys = Object.keys(activeProfile);
+                const insertIndex = keys.indexOf(this.activeCategoryKey) + 1;
+                const reorderedItems = {};
+                keys.slice(0, insertIndex).forEach((key) => (reorderedItems[key] = activeProfile[key]));
+                reorderedItems[newName] = itemToCopy;
+                keys.slice(insertIndex).forEach((key) => (reorderedItems[key] = activeProfile[key]));
+                newConfig.texts[this.activeProfileKey] = reorderedItems;
+
+                this.activeCategoryKey = newName;
+            }
 
             await this.callbacks.onSave(newConfig);
-
-            this.activeProfileKey = newName;
-            this.activeCategoryKey = Object.keys(profileToCopy)[0] || null;
             await this._refreshModalState();
         }
 
-        async _handleProfileDelete() {
-            const keyToDelete = this.pendingDeletionKey;
+        /**
+         * @private
+         */
+        async _handleItemDelete() {
+            const { key: keyToDelete, type: itemType } = this.pendingDeletion;
             if (!keyToDelete) {
                 this._exitDeleteConfirmationMode();
                 return;
             }
-            const config = await this.callbacks.getCurrentConfig();
-            const keys = Object.keys(config.texts);
-            const currentIndex = keys.indexOf(keyToDelete);
 
+            const config = await this.callbacks.getCurrentConfig();
             const newConfig = JSON.parse(JSON.stringify(config));
-            delete newConfig.texts[keyToDelete];
-            // If the deleted profile was the active one, update activeProfileName in options
-            if (config.options.activeProfileName === keyToDelete) {
-                const latestKeys = Object.keys(newConfig.texts);
+
+            if (itemType === 'profile') {
+                const keys = Object.keys(newConfig.texts);
+                const currentIndex = keys.indexOf(keyToDelete);
+                delete newConfig.texts[keyToDelete];
+
+                if (newConfig.options.activeProfileName === keyToDelete) {
+                    const latestKeys = Object.keys(newConfig.texts);
+                    const nextIndex = Math.max(0, currentIndex - 1);
+                    newConfig.options.activeProfileName = latestKeys[nextIndex] || (latestKeys.length > 0 ? latestKeys[0] : null);
+                }
+
+                this.activeProfileKey = newConfig.options.activeProfileName;
+                const activeProfile = newConfig.texts[this.activeProfileKey] || {};
+                this.activeCategoryKey = Object.keys(activeProfile)[0] || null;
+            } else {
+                // category
+                if (!this.activeProfileKey) return;
+                const activeProfile = newConfig.texts[this.activeProfileKey];
+                const keys = Object.keys(activeProfile);
+                const currentIndex = keys.indexOf(keyToDelete);
+                delete newConfig.texts[this.activeProfileKey][keyToDelete];
+
+                const latestKeys = Object.keys(newConfig.texts[this.activeProfileKey]);
                 const nextIndex = Math.max(0, currentIndex - 1);
-                newConfig.options.activeProfileName = latestKeys[nextIndex] || (latestKeys.length > 0 ? latestKeys[0] : null);
+                this.activeCategoryKey = latestKeys[nextIndex] || (latestKeys.length > 0 ? latestKeys[0] : null);
             }
 
             await this.callbacks.onSave(newConfig);
-
-            this.activeProfileKey = newConfig.options.activeProfileName;
-            const activeProfile = newConfig.texts[this.activeProfileKey] || {};
-            this.activeCategoryKey = Object.keys(activeProfile)[0] || null;
-
             this._exitDeleteConfirmationMode();
             await this._refreshModalState();
         }
 
-        async _handleProfileMove(direction) {
-            if (!this.activeProfileKey) return;
+        /**
+         * @private
+         * @param {'profile' | 'category'} itemType The type of item to move.
+         * @param {number} direction The direction to move (-1 for up, 1 for down).
+         */
+        async _handleItemMove(itemType, direction) {
             const config = await this.callbacks.getCurrentConfig();
-            const keys = Object.keys(config.texts);
-            const currentIndex = keys.indexOf(this.activeProfileKey);
+            const newConfig = JSON.parse(JSON.stringify(config));
+            let keys, dataContext, activeKey;
+
+            if (itemType === 'profile') {
+                if (!this.activeProfileKey) return;
+                keys = Object.keys(newConfig.texts);
+                dataContext = newConfig.texts;
+                activeKey = this.activeProfileKey;
+            } else {
+                // category
+                if (!this.activeProfileKey || !this.activeCategoryKey) return;
+                dataContext = newConfig.texts[this.activeProfileKey];
+                if (!dataContext) return;
+                keys = Object.keys(dataContext);
+                activeKey = this.activeCategoryKey;
+            }
+
+            const currentIndex = keys.indexOf(activeKey);
             const newIndex = currentIndex + direction;
             if (newIndex < 0 || newIndex >= keys.length) return;
 
             [keys[currentIndex], keys[newIndex]] = [keys[newIndex], keys[currentIndex]];
-
-            const newConfig = JSON.parse(JSON.stringify(config));
-            const newTexts = {};
+            const reorderedItems = {};
             keys.forEach((key) => {
-                newTexts[key] = config.texts[key];
+                reorderedItems[key] = dataContext[key];
             });
-            newConfig.texts = newTexts;
 
-            await this.callbacks.onSave(newConfig);
-            await this._refreshModalState();
-        }
-
-        async _handleCategoryNew() {
-            if (!this.activeProfileKey) return;
-            const config = await this.callbacks.getCurrentConfig();
-            const activeProfile = config.texts[this.activeProfileKey] || {};
-            const existingKeys = Object.keys(activeProfile);
-            const newName = this._proposeUniqueCategoryName('New Category', existingKeys);
-
-            const newConfig = JSON.parse(JSON.stringify(config));
-            if (!newConfig.texts[this.activeProfileKey]) {
-                newConfig.texts[this.activeProfileKey] = {};
+            if (itemType === 'profile') {
+                newConfig.texts = reorderedItems;
+            } else {
+                newConfig.texts[this.activeProfileKey] = reorderedItems;
             }
-            newConfig.texts[this.activeProfileKey][newName] = [];
-            await this.callbacks.onSave(newConfig);
-
-            this.activeCategoryKey = newName;
-            await this._refreshModalState();
-            // Enter rename mode for the new category
-            this._enterRenameMode('category');
-        }
-
-        async _handleCategoryCopy() {
-            if (!this.activeProfileKey || !this.activeCategoryKey) return;
-            const config = await this.callbacks.getCurrentConfig();
-            const activeProfile = config.texts[this.activeProfileKey];
-            const textsToCopy = JSON.parse(JSON.stringify(activeProfile[this.activeCategoryKey]));
-
-            const baseName = `${this.activeCategoryKey} Copy`;
-            const existingKeys = Object.keys(activeProfile);
-            const newName = this._proposeUniqueCategoryName(baseName, existingKeys);
-
-            const newConfig = JSON.parse(JSON.stringify(config));
-            const keys = Object.keys(activeProfile);
-            const insertIndex = keys.indexOf(this.activeCategoryKey) + 1;
-
-            const reorderedCategories = {};
-            keys.slice(0, insertIndex).forEach((key) => {
-                reorderedCategories[key] = activeProfile[key];
-            });
-            reorderedCategories[newName] = textsToCopy;
-            keys.slice(insertIndex).forEach((key) => {
-                reorderedCategories[key] = activeProfile[key];
-            });
-            newConfig.texts[this.activeProfileKey] = reorderedCategories;
-
-            await this.callbacks.onSave(newConfig);
-
-            this.activeCategoryKey = newName;
-            await this._refreshModalState();
-        }
-
-        async _handleCategoryDelete() {
-            const keyToDelete = this.pendingDeletionKey;
-            if (!keyToDelete || !this.activeProfileKey) {
-                this._exitDeleteConfirmationMode();
-                return;
-            }
-            const config = await this.callbacks.getCurrentConfig();
-            const activeProfile = config.texts[this.activeProfileKey];
-            if (!activeProfile) return;
-
-            const keys = Object.keys(activeProfile);
-            const currentIndex = keys.indexOf(keyToDelete);
-
-            const newConfig = JSON.parse(JSON.stringify(config));
-            delete newConfig.texts[this.activeProfileKey][keyToDelete];
-            await this.callbacks.onSave(newConfig);
-
-            const latestKeys = Object.keys(newConfig.texts[this.activeProfileKey]);
-            const nextIndex = Math.max(0, currentIndex - 1);
-            this.activeCategoryKey = latestKeys[nextIndex] || (latestKeys.length > 0 ? latestKeys[0] : null);
-
-            this._exitDeleteConfirmationMode();
-            await this._refreshModalState();
-        }
-
-        async _handleCategoryMove(direction) {
-            if (!this.activeProfileKey || !this.activeCategoryKey) return;
-            const config = await this.callbacks.getCurrentConfig();
-
-            const profileData = config.texts[this.activeProfileKey];
-            if (!profileData) return;
-
-            const keys = Object.keys(profileData);
-            const currentIndex = keys.indexOf(this.activeCategoryKey);
-            const newIndex = currentIndex + direction;
-            if (newIndex < 0 || newIndex >= keys.length) return;
-
-            [keys[currentIndex], keys[newIndex]] = [keys[newIndex], keys[currentIndex]];
-            const newConfig = JSON.parse(JSON.stringify(config));
-            const newCategories = {};
-            keys.forEach((key) => {
-                newCategories[key] = profileData[key];
-            });
-            newConfig.texts[this.activeProfileKey] = newCategories;
 
             await this.callbacks.onSave(newConfig);
             await this._refreshModalState();
