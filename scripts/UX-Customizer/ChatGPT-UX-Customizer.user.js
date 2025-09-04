@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.3.8
+// @version      1.4.0
 // @license      MIT
 // @description  Automatically applies a theme based on the chat name (changes user/assistant names, text color, icon, bubble style, window background, input area style, standing images, etc.)
 // @icon         https://chatgpt.com/favicon.ico
@@ -4106,7 +4106,7 @@
                         padding: 4px 8px;
                         border-radius: 8px;
                         border: 1px solid ${styles.border};
-                        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+                        box-shadow: 0 2px 10px rgb(0 0 0 / 0.05);
                         font-size: 0.8rem;
                         opacity: 1;
                         transform-origin: bottom;
