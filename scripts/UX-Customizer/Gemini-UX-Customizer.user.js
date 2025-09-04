@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.3.8
+// @version      1.4.0
 // @license      MIT
 // @description  Automatically applies a theme based on the chat name (changes user/assistant names, text color, icon, bubble style, window background, input area style, standing images, etc.)
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=gemini.google.com
@@ -479,7 +479,7 @@
          * @description Sets up the monitoring for URL changes.
          */
         static startURLChangeObserver(instance) {
-            let lastHref = location.href;
+            let lastHref = null; // Initialize with null to ensure the first check always runs.
             const handler = async () => {
                 if (location.href !== lastHref) {
                     lastHref = location.href;
@@ -501,6 +501,8 @@
                                 waiterObserver.disconnect();
                                 instance.startMainObserver(chatContainer);
                                 instance.debouncedCacheUpdate();
+                                // Publish the event here, after confirming the new content is present.
+                                EventBus.publish(`${APPID}:autoScrollRequest`);
                             }
                         });
                         waiterObserver.observe(chatContainer, { childList: true, subtree: true });
@@ -515,6 +517,9 @@
                 };
             }
             window.addEventListener('popstate', handler);
+
+            // Manually call the handler once on initialization to process the initial page load.
+            handler();
         }
 
         static repositionSettingsButton(settingsButton) {
@@ -1063,6 +1068,9 @@
                 enabled: true,
             },
             fixed_nav_console: {
+                enabled: true,
+            },
+            load_full_history_on_chat_load: {
                 enabled: true,
             },
         },
@@ -3673,6 +3681,7 @@
             this.resizeObserver = null;
             this.isInitialSelectionDone = false;
             this.previousTotalMessages = 0;
+            this.isAutoScrolling = false;
 
             this.debouncedUpdateUI = debounce(this._updateUI.bind(this), TIMING.DEBOUNCE_DELAYS.THEME_PREVIEW);
             this.debouncedReposition = debounce(this.repositionContainers.bind(this), TIMING.DEBOUNCE_DELAYS.NAVIGATION_UPDATE);
@@ -3693,7 +3702,15 @@
                 EventBus.subscribe(`${APPID}:cacheUpdated`, this.debouncedUpdateUI),
                 EventBus.subscribe(`${APPID}:navigation`, this.resetState.bind(this)),
                 EventBus.subscribe(`${APPID}:nav:highlightMessage`, this.setHighlightAndIndices.bind(this)),
-                EventBus.subscribe(`${APPID}:layoutRecalculate`, this.debouncedReposition)
+                EventBus.subscribe(`${APPID}:layoutRecalculate`, this.debouncedReposition),
+                // Subscribe to the auto-scroll start and completion events.
+                EventBus.subscribe(`${APPID}:autoScrollStart`, () => {
+                    this.isAutoScrolling = true;
+                }),
+                EventBus.subscribe(`${APPID}:autoScrollComplete`, () => {
+                    this.isAutoScrolling = false;
+                    this.selectLastMessage();
+                })
             );
 
             // After the main UI is ready, trigger an initial UI update.
@@ -3852,8 +3869,8 @@
 
             PlatformAdapter.handleInfiniteScroll(this, this.highlightedMessage, this.previousTotalMessages);
 
-            // Select the last message on initial load, otherwise default to the first if no message is highlighted.
-            if (!this.isInitialSelectionDone && totalMessages.length > 0) {
+            // Select the last message on initial load, but only if auto-scroll is not in progress.
+            if (!this.isAutoScrolling && !this.isInitialSelectionDone && totalMessages.length > 0) {
                 this.selectLastMessage();
                 this.isInitialSelectionDone = true;
             } else if (!this.highlightedMessage && totalMessages.length > 0) {
@@ -4068,7 +4085,7 @@
             const totalMessages = this.messageCacheManager.getTotalMessages();
             if (totalMessages.length > 0) {
                 const lastMessage = totalMessages[totalMessages.length - 1];
-                this.setHighlightAndIndices(lastMessage);
+                this.navigateToMessage(lastMessage);
             }
         }
 
@@ -4097,7 +4114,7 @@
                         padding: 4px 8px;
                         border-radius: 8px;
                         border: 1px solid ${styles.border};
-                        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+                        box-shadow: 0 2px 10px rgb(0 0 0 / 0.05);
                         font-size: 0.8rem;
                         opacity: 1;
                         transform-origin: bottom;
@@ -5499,6 +5516,12 @@
                 h(`fieldset.${APPID}-submenu-fieldset`, [
                     h('legend', 'Features'),
                     h(`div.${APPID}-feature-group`, [
+                        h(`div.${APPID}-submenu-row`, [
+                            h('label', { htmlFor: `${APPID}-feat-load-history-enabled`, title: 'When enabled, automatically scrolls back through the history when a chat is opened to load all messages.' }, 'Load full history on chat load'),
+                            createToggle(`${APPID}-feat-load-history-enabled`),
+                        ]),
+                    ]),
+                    h(`div.${APPID}-feature-group`, [
                         h(`div.${APPID}-submenu-row`, [h('label', { htmlFor: `${APPID}-feat-collapsible-enabled`, title: 'Enables a button to collapse large message bubbles.' }, 'Collapsible button'), createToggle(`${APPID}-feat-collapsible-enabled`)]),
                     ]),
                     h(`div.${APPID}-feature-group`, [
@@ -5536,6 +5559,7 @@
             this._updateSliderDisplays();
             // Features
             const features = config.features;
+            this.element.querySelector(`#${APPID}-feat-load-history-enabled`).checked = features.load_full_history_on_chat_load.enabled;
             this.element.querySelector(`#${APPID}-feat-collapsible-enabled`).checked = features.collapsible_button.enabled;
             this.element.querySelector(`#${APPID}-feat-scroll-top-enabled`).checked = features.scroll_to_top_button.enabled;
             this.element.querySelector(`#${APPID}-feat-seq-nav-enabled`).checked = features.sequential_nav_buttons.enabled;
@@ -5579,6 +5603,7 @@
             }
             newConfig.options.respect_avatar_space = this.element.querySelector(`#${APPID}-opt-respect-avatar-space`).checked;
             // Features
+            newConfig.features.load_full_history_on_chat_load.enabled = this.element.querySelector(`#${APPID}-feat-load-history-enabled`).checked;
             newConfig.features.collapsible_button.enabled = this.element.querySelector(`#${APPID}-feat-collapsible-enabled`).checked;
             newConfig.features.scroll_to_top_button.enabled = this.element.querySelector(`#${APPID}-feat-scroll-top-enabled`).checked;
             newConfig.features.sequential_nav_buttons.enabled = this.element.querySelector(`#${APPID}-feat-seq-nav-enabled`).checked;
@@ -5611,6 +5636,7 @@
                 this.debouncedSave();
             });
             this.element.querySelector(`#${APPID}-opt-respect-avatar-space`).addEventListener('change', this.debouncedSave);
+            this.element.querySelector(`#${APPID}-feat-load-history-enabled`).addEventListener('change', this.debouncedSave);
             this.element.querySelector(`#${APPID}-feat-collapsible-enabled`).addEventListener('change', this.debouncedSave);
             this.element.querySelector(`#${APPID}-feat-scroll-top-enabled`).addEventListener('change', this.debouncedSave);
             this.element.querySelector(`#${APPID}-feat-seq-nav-enabled`).addEventListener('change', this.debouncedSave);
@@ -7709,6 +7735,311 @@
         }
     }
 
+    // =================================================================================
+    // SECTION: Auto Scroll Manager
+    // Description: Manages the auto-scrolling feature to load the entire chat history.
+    // =================================================================================
+
+    class AutoScrollManager {
+        static CONFIG = {
+            // The minimum number of messages required to trigger the auto-scroll feature.
+            MESSAGE_THRESHOLD: 20,
+            // The maximum time (in ms) to wait for the progress bar to appear after scrolling up.
+            APPEAR_TIMEOUT_MS: 2000,
+            // The maximum time (in ms) to wait for the progress bar to disappear after it has appeared.
+            DISAPPEAR_TIMEOUT_MS: 5000,
+            // The interval (in ms) at which to check for the presence or absence of the progress bar.
+            POLLING_INTERVAL_MS: 50,
+        };
+
+        /**
+         * @param {ConfigManager} configManager
+         * @param {MessageCacheManager} messageCacheManager
+         */
+        constructor(configManager, messageCacheManager) {
+            this.configManager = configManager;
+            this.messageCacheManager = messageCacheManager;
+            this.scrollContainer = null;
+            this.isEnabled = false;
+            this.isScrolling = false;
+            this.unsubscribers = [];
+            this.toastShown = false;
+            // Selector for the loading bar, identified from user's research.
+            this.PROGRESS_BAR_SELECTOR = 'mat-progress-bar[role="progressbar"]';
+        }
+
+        init() {
+            this.isEnabled = this.configManager.get().features.load_full_history_on_chat_load.enabled;
+            this.unsubscribers.push(EventBus.subscribe(`${APPID}:autoScrollRequest`, () => this.start()));
+            this.unsubscribers.push(EventBus.subscribe(`${APPID}:autoScrollCancelRequest`, () => this.stop()));
+        }
+
+        destroy() {
+            this.unsubscribers.forEach((unsub) => unsub());
+            this.unsubscribers = [];
+            this.stop();
+        }
+
+        enable() {
+            this.isEnabled = true;
+        }
+
+        disable() {
+            this.isEnabled = false;
+            this.stop();
+        }
+
+        async start() {
+            if (!this.isEnabled || this.isScrolling) return;
+
+            const container = await waitForElement('[data-test-id="chat-history-container"]');
+            if (!container) {
+                Logger.warn('AutoScrollManager: Could not find scroll container.');
+                return;
+            }
+
+            const initialMessageCount = container.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS).length;
+            if (initialMessageCount < AutoScrollManager.CONFIG.MESSAGE_THRESHOLD) {
+                Logger.log('AutoScrollManager: Fewer than 20 messages, no scroll needed.');
+                return;
+            }
+
+            this.scrollContainer = container;
+            Logger.log('AutoScrollManager: Starting auto-scroll.');
+            this.isScrolling = true;
+            this.toastShown = false;
+
+            this.scrollContainer.addEventListener('wheel', () => this.stop(), { once: true });
+            this.scrollContainer.addEventListener('touchmove', () => this.stop(), { once: true });
+
+            // Start the recursive scrolling process.
+            this._scrollStep();
+        }
+
+        stop() {
+            if (!this.isScrolling) return;
+
+            Logger.log('AutoScrollManager: Stopping auto-scroll.');
+            this.isScrolling = false;
+            this.toastShown = false;
+            this.scrollContainer = null;
+            EventBus.publish(`${APPID}:autoScrollComplete`);
+        }
+
+        /**
+         * @private
+         * @description Asynchronously waits for an element to appear in the DOM.
+         * @param {string} selector - The CSS selector of the element.
+         * @param {number} timeoutMs - The maximum time to wait.
+         * @returns {Promise<HTMLElement|null>} The element or null if timed out.
+         */
+        _waitForElementToAppear(selector, timeoutMs) {
+            return new Promise((resolve) => {
+                const startTime = Date.now();
+                const interval = setInterval(() => {
+                    const element = document.querySelector(selector);
+                    if (element) {
+                        clearInterval(interval);
+                        resolve(element);
+                    } else if (Date.now() - startTime > timeoutMs) {
+                        clearInterval(interval);
+                        resolve(null);
+                    }
+                }, AutoScrollManager.CONFIG.POLLING_INTERVAL_MS);
+            });
+        }
+
+        /**
+         * @private
+         * @description Asynchronously waits for an element to disappear from the DOM.
+         * @param {string} selector - The CSS selector of the element.
+         * @param {number} timeoutMs - The maximum time to wait.
+         * @returns {Promise<boolean>} True if the element disappeared, false if timed out.
+         */
+        _waitForElementToDisappear(selector, timeoutMs) {
+            return new Promise((resolve) => {
+                const startTime = Date.now();
+                const interval = setInterval(() => {
+                    if (!document.querySelector(selector)) {
+                        clearInterval(interval);
+                        resolve(true);
+                    } else if (Date.now() - startTime > timeoutMs) {
+                        clearInterval(interval);
+                        resolve(false);
+                    }
+                }, AutoScrollManager.CONFIG.POLLING_INTERVAL_MS);
+            });
+        }
+
+        /**
+         * @private
+         * @description Performs a single scroll step and loops until the progress bar no longer appears.
+         */
+        async _scrollStep() {
+            if (!this.isScrolling || !this.scrollContainer) {
+                this.stop();
+                return;
+            }
+
+            // Scroll to the top to trigger loading.
+            this.scrollContainer.scrollTop = 0;
+
+            // Wait for the progress bar to appear.
+            const progressBar = await this._waitForElementToAppear(this.PROGRESS_BAR_SELECTOR, AutoScrollManager.CONFIG.APPEAR_TIMEOUT_MS);
+
+            // If the progress bar appears, it means loading has started.
+            if (progressBar) {
+                // Show the toast immediately upon detecting the progress bar.
+                if (!this.toastShown) {
+                    EventBus.publish(`${APPID}:autoScrollStart`);
+                    this.toastShown = true;
+                }
+
+                // Now, wait for the progress bar to disappear, which signals loading is complete.
+                await this._waitForElementToDisappear(this.PROGRESS_BAR_SELECTOR, AutoScrollManager.CONFIG.DISAPPEAR_TIMEOUT_MS);
+
+                // Loop to the next scroll step to check for more content.
+                this._scrollStep();
+            } else {
+                // If the progress bar did not appear after scrolling, we have reached the end.
+                Logger.log('AutoScrollManager: Progress bar did not appear. Assuming scroll is complete.');
+                this.stop();
+            }
+        }
+    }
+
+    // =================================================================================
+    // SECTION: Toast Manager
+    // Description: Manages the display of temporary toast notifications.
+    // =================================================================================
+
+    class ToastManager {
+        constructor() {
+            this.toastElement = null;
+            this.unsubscribers = [];
+        }
+
+        init() {
+            this._injectStyles();
+            this.unsubscribers.push(EventBus.subscribe(`${APPID}:autoScrollStart`, () => this.show('Auto-scrolling to load history...', true)));
+            this.unsubscribers.push(EventBus.subscribe(`${APPID}:autoScrollComplete`, () => this.hide()));
+        }
+
+        destroy() {
+            this.unsubscribers.forEach((unsub) => unsub());
+            this.unsubscribers = [];
+            this.hide();
+        }
+
+        _injectStyles() {
+            const styleId = `${APPID}-toast-style`;
+            if (document.getElementById(styleId)) return;
+
+            // Define custom warning styles for the toast
+            const warnStyles = {
+                bg: 'rgb(255 165 0 / 0.9)', // Orange background for warning
+                text: '#ffffff', // White text
+                border: '#ffa000', // Darker orange border
+                cancel_btn_bg: 'rgb(255 255 255 / 0.2)', // Semi-transparent white for button background
+                cancel_btn_text: '#ffffff', // White text for button
+            };
+
+            const style = h('style', {
+                id: styleId,
+                textContent: `
+                    .${APPID}-toast-container {
+                        position: fixed; /* Changed to fixed for viewport relative positioning */
+                        top: 30%; /* Position from the top */
+                        left: 50%; /* Center horizontally */
+                        transform: translate(-50%, -50%); /* Adjust for exact centering */
+                        z-index: 10002; /* Higher z-index */
+                        background-color: ${warnStyles.bg};
+                        color: ${warnStyles.text};
+                        padding: 15px 25px; /* Slightly more padding */
+                        border-radius: 12px; /* More rounded corners */
+                        border: 1px solid ${warnStyles.border};
+                        box-shadow: 0 6px 20px rgb(0 0 0 / 0.2); /* Stronger shadow */
+                        display: flex;
+                        align-items: center;
+                        gap: 15px; /* Increased gap */
+                        font-size: 1.1em; /* Larger font */
+                        font-weight: bold; /* Bold text */
+                        opacity: 0;
+                        transition: opacity 0.4s ease, transform 0.4s ease; /* Smoother transition */
+                        pointer-events: none;
+                        white-space: nowrap; /* Prevent text wrapping */
+                    }
+                    .${APPID}-toast-container.is-visible {
+                        opacity: 1;
+                        transform: translate(-50%, 0); /* Move into view from adjusted vertical position */
+                        pointer-events: auto;
+                    }
+                    .${APPID}-toast-cancel-btn {
+                        background: ${warnStyles.cancel_btn_bg};
+                        color: ${warnStyles.cancel_btn_text};
+                        border: none;
+                        padding: 8px 15px; /* Larger button padding */
+                        margin-left: 10px; /* Adjusted margin */
+                        cursor: pointer;
+                        font-weight: bold;
+                        border-radius: 6px; /* Rounded button */
+                        transition: background-color 0.2s ease;
+                    }
+                    .${APPID}-toast-cancel-btn:hover {
+                        background-color: rgb(255 255 255 / 0.3); /* Lighter hover background */
+                    }
+                `,
+            });
+            document.head.appendChild(style);
+        }
+
+        _renderToast(message, showCancelButton) {
+            const children = [h('span', message)];
+            if (showCancelButton) {
+                const cancelButton = h(
+                    'button',
+                    {
+                        className: `${APPID}-toast-cancel-btn`,
+                        title: 'Stop auto-scrolling',
+                        onclick: () => EventBus.publish(`${APPID}:autoScrollCancelRequest`),
+                    },
+                    'Cancel'
+                );
+                children.push(cancelButton);
+            }
+            return h(`div.${APPID}-toast-container`, children);
+        }
+
+        show(message, showCancelButton = false) {
+            // Remove existing toast if any
+            if (this.toastElement) {
+                this.hide();
+            }
+
+            this.toastElement = this._renderToast(message, showCancelButton);
+            document.body.appendChild(this.toastElement);
+
+            // Trigger the transition
+            setTimeout(() => {
+                this.toastElement?.classList.add('is-visible');
+            }, 10);
+        }
+
+        hide() {
+            if (!this.toastElement) return;
+
+            const el = this.toastElement;
+            el.classList.remove('is-visible');
+
+            // Remove from DOM after transition ends
+            setTimeout(() => {
+                el.remove();
+            }, 300);
+
+            this.toastElement = null;
+        }
+    }
+
     class ThemeAutomator {
         constructor() {
             this.dataConverter = new DataConverter();
@@ -7727,6 +8058,8 @@
             this.bubbleUIManager = new BubbleUIManager(this.configManager, this.messageCacheManager);
             this.fixedNavManager = null;
             this.bulkCollapseManager = new BulkCollapseManager(this.configManager, this.messageCacheManager);
+            this.autoScrollManager = null;
+            this.toastManager = null;
             this.syncManager = null;
             this.isConfigSizeExceeded = false;
             this.configWarningMessage = '';
@@ -7765,6 +8098,10 @@
                 this.bulkCollapseManager.setFixedNavManager(this.fixedNavManager);
             }
             this.bulkCollapseManager.init();
+            this.autoScrollManager = new AutoScrollManager(this.configManager, this.messageCacheManager);
+            this.autoScrollManager.init();
+            this.toastManager = new ToastManager();
+            this.toastManager.init();
 
             this.observerManager.start();
             this.themeManager.updateTheme();
@@ -7915,6 +8252,13 @@
                 this.fixedNavManager = null;
                 // Clear the instance from the bulk collapse manager
                 this.bulkCollapseManager.setFixedNavManager(null);
+            }
+
+            // Enable or disable the auto-scroll manager based on the new config.
+            if (completeConfig.features.load_full_history_on_chat_load.enabled) {
+                this.autoScrollManager?.enable();
+            } else {
+                this.autoScrollManager?.disable();
             }
         }
 
