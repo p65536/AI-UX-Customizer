@@ -1,5 +1,27 @@
 # Changelog
 
+> **About this changelog**  
+> This changelog applies to both **ChatGPT UX Customizer (GPTUX)** and **Gemini UX Customizer (GGGUX)**.  
+> Most changes are shared between the two scripts. If a change applies only to one, it will be explicitly marked with a `[GPTUX]` or `[GGGUX]` prefix.
+
+## [1.4.0] - 2025-09-05
+- **[GPTUX] Refactoring**
+  - Minor refactoring.
+  - Version alignment with `GGGUX`.  
+- **[GGGUX] New feature: Auto-load full chat history**
+  - Added a new feature that automatically loads the entire chat history when opening a chat, eliminating the need to manually scroll up multiple times.  
+  - Enabled by default; can be toggled in **Settings Panel → "Load full history on chat load"**.  
+  - Provides user feedback with a toast notification (including a *Cancel* button) during loading.  
+  - Uses Gemini’s native progress bar to robustly load all messages.  
+  - Activates only for chats with more than 20 messages, and scrolls back to the latest message once loading is complete for a seamless experience.
+  - If the auto-load chat history feature terminates too early, edit the script directly and increase the following value to `3000`: Inside `class AutoScrollManager`, change `APPEAR_TIMEOUT_MS: 2000,`
+
+## [1.3.8] - 2025-09-03
+- **UI manager refactoring for stability & performance**
+  - Fixed an issue where the **"Toggle All"** button could incorrectly appear on empty chats after navigation. The visibility state is now managed via the message cache for consistency.  
+  - Improved performance by refactoring **AvatarManager** and **StandingImageManager** to use the centralized `MessageCacheManager` instead of redundant DOM queries.  
+  - Enhanced code clarity by renaming `ObserverManager._processTurnSingle` to `observeTurnForCompletion` and updating JSDoc documentation.
+
 ## [1.3.7] - 2025-08-31
 - **Performance Enhancements**
   - Made theme application asynchronous: non-image styles (colors, fonts) were applied instantly, while images are loaded in the background with a smooth transition.
@@ -42,6 +64,7 @@
   - **Observer Initialization**: Centralized all observer startup logic into the `PlatformAdapter` class to improve code structure and maintainability. This change also removed a redundant resize event listener and other obsolete code.
 - **Fixes**
   - **Stability**: Resolved a potential memory leak in the streaming message observer and fixed a race condition in the avatar injection logic, improving long-term stability.
+  - [GPTUX] **Stability**: Enhanced the robustness of the title and sidebar observers to ensure more reliable change detection.
 
 ## [1.3.3] - 2025-08-22
 - **Refactoring**
@@ -52,7 +75,7 @@
   - **Performance**: Overhauled DOM Observation: Introduced a hybrid system using CSS animation sentinels for high-frequency events and a lightweight, debounced `MutationObserver` for low-frequency updates, eliminating streaming UI lag.
   - **Performance**: Avatar Handling Optimization: Replaced constant DOM polling with `animationstart`-based reinjection, ensuring avatars remain visible with minimal performance cost.
 - **Bug Fixes**
-  - Fixed an issue where the file panel was obscured by the standing image. Added an observer to dynamically adjust the z-index when the panel is displayed.
+  - [GGGUX] Fixed an issue where the file panel was obscured by the standing image. Added an observer to dynamically adjust the z-index when the panel is displayed.
 
 ## [1.3.2] - 2025-08-20
 - **Feature Improvements**
@@ -71,11 +94,12 @@
   - **Performance**: Removed a performance bottleneck in the message cache (`MessageCacheManager`) by eliminating a sort operation that forced unnecessary and expensive browser reflows.
 - **Changed**
   - **Architecture**: Refactored the base logic for all bubble UI features (`Collapsible`, `ScrollToTop`, `SequentialNav`). The system is now consistently message-centric (`processElement`), removing the legacy turn-based processing (`processTurn`) for improved code clarity and maintainability.
-  - **Refactor**: The visibility check logic was refactored to read its state directly from CSS properties instead of a stale JavaScript object for feature parity with the ChatGPT version.
+  - [GGGUX] **Refactor**: The visibility check logic was refactored to read its state directly from CSS properties instead of a stale JavaScript object for feature parity with the ChatGPT version.
 
 ## [1.2.1] - 2025-08-15
 - **Added**: Implemented dynamic UI adjustment to prevent interference when the Canvas feature is active.
   - **Standing Image:** Now hidden when the Canvas is open.
+  - [GPTUX] **Settings Button:** Automatically repositions to avoid overlapping with the Canvas.
 
 ## [1.2.0] - 2025-08-05
 - **New Features**: Added a feature to automatically synchronize settings when the script is used across multiple tabs.
@@ -87,7 +111,10 @@
 - **Internal Code Improvements**: Other improvements to internal processing.
 
 ## [1.1.1] - 2025-07-27
-- **Stability Improvement:** Proactively applied the stability enhancements from `ChatGPT UX Customizer` v1.1.1 to this script.
+- [GPTUX] **Stability Improvement:** Fixed a stability issue in Firefox environments where the UI (e.g., settings button) would sometimes fail to display or function correctly on initial page load.
+  - **Cause:** Likely due to a race condition caused by conflicts with the site's UI rendering process.
+  - **Solution:** Revised the initialization logic to ensure the script starts only after the site's UI is fully interactive.
+- [GGGUX] **Stability Improvement:** Proactively applied the stability enhancements from `GPTUX v1.1.1` to `GGGUX`.
 
 ## [1.1.0] - 2025-07-26
 - Changed the order of items on the theme settings screen. The order is now `background color` -> `text color` (background color is now listed first in all blocks).

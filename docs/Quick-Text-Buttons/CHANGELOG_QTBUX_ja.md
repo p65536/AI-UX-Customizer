@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.1.1] - 2025-09-05
+- **リファクタリング**
+- `TextEditorModalComponent` 内の重複したプロファイル/カテゴリロジックを、汎用ハンドラーメソッド (`_handleItemNew`、`_handleItemCopy`、`_handleItemDelete`、`_handleItemMove`、`_handleRenameConfirm`) に統合。
+- DRY 原則を適用することでコードの重複と複雑さを軽減し、保守性と将来の拡張性を向上させた。
+
 ## [1.1.0] - 2025-08-31
 - **変更**
   - デフォルトの挿入位置を `cursor` にした。

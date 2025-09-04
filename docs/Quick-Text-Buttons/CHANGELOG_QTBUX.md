@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.1.1] - 2025-09-05
+- **Refactored**
+  - Consolidated duplicated profile/category logic in `TextEditorModalComponent` into generic handler methods (`_handleItemNew`, `_handleItemCopy`, `_handleItemDelete`, `_handleItemMove`, `_handleRenameConfirm`).  
+  - Reduced code duplication and complexity by applying the DRY principle, improving maintainability and future extensibility.
+
 ## [1.1.0] - 2025-08-31
 - **Changed**
   - Default insertion position is now `cursor`.

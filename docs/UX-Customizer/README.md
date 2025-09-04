@@ -15,8 +15,8 @@ It also includes convenient UI enhancements such as **message collapsing**, **na
 Currently, it supports the following AI services.  
 The scripts have been created for each site. Please install the required script.
 
- - **ChatGPT**: **`ChatGPT UX Customizer`**
- - **Gemini**: **`Gemini UX Customizer`**
+ - **ChatGPT**: **`ChatGPT UX Customizer`** `(GPTUX)`**
+ - **Gemini**: **`Gemini UX Customizer`** `(GGGUX)`**
 
 ---
 
@@ -36,6 +36,7 @@ The scripts have been created for each site. Please install the required script.
 * **Specify local files for images used in themes** (automatically converted to Base64 data)
 * Export/import settings (in JSON format)
 * **Includes sample settings, making it easy to get started.**
+* **[GGGUX only] Auto-load full chat history**: Automatically loads the entire chat history when opening a conversation, eliminating the need to manually scroll up multiple times.  
 
 ---
 

@@ -35,6 +35,9 @@
     },
     "fixed_nav_console": {
       "enabled": true
+    },
+    "load_full_history_on_chat_load": {
+      "enabled": true
     }
   },
   "themeSets": [
@@ -163,6 +166,7 @@
 | `sequential_nav_buttons` | 同じ作者（ユーザーまたはアシスタント）の次/前のメッセージへジャンプするボタンを、各メッセージバブルの横に表示する。 | `{ "enabled": true }` | `true`/`false`<br>アシスタント側は左上に、ユーザー側は右上に表示する。 |
 | `scroll_to_top_button` | メッセージの先頭（ターンの先頭）へスクロールするボタンを、各メッセージバブル下部に表示する。 | `{ "enabled": true }` | `true`/`false`<br>アシスタント側は左下に、ユーザー側は右下に表示する。 |
 | `fixed_nav_console` | 統合ナビコンソールをメッセージ入力欄上部に表示する。 | `{ "enabled": true }` | `true`/`false`<br>メッセージの移動を効率的に行うためのボタンを集約したコンソールバーを表示する。 |
+| `load_full_history_on_chat_load` | `GGGUX only`<br>チャット履歴の自動読み込み機能を有効にする。 | `{ "enabled": true }` | `true`/`false`<br>Geminiで既存チャットを開いた際に、履歴を自動で読み込む機能。 |
 
 -----
 

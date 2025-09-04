@@ -8,7 +8,10 @@
 
 ### 2. 設定パネルの項目
 
-![設定パネル](./images/settings_panel.webp)
+| ChatGPT | Gemini |
+| :--- | :--- |
+| `Load full history on chat load` 設定なし | `Load full history on chat load` 設定あり |
+| ![Settings Panel](./images/settings_panel.webp) | ![Settings Panel (Gemini)](./images/settings_panel_gemini.webp) |
 
 | 項目 | 説明 |
 | :--- | :--- |
@@ -18,6 +21,7 @@
 | **Icon size** | 画面左右に表示されるユーザーとアシスタントのアバターアイコンの大きさを変更します。 |
 | **Chat content max width** | 会話全体の表示幅（最大幅）を調整します。左端にするとプラットフォームのデフォルト幅になります。 |
 | **Prevent image/avatar overlap** | ONにすると、立ち絵がアバターアイコンに重ならないよう、表示領域を自動で調整します。 |
+| **[Geminiのみ]**<br>**Load full history on chat load** | **[Geminiのみ]**<br>チャットを開いた際に全履歴を自動で読み込む機能。 |
 | **Collapsible button** | 長いメッセージを折りたたむためのボタンを、各メッセージに追加します。 |
 | **Sequential nav buttons** | 同じ話者（ユーザー/アシスタント）の前後の発言へジャンプするボタンを、各メッセージに追加します。 |
 | **Scroll to top button** | そのメッセージの先頭までスクロールするボタンを、各メッセージに追加します。 |
