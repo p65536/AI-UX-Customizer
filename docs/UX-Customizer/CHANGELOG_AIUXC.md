@@ -4,6 +4,16 @@
 > This changelog applies to both **ChatGPT UX Customizer (GPTUX)** and **Gemini UX Customizer (GGGUX)**.  
 > Most changes are shared between the two scripts. If a change applies only to one, it will be explicitly marked with a `[GPTUX]` or `[GGGUX]` prefix.
 
+## [1.5.0] - 2025-09-08
+- **New Feature: Jump List Navigation**
+  - Introduced a "Jump List" feature for instant navigation to any message in the chat.
+  - Click on the "Assistant:", "Total:", or "User:" labels in the navigation console to open the message list.
+  - Features a dynamic filter to search for messages by plain text or regular expressions (e.g., `/pattern/i`).
+  - Hovering over or using arrow keys on a list item displays a full preview of the message content.
+  - Full keyboard support for filtering and list navigation (Arrow keys, Enter, Esc, etc.).
+- **Script Metadata**
+  - Updated the `@description` to include the new navigation capabilities.
+
 ## [1.4.0] - 2025-09-05
 - **[GPTUX] Refactoring**
   - Minor refactoring.

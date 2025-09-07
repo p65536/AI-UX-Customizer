@@ -8,9 +8,9 @@
 
 ## Overview
 
-`UX Customizer` is a script that adds powerful theme and navigation features to AI services like ChatGPT and Gemini.  
+`UX Customizer` is a script that adds powerful theme and **advanced navigation features** to AI services like ChatGPT and Gemini.  
 For each chat, you can flexibly customize **speaker names, icons, text colors, bubbles, backgrounds, and standing images**.  
-It also includes convenient UI enhancements such as **message collapsing**, **navigation between messages**, and **chat width adjustment**.
+It also includes convenient UI enhancements such as **message collapsing**, **a searchable message jump list**, and **chat width adjustment**.
 
 Currently, it supports the following AI services.  
 The scripts have been created for each site. Please install the required script.
@@ -26,8 +26,9 @@ The scripts have been created for each site. Please install the required script.
 * Automatically switch themes (color schemes, names, icons, backgrounds, etc.) for specified projects/custom GPTs/chat titles
 * **Display "standing images"** for both user and assistant separately on the left and right sides
 * **Collapsible messages** (to display long texts compactly)
-* **Message navigation features** (jump to next/previous/top of message)
-* **Integrated navigation console function** (displays a consolidated UI for navigation features above the message input field)
+* **Advanced message navigation** (jump to next/previous/top of message)
+* **Integrated navigation console** (displays a consolidated UI for navigation features above the message input field)
+* **Message Jump List with Search**: Instantly jump to any message from a list. You can filter messages by text or regular expressions.
 * Bulk message collapsing
 * Set a maximum width for the entire chat content
 * Flexibly specify theme application targets by name or **regular expressions**
@@ -70,12 +71,17 @@ The scripts have been created for each site. Please install the required script.
 
 ![UI Enhancement Features](./images/features.webp)
 
+### 8. Advanced Navigation (Jump List with Filter)
+
+![Advanced Navigation](./images/navigation.webp)
+
 ---
 
 ## How to Use
 
 * Click the **gear icon** in the upper right corner to **open the Settings Panel**.
 * From the Settings Panel, you can change various options or **open the Theme Editor (GUI) to create and edit themes**.
+* In the navigation console above the input field, **click on the "Assistant:", "Total:", or "User:" labels** to open the message **Jump List**.
 * If needed, use the "JSON" button to export your current settings or import sample settings.
 
 ---
