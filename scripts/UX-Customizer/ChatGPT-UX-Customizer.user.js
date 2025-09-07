@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         ChatGPT-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.4.0
+// @version      1.5.0
 // @license      MIT
-// @description  Automatically applies a theme based on the chat name (changes user/assistant names, text color, icon, bubble style, window background, input area style, standing images, etc.)
+// @description  Fully customize the chat UI. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://chatgpt.com/favicon.ico
 // @author       p65536
 // @match        https://chatgpt.com/*
@@ -782,6 +782,7 @@
             SETTINGS_PANEL: 11000,
             THEME_MODAL: 12000,
             JSON_MODAL: 15000,
+            JUMP_LIST_PREVIEW: 16000,
             STANDING_IMAGE: 'auto',
             BUBBLE_NAVIGATION: 'auto',
             NAV_CONSOLE: 'auto',
@@ -907,6 +908,12 @@
             btn_danger_text: 'var(--text-danger)',
             highlight_outline: 'var(--text-accent)',
             highlight_border_radius: '12px',
+        },
+        JUMP_LIST: {
+            list_bg: 'var(--sidebar-surface-primary)',
+            list_border: 'var(--border-medium)',
+            hover_outline: 'var(--text-accent)',
+            current_outline: 'var(--text-accent)',
         },
         CSS_IMPORTANT_FLAG: ' !important',
         COLLAPSIBLE_CSS: `
@@ -1676,6 +1683,16 @@
         // If none of the recognized patterns match
         const allowed = fieldType === 'icon' ? 'a URL (http...), Data URI (data:image...), an SVG string, or a CSS function (url(), linear-gradient())' : 'a URL, a Data URI, or a CSS function';
         return { isValid: false, message: `Invalid format. Must be ${allowed}.` };
+    }
+
+    /**
+     * Escapes special characters in a string for use in a regular expression.
+     * @param {string} string The string to escape.
+     * @returns {string} The escaped string.
+     */
+    function escapeRegExp(string) {
+        // $& means the whole matched string
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
     /**
@@ -3669,6 +3686,432 @@
     // Description: Manages the fixed navigation UI docked to the input area.
     // =================================================================================
 
+    class JumpListComponent {
+        constructor(role, messages, highlightedMessage, callbacks, siteStyles, initialFilterValue = '') {
+            this.role = role;
+            this.messages = messages;
+            this.highlightedMessage = highlightedMessage;
+            this.callbacks = callbacks;
+            this.siteStyles = siteStyles;
+            this.element = null;
+            this.previewTooltip = null;
+            this.focusedIndex = -1; // -1 indicates no focus
+            this.hideTimeout = null;
+            this.hoveredItem = null;
+            this.initialFilterValue = initialFilterValue;
+
+            this._handleClick = this._handleClick.bind(this);
+            this._handleFilter = this._handleFilter.bind(this);
+            this._handleKeyDown = this._handleKeyDown.bind(this);
+            this._handleFilterKeyDown = this._handleFilterKeyDown.bind(this);
+        }
+
+        render() {
+            const listItems = this.messages.map((msg) => this._createListItem(msg));
+            const listElement = h(`ul#${APPID}-jump-list`, {
+                tabindex: -1, // Make the list focusable for keyboard navigation
+                onkeydown: this._handleKeyDown, // Attach keydown to the list itself
+            });
+            listItems.forEach((item) => listElement.appendChild(item));
+
+            const filterInput = h('input', {
+                type: 'text',
+                placeholder: 'Filter with text or /pattern/flags',
+                title: `Filter by plain text or a regular expression.\nEnter text for a simple search.\nUse /regex/flags format for advanced filtering.`,
+                className: `${APPID}-jump-list-filter`,
+                value: this.initialFilterValue,
+                oninput: this._handleFilter,
+                onkeydown: this._handleFilterKeyDown,
+                onclick: (e) => e.stopPropagation(), // Prevent click from propagating to the container
+            });
+            const modeLabel = h('span', { className: `${APPID}-jump-list-mode-label` });
+            const inputContainer = h(`div.${APPID}-jump-list-filter-container`, [filterInput, modeLabel]);
+
+            // The main container no longer needs its own keydown for list items
+            this.element = h(`div#${APPID}-jump-list-container`, {
+                onclick: this._handleClick,
+            });
+            this.element.append(listElement, inputContainer);
+            this._createPreviewTooltip();
+            return this.element;
+        }
+
+        show(anchorElement) {
+            if (!this.element) this.render();
+            document.body.appendChild(this.element);
+
+            // Manually trigger the filter once on show to apply the initial value
+            this._handleFilter({ target: this.element.querySelector(`.${APPID}-jump-list-filter`) });
+
+            requestAnimationFrame(() => {
+                const anchorRect = anchorElement.getBoundingClientRect();
+                const viewportHeight = window.innerHeight;
+                const margin = 8;
+                const topLimit = viewportHeight * 0.3;
+
+                this.element.style.left = `${anchorRect.left}px`;
+                this.element.style.bottom = `${viewportHeight - anchorRect.top + 4}px`;
+                this.element.style.minWidth = `${anchorRect.width}px`;
+
+                const maxHeight = anchorRect.top - topLimit - margin;
+                this.element.style.maxHeight = `${Math.max(100, maxHeight)}px`;
+
+                this.element.classList.add('is-visible');
+                const filterInput = this.element.querySelector(`.${APPID}-jump-list-filter`);
+                filterInput.focus();
+                filterInput.select();
+            });
+        }
+
+        destroy() {
+            if (!this.element) return;
+            this._hidePreview();
+            this.previewTooltip?.remove();
+            this.element.remove();
+            this.element = null;
+            this.previewTooltip = null;
+        }
+
+        _createPreviewTooltip() {
+            if (this.previewTooltip) return;
+            this.previewTooltip = h(`div#${APPID}-jump-list-preview`);
+            this.previewTooltip.addEventListener('mouseenter', () => {
+                clearTimeout(this.hideTimeout);
+            });
+            this.previewTooltip.addEventListener('mouseleave', () => {
+                this._revertToFocusedPreview();
+            });
+            document.body.appendChild(this.previewTooltip);
+        }
+
+        _showPreview(listItem) {
+            if (!this.previewTooltip || !listItem) {
+                this._hidePreview();
+                return;
+            }
+
+            const index = parseInt(listItem.dataset.messageIndex, 10);
+            const messageElement = this.messages[index];
+            if (!messageElement) {
+                this._hidePreview();
+                return;
+            }
+
+            const fullText = (messageElement.textContent || '').replace(/\s+/g, ' ').trim();
+            const filterInput = this.element.querySelector(`.${APPID}-jump-list-filter`);
+            const searchTerm = filterInput ? filterInput.value : '';
+
+            const contentFragment = document.createDocumentFragment();
+            contentFragment.appendChild(document.createTextNode(`${index + 1}: `));
+
+            let regex = null;
+            if (searchTerm.trim()) {
+                const regexMatch = searchTerm.match(/^\/(.*)\/([gimsuy]*)$/);
+                if (regexMatch && filterInput.classList.contains('is-regex-valid')) {
+                    // This will be a valid regex because it's pre-validated in _handleFilter
+                    regex = new RegExp(regexMatch[1], regexMatch[2]);
+                } else {
+                    // Fallback to plain string search for highlighting
+                    regex = new RegExp(escapeRegExp(searchTerm), 'gi');
+                }
+            }
+
+            if (regex) {
+                const parts = fullText.split(regex);
+                const matches = fullText.match(regex) || [];
+                parts.forEach((part, i) => {
+                    contentFragment.appendChild(document.createTextNode(part));
+                    if (i < parts.length - 1) {
+                        contentFragment.appendChild(h('strong', matches[i]));
+                    }
+                });
+            } else {
+                contentFragment.appendChild(document.createTextNode(fullText));
+            }
+
+            this.previewTooltip.textContent = '';
+            this.previewTooltip.appendChild(contentFragment);
+
+            requestAnimationFrame(() => {
+                if (!this.element || !this.previewTooltip) return;
+
+                const listRect = this.element.getBoundingClientRect();
+                const itemRect = listItem.getBoundingClientRect();
+                const tooltipRect = this.previewTooltip.getBoundingClientRect();
+                const margin = 12;
+
+                let top = itemRect.top;
+                let left = listRect.right + margin;
+
+                if (left + tooltipRect.width > window.innerWidth - margin) {
+                    left = listRect.left - tooltipRect.width - margin;
+                }
+                if (top + tooltipRect.height > window.innerHeight - margin) {
+                    top = window.innerHeight - tooltipRect.height - margin;
+                }
+                top = Math.max(margin, top);
+                left = Math.max(margin, left);
+
+                this.previewTooltip.style.left = `${left}px`;
+                this.previewTooltip.style.top = `${top}px`;
+                this.previewTooltip.classList.add('is-visible');
+            });
+        }
+
+        _hidePreview() {
+            if (this.previewTooltip) {
+                this.previewTooltip.classList.remove('is-visible');
+            }
+        }
+
+        _revertToFocusedPreview() {
+            if (!this.element) return;
+            const focusedListItem = this.element.querySelector('li.is-focused');
+            if (focusedListItem) {
+                this._showPreview(focusedListItem);
+            } else {
+                this._hidePreview();
+            }
+        }
+
+        _createListItem(messageElement) {
+            const role = PlatformAdapter.getMessageRole(messageElement);
+            let textContent = messageElement.textContent || '';
+            textContent = textContent.replace(/\s+/g, ' ').trim();
+            const index = this.messages.indexOf(messageElement);
+            const displayText = `${index + 1}: ${textContent}`;
+
+            const item = h(
+                'li',
+                {
+                    dataset: {
+                        messageIndex: index,
+                        filterText: textContent.toLowerCase(),
+                    },
+                    onmouseenter: (e) => {
+                        clearTimeout(this.hideTimeout);
+                        this.hoveredItem = e.currentTarget;
+                        this._showPreview(e.currentTarget);
+                    },
+                    onmouseleave: () => {
+                        this.hoveredItem = null;
+                        this.hideTimeout = setTimeout(() => {
+                            this._revertToFocusedPreview();
+                        }, 200);
+                    },
+                },
+                displayText
+            );
+
+            if (this.highlightedMessage === messageElement) {
+                item.classList.add('is-current');
+            }
+
+            if (role) {
+                item.classList.add(role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER ? 'user-item' : 'assistant-item');
+            }
+
+            return item;
+        }
+
+        _handleFilter(event) {
+            const inputElement = event.target;
+            const searchTerm = inputElement.value;
+            const list = this.element.querySelector('ul');
+            if (!list) return;
+            const modeLabel = this.element.querySelector(`.${APPID}-jump-list-mode-label`);
+
+            const items = list.querySelectorAll('li');
+            let regex = null;
+
+            inputElement.classList.remove('is-regex-valid');
+            modeLabel.textContent = 'Text';
+            modeLabel.className = `${APPID}-jump-list-mode-label is-string`;
+
+            const regexMatch = searchTerm.match(/^\/(.*)\/([gimsuy]*)$/);
+            if (regexMatch) {
+                try {
+                    regex = new RegExp(regexMatch[1], regexMatch[2]);
+                    inputElement.classList.add('is-regex-valid');
+                    modeLabel.textContent = 'RegExp';
+                    modeLabel.className = `${APPID}-jump-list-mode-label is-regex`;
+                } catch {
+                    // Invalid regex, remains null and will be treated as a plain string.
+                    modeLabel.textContent = 'Invalid';
+                    modeLabel.className = `${APPID}-jump-list-mode-label is-regex-invalid`;
+                }
+            }
+
+            items.forEach((item) => {
+                const itemText = item.dataset.filterText || '';
+                let isMatch = false;
+                if (regex) {
+                    isMatch = regex.test(itemText);
+                } else {
+                    isMatch = searchTerm === '' || itemText.includes(searchTerm.toLowerCase());
+                }
+                item.style.display = isMatch ? '' : 'none';
+            });
+
+            this.focusedIndex = -1;
+            this._updateFocus(false);
+
+            const currentPreviewTarget = this.hoveredItem || (this.focusedIndex > -1 ? items[this.focusedIndex] : null);
+            if (currentPreviewTarget && currentPreviewTarget.style.display !== 'none') {
+                this._showPreview(currentPreviewTarget);
+            }
+        }
+
+        _handleFilterKeyDown(event) {
+            const list = this.element.querySelector('ul');
+            if (!list) return;
+            const items = Array.from(list.querySelectorAll('li'));
+            const visibleItems = items.filter((item) => item.style.display !== 'none');
+            if (visibleItems.length === 0) return;
+
+            switch (event.key) {
+                case 'ArrowDown':
+                case 'Tab':
+                    if (!event.shiftKey) {
+                        event.preventDefault();
+                        this.focusedIndex = items.indexOf(visibleItems[0]);
+                        this._updateFocus();
+                        list.focus();
+                    }
+                    break;
+                case 'ArrowUp':
+                    event.preventDefault();
+                    this.focusedIndex = items.indexOf(visibleItems[visibleItems.length - 1]);
+                    this._updateFocus();
+                    list.focus();
+                    break;
+            }
+
+            if (event.shiftKey && event.key === 'Tab') {
+                event.preventDefault();
+                this.focusedIndex = items.indexOf(visibleItems[visibleItems.length - 1]);
+                this._updateFocus();
+                list.focus();
+            }
+        }
+
+        _handleKeyDown(event) {
+            const list = this.element.querySelector('ul');
+            if (!list || document.activeElement !== list) return;
+
+            const items = Array.from(list.querySelectorAll('li'));
+            const visibleItems = items.filter((item) => item.style.display !== 'none');
+            if (visibleItems.length === 0) return;
+
+            let currentFocusedItemIndex = visibleItems.indexOf(items[this.focusedIndex]);
+            if (currentFocusedItemIndex === -1 && this.focusedIndex !== -1) {
+                this.focusedIndex = items.indexOf(visibleItems[0]);
+                currentFocusedItemIndex = 0;
+                this._updateFocus();
+            }
+
+            switch (event.key) {
+                case 'ArrowDown': {
+                    event.preventDefault();
+                    const nextIndex = (currentFocusedItemIndex + 1) % visibleItems.length;
+                    this.focusedIndex = items.indexOf(visibleItems[nextIndex]);
+                    this._updateFocus();
+                    break;
+                }
+                case 'ArrowUp': {
+                    event.preventDefault();
+                    const prevIndex = (currentFocusedItemIndex - 1 + visibleItems.length) % visibleItems.length;
+                    this.focusedIndex = items.indexOf(visibleItems[prevIndex]);
+                    this._updateFocus();
+                    break;
+                }
+                case 'Home': {
+                    event.preventDefault();
+                    this.focusedIndex = items.indexOf(visibleItems[0]);
+                    this._updateFocus();
+                    break;
+                }
+                case 'End': {
+                    event.preventDefault();
+                    this.focusedIndex = items.indexOf(visibleItems[visibleItems.length - 1]);
+                    this._updateFocus();
+                    break;
+                }
+                case 'PageDown': {
+                    event.preventDefault();
+                    if (visibleItems.length === 0) break;
+                    const itemsPerPage = Math.floor(list.clientHeight / (visibleItems[0]?.offsetHeight || 28));
+                    const nextIndex = Math.min(currentFocusedItemIndex + itemsPerPage, visibleItems.length - 1);
+                    this.focusedIndex = items.indexOf(visibleItems[nextIndex]);
+                    this._updateFocus();
+                    break;
+                }
+                case 'PageUp': {
+                    event.preventDefault();
+                    if (visibleItems.length === 0) break;
+                    const itemsPerPage = Math.floor(list.clientHeight / (visibleItems[0]?.offsetHeight || 28));
+                    const prevIndex = Math.max(currentFocusedItemIndex - itemsPerPage, 0);
+                    this.focusedIndex = items.indexOf(visibleItems[prevIndex]);
+                    this._updateFocus();
+                    break;
+                }
+                case 'Enter': {
+                    event.preventDefault();
+                    if (this.focusedIndex > -1) {
+                        items[this.focusedIndex].click();
+                    }
+                    break;
+                }
+                case 'Tab': {
+                    event.preventDefault();
+                    this.element.querySelector(`.${APPID}-jump-list-filter`).focus();
+                    this.focusedIndex = -1;
+                    this._updateFocus(false);
+                    break;
+                }
+            }
+        }
+
+        getFilterValue() {
+            return this.element?.querySelector(`.${APPID}-jump-list-filter`)?.value || '';
+        }
+
+        _updateFocus(scrollIntoView = true) {
+            const list = this.element.querySelector('ul');
+            if (!list) return;
+
+            const items = list.querySelectorAll('li');
+            let focusedItem = null;
+            items.forEach((item, index) => {
+                if (index === this.focusedIndex) {
+                    item.classList.add('is-focused');
+                    if (scrollIntoView) {
+                        item.scrollIntoView({ block: 'nearest' });
+                    }
+                    focusedItem = item;
+                } else {
+                    item.classList.remove('is-focused');
+                }
+            });
+
+            if (focusedItem) {
+                this._showPreview(focusedItem);
+            } else {
+                this._hidePreview();
+            }
+        }
+
+        _handleClick(event) {
+            const listItem = event.target.closest('li');
+            if (!listItem) return;
+
+            const index = parseInt(listItem.dataset.messageIndex, 10);
+            if (!isNaN(index) && this.messages[index]) {
+                this.callbacks.onSelect?.(this.messages[index]);
+            }
+        }
+    }
+
     class FixedNavigationManager {
         /**
          * @param {MessageCacheManager} messageCacheManager An instance of the message cache manager.
@@ -3682,11 +4125,15 @@
             this.resizeObserver = null;
             this.isInitialSelectionDone = false;
             this.previousTotalMessages = 0;
+            this.isAutoScrolling = false;
+            this.jumpListComponent = null;
+            this.lastFilterValue = '';
 
             this.debouncedUpdateUI = debounce(this._updateUI.bind(this), TIMING.DEBOUNCE_DELAYS.THEME_PREVIEW);
             this.debouncedReposition = debounce(this.repositionContainers.bind(this), TIMING.DEBOUNCE_DELAYS.NAVIGATION_UPDATE);
 
             this.handleBodyClick = this.handleBodyClick.bind(this);
+            this._handleKeyDown = this._handleKeyDown.bind(this);
         }
 
         /**
@@ -3747,9 +4194,61 @@
             this.unsubscribers.forEach((unsub) => unsub());
             this.unsubscribers = [];
 
+            this.jumpListComponent?.destroy();
             this.navConsole?.remove();
             this.navConsole = null;
-            document.body.removeEventListener('click', this.handleBodyClick);
+            document.body.removeEventListener('click', this.handleBodyClick, true);
+            document.removeEventListener('keydown', this._handleKeyDown, true);
+        }
+
+        _toggleJumpList(labelElement) {
+            const role = labelElement.dataset.role;
+            if (this.jumpListComponent?.role === role) {
+                this._hideJumpList();
+                return;
+            }
+
+            this._hideJumpList();
+
+            const roleMap = {
+                user: this.messageCacheManager.getUserMessages(),
+                asst: this.messageCacheManager.getAssistantMessages(),
+                total: this.messageCacheManager.getTotalMessages(),
+            };
+            const messages = roleMap[role];
+            if (!messages || messages.length === 0) return;
+
+            this.jumpListComponent = new JumpListComponent(
+                role,
+                messages,
+                this.highlightedMessage,
+                {
+                    onSelect: (message) => this._handleJumpListSelect(message),
+                },
+                SITE_STYLES.FIXED_NAV,
+                this.lastFilterValue
+            );
+            this.jumpListComponent.show(labelElement);
+        }
+
+        _hideJumpList() {
+            if (!this.jumpListComponent) return;
+            this.lastFilterValue = this.jumpListComponent.getFilterValue();
+            this.jumpListComponent.destroy();
+            this.jumpListComponent = null;
+        }
+
+        _handleJumpListSelect(messageElement) {
+            this.navigateToMessage(messageElement);
+            this._hideJumpList();
+        }
+
+        _handleKeyDown(e) {
+            if (e.key === 'Escape' && this.jumpListComponent) {
+                e.preventDefault();
+                e.stopPropagation();
+                this._hideJumpList();
+            }
         }
 
         createContainers() {
@@ -3773,21 +4272,21 @@
                 h(`div#${APPID}-nav-group-assistant.${APPID}-nav-group`, [
                     h(`button.${APPID}-nav-btn`, { 'data-nav': 'asst-prev', title: 'Previous assistant message' }, [svgIcons.prev()]),
                     h(`button.${APPID}-nav-btn`, { 'data-nav': 'asst-next', title: 'Next assistant message' }, [svgIcons.next()]),
-                    h(`span.${APPID}-nav-label`, 'Assistant:'),
+                    h(`span.${APPID}-nav-label`, { 'data-role': 'asst', title: 'Show message list' }, 'Assistant:'),
                     h(`span.${APPID}-nav-counter`, { 'data-role': 'asst', title: 'Click to jump to a message' }, [h(`span.${APPID}-counter-current`, '--'), ' / ', h(`span.${APPID}-counter-total`, '--')]),
                 ]),
                 h(`div.${APPID}-nav-separator`),
                 h(`div#${APPID}-nav-group-total.${APPID}-nav-group`, [
                     h(`button.${APPID}-nav-btn`, { 'data-nav': 'total-first', title: 'First message' }, [svgIcons.first()]),
                     h(`button.${APPID}-nav-btn`, { 'data-nav': 'total-prev', title: 'Previous message' }, [svgIcons.prev()]),
-                    h(`span.${APPID}-nav-label`, 'Total:'),
+                    h(`span.${APPID}-nav-label`, { 'data-role': 'total', title: 'Show message list' }, 'Total:'),
                     h(`span.${APPID}-nav-counter`, { 'data-role': 'total', title: 'Click to jump to a message' }, [h(`span.${APPID}-counter-current`, '--'), ' / ', h(`span.${APPID}-counter-total`, '--')]),
                     h(`button.${APPID}-nav-btn`, { 'data-nav': 'total-next', title: 'Next message' }, [svgIcons.next()]),
                     h(`button.${APPID}-nav-btn`, { 'data-nav': 'total-last', title: 'Last message' }, [svgIcons.last()]),
                 ]),
                 h(`div.${APPID}-nav-separator`),
                 h(`div#${APPID}-nav-group-user.${APPID}-nav-group`, [
-                    h(`span.${APPID}-nav-label`, 'User:'),
+                    h(`span.${APPID}-nav-label`, { 'data-role': 'user', title: 'Show message list' }, 'User:'),
                     h(`span.${APPID}-nav-counter`, { 'data-role': 'user', title: 'Click to jump to a message' }, [h(`span.${APPID}-counter-current`, '--'), ' / ', h(`span.${APPID}-counter-total`, '--')]),
                     h(`button.${APPID}-nav-btn`, { 'data-nav': 'user-prev', title: 'Previous user message' }, [svgIcons.prev()]),
                     h(`button.${APPID}-nav-btn`, { 'data-nav': 'user-next', title: 'Next user message' }, [svgIcons.next()]),
@@ -3798,7 +4297,8 @@
         }
 
         attachEventListeners() {
-            document.body.addEventListener('click', this.handleBodyClick);
+            document.body.addEventListener('click', this.handleBodyClick, true);
+            document.addEventListener('keydown', this._handleKeyDown, true);
         }
 
         /**
@@ -3807,6 +4307,16 @@
          * @returns {void}
          */
         handleBodyClick(e) {
+            // If the click is inside the jump list, let the component handle it.
+            if (this.jumpListComponent?.element.contains(e.target)) {
+                return;
+            }
+
+            // Close the jump list if the click is outside both the console and the list itself.
+            if (this.jumpListComponent && !this.navConsole?.contains(e.target)) {
+                this._hideJumpList();
+            }
+
             const navButton = e.target.closest(`.${APPID}-nav-btn`);
             if (navButton && this.navConsole?.contains(navButton)) {
                 this.handleButtonClick(navButton);
@@ -3816,6 +4326,12 @@
             const counter = e.target.closest(`.${APPID}-nav-counter[data-role]`);
             if (counter) {
                 this.handleCounterClick(e, counter);
+                return;
+            }
+
+            const label = e.target.closest(`.${APPID}-nav-label[data-role]`);
+            if (label) {
+                this._toggleJumpList(label);
                 return;
             }
 
@@ -4085,103 +4601,237 @@
             const styleId = `${APPID}-fixed-nav-style`;
             if (document.getElementById(styleId)) return;
 
-            const styles = SITE_STYLES.FIXED_NAV;
+            const navStyles = SITE_STYLES.FIXED_NAV;
+            const jumpListStyles = SITE_STYLES.JUMP_LIST;
             const style = h('style', {
                 id: styleId,
                 textContent: `
-                    #${APPID}-nav-console .is-hidden {
-                        display: none !important;
-                      }
-                    #${APPID}-nav-console.${APPID}-nav-unpositioned {
-                        visibility: hidden;
-                        opacity: 0;
-                      }
-                    #${APPID}-nav-console {
-                        position: fixed;
-                        z-index: ${CONSTANTS.Z_INDICES.NAV_CONSOLE};
-                        display: flex;
-                        align-items: center;
-                        gap: 8px;
-                        background-color: ${styles.bg};
-                        padding: 4px 8px;
-                        border-radius: 8px;
-                        border: 1px solid ${styles.border};
-                        box-shadow: 0 2px 10px rgb(0 0 0 / 0.05);
-                        font-size: 0.8rem;
-                        opacity: 1;
-                        transform-origin: bottom;
-                    }
-                    #${APPID}-nav-console.${APPID}-nav-hidden {
-                        display: none !important;
-                    }
-                    #${APPID}-nav-console .${APPID}-nav-group {
-                        display: flex;
-                        align-items: center;
-                        gap: 6px;
-                    }
-                    #${APPID}-nav-console .${APPID}-nav-separator {
-                        width: 1px;
-                        height: 20px;
-                        background-color: ${styles.separator_bg};
-                    }
-                    #${APPID}-nav-console .${APPID}-nav-label {
-                        color: ${styles.label_text};
-                        font-weight: 500;
-                    }
-                    #${APPID}-nav-console .${APPID}-nav-counter,
-                    #${APPID}-nav-console .${APPID}-nav-jump-input {
-                        box-sizing: border-box;
-                        width: 85px;
-                        height: 24px;
-                        margin: 0;
-                        background-color: ${styles.counter_bg};
-                        color: ${styles.counter_text};
-                        padding: 1px 4px;
-                        border: 1px solid transparent;
-                        border-color: ${styles.counter_border};
-                        border-radius: 4px;
-                        text-align: center;
-                        vertical-align: middle;
-                        font-family: monospace;
-                        font: inherit;
-                    }
-                    #${APPID}-nav-console .${APPID}-nav-btn {
-                        background: ${styles.btn_bg};
-                        color: ${styles.btn_text};
-                        border: 1px solid ${styles.btn_border};
-                        border-radius: 5px;
-                        width: 24px;
-                        height: 24px;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        cursor: pointer;
-                        padding: 0;
-                        transition: background-color 0.1s, color 0.1s;
-                    }
-                    #${APPID}-nav-console .${APPID}-nav-btn:hover {
-                        background: ${styles.btn_hover_bg};
-                    }
-                    #${APPID}-nav-console .${APPID}-nav-btn svg {
-                        width: 20px;
-                        height: 20px;
-                        fill: currentColor;
-                    }
-                    #${APPID}-nav-console .${APPID}-nav-btn[data-nav$="-prev"],
-                    #${APPID}-nav-console .${APPID}-nav-btn[data-nav$="-next"] {
-                        color: ${styles.btn_accent_text};
-                    }
-                    #${APPID}-nav-console .${APPID}-nav-btn[data-nav="total-first"],
-                    #${APPID}-nav-console .${APPID}-nav-btn[data-nav="total-last"] {
-                        color: ${styles.btn_danger_text};
-                    }
-                    ${CONSTANTS.SELECTORS.FIXED_NAV_HIGHLIGHT_TARGETS} {
-                        outline: 2px solid ${styles.highlight_outline} !important;
-                        outline-offset: -2px;
-                        border-radius: ${styles.highlight_border_radius} !important;
-                        box-shadow: 0 0 8px ${styles.highlight_outline} !important;
-                    }
-                `,
+                #${APPID}-nav-console .is-hidden {
+                    display: none !important;
+                  }
+                #${APPID}-nav-console.${APPID}-nav-unpositioned {
+                    visibility: hidden;
+                    opacity: 0;
+                  }
+                #${APPID}-nav-console {
+                    position: fixed;
+                    z-index: ${CONSTANTS.Z_INDICES.NAV_CONSOLE};
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    background-color: ${navStyles.bg};
+                    padding: 4px 8px;
+                    border-radius: 8px;
+                    border: 1px solid ${navStyles.border};
+                    box-shadow: 0 2px 10px rgb(0 0 0 / 0.05);
+                    font-size: 0.8rem;
+                    opacity: 1;
+                    transform-origin: bottom;
+                }
+                #${APPID}-nav-console.${APPID}-nav-hidden {
+                    display: none !important;
+                }
+                #${APPID}-nav-console .${APPID}-nav-group {
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                }
+                #${APPID}-nav-console .${APPID}-nav-separator {
+                    width: 1px;
+                    height: 20px;
+                    background-color: ${navStyles.separator_bg};
+                }
+                #${APPID}-nav-console .${APPID}-nav-label {
+                    color: ${navStyles.label_text};
+                    font-weight: 500;
+                    cursor: pointer;
+                    user-select: none;
+                }
+                #${APPID}-nav-console .${APPID}-nav-counter,
+                #${APPID}-nav-console .${APPID}-nav-jump-input {
+                    box-sizing: border-box;
+                    width: 85px;
+                    height: 24px;
+                    margin: 0;
+                    background-color: ${navStyles.counter_bg};
+                    color: ${navStyles.counter_text};
+                    padding: 1px 4px;
+                    border: 1px solid transparent;
+                    border-color: ${navStyles.counter_border};
+                    border-radius: 4px;
+                    text-align: center;
+                    vertical-align: middle;
+                    font-family: monospace;
+                    font: inherit;
+                }
+                #${APPID}-nav-console .${APPID}-nav-btn {
+                    background: ${navStyles.btn_bg};
+                    color: ${navStyles.btn_text};
+                    border: 1px solid ${navStyles.btn_border};
+                    border-radius: 5px;
+                    width: 24px;
+                    height: 24px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    padding: 0;
+                    transition: background-color 0.1s, color 0.1s;
+                }
+                #${APPID}-nav-console .${APPID}-nav-btn:hover {
+                    background: ${navStyles.btn_hover_bg};
+                }
+                #${APPID}-nav-console .${APPID}-nav-btn svg {
+                    width: 20px;
+                    height: 20px;
+                    fill: currentColor;
+                }
+                #${APPID}-nav-console .${APPID}-nav-btn[data-nav$="-prev"],
+                #${APPID}-nav-console .${APPID}-nav-btn[data-nav$="-next"] {
+                    color: ${navStyles.btn_accent_text};
+                }
+                #${APPID}-nav-console .${APPID}-nav-btn[data-nav="total-first"],
+                #${APPID}-nav-console .${APPID}-nav-btn[data-nav="total-last"] {
+                    color: ${navStyles.btn_danger_text};
+                }
+                ${CONSTANTS.SELECTORS.FIXED_NAV_HIGHLIGHT_TARGETS} {
+                    outline: 2px solid ${navStyles.highlight_outline} !important;
+                    outline-offset: -2px;
+                    border-radius: ${navStyles.highlight_border_radius} !important;
+                    box-shadow: 0 0 8px ${navStyles.highlight_outline} !important;
+                }
+                #${APPID}-jump-list-container {
+                    position: fixed;
+                    z-index: ${CONSTANTS.Z_INDICES.NAV_CONSOLE + 1};
+                    background: ${jumpListStyles.list_bg};
+                    border: 1px solid ${jumpListStyles.list_border};
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgb(0 0 0 / 15%);
+                    padding: 4px;
+                    opacity: 0;
+                    transform-origin: bottom;
+                    transform: translateY(10px);
+                    transition: opacity 0.15s ease, transform 0.15s ease;
+                    visibility: hidden;
+                    display: flex;
+                    flex-direction: column;
+                }
+                #${APPID}-jump-list-container:focus, #${APPID}-jump-list:focus {
+                    outline: none;
+                }
+                #${APPID}-jump-list-container.is-visible {
+                    opacity: 1;
+                    transform: translateY(0);
+                    visibility: visible;
+                }
+                #${APPID}-jump-list {
+                    list-style: none;
+                    margin: 0;
+                    padding: 0 4px 0 0; /* Add padding for scrollbar */
+                    overflow-y: auto;
+                }
+                .${APPID}-jump-list-filter-container {
+                    position: relative;
+                    display: flex;
+                    align-items: center;
+                    border-top: 1px solid ${jumpListStyles.list_border};
+                    margin: 4px 0 0 0;
+                }
+                .${APPID}-jump-list-filter {
+                    border: none;
+                    background-color: transparent;
+                    color: inherit;
+                    padding: 8px 60px 8px 8px; /* Make space for the label on the right */
+                    outline: none;
+                    font-size: 0.85rem;
+                    border-radius: 0 0 4px 4px;
+                    width: 100%;
+                    box-sizing: border-box;
+                }
+                .${APPID}-jump-list-filter.is-regex-valid {
+                    border-color: ${jumpListStyles.current_outline};
+                }
+                .${APPID}-jump-list-mode-label {
+                    position: absolute;
+                    right: 8px;
+                    padding: 1px 6px;
+                    border-radius: 4px;
+                    font-size: 0.75rem;
+                    font-weight: bold;
+                    pointer-events: none;
+                    transition: background-color 0.2s, color 0.2s;
+                    line-height: 1.5;
+                }
+                .${APPID}-jump-list-mode-label.is-string {
+                    background-color: transparent;
+                    color: ${navStyles.label_text};
+                }
+                .${APPID}-jump-list-mode-label.is-regex {
+                    background-color: #28a745;
+                    color: #ffffff;
+                }
+                .${APPID}-jump-list-mode-label.is-regex-invalid {
+                    background-color: #dc3545;
+                    color: #ffffff;
+                }
+                #${APPID}-jump-list li {
+                    padding: 6px 10px;
+                    cursor: pointer;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    border-radius: 4px;
+                    font-size: 0.85rem;
+                    max-width: 400px;
+                }
+                #${APPID}-jump-list li:hover, #${APPID}-jump-list li.is-focused {
+                    outline: 1px solid ${jumpListStyles.hover_outline};
+                    outline-offset: -1px;
+                }
+                #${APPID}-jump-list li.is-current {
+                    outline: 2px solid ${jumpListStyles.current_outline};
+                    outline-offset: -2px;
+                }
+                #${APPID}-jump-list li.is-current:hover, #${APPID}-jump-list li.is-current.is-focused {
+                    outline-width: 2px;
+                    outline-offset: -2px;
+                }
+                #${APPID}-jump-list li.user-item {
+                    background-color: var(--${APPID}-user-bubble-bg, transparent);
+                    color: var(--${APPID}-user-textColor, inherit);
+                }
+                #${APPID}-jump-list li.assistant-item {
+                    background-color: var(--${APPID}-assistant-bubble-bg, transparent);
+                    color: var(--${APPID}-assistant-textColor, inherit);
+                }
+                #${APPID}-jump-list-preview {
+                    position: fixed;
+                    z-index: ${CONSTANTS.Z_INDICES.JUMP_LIST_PREVIEW};
+                    background: ${jumpListStyles.list_bg};
+                    border: 1px solid ${jumpListStyles.list_border};
+                    border-radius: 8px;
+                    box-shadow: 0 2px 8px rgb(0 0 0 / 10%);
+                    padding: 8px 12px;
+                    max-width: 400px;
+                    max-height: 300px;
+                    overflow-y: auto;
+                    font-size: 0.85rem;
+                    opacity: 0;
+                    transition: opacity 0.1s ease-in-out;
+                    white-space: pre-wrap;
+                    word-break: break-word;
+                    visibility: hidden;
+                }
+                #${APPID}-jump-list-preview.is-visible {
+                    opacity: 1;
+                    visibility: visible;
+                }
+                #${APPID}-jump-list-preview strong {
+                    color: ${jumpListStyles.current_outline};
+                    font-weight: bold;
+                    background-color: transparent;
+                }
+            `,
             });
             document.head.appendChild(style);
         }
