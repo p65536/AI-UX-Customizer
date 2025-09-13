@@ -4,6 +4,13 @@
 > This changelog applies to both **ChatGPT UX Customizer (GPTUX)** and **Gemini UX Customizer (GGGUX)**.  
 > Most changes are shared between the two scripts. If a change applies only to one, it will be explicitly marked with a `[GPTUX]` or `[GGGUX]` prefix.
 
+## [1.5.1] - 2025-09-13
+- **Refactor: Jump List Performance Overhaul**
+  - The Jump List feature has been re-implemented to use virtual scrolling. This ensures high performance and a smooth, responsive experience, even in chats with thousands of messages, while significantly reducing memory usage.
+- **Fix**
+  - The highlighted item in the jump list now correctly synchronizes when navigating messages with the main navigation console buttons.
+  - [GGGUX] The Jump List now correctly extracts the main answer text, ignoring the "Show thought process" section, for both the list items and the preview tooltip.
+
 ## [1.5.0] - 2025-09-08
 - **New Feature: Jump List Navigation**
   - Introduced a "Jump List" feature for instant navigation to any message in the chat.
