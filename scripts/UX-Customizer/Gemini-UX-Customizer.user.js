@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.5.1
+// @version      1.5.2
 // @license      MIT
 // @description  Fully customize the chat UI. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=gemini.google.com
@@ -5173,6 +5173,142 @@
         }
     }
 
+    class MessageNumberManager {
+        /**
+         * @param {ConfigManager} configManager
+         * @param {MessageCacheManager} messageCacheManager
+         */
+        constructor(configManager, messageCacheManager) {
+            this.configManager = configManager;
+            this.messageCacheManager = messageCacheManager;
+            this.unsubscribers = [];
+        }
+
+        /**
+         * Initializes the manager.
+         */
+        init() {
+            this.injectStyle();
+            // Use :avatarInject for flicker-free initial creation, as it fires when the DOM is stable.
+            this.unsubscribers.push(EventBus.subscribe(`${APPID}:avatarInject`, (elem) => this.processMessage(elem)));
+            // Use :cacheUpdated for batch updates (re-numbering, visibility toggles after config changes).
+            this.unsubscribers.push(EventBus.subscribe(`${APPID}:cacheUpdated`, () => this.updateAllMessageNumbers()));
+        }
+
+        /**
+         * Cleans up event listeners.
+         */
+        destroy() {
+            this.unsubscribers.forEach((unsub) => unsub());
+            this.unsubscribers = [];
+        }
+
+        /**
+         * Injects the necessary CSS for positioning and styling the message numbers.
+         */
+        injectStyle() {
+            const styleId = `${APPID}-message-number-style`;
+            if (document.getElementById(styleId)) return;
+
+            const style = h('style', {
+                id: styleId,
+                textContent: `
+                .${APPID}-parent-with-number {
+                    position: relative !important;
+                }
+                .${APPID}-message-number {
+                    position: absolute;
+                    font-size: 0.6rem;
+                    font-weight: bold;
+                    color: rgb(255 255 255 / 0.7);
+                    background-color: rgb(0 0 0 / 0.4);
+                    padding: 0px 4px;
+                    border-radius: 4px;
+                    line-height: 1.5;
+                    pointer-events: none;
+                    z-index: 1;
+                    white-space: nowrap;
+                }
+                .${APPID}-message-number-assistant {
+                    top: -16px;
+                    right: 100%;
+                    margin-right: 0px;
+                }
+                .${APPID}-message-number-user {
+                    top: -16px;
+                    left: 100%;
+                    margin-left: 0px;
+                }
+                .${APPID}-message-number-hidden {
+                    display: none !important;
+                }
+            `,
+            });
+            document.head.appendChild(style);
+        }
+
+        /**
+         * Processes a single message element to add a message number.
+         * @param {HTMLElement} messageElement The message element.
+         */
+        processMessage(messageElement) {
+            const anchor = PlatformAdapter.getNavPositioningParent(messageElement);
+            if (!anchor) return;
+
+            // Ensure the anchor is a positioning context.
+            anchor.classList.add(`${APPID}-parent-with-number`);
+
+            // Prevent re-injection.
+            if (anchor.querySelector(`.${APPID}-message-number`)) return;
+
+            const index = this.messageCacheManager.getTotalMessages().indexOf(messageElement);
+            if (index === -1) return;
+
+            const role = PlatformAdapter.getMessageRole(messageElement);
+            if (!role) return;
+
+            const roleClass = role === PlatformAdapter.SELECTORS.FIXED_NAV_ROLE_USER ? `${APPID}-message-number-user` : `${APPID}-message-number-assistant`;
+
+            const numberSpan = h(`span.${APPID}-message-number.${roleClass}`, `#${index + 1}`);
+
+            // Check config to set initial visibility
+            const config = this.configManager.get();
+            if (config) {
+                const isNavConsoleEnabled = config.features.fixed_nav_console.enabled;
+                numberSpan.classList.toggle(`${APPID}-message-number-hidden`, !isNavConsoleEnabled);
+            }
+
+            anchor.appendChild(numberSpan);
+        }
+
+        /**
+         * Updates the text content of all visible message numbers.
+         * Creates the number element if it doesn't exist.
+         */
+        updateAllMessageNumbers() {
+            const config = this.configManager.get();
+            if (!config) return;
+            const isNavConsoleEnabled = config.features.fixed_nav_console.enabled;
+            const allMessages = this.messageCacheManager.getTotalMessages();
+
+            allMessages.forEach((message, index) => {
+                const anchor = PlatformAdapter.getNavPositioningParent(message);
+                if (!anchor) return;
+
+                let numberSpan = anchor.querySelector(`.${APPID}-message-number`);
+                if (!numberSpan) {
+                    // If the element doesn't exist, create it.
+                    // processMessage will handle initial visibility correctly.
+                    this.processMessage(message);
+                } else {
+                    // If it exists, update its number and visibility.
+                    numberSpan.textContent = `#${index + 1}`;
+                    numberSpan.classList.toggle(`${APPID}-message-number-hidden`, !isNavConsoleEnabled);
+                }
+            });
+        }
+    }
+
     // =================================================================================
     // SECTION: UI Elements - Components and Manager
     // =================================================================================
@@ -8870,6 +9006,7 @@
             this.bubbleUIManager = new BubbleUIManager(this.configManager, this.messageCacheManager);
             this.fixedNavManager = null;
             this.bulkCollapseManager = new BulkCollapseManager(this.configManager, this.messageCacheManager);
+            this.messageNumberManager = null;
             this.autoScrollManager = null;
             this.toastManager = null;
             this.syncManager = null;
@@ -8910,6 +9047,8 @@
                 this.bulkCollapseManager.setFixedNavManager(this.fixedNavManager);
             }
             this.bulkCollapseManager.init();
+            this.messageNumberManager = new MessageNumberManager(this.configManager, this.messageCacheManager);
+            this.messageNumberManager.init();
             this.autoScrollManager = new AutoScrollManager(this.configManager, this.messageCacheManager);
             this.autoScrollManager.init();
             this.toastManager = new ToastManager();
@@ -9036,6 +9175,7 @@
             this.avatarManager.updateIconSizeCss();
             this.bubbleUIManager.updateAll();
             this.bulkCollapseManager.updateVisibility();
+            this.messageNumberManager.updateAllMessageNumbers();
 
             // Repopulate the settings panel form if it is currently open
             if (this.uiManager.settingsPanel?.isOpen()) {
