@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.5.0
+// @version      1.5.1
 // @license      MIT
 // @description  Fully customize the chat UI. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://chatgpt.com/favicon.ico
@@ -269,6 +269,17 @@
         static getChatTitle() {
             // gets the title from the document title.
             return document.title.trim();
+        }
+
+        /**
+         * Gets the platform-specific display text from a message element for the jump list.
+         * This method centralizes the logic for extracting the most relevant text,
+         * bypassing irrelevant content like system messages or UI elements within the message container.
+         * @param {HTMLElement} messageElement The message element.
+         * @returns {string} The text content to be displayed in the jump list.
+         */
+        static getJumpListDisplayText(messageElement) {
+            return messageElement.textContent || '';
         }
 
         /**
@@ -3693,27 +3704,57 @@
             this.highlightedMessage = highlightedMessage;
             this.callbacks = callbacks;
             this.siteStyles = siteStyles;
-            this.element = null;
-            this.previewTooltip = null;
-            this.focusedIndex = -1; // -1 indicates no focus
-            this.hideTimeout = null;
-            this.hoveredItem = null;
             this.initialFilterValue = initialFilterValue;
 
+            // --- Virtual scroll properties ---
+            this.itemHeight = 34; // The fixed height of each list item in pixels.
+            this.filteredMessages = [];
+            this.scrollTop = 0;
+            this.isRendering = false;
+
+            // --- Component state ---
+            this.element = null; // The main component container
+            this.scrollBox = null; // The dedicated scrolling element
+            this.listElement = null; // The inner element that provides the virtual height
+            this.previewTooltip = null;
+            this.focusedIndex = -1;
+            this.hideTimeout = null;
+            this.hoveredItem = null;
+
+            // Bind event handlers
             this._handleClick = this._handleClick.bind(this);
             this._handleFilter = this._handleFilter.bind(this);
             this._handleKeyDown = this._handleKeyDown.bind(this);
             this._handleFilterKeyDown = this._handleFilterKeyDown.bind(this);
+            this._handleScroll = this._handleScroll.bind(this);
         }
 
         render() {
-            const listItems = this.messages.map((msg) => this._createListItem(msg));
-            const listElement = h(`ul#${APPID}-jump-list`, {
-                tabindex: -1, // Make the list focusable for keyboard navigation
-                onkeydown: this._handleKeyDown, // Attach keydown to the list itself
+            // 1. The inner list (ul) acts as a "sizer" or "spacer".
+            // It has no overflow and its height is set to the total virtual height of all items.
+            this.listElement = h(`ul#${APPID}-jump-list`, {
+                style: {
+                    position: 'relative',
+                    overflow: 'hidden',
+                    height: '0px', // Set dynamically by _updateContainerHeight
+                },
             });
-            listItems.forEach((item) => listElement.appendChild(item));
 
+            // 2. The scrollBox (div) is the "viewport".
+            // It is the element that actually scrolls and has a fixed visible height.
+            this.scrollBox = h(`div.${APPID}-jump-list-scrollbox`, {
+                onscroll: this._handleScroll,
+                onkeydown: this._handleKeyDown,
+                tabindex: -1,
+                style: {
+                    overflowY: 'auto',
+                    position: 'relative',
+                    flex: '1 1 auto', // Allows this box to fill the available space in the flex container.
+                },
+            });
+            this.scrollBox.appendChild(this.listElement);
+
+            // 3. The filter input container.
             const filterInput = h('input', {
                 type: 'text',
                 placeholder: 'Filter with text or /pattern/flags',
@@ -3722,16 +3763,22 @@
                 value: this.initialFilterValue,
                 oninput: this._handleFilter,
                 onkeydown: this._handleFilterKeyDown,
-                onclick: (e) => e.stopPropagation(), // Prevent click from propagating to the container
+                onclick: (e) => e.stopPropagation(),
             });
             const modeLabel = h('span', { className: `${APPID}-jump-list-mode-label` });
             const inputContainer = h(`div.${APPID}-jump-list-filter-container`, [filterInput, modeLabel]);
 
-            // The main container no longer needs its own keydown for list items
+            // 4. The main element (div) handles the overall layout using flexbox.
             this.element = h(`div#${APPID}-jump-list-container`, {
                 onclick: this._handleClick,
+                style: {
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden', // Important to prevent the main container itself from scrolling.
+                },
             });
-            this.element.append(listElement, inputContainer);
+
+            this.element.append(this.scrollBox, inputContainer);
             this._createPreviewTooltip();
             return this.element;
         }
@@ -3751,7 +3798,7 @@
 
                 this.element.style.left = `${anchorRect.left}px`;
                 this.element.style.bottom = `${viewportHeight - anchorRect.top + 4}px`;
-                this.element.style.minWidth = `${anchorRect.width}px`;
+                this.element.style.width = `360px`;
 
                 const maxHeight = anchorRect.top - topLimit - margin;
                 this.element.style.maxHeight = `${Math.max(100, maxHeight)}px`;
@@ -3772,37 +3819,38 @@
             this.previewTooltip = null;
         }
 
+        updateHighlightedMessage(newMessage) {
+            this.highlightedMessage = newMessage;
+            // Re-render visible items to update the '.is-current' class
+            this._updateVisibleItems();
+        }
+
         _createPreviewTooltip() {
             if (this.previewTooltip) return;
             this.previewTooltip = h(`div#${APPID}-jump-list-preview`);
-            this.previewTooltip.addEventListener('mouseenter', () => {
-                clearTimeout(this.hideTimeout);
-            });
-            this.previewTooltip.addEventListener('mouseleave', () => {
-                this._revertToFocusedPreview();
-            });
+            this.previewTooltip.addEventListener('mouseenter', () => clearTimeout(this.hideTimeout));
+            this.previewTooltip.addEventListener('mouseleave', () => this._revertToFocusedPreview());
             document.body.appendChild(this.previewTooltip);
         }
 
-        _showPreview(listItem) {
-            if (!this.previewTooltip || !listItem) {
+        _showPreview(index) {
+            if (!this.previewTooltip || index < 0 || index >= this.filteredMessages.length) {
                 this._hidePreview();
                 return;
             }
 
-            const index = parseInt(listItem.dataset.messageIndex, 10);
-            const messageElement = this.messages[index];
+            const messageElement = this.filteredMessages[index];
             if (!messageElement) {
                 this._hidePreview();
                 return;
             }
 
-            const fullText = (messageElement.textContent || '').replace(/\s+/g, ' ').trim();
+            const fullText = (PlatformAdapter.getJumpListDisplayText(messageElement) || '').replace(/\s+/g, ' ').trim();
             const filterInput = this.element.querySelector(`.${APPID}-jump-list-filter`);
             const searchTerm = filterInput ? filterInput.value : '';
 
             const contentFragment = document.createDocumentFragment();
-            contentFragment.appendChild(document.createTextNode(`${index + 1}: `));
+            contentFragment.appendChild(document.createTextNode(`${this.messages.indexOf(messageElement) + 1}: `));
 
             let regex = null;
             if (searchTerm.trim()) {
@@ -3834,6 +3882,11 @@
 
             requestAnimationFrame(() => {
                 if (!this.element || !this.previewTooltip) return;
+                const listItem = this.listElement.querySelector(`li[data-filtered-index="${index}"]`);
+                if (!listItem) {
+                    this._hidePreview();
+                    return;
+                }
 
                 const listRect = this.element.getBoundingClientRect();
                 const itemRect = listItem.getBoundingClientRect();
@@ -3865,39 +3918,48 @@
         }
 
         _revertToFocusedPreview() {
-            if (!this.element) return;
-            const focusedListItem = this.element.querySelector('li.is-focused');
-            if (focusedListItem) {
-                this._showPreview(focusedListItem);
+            if (this.focusedIndex > -1) {
+                this._showPreview(this.focusedIndex);
             } else {
                 this._hidePreview();
             }
         }
 
-        _createListItem(messageElement) {
+        _createListItem(messageElement, index) {
+            const originalIndex = this.messages.indexOf(messageElement);
             const role = PlatformAdapter.getMessageRole(messageElement);
-            let textContent = messageElement.textContent || '';
-            textContent = textContent.replace(/\s+/g, ' ').trim();
-            const index = this.messages.indexOf(messageElement);
-            const displayText = `${index + 1}: ${textContent}`;
+
+            // Use the adapter to get the appropriate display text, handling platform differences.
+            let textContent = PlatformAdapter.getJumpListDisplayText(messageElement);
+            textContent = (textContent || '').replace(/\s+/g, ' ').trim();
+
+            const displayText = `${originalIndex + 1}: ${textContent}`;
 
             const item = h(
                 'li',
                 {
                     dataset: {
-                        messageIndex: index,
+                        messageIndex: originalIndex,
+                        filteredIndex: index,
                         filterText: textContent.toLowerCase(),
+                    },
+                    style: {
+                        position: 'absolute',
+                        top: `${index * this.itemHeight}px`,
+                        height: `${this.itemHeight}px`,
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        display: 'flex',
+                        alignItems: 'center',
                     },
                     onmouseenter: (e) => {
                         clearTimeout(this.hideTimeout);
                         this.hoveredItem = e.currentTarget;
-                        this._showPreview(e.currentTarget);
+                        this._showPreview(index);
                     },
                     onmouseleave: () => {
                         this.hoveredItem = null;
-                        this.hideTimeout = setTimeout(() => {
-                            this._revertToFocusedPreview();
-                        }, 200);
+                        this.hideTimeout = setTimeout(() => this._revertToFocusedPreview(), 200);
                     },
                 },
                 displayText
@@ -3906,7 +3968,9 @@
             if (this.highlightedMessage === messageElement) {
                 item.classList.add('is-current');
             }
-
+            if (this.focusedIndex === index) {
+                item.classList.add('is-focused');
+            }
             if (role) {
                 item.classList.add(role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER ? 'user-item' : 'assistant-item');
             }
@@ -3914,16 +3978,77 @@
             return item;
         }
 
+        _updateContainerHeight() {
+            if (!this.listElement) return;
+            this.listElement.style.height = `${this.filteredMessages.length * this.itemHeight}px`;
+        }
+
+        _handleScroll(event) {
+            this.scrollTop = event.target.scrollTop;
+            if (!this.isRendering) {
+                requestAnimationFrame(() => {
+                    this._updateVisibleItems();
+                    this.isRendering = false;
+                });
+                this.isRendering = true;
+            }
+        }
+
+        _updateVisibleItems() {
+            if (!this.scrollBox) return;
+
+            const containerHeight = this.scrollBox.clientHeight;
+            const buffer = 5;
+            const startIndex = Math.max(0, Math.floor(this.scrollTop / this.itemHeight) - buffer);
+            const endIndex = Math.min(this.filteredMessages.length - 1, Math.ceil((this.scrollTop + containerHeight) / this.itemHeight) + buffer);
+
+            const visibleIndices = new Set();
+            for (let i = startIndex; i <= endIndex; i++) {
+                visibleIndices.add(i);
+            }
+
+            for (const child of this.listElement.children) {
+                const index = parseInt(child.dataset.filteredIndex, 10);
+                if (!visibleIndices.has(index)) {
+                    child.remove();
+                }
+            }
+
+            for (let i = startIndex; i <= endIndex; i++) {
+                if (!this.listElement.querySelector(`li[data-filtered-index="${i}"]`)) {
+                    const message = this.filteredMessages[i];
+                    const listItem = this._createListItem(message, i);
+                    this.listElement.appendChild(listItem);
+                }
+            }
+
+            this.listElement.querySelectorAll('li.is-focused').forEach((el) => el.classList.remove('is-focused'));
+            if (this.focusedIndex >= startIndex && this.focusedIndex <= endIndex) {
+                const focusedEl = this.listElement.querySelector(`li[data-filtered-index="${this.focusedIndex}"]`);
+                if (focusedEl) {
+                    focusedEl.classList.add('is-focused');
+                }
+            }
+
+            // Always synchronize the '.is-current' class after any potential change.
+            this.listElement.querySelectorAll('li.is-current').forEach((el) => el.classList.remove('is-current'));
+            if (this.highlightedMessage) {
+                const currentIndex = this.filteredMessages.indexOf(this.highlightedMessage);
+                if (currentIndex >= startIndex && currentIndex <= endIndex) {
+                    const currentEl = this.listElement.querySelector(`li[data-filtered-index="${currentIndex}"]`);
+                    if (currentEl) {
+                        currentEl.classList.add('is-current');
+                    }
+                }
+            }
+        }
+
         _handleFilter(event) {
             const inputElement = event.target;
             const searchTerm = inputElement.value;
-            const list = this.element.querySelector('ul');
-            if (!list) return;
             const modeLabel = this.element.querySelector(`.${APPID}-jump-list-mode-label`);
 
-            const items = list.querySelectorAll('li');
             let regex = null;
-
             inputElement.classList.remove('is-regex-valid');
             modeLabel.textContent = 'Text';
             modeLabel.className = `${APPID}-jump-list-mode-label is-string`;
@@ -3942,123 +4067,119 @@
                 }
             }
 
-            items.forEach((item) => {
-                const itemText = item.dataset.filterText || '';
-                let isMatch = false;
+            const lowerCaseSearchTerm = searchTerm.toLowerCase();
+            this.filteredMessages = this.messages.filter((msg) => {
+                const itemText = (msg.textContent || '').toLowerCase();
                 if (regex) {
-                    isMatch = regex.test(itemText);
-                } else {
-                    isMatch = searchTerm === '' || itemText.includes(searchTerm.toLowerCase());
+                    return regex.test(itemText);
                 }
-                item.style.display = isMatch ? '' : 'none';
+                return lowerCaseSearchTerm === '' || itemText.includes(lowerCaseSearchTerm);
             });
 
             this.focusedIndex = -1;
-            this._updateFocus(false);
-
-            const currentPreviewTarget = this.hoveredItem || (this.focusedIndex > -1 ? items[this.focusedIndex] : null);
-            if (currentPreviewTarget && currentPreviewTarget.style.display !== 'none') {
-                this._showPreview(currentPreviewTarget);
+            if (this.scrollBox) {
+                this.scrollBox.scrollTop = 0;
             }
+            this._updateContainerHeight();
+
+            // Forcefully clear existing list items before re-rendering.
+            // This ensures the view is correctly synchronized with the filteredMessages array.
+            if (this.listElement) {
+                this.listElement.textContent = '';
+            }
+
+            this._updateVisibleItems();
+            this._hidePreview();
         }
 
         _handleFilterKeyDown(event) {
-            const list = this.element.querySelector('ul');
-            if (!list) return;
-            const items = Array.from(list.querySelectorAll('li'));
-            const visibleItems = items.filter((item) => item.style.display !== 'none');
-            if (visibleItems.length === 0) return;
+            if (this.filteredMessages.length === 0) return;
 
             switch (event.key) {
                 case 'ArrowDown':
                 case 'Tab':
                     if (!event.shiftKey) {
                         event.preventDefault();
-                        this.focusedIndex = items.indexOf(visibleItems[0]);
-                        this._updateFocus();
-                        list.focus();
+                        this.focusedIndex = 0;
+                        this._updateFocus(true); // Always scroll to the target, even if it's the first item.
+                        this.scrollBox.focus({ preventScroll: true });
                     }
                     break;
                 case 'ArrowUp':
                     event.preventDefault();
-                    this.focusedIndex = items.indexOf(visibleItems[visibleItems.length - 1]);
-                    this._updateFocus();
-                    list.focus();
+                    this.focusedIndex = this.filteredMessages.length - 1;
+                    this._updateFocus(true);
+                    this.scrollBox.focus({ preventScroll: true });
+                    break;
+                case 'Enter':
+                    event.preventDefault();
+                    if (this.filteredMessages.length > 0) {
+                        this.focusedIndex = 0;
+                        this._updateFocus(false);
+                        const targetMessage = this.filteredMessages[this.focusedIndex];
+                        if (targetMessage) {
+                            this.callbacks.onSelect?.(targetMessage);
+                        }
+                    }
                     break;
             }
 
             if (event.shiftKey && event.key === 'Tab') {
                 event.preventDefault();
-                this.focusedIndex = items.indexOf(visibleItems[visibleItems.length - 1]);
-                this._updateFocus();
-                list.focus();
+                this.focusedIndex = this.filteredMessages.length - 1;
+                this._updateFocus(true);
+                this.scrollBox.focus({ preventScroll: true });
             }
         }
 
         _handleKeyDown(event) {
-            const list = this.element.querySelector('ul');
-            if (!list || document.activeElement !== list) return;
+            if (!this.scrollBox || document.activeElement !== this.scrollBox || this.filteredMessages.length === 0) return;
 
-            const items = Array.from(list.querySelectorAll('li'));
-            const visibleItems = items.filter((item) => item.style.display !== 'none');
-            if (visibleItems.length === 0) return;
-
-            let currentFocusedItemIndex = visibleItems.indexOf(items[this.focusedIndex]);
-            if (currentFocusedItemIndex === -1 && this.focusedIndex !== -1) {
-                this.focusedIndex = items.indexOf(visibleItems[0]);
-                currentFocusedItemIndex = 0;
-                this._updateFocus();
-            }
+            let currentFocusedItemIndex = this.focusedIndex;
+            const totalItems = this.filteredMessages.length;
 
             switch (event.key) {
                 case 'ArrowDown': {
                     event.preventDefault();
-                    const nextIndex = (currentFocusedItemIndex + 1) % visibleItems.length;
-                    this.focusedIndex = items.indexOf(visibleItems[nextIndex]);
-                    this._updateFocus();
+                    this.focusedIndex = currentFocusedItemIndex === -1 ? 0 : (currentFocusedItemIndex + 1) % totalItems;
                     break;
                 }
                 case 'ArrowUp': {
                     event.preventDefault();
-                    const prevIndex = (currentFocusedItemIndex - 1 + visibleItems.length) % visibleItems.length;
-                    this.focusedIndex = items.indexOf(visibleItems[prevIndex]);
-                    this._updateFocus();
+                    this.focusedIndex = currentFocusedItemIndex === -1 ? totalItems - 1 : (currentFocusedItemIndex - 1 + totalItems) % totalItems;
                     break;
                 }
                 case 'Home': {
                     event.preventDefault();
-                    this.focusedIndex = items.indexOf(visibleItems[0]);
-                    this._updateFocus();
+                    this.focusedIndex = 0;
                     break;
                 }
                 case 'End': {
                     event.preventDefault();
-                    this.focusedIndex = items.indexOf(visibleItems[visibleItems.length - 1]);
-                    this._updateFocus();
+                    this.focusedIndex = totalItems - 1;
                     break;
                 }
                 case 'PageDown': {
                     event.preventDefault();
-                    if (visibleItems.length === 0) break;
-                    const itemsPerPage = Math.floor(list.clientHeight / (visibleItems[0]?.offsetHeight || 28));
-                    const nextIndex = Math.min(currentFocusedItemIndex + itemsPerPage, visibleItems.length - 1);
-                    this.focusedIndex = items.indexOf(visibleItems[nextIndex]);
-                    this._updateFocus();
+                    if (currentFocusedItemIndex === -1) currentFocusedItemIndex = 0;
+                    const itemsPerPage = Math.floor(this.scrollBox.clientHeight / this.itemHeight);
+                    this.focusedIndex = Math.min(totalItems - 1, currentFocusedItemIndex + itemsPerPage);
                     break;
                 }
                 case 'PageUp': {
                     event.preventDefault();
-                    if (visibleItems.length === 0) break;
-                    const itemsPerPage = Math.floor(list.clientHeight / (visibleItems[0]?.offsetHeight || 28));
-                    const prevIndex = Math.max(currentFocusedItemIndex - itemsPerPage, 0);
-                    this.focusedIndex = items.indexOf(visibleItems[prevIndex]);
-                    this._updateFocus();
+                    if (currentFocusedItemIndex === -1) currentFocusedItemIndex = 0;
+                    const itemsPerPage = Math.floor(this.scrollBox.clientHeight / this.itemHeight);
+                    this.focusedIndex = Math.max(0, currentFocusedItemIndex - itemsPerPage);
                     break;
                 }
                 case 'Enter': {
                     event.preventDefault();
                     if (this.focusedIndex > -1) {
-                        items[this.focusedIndex].click();
+                        const targetMessage = this.filteredMessages[this.focusedIndex];
+                        if (targetMessage) {
+                            this.callbacks.onSelect?.(targetMessage);
+                        }
                     }
                     break;
                 }
@@ -4067,47 +4188,57 @@
                     this.element.querySelector(`.${APPID}-jump-list-filter`).focus();
                     this.focusedIndex = -1;
                     this._updateFocus(false);
-                    break;
+                    return;
                 }
+                default:
+                    return;
             }
+
+            this._updateFocus(true);
         }
 
         getFilterValue() {
             return this.element?.querySelector(`.${APPID}-jump-list-filter`)?.value || '';
         }
 
-        _updateFocus(scrollIntoView = true) {
-            const list = this.element.querySelector('ul');
-            if (!list) return;
+        _updateFocus(shouldScroll = true) {
+            if (!this.scrollBox) return;
 
-            const items = list.querySelectorAll('li');
-            let focusedItem = null;
-            items.forEach((item, index) => {
-                if (index === this.focusedIndex) {
-                    item.classList.add('is-focused');
-                    if (scrollIntoView) {
-                        item.scrollIntoView({ block: 'nearest' });
-                    }
-                    focusedItem = item;
+            if (shouldScroll && this.focusedIndex > -1) {
+                const container = this.scrollBox;
+                const itemTop = this.focusedIndex * this.itemHeight;
+                const itemBottom = itemTop + this.itemHeight;
+                const viewTop = container.scrollTop;
+                const viewBottom = viewTop + container.clientHeight;
+
+                if (itemTop < viewTop) {
+                    container.scrollTop = itemTop;
+                } else if (itemBottom > viewBottom) {
+                    container.scrollTop = itemBottom - container.clientHeight;
+                }
+            }
+
+            this._updateVisibleItems();
+
+            // Defer the preview update to the next animation frame.
+            // This ensures that the DOM updates from _updateVisibleItems have been rendered by the browser,
+            // making the target <li> element available for _showPreview to find.
+            requestAnimationFrame(() => {
+                if (this.focusedIndex > -1) {
+                    this._showPreview(this.focusedIndex);
                 } else {
-                    item.classList.remove('is-focused');
+                    this._hidePreview();
                 }
             });
-
-            if (focusedItem) {
-                this._showPreview(focusedItem);
-            } else {
-                this._hidePreview();
-            }
         }
 
         _handleClick(event) {
             const listItem = event.target.closest('li');
             if (!listItem) return;
 
-            const index = parseInt(listItem.dataset.messageIndex, 10);
-            if (!isNaN(index) && this.messages[index]) {
-                this.callbacks.onSelect?.(this.messages[index]);
+            const originalIndex = parseInt(listItem.dataset.messageIndex, 10);
+            if (!isNaN(originalIndex) && this.messages[originalIndex]) {
+                this.callbacks.onSelect?.(this.messages[originalIndex]);
             }
         }
     }
@@ -4398,6 +4529,11 @@
             if (!targetMsg || !this.navConsole) return;
             this.highlightMessage(targetMsg);
 
+            // If the jump list is open, notify it of the change.
+            if (this.jumpListComponent) {
+                this.jumpListComponent.updateHighlightedMessage(targetMsg);
+            }
+
             const userMessages = this.messageCacheManager.getUserMessages();
             const asstMessages = this.messageCacheManager.getAssistantMessages();
             const totalMessages = this.messageCacheManager.getTotalMessages();
@@ -4603,6 +4739,15 @@
 
             const navStyles = SITE_STYLES.FIXED_NAV;
             const jumpListStyles = SITE_STYLES.JUMP_LIST;
+
+            // Add Firefox-specific style for the scrollbar gutter
+            const firefoxScrollbarFix = /firefox/i.test(navigator.userAgent)
+                ? `
+                .${APPID}-jump-list-scrollbox {
+                    padding-right: 12px; /* Add physical space for the overlay scrollbar */
+                }`
+                : '';
+
             const style = h('style', {
                 id: styleId,
                 textContent: `
@@ -4716,7 +4861,7 @@
                     display: flex;
                     flex-direction: column;
                 }
-                #${APPID}-jump-list-container:focus, #${APPID}-jump-list:focus {
+                #${APPID}-jump-list-container:focus, #${APPID}-jump-list:focus, .${APPID}-jump-list-scrollbox:focus {
                     outline: none;
                 }
                 #${APPID}-jump-list-container.is-visible {
@@ -4724,11 +4869,14 @@
                     transform: translateY(0);
                     visibility: visible;
                 }
+                .${APPID}-jump-list-scrollbox {
+                    flex: 1 1 auto;
+                    position: relative;
+                }
                 #${APPID}-jump-list {
                     list-style: none;
                     margin: 0;
-                    padding: 0 4px 0 0; /* Add padding for scrollbar */
-                    overflow-y: auto;
+                    padding: 0;
                 }
                 .${APPID}-jump-list-filter-container {
                     position: relative;
@@ -4736,6 +4884,7 @@
                     align-items: center;
                     border-top: 1px solid ${jumpListStyles.list_border};
                     margin: 4px 0 0 0;
+                    flex-shrink: 0;
                 }
                 .${APPID}-jump-list-filter {
                     border: none;
@@ -4782,7 +4931,6 @@
                     text-overflow: ellipsis;
                     border-radius: 4px;
                     font-size: 0.85rem;
-                    max-width: 400px;
                 }
                 #${APPID}-jump-list li:hover, #${APPID}-jump-list li.is-focused {
                     outline: 1px solid ${jumpListStyles.hover_outline};
@@ -4831,6 +4979,7 @@
                     font-weight: bold;
                     background-color: transparent;
                 }
+                ${firefoxScrollbarFix}
             `,
             });
             document.head.appendChild(style);
