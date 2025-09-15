@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.5.2
+// @version      1.5.3
 // @license      MIT
 // @description  Fully customize the chat UI. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://chatgpt.com/favicon.ico
@@ -279,7 +279,14 @@
          * @returns {string} The text content to be displayed in the jump list.
          */
         static getJumpListDisplayText(messageElement) {
-            return messageElement.textContent || '';
+            const role = this.getMessageRole(messageElement);
+            let contentEl;
+            if (role === this.SELECTORS.FIXED_NAV_ROLE_USER) {
+                contentEl = messageElement.querySelector(this.SELECTORS.USER_TEXT_CONTENT);
+            } else {
+                contentEl = messageElement.querySelector(this.SELECTORS.ASSISTANT_TEXT_CONTENT);
+            }
+            return contentEl?.textContent || '';
         }
 
         /**

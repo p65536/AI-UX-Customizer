@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.5.2
+// @version      1.5.3
 // @license      MIT
 // @description  Fully customize the chat UI. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=gemini.google.com
@@ -299,19 +299,21 @@
          */
         static getJumpListDisplayText(messageElement) {
             const role = this.getMessageRole(messageElement);
+            let contentEl;
+
             if (role === this.SELECTORS.ASSISTANT_MESSAGE) {
-                // First, try to find the specific container for the answer text.
+                // Gemini has a more specific structure for assistant messages we can target first
                 const answerContainer = messageElement.querySelector(this.SELECTORS.ASSISTANT_ANSWER_CONTENT);
-                if (answerContainer) {
-                    // If found, search for the markdown content only within that container.
-                    const markdownContent = answerContainer.querySelector(this.SELECTORS.ASSISTANT_TEXT_CONTENT);
-                    if (markdownContent) {
-                        return markdownContent.textContent || '';
-                    }
+                contentEl = answerContainer?.querySelector(this.SELECTORS.ASSISTANT_TEXT_CONTENT);
+                // Fallback to the general assistant content selector if the specific one isn't found
+                if (!contentEl) {
+                    contentEl = messageElement.querySelector(this.SELECTORS.ASSISTANT_TEXT_CONTENT);
                 }
+            } else if (role === this.SELECTORS.USER_MESSAGE) {
+                contentEl = messageElement.querySelector(this.SELECTORS.USER_TEXT_CONTENT);
             }
-            // Fallback for user messages or if the specific answer container isn't found.
-            return messageElement.textContent || '';
+
+            return contentEl?.textContent || '';
         }
 
         /**
