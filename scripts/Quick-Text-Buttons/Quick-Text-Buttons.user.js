@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Quick-Text-Buttons
 // @namespace    https://github.com/p65536
-// @version      1.1.1
+// @version      1.1.2
 // @license      MIT
 // @description  Adds customizable buttons to paste predefined text into the input field on ChatGPT/Gemini.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/qtb.ico
@@ -91,9 +91,28 @@
     // Description: Prevents the script from being executed multiple times per page.
     // =================================================================================
 
-    window.__myproject_guard__ = window.__myproject_guard__ || {};
-    if (window.__myproject_guard__[`${APPID}_executed`]) return;
-    window.__myproject_guard__[`${APPID}_executed`] = true;
+    class ExecutionGuard {
+        // A shared key for all scripts from the same author to avoid polluting the window object.
+        static #GUARD_KEY = `__${OWNERID}_guard__`;
+        // A specific key for this particular script.
+        static #APP_KEY = `${APPID}_executed`;
+
+        /**
+         * Checks if the script has already been executed on the page.
+         * @returns {boolean} True if the script has run, otherwise false.
+         */
+        static hasExecuted() {
+            return window[this.#GUARD_KEY]?.[this.#APP_KEY] || false;
+        }
+
+        /**
+         * Sets the flag indicating the script has now been executed.
+         */
+        static setExecuted() {
+            window[this.#GUARD_KEY] = window[this.#GUARD_KEY] || {};
+            window[this.#GUARD_KEY][this.#APP_KEY] = true;
+        }
+    }
 
     // =================================================================================
     // SECTION: Platform-Specific Adapter
@@ -4026,6 +4045,18 @@
     // =================================================================================
     // SECTION: Entry Point
     // =================================================================================
+
+    // ===============================================================
+    //  Execution Guard: Prevent the script from running multiple times
+    // ===============================================================
+    if (ExecutionGuard.hasExecuted()) {
+        // Exit if already executed
+        return;
+    } else {
+        // Set executed flag if not executed yet
+        ExecutionGuard.setExecuted();
+    }
+    // ===============================================================
 
     const platformDetails = PlatformAdapter.getPlatformDetails();
     if (platformDetails) {
