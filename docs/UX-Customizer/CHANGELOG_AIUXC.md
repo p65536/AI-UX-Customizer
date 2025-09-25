@@ -4,6 +4,24 @@
 > This changelog applies to both **ChatGPT UX Customizer (GPTUX)** and **Gemini UX Customizer (GGGUX)**.  
 > Most changes are shared between the two scripts. If a change applies only to one, it will be explicitly marked with a `[GPTUX]` or `[GGGUX]` prefix.
 
+## [1.5.4] - 2025-09-25
+- **Fixes**
+  - **Message Navigation:**  
+    - [GPTUX] Fixed broken message navigation caused by recent page structure changes in ChatGPT.  
+      - Updated the scroll container selector to the new DOM structure.  
+    - Adjusted the target element in `scrollToElement()` to ensure correct scrolling.  
+
+## [1.5.3] - 2025-09-13 (private)
+- **Fix**
+  - Fixed message number being displayed at the end of the preview tooltip.
+
+## [1.5.2] - 2025-09-13 (private)
+- **New Feature: Message Number Indicators**
+  - Adds a sequential number indicator to the corner of each message bubble for easy identification.
+  - Makes it simple to cross-reference messages with the counters in the Navigation Console and the Jump List.
+  - The number's position is fixed to the outer corner of the bubble (top-left for assistant, top-right for user), ensuring it expands outwards and does not interfere with other UI elements as the number of digits increases.
+  - Visibility is linked to the "Navigation Console" feature; numbers are only displayed when the console is enabled in the settings.
+
 ## [1.5.1] - 2025-09-13
 - **Refactor: Jump List Performance Overhaul**
   - The Jump List feature has been re-implemented to use virtual scrolling. This ensures high performance and a smooth, responsive experience, even in chats with thousands of messages, while significantly reducing memory usage.

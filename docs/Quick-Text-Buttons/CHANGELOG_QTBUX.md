@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.2.0] - 2025-09-25
+- **Performance & Stability**
+  - Reworked the internal event handling system to be more efficient. This reduces the script's resource usage and improves responsiveness.
+  - The configuration management system has been hardened to better handle and sanitize data, improving overall script reliability.
+- **Internal Refactoring**
+  - Major internal components, such as the `PlatformAdapter`, have been refactored for better modularity. This creates a more stable foundation for future updates and feature development.
+
+## [1.1.2] - 2025-09-15 (private)
+- **Internal Improvements**
+  - The execution guard, which prevents the script from running multiple times on the same page, has been refactored into a dedicated class. This improves the script's startup robustness and code organization.
+
 ## [1.1.1] - 2025-09-05
 - **Refactored**
   - Consolidated duplicated profile/category logic in `TextEditorModalComponent` into generic handler methods (`_handleItemNew`, `_handleItemCopy`, `_handleItemDelete`, `_handleItemMove`, `_handleRenameConfirm`).  
