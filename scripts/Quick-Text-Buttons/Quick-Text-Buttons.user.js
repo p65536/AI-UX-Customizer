@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Quick-Text-Buttons
 // @namespace    https://github.com/p65536
-// @version      1.1.2
+// @version      1.2.0
 // @license      MIT
 // @description  Adds customizable buttons to paste predefined text into the input field on ChatGPT/Gemini.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/qtb.ico
@@ -120,102 +120,118 @@
     //              DOM manipulation strategies.
     // =================================================================================
 
-    class PlatformAdapter {
-        static getPlatformDetails() {
-            const { host } = location;
-            if (host.includes('chatgpt.com')) {
-                return {
-                    platformId: 'chatgpt',
-                    selectors: {
-                        ANCHOR_ELEMENT: 'div.ProseMirror#prompt-textarea',
-                        CANVAS_CONTAINER: 'section.popover header h2',
-                    },
-                };
-            }
-            if (host.includes('gemini.google.com')) {
-                return {
-                    platformId: 'gemini',
-                    selectors: {
-                        ANCHOR_ELEMENT: 'rich-textarea .ql-editor',
-                        CANVAS_CONTAINER: 'immersive-panel',
-                    },
-                };
-            }
-            return null;
-        }
+    const PlatformAdapters = {
+        General: {
+            getPlatformDetails() {
+                const { host } = location;
+                if (host.includes('chatgpt.com')) {
+                    return {
+                        platformId: 'chatgpt',
+                        selectors: {
+                            ANCHOR_ELEMENT: 'div.ProseMirror#prompt-textarea',
+                            CANVAS_CONTAINER: 'section.popover header h2',
+                        },
+                    };
+                }
+                if (host.includes('gemini.google.com')) {
+                    return {
+                        platformId: 'gemini',
+                        selectors: {
+                            ANCHOR_ELEMENT: 'rich-textarea .ql-editor',
+                            CANVAS_CONTAINER: 'immersive-panel',
+                        },
+                    };
+                }
+                return null;
+            },
 
-        /**
-         * Finds the editor element and delegates the text insertion task to the EditorController.
-         * @param {string} text The text to insert.
-         * @param {object} options The insertion options.
-         */
-        static insertText(text, options = {}) {
-            const platform = this.getPlatformDetails();
-            if (!platform) {
-                Logger.error('Platform details not found.');
-                return;
-            }
-
-            const editor = document.querySelector(platform.selectors.ANCHOR_ELEMENT);
-            if (!editor) {
-                Logger.error('Input element not found via selector:', platform.selectors.ANCHOR_ELEMENT);
-                return;
-            }
-
-            // Delegate the complex insertion logic to the specialized controller.
-            EditorController.insertText(text, editor, options, platform.platformId);
-        }
-
-        static repositionButtons(uiManager) {
-            const platform = this.getPlatformDetails();
-            if (!platform || !uiManager) return;
-
-            // --- No-op for Gemini ---
-            if (platform.platformId === 'gemini') {
-                return;
-            }
-
-            // --- ChatGPT Logic ---
-            if (platform.platformId === 'chatgpt') {
-                const { settingsBtn, insertBtn } = uiManager.components;
-                if (!settingsBtn?.element || !insertBtn?.element) return;
-
-                const canvasTitle = document.querySelector(platform.selectors.CANVAS_CONTAINER);
-
-                if (canvasTitle) {
-                    const canvasPanel = canvasTitle.closest('section.popover');
-                    if (canvasPanel) {
-                        const canvasRect = canvasPanel.getBoundingClientRect();
-                        const offset = CONSTANTS.POSITIONING.GPT_CANVAS_OFFSET_PX;
-                        const gap = CONSTANTS.POSITIONING.GPT_BUTTON_GAP_PX;
-
-                        // Position Settings Button to the left of the canvas
-                        settingsBtn.element.style.right = '';
-                        settingsBtn.element.style.left = `${canvasRect.left - offset}px`;
-
-                        // Position Insert Button to the left of the Settings Button
-                        const settingsBtnWidth = settingsBtn.element.offsetWidth;
-                        insertBtn.element.style.right = '';
-                        insertBtn.element.style.left = `${canvasRect.left - offset - settingsBtnWidth - gap}px`;
-                        return;
-                    }
+            /**
+             * Finds the editor element and delegates the text insertion task to the EditorController.
+             * @param {string} text The text to insert.
+             * @param {object} options The insertion options.
+             */
+            insertText(text, options = {}) {
+                const platform = this.getPlatformDetails();
+                if (!platform) {
+                    Logger.error('Platform details not found.');
+                    return;
                 }
 
-                // --- Fallback / Revert to default position ---
-                settingsBtn.element.style.left = '';
-                settingsBtn.element.style.right = settingsBtn.options.position.right;
+                const editor = document.querySelector(platform.selectors.ANCHOR_ELEMENT);
+                if (!editor) {
+                    Logger.error('Input element not found via selector:', platform.selectors.ANCHOR_ELEMENT);
+                    return;
+                }
 
-                insertBtn.element.style.left = '';
-                insertBtn.element.style.right = insertBtn.options.position.right;
-            }
-        }
+                // Delegate the complex insertion logic to the specialized controller.
+                EditorController.insertText(text, editor, options, platform.platformId);
+            },
+        },
 
-        static startPlatformSpecificObservers(observerManager) {
-            const platform = this.getPlatformDetails();
-            if (!platform) return;
+        UI: {
+            repositionButtons(uiManager) {
+                const platform = PlatformAdapters.General.getPlatformDetails();
+                if (!platform || !uiManager) return;
 
-            // --- ChatGPT-specific observer for Canvas resizing ---
-            if (platform.platformId === 'chatgpt') {
+                // --- No-op for Gemini ---
+                if (platform.platformId === 'gemini') {
+                    return;
+                }
+
+                // --- ChatGPT Logic ---
+                if (platform.platformId === 'chatgpt') {
+                    const { settingsBtn, insertBtn } = uiManager.components;
+                    if (!settingsBtn?.element || !insertBtn?.element) return;
+
+                    const canvasTitle = document.querySelector(platform.selectors.CANVAS_CONTAINER);
+
+                    if (canvasTitle) {
+                        const canvasPanel = canvasTitle.closest('section.popover');
+                        if (canvasPanel) {
+                            const canvasRect = canvasPanel.getBoundingClientRect();
+                            const offset = CONSTANTS.POSITIONING.GPT_CANVAS_OFFSET_PX;
+                            const gap = CONSTANTS.POSITIONING.GPT_BUTTON_GAP_PX;
+
+                            // Position Settings Button to the left of the canvas
+                            settingsBtn.element.style.right = '';
+                            settingsBtn.element.style.left = `${canvasRect.left - offset}px`;
+
+                            // Position Insert Button to the left of the Settings Button
+                            const settingsBtnWidth = settingsBtn.element.offsetWidth;
+                            insertBtn.element.style.right = '';
+                            insertBtn.element.style.left = `${canvasRect.left - offset - settingsBtnWidth - gap}px`;
+                            return;
+                        }
+                    }
+
+                    // --- Fallback / Revert to default position ---
+                    settingsBtn.element.style.left = '';
+                    settingsBtn.element.style.right = settingsBtn.options.position.right;
+
+                    insertBtn.element.style.left = '';
+                    insertBtn.element.style.right = insertBtn.options.position.right;
+                }
+            },
+        },
+
+        Observer: {
+            /**
+             * Returns an array of platform-specific observer initialization functions.
+             * @returns {Function[]} An array of functions to be called by ObserverManager.
+             */
+            getInitializers() {
+                return [this.startCanvasObserver];
+            },
+
+            /**
+             * @private
+             * @description Starts an observer for ChatGPT's Canvas panel resizing.
+             * This method is called by ObserverManager, with the manager instance bound to `this`.
+             */
+            startCanvasObserver() {
+                const platform = PlatformAdapters.General.getPlatformDetails();
+                if (!platform || platform.platformId !== 'chatgpt') return;
+
                 let canvasResizeObserver = null;
                 let lastCanvasState = false;
 
@@ -232,24 +248,22 @@
 
                     if (isCanvasActive) {
                         // Canvas appeared, attach resize observer specifically to the canvas panel
-                        canvasResizeObserver = new ResizeObserver(observerManager.debouncedLayoutRecalculate);
+                        canvasResizeObserver = new ResizeObserver(this.debouncedCanvasResized);
                         canvasResizeObserver.observe(canvasPanel);
                     }
-                    // Always trigger a reposition when state changes (e.g., to reset buttons when canvas closes)
-                    observerManager.debouncedLayoutRecalculate();
+                    // Always trigger a state change event when the canvas appears or disappears
+                    this.debouncedCanvasStateChanged();
                 };
 
-                const debouncedStateCheck = debounce(checkCanvasState, CONSTANTS.POSITIONING.RECALC_DEBOUTCE_MS);
+                const debouncedStateCheck = debounce(checkCanvasState, CONSTANTS.POSITIONING.RECALC_DEBOUNCE_MS);
                 const canvasDetectionObserver = new MutationObserver(debouncedStateCheck);
                 canvasDetectionObserver.observe(document.body, { childList: true, subtree: true });
 
                 // Initial check on load
                 checkCanvasState();
-            }
-
-            // No observers needed for Gemini, as repositioning is not required.
-        }
-    }
+            },
+        },
+    };
 
     // =================================================================================
     // SECTION: Editor Controller
@@ -1169,26 +1183,32 @@
 
         /**
          * @override
+         * Loads the configuration from storage, merges it with defaults, and sanitizes it.
+         * The final, complete configuration is stored in `this.config`.
          */
         async load() {
             const raw = await GM_getValue(this.CONFIG_KEY);
-            if (!raw) return null;
-
-            try {
-                const parsed = JSON.parse(raw);
-                return isObject(parsed) ? parsed : null;
-            } catch (e) {
-                Logger.error('Failed to parse configuration.', e);
-                return null;
+            let userConfig = null;
+            if (raw) {
+                try {
+                    userConfig = JSON.parse(raw);
+                } catch (e) {
+                    Logger.error('Failed to parse configuration. Using default settings.', e);
+                    userConfig = null;
+                }
             }
+            this.config = this._processAndSanitize(userConfig);
         }
 
         /**
          * @override
+         * Processes, sanitizes, and saves the configuration object to storage.
+         * @param {object} obj The configuration object to save.
          */
         async save(obj) {
-            const jsonString = JSON.stringify(obj);
-            const configSize = new Blob([jsonString]).size; // Use Blob to get accurate byte size
+            const completeConfig = this._processAndSanitize(obj);
+            const jsonString = JSON.stringify(completeConfig);
+            const configSize = new Blob([jsonString]).size;
 
             if (configSize > CONSTANTS.CONFIG_SIZE_LIMIT_BYTES) {
                 const sizeInMB = (configSize / 1024 / 1024).toFixed(2);
@@ -1199,9 +1219,76 @@
                 throw new Error(errorMsg);
             }
 
-            this.config = obj;
-            await GM_setValue(this.CONFIG_KEY, JSON.stringify(obj));
-            EventBus.publish(`${APPID}:configSaveSuccess`); // Notify UI to clear warnings
+            this.config = completeConfig;
+            await GM_setValue(this.CONFIG_KEY, jsonString);
+            EventBus.publish(`${APPID}:configSaveSuccess`);
+        }
+
+        /**
+         * Merges a user configuration with defaults and sanitizes the data structure.
+         * @private
+         * @param {object | null} userConfig The user configuration object, which may be partial or null.
+         * @returns {object} A complete and sanitized configuration object.
+         */
+        _processAndSanitize(userConfig) {
+            const completeConfig = JSON.parse(JSON.stringify(this.DEFAULT_CONFIG));
+
+            if (userConfig) {
+                if (isObject(userConfig.texts)) {
+                    completeConfig.texts = userConfig.texts;
+                }
+                if (isObject(userConfig.options)) {
+                    completeConfig.options = { ...completeConfig.options, ...userConfig.options };
+                }
+            }
+
+            const sanitizeTextsObject = (texts) => {
+                if (!isObject(texts)) return {};
+                for (const profileName in texts) {
+                    const profile = texts[profileName];
+                    if (!isObject(profile)) {
+                        Logger.warn(`Sanitizing invalid profile entry: "${profileName}" was not an object.`);
+                        delete texts[profileName];
+                        continue;
+                    }
+                    if (Object.keys(profile).length === 0) {
+                        Logger.warn(`Profile "${profileName}" has no categories. Adding a default category.`);
+                        profile['New Category'] = [];
+                    }
+                    for (const categoryName in profile) {
+                        const category = profile[categoryName];
+                        if (!Array.isArray(category)) {
+                            Logger.warn(`Sanitizing invalid category entry: "${categoryName}" in profile "${profileName}" was not an array.`);
+                            delete profile[categoryName];
+                            continue;
+                        }
+                        profile[categoryName] = category.map((text, i) => {
+                            if (typeof text !== 'string') {
+                                Logger.warn(`Sanitizing invalid text entry: Item at index ${i} in category "${categoryName}" was not a string.`);
+                                return String(text);
+                            }
+                            return text;
+                        });
+                    }
+                }
+                return texts;
+            };
+
+            completeConfig.texts = sanitizeTextsObject(completeConfig.texts);
+
+            if (!completeConfig.texts || Object.keys(completeConfig.texts).length === 0) {
+                completeConfig.texts = JSON.parse(JSON.stringify(this.DEFAULT_CONFIG.texts));
+                Logger.warn('Configuration resulted in no profiles. Restoring default texts to prevent errors.');
+            }
+
+            const profileKeys = Object.keys(completeConfig.texts);
+            const activeProfileName = completeConfig.options.activeProfileName;
+            if (!Object.prototype.hasOwnProperty.call(completeConfig.texts, activeProfileName)) {
+                Logger.log(`Active profile "${activeProfileName}" not found. Setting the first available profile as active.`);
+                completeConfig.options.activeProfileName = profileKeys[0];
+            }
+
+            return completeConfig;
         }
 
         /**
@@ -1228,7 +1315,7 @@
          * @protected
          */
         _validateAndSanitizeOptions() {
-            // No specific options to validate for this script.
+            // This logic is now part of _processAndSanitize.
         }
     }
 
@@ -3584,7 +3671,8 @@
                 })
             );
             // Add event listener for dynamic UI changes
-            this.unsubscribers.push(EventBus.subscribe(`${APPID}:layoutRecalculate`, () => this.repositionAllButtons()));
+            this.unsubscribers.push(EventBus.subscribe(`${APPID}:canvasStateChanged`, () => this.repositionAllButtons()));
+            this.unsubscribers.push(EventBus.subscribe(`${APPID}:canvasResized`, () => this.repositionAllButtons()));
         }
 
         destroy() {
@@ -3596,7 +3684,7 @@
         }
 
         repositionAllButtons() {
-            PlatformAdapter.repositionButtons(this);
+            PlatformAdapters.UI.repositionButtons(this);
         }
 
         getActiveModal() {
@@ -3673,7 +3761,7 @@
         }
 
         _insertText(text) {
-            PlatformAdapter.insertText(text, this.config.options);
+            PlatformAdapters.General.insertText(text, this.config.options);
         }
 
         _positionList() {
@@ -3826,11 +3914,29 @@
     class ObserverManager {
         constructor(app) {
             this.app = app; // Reference to the main app
-            this.debouncedLayoutRecalculate = debounce(this._publishLayoutRecalculate.bind(this), CONSTANTS.POSITIONING.RECALC_DEBOUNCE_MS);
+            this.debouncedCanvasStateChanged = debounce(this._publishCanvasStateChanged.bind(this), CONSTANTS.POSITIONING.RECALC_DEBOUNCE_MS);
+            this.debouncedCanvasResized = debounce(this._publishCanvasResized.bind(this), CONSTANTS.POSITIONING.RECALC_DEBOUNCE_MS);
         }
 
-        _publishLayoutRecalculate() {
-            EventBus.publish(`${APPID}:layoutRecalculate`);
+        /**
+         * Starts all platform-specific observers by retrieving and executing them
+         * from the PlatformAdapter.
+         */
+        start() {
+            // Get the list of platform-specific observer initializers and run them.
+            const initializers = PlatformAdapters.Observer.getInitializers();
+            for (const init of initializers) {
+                // Call each initializer with the ObserverManager instance as `this`.
+                init.call(this);
+            }
+        }
+
+        _publishCanvasStateChanged() {
+            EventBus.publish(`${APPID}:canvasStateChanged`);
+        }
+
+        _publishCanvasResized() {
+            EventBus.publish(`${APPID}:canvasResized`);
         }
     }
 
@@ -3913,16 +4019,14 @@
         }
 
         async init() {
-            this.platformDetails = PlatformAdapter.getPlatformDetails();
+            this.platformDetails = PlatformAdapters.General.getPlatformDetails();
             if (!this.platformDetails) {
                 Logger.log('Not on a supported page.');
                 return;
             }
 
             this.configManager = new ConfigManager();
-            const userConfig = await this.configManager.load();
-            const completeConfig = this._processConfig(userConfig);
-            this.configManager.config = completeConfig;
+            await this.configManager.load();
 
             this.syncManager = new SyncManager(this);
 
@@ -3938,12 +4042,12 @@
             this.syncManager.init();
 
             // Start platform-specific observers for dynamic UI changes via the adapter
-            PlatformAdapter.startPlatformSpecificObservers(this.observerManager);
+            this.observerManager.start();
         }
 
         // Method required by the SyncManager's interface for silent updates
         applyUpdate(newConfig) {
-            const completeConfig = this._processConfig(newConfig);
+            const completeConfig = this.configManager._processAndSanitize(newConfig);
             this.configManager.config = completeConfig;
             this.uiManager.updateConfig(completeConfig);
         }
@@ -3960,80 +4064,13 @@
 
         async handleSave(newConfig) {
             try {
-                const completeConfig = this._processConfig(newConfig);
-                await this.configManager.save(completeConfig);
-                this.uiManager.updateConfig(completeConfig);
+                await this.configManager.save(newConfig);
+                this.uiManager.updateConfig(this.configManager.get());
                 this.syncManager.onSave(); // Notify SyncManager of the successful save
             } catch (err) {
                 Logger.error('Failed to save config:', err);
                 throw err; // Re-throw the error for the UI layer to catch
             }
-        }
-
-        _processConfig(userConfig) {
-            const completeConfig = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
-
-            if (userConfig) {
-                // Overwrite texts object entirely if it exists, don't merge it.
-                if (isObject(userConfig.texts)) {
-                    completeConfig.texts = userConfig.texts;
-                }
-                // Merge options
-                if (isObject(userConfig.options)) {
-                    completeConfig.options = { ...completeConfig.options, ...userConfig.options };
-                }
-            }
-
-            const sanitizeTextsObject = (texts) => {
-                if (!isObject(texts)) return {};
-                for (const profileName in texts) {
-                    const profile = texts[profileName];
-                    if (!isObject(profile)) {
-                        Logger.warn(`Sanitizing invalid profile entry: "${profileName}" was not an object.`);
-                        delete texts[profileName];
-                        continue;
-                    }
-
-                    if (Object.keys(profile).length === 0) {
-                        Logger.warn(`Profile "${profileName}" has no categories. Adding a default category.`);
-                        profile['New Category'] = [];
-                    }
-
-                    for (const categoryName in profile) {
-                        const category = profile[categoryName];
-                        if (!Array.isArray(category)) {
-                            Logger.warn(`Sanitizing invalid category entry: "${categoryName}" in profile "${profileName}" was not an array.`);
-                            delete profile[categoryName];
-                            continue;
-                        }
-                        profile[categoryName] = category.map((text, i) => {
-                            if (typeof text !== 'string') {
-                                Logger.warn(`Sanitizing invalid text entry: Item at index ${i} in category "${categoryName}" was not a string.`);
-                                return String(text);
-                            }
-                            return text;
-                        });
-                    }
-                }
-                return texts;
-            };
-
-            completeConfig.texts = sanitizeTextsObject(completeConfig.texts);
-
-            if (!completeConfig.texts || Object.keys(completeConfig.texts).length === 0) {
-                // If sanitization results in an empty texts object, restore the default to prevent a broken state.
-                completeConfig.texts = JSON.parse(JSON.stringify(DEFAULT_CONFIG.texts));
-                Logger.warn('Configuration resulted in no profiles. Restoring default texts to prevent errors.');
-            }
-
-            const profileKeys = Object.keys(completeConfig.texts);
-            const activeProfileName = completeConfig.options.activeProfileName;
-            if (!Object.prototype.hasOwnProperty.call(completeConfig.texts, activeProfileName)) {
-                Logger.log(`Active profile "${activeProfileName}" not found. Setting the first available profile as active.`);
-                completeConfig.options.activeProfileName = profileKeys[0];
-            }
-
-            return completeConfig;
         }
 
         destroy() {
@@ -4058,7 +4095,7 @@
     }
     // ===============================================================
 
-    const platformDetails = PlatformAdapter.getPlatformDetails();
+    const platformDetails = PlatformAdapters.General.getPlatformDetails();
     if (platformDetails) {
         const sentinel = new Sentinel(OWNERID);
         let isInitialized = false;
