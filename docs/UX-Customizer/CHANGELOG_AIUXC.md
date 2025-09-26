@@ -4,6 +4,14 @@
 > This changelog applies to both **ChatGPT UX Customizer (GPTUX)** and **Gemini UX Customizer (GGGUX)**.  
 > Most changes are shared between the two scripts. If a change applies only to one, it will be explicitly marked with a `[GPTUX]` or `[GGGUX]` prefix.
 
+## [1.5.5] - 2025-09-26
+- **Fixes**
+  - **Message Navigation:**  
+    - [GPTUX] Due to yet another page structure change in **ChatGPT** (less than a day after the previous fix), message navigation required another adjustment.  
+      - Updated the scroll container selector once more to match the latest DOM structure.  
+- **Debugging**
+  - Added debug logging to make it easier to detect early when the scroll container selector changes. 
+
 ## [1.5.4] - 2025-09-25
 - **Fixes**
   - **Message Navigation:**  
