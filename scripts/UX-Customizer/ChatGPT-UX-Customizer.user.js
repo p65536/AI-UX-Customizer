@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.5.4
+// @version      1.5.5
 // @license      MIT
 // @description  Fully customize the chat UI. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://chatgpt.com/favicon.ico
@@ -214,7 +214,7 @@
             // --- Other UI Selectors ---
             SIDEBAR_WIDTH_TARGET: 'div[id="stage-slideover-sidebar"]',
             CHAT_CONTENT_MAX_WIDTH: 'div[class*="--thread-content-max-width"]',
-            SCROLL_CONTAINER: 'main div.overflow-y-auto > div.overflow-y-auto',
+            SCROLL_CONTAINER: 'main#main .flex.h-full.flex-col.overflow-y-auto',
 
             // --- Site Specific Selectors ---
             BUTTON_SHARE_CHAT: '[data-testid="share-chat-button"]',
@@ -1750,6 +1750,7 @@
         const scrollContainer = scrollContainerSelector ? document.querySelector(scrollContainerSelector) : null;
 
         if (scrollContainer) {
+            Logger.debug('[scrollToElement] Using scroll container method.');
             // Find the actual bubble element to be used as the scroll target
             const bubbleSelector = `${CONSTANTS.SELECTORS.RAW_USER_BUBBLE}, ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE}`;
             const scrollTargetElement = element.querySelector(bubbleSelector) || element;
@@ -1763,9 +1764,11 @@
 
         // Fallback for standard window scrolling (like Gemini).
         if (offset === 0) {
+            Logger.debug('[scrollToElement] (Scroll container not found): Using simple scrollIntoView() (no offset).');
             // Use the simplest method for non-offset scrolls.
             element.scrollIntoView({ behavior, block: 'start' });
         } else {
+            Logger.debug('[scrollToElement] (Scroll container not found): Using virtual anchor method (with offset).');
             // Use the "virtual anchor" method for offset scrolls where direct manipulation is not possible.
             const target = element;
             const originalPosition = window.getComputedStyle(target).position;
