@@ -34,6 +34,16 @@ Each script is developed independently and can be installed separately.
 
 ---
 
+## Planned Updates
+
+> An improvement is planned for themes that use avatar icons.  
+> When a conversation contains several hundred messages, performance degradation occursCurrently, when a conversation contains several hundred messages, a noticeable performance degradation occurs, **especially when opening or closing the Canvas panel**.  
+> The root cause has been identified and improvements confirmed in a local build.  
+> Since additional refactoring is also underway, the release will take a little more time.  
+> The update is expected to be published within October.  
+
+---
+
 ## Scripts in This Project
 
 ### 1. ChatGPT UX Customizer / Gemini UX Customizer
