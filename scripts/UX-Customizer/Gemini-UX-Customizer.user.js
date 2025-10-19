@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.5.5
+// @version      1.6.0
 // @license      MIT
 // @description  Fully customize the chat UI. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=gemini.google.com
@@ -10,6 +10,7 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addValueChangeListener
+// @grant        GM_removeValueChangeListener
 // @grant        GM_xmlhttpRequest
 // @connect      raw.githubusercontent.com
 // @connect      *
@@ -110,11 +111,20 @@
                 console.timeEnd(`${LOG_PREFIX} ${label}`);
             }
         },
-        /** @param {...any} args The title for the log group. */
+        /**
+         * @param {...any} args The title for the log group.
+         * @returns {void}
+         */
         group: (...args) => console.group(LOG_PREFIX, ...args),
-        /** @param {...any} args The title for the collapsed log group. */
+        /**
+         * @param {...any} args The title for the collapsed log group.
+         * @returns {void}
+         */
         groupCollapsed: (...args) => console.groupCollapsed(LOG_PREFIX, ...args),
-        /** Closes the current log group. */
+        /**
+         * Closes the current log group.
+         * @returns {void}
+         */
         groupEnd: () => console.groupEnd(),
     };
 
@@ -127,7 +137,7 @@
         /**
          * Logs the frequency of an event, throttled by a specified delay.
          * @param {string} key A unique key for the event to track.
-         * @param {number} [delay=1000] The time window in milliseconds to aggregate calls.
+         * @param {number} [delay] The time window in milliseconds to aggregate calls.
          */
         throttleLog(key, delay = 1000) {
             if (Logger.levels[Logger.level] < Logger.levels.debug) {
@@ -162,30 +172,133 @@
     // Description: Prevents the script from being executed multiple times per page.
     // =================================================================================
 
-    window.__myproject_guard__ = window.__myproject_guard__ || {};
-    if (window.__myproject_guard__[`${APPID}_executed`]) return;
-    window.__myproject_guard__[`${APPID}_executed`] = true;
+    class ExecutionGuard {
+        // A shared key for all scripts from the same author to avoid polluting the window object.
+        static #GUARD_KEY = `__${OWNERID}_guard__`;
+        // A specific key for this particular script.
+        static #APP_KEY = `${APPID}_executed`;
 
-    // =================================================================================
-    // SECTION: Platform-Specific Adapter
-    // Description: Centralizes all platform-specific logic, such as selectors and
-    //              DOM manipulation strategies. This isolates platform differences
-    //              from the core application logic.
-    // =================================================================================
-
-    class PlatformAdapter {
         /**
-         * Platform-specific CSS selectors.
+         * Checks if the script has already been executed on the page.
+         * @returns {boolean} True if the script has run, otherwise false.
          */
-        static SELECTORS = {
+        static hasExecuted() {
+            return window[this.#GUARD_KEY]?.[this.#APP_KEY] || false;
+        }
+
+        /**
+         * Sets the flag indicating the script has now been executed.
+         */
+        static setExecuted() {
+            window[this.#GUARD_KEY] = window[this.#GUARD_KEY] || {};
+            window[this.#GUARD_KEY][this.#APP_KEY] = true;
+        }
+    }
+
+    // =================================================================================
+    // SECTION: Configuration and Constants
+    // Description: Defines default settings, global constants, and CSS selectors.
+    // =================================================================================
+
+    // ---- Default Settings & Theme Configuration ----
+    const CONSTANTS = {
+        CONFIG_KEY: `${APPID}_config`,
+        CONFIG_SIZE_LIMIT_BYTES: 5033164, // 4.8MB
+        CACHE_SIZE_LIMIT_BYTES: 10 * 1024 * 1024, // 10MB
+        ICON_SIZE: 64,
+        ICON_SIZE_VALUES: [64, 96, 128, 160, 192],
+        ICON_MARGIN: 16,
+        BUTTON_VISIBILITY_THRESHOLD_PX: 128,
+        BATCH_PROCESSING_SIZE: 50,
+        RETRY: {
+            MAX_STANDING_IMAGES: 10,
+            STANDING_IMAGES_INTERVAL: 250,
+            SCROLL_OFFSET_FOR_NAV: 40,
+        },
+        TIMING: {
+            DEBOUNCE_DELAYS: {
+                // Delay for recalculating UI elements after visibility changes
+                VISIBILITY_CHECK: 250,
+                // Delay for updating the message cache after DOM mutations
+                CACHE_UPDATE: 250,
+                // Delay for recalculating layout-dependent elements (e.g., standing images) after resize
+                LAYOUT_RECALCULATION: 150,
+                // Delay for updating navigation buttons after a message is completed
+                NAVIGATION_UPDATE: 100,
+                // Delay for repositioning UI elements like the settings button
+                UI_REPOSITION: 100,
+                // Delay for updating the theme after sidebar mutations (Gemini-specific)
+                THEME_UPDATE: 150,
+                // Delay for saving settings after user input in the settings panel
+                SETTINGS_SAVE: 300,
+                // Delay for updating the theme editor's preview pane
+                THEME_PREVIEW: 50,
+                // Delay for batching avatar injection events on initial load
+                AVATAR_INJECTION: 25,
+            },
+            TIMEOUTS: {
+                // Delay to wait for the DOM to settle after a URL change before re-scanning
+                POST_NAVIGATION_DOM_SETTLE: 200,
+                // Delay before removing the temporary anchor element used for smooth scrolling with an offset
+                VIRTUAL_ANCHOR_CLEANUP: 1500,
+                // Delay before reopening a modal after a settings sync conflict is resolved
+                MODAL_REOPEN_DELAY: 100,
+                // Delay to wait for panel transition animations (e.g., Canvas, File Panel) to complete
+                PANEL_TRANSITION_DURATION: 350,
+                // Fallback delay for requestIdleCallback
+                IDLE_EXECUTION_FALLBACK: 50,
+            },
+        },
+        OBSERVED_ELEMENT_TYPES: {
+            BODY: 'body',
+            INPUT_AREA: 'inputArea',
+            SIDE_PANEL: 'sidePanel',
+        },
+        SLIDER_CONFIGS: {
+            CHAT_WIDTH: {
+                MIN: 29,
+                MAX: 80,
+                NULL_THRESHOLD: 30,
+                DEFAULT: null,
+            },
+        },
+        Z_INDICES: {
+            SETTINGS_BUTTON: 10000,
+            SETTINGS_PANEL: 11000,
+            THEME_MODAL: 12000,
+            JSON_MODAL: 15000,
+            JUMP_LIST_PREVIEW: 16000,
+            STANDING_IMAGE: 1,
+            BUBBLE_NAVIGATION: 'auto',
+            NAV_CONSOLE: 500,
+        },
+        MODAL: {
+            WIDTH: 440,
+            PADDING: 4,
+            RADIUS: 8,
+            BTN_RADIUS: 5,
+            BTN_FONT_SIZE: 13,
+            BTN_PADDING: '5px 16px',
+            TITLE_MARGIN_BOTTOM: 8,
+            BTN_GROUP_GAP: 8,
+            TEXTAREA_HEIGHT: 200,
+        },
+        UI_DEFAULTS: {
+            SETTINGS_BUTTON_CANVAS_OFFSET_PX: 96,
+            SETTINGS_BUTTON_DEFAULT_POSITION: { top: '10px', right: '320px' },
+        },
+        SELECTORS: {
             // --- Main containers ---
             MAIN_APP_CONTAINER: 'bard-sidenav-content',
+            CHAT_WINDOW_CONTENT: 'chat-window-content',
             CHAT_WINDOW: 'chat-window',
             CHAT_HISTORY_MAIN: 'div#chat-history',
             INPUT_CONTAINER: 'input-container',
 
             // --- Message containers ---
             CONVERSATION_CONTAINER: '.conversation-container',
+            MESSAGE_CONTAINER_PARENT: '.conversation-container',
+            MESSAGE_ROOT_NODE: 'user-query, model-response',
             USER_QUERY_CONTAINER: 'user-query-content',
 
             // --- Selectors for messages ---
@@ -228,13 +341,14 @@
             // --- FixedNav-specific Selectors ---
             FIXED_NAV_INPUT_AREA_TARGET: 'input-area-v2',
             FIXED_NAV_MESSAGE_CONTAINERS: 'user-query, model-response',
-            FIXED_NAV_TURN_CONTAINER: null, // Not applicable to Gemini
+            FIXED_NAV_TURN_CONTAINER: '.conversation-container',
             FIXED_NAV_ROLE_USER: 'user-query',
             FIXED_NAV_ROLE_ASSISTANT: 'model-response',
             FIXED_NAV_HIGHLIGHT_TARGETS: `.${APPID}-highlight-message .user-query-bubble-with-background, .${APPID}-highlight-message .response-container-with-gpi`,
 
             // --- Turn Completion Selector ---
             TURN_COMPLETE_SELECTOR: 'model-response message-actions',
+            MESSAGE_ACTIONS_TOOLBAR: 'message-actions',
 
             // --- Debug Selectors ---
             DEBUG_CONTAINER_TURN: '.conversation-container',
@@ -246,564 +360,308 @@
 
             // --- File Panel ---
             FILE_PANEL_CONTAINER: 'context-sidebar',
-        };
-
-        /**
-         * Checks if the Canvas feature is currently active on the page.
-         * @returns {boolean} True if Canvas mode is detected, otherwise false.
-         */
-        static isCanvasModeActive() {
-            return !!document.querySelector(this.SELECTORS.CANVAS_CONTAINER);
-        }
-
-        /**
-         * Checks if the File Panel feature is currently active on the page.
-         * @returns {boolean} True if File Panel mode is detected, otherwise false.
-         */
-        static isFilePanelActive() {
-            return !!document.querySelector(this.SELECTORS.FILE_PANEL_CONTAINER);
-        }
-
-        /**
-         * Gets the platform-specific role identifier from a message element.
-         * @param {HTMLElement} messageElement The message element.
-         * @returns {string | null} The platform's role identifier (e.g., 'user', 'user-query').
-         */
-        static getMessageRole(messageElement) {
-            if (!messageElement) return null;
-            return messageElement.tagName.toLowerCase();
-        }
-
-        /**
-         * Gets the current chat title in a platform-specific way.
-         * @returns {string | null}
-         */
-        static getChatTitle() {
-            // GGGUX gets the title from a specific DOM element.
-            const selectedConversation = document.querySelector('[data-test-id="conversation"].selected');
-            if (selectedConversation) {
-                const titleElement = selectedConversation.querySelector('.conversation-title');
-                if (titleElement) {
-                    return titleElement.textContent.trim();
-                }
-            }
-            return null;
-        }
-
-        /**
-         * Gets the platform-specific display text from a message element for the jump list.
-         * This method centralizes the logic for extracting the most relevant text,
-         * bypassing irrelevant content like system messages or UI elements within the message container.
-         * @param {HTMLElement} messageElement The message element.
-         * @returns {string} The text content to be displayed in the jump list.
-         */
-        static getJumpListDisplayText(messageElement) {
-            const role = this.getMessageRole(messageElement);
-            let contentEl;
-
-            if (role === this.SELECTORS.ASSISTANT_MESSAGE) {
-                // Gemini has a more specific structure for assistant messages we can target first
-                const answerContainer = messageElement.querySelector(this.SELECTORS.ASSISTANT_ANSWER_CONTENT);
-                contentEl = answerContainer?.querySelector(this.SELECTORS.ASSISTANT_TEXT_CONTENT);
-                // Fallback to the general assistant content selector if the specific one isn't found
-                if (!contentEl) {
-                    contentEl = messageElement.querySelector(this.SELECTORS.ASSISTANT_TEXT_CONTENT);
-                }
-            } else if (role === this.SELECTORS.USER_MESSAGE) {
-                contentEl = messageElement.querySelector(this.SELECTORS.USER_TEXT_CONTENT);
-            }
-
-            return contentEl?.textContent || '';
-        }
-
-        /**
-         * Selects the appropriate theme set based on platform-specific logic during an update check.
-         * @param {ThemeManager} themeManager - The instance of the theme manager.
-         * @param {AppConfig} config - The full application configuration.
-         * @param {boolean} urlChanged - Whether the URL has changed since the last check.
-         * @param {boolean} titleChanged - Whether the title has changed since the last check.
-         * @returns {ThemeSet} The theme set that should be applied.
-         */
-        static selectThemeForUpdate(themeManager, config, urlChanged, titleChanged) {
-            // GGGUX-specific logic: If the URL changed but the title hasn't (yet),
-            // apply the default theme as a fallback to prevent applying the previous chat's theme.
-            if (urlChanged && !titleChanged) {
-                return config.defaultSet;
-            }
-
-            // Default logic
-            return themeManager.getThemeSet();
-        }
-
-        /**
-         * @description Gets the platform-specific parent element for attaching navigation buttons.
-         * On Gemini, the positioning context differs between user and assistant messages due to the DOM structure.
-         * For user messages, a specific inner container must be used as the anchor.
-         * For assistant messages, the main message element itself is the correct anchor.
-         * @param {HTMLElement} messageElement The message element.
-         * @returns {HTMLElement | null} The parent element for the nav container.
-         */
-        static getNavPositioningParent(messageElement) {
-            const role = this.getMessageRole(messageElement);
-
-            if (role === this.SELECTORS.USER_MESSAGE) {
-                // For user messages, use the specific content container as the positioning context.
-                return messageElement.querySelector(this.SELECTORS.USER_QUERY_CONTAINER);
-            } else {
-                // For model-response, the element itself remains the correct context.
-                return messageElement;
-            }
-        }
-
-        /**
-         * Applies platform specific fixes.
-         * This function is platform-specific.
-         * @param {ThemeAutomator} automatorInstance - The main controller instance.
-         */
-        static applyFixes(automatorInstance) {
-            // Not required for Gemini
-            return;
-        }
-
-        /**
-         * Initializes platform-specific properties on the ObserverManager instance.
-         * @param {ObserverManager} instance The ObserverManager instance.
-         */
-        static initializeObserver(instance) {
-            instance.debouncedVisibilityCheck = debounce(instance._publishVisibilityRecheck.bind(instance), TIMING.DEBOUNCE_DELAYS.VISIBILITY_CHECK);
-        }
-
-        /**
-         * Returns an array of platform-specific observer initialization functions.
-         * @returns {Function[]} An array of functions to be called by ObserverManager.
-         */
-        // prettier-ignore
-        static getObserverInitializers() {
-            return [
-                this.startGlobalTitleObserver,
-                this.startURLChangeObserver,
-                this.startSidebarObserver,
-                this.startFilePanelObserver,
-                this.startCanvasObserver,
-            ];
-        }
-
-        /**
-         * Handles platform-specific logic within the main mutation observer callback.
-         * @param {ObserverManager} instance The ObserverManager instance.
-         * @param {MutationRecord[]} mutations The mutations to handle.
-         */
-        static handleMainMutations(instance, mutations) {
-            instance._dispatchNodeAddedTasks(mutations);
-            instance.debouncedCacheUpdate();
-            instance.debouncedVisibilityCheck();
-        }
-
-        /**
-         * @private
-         * @description Starts an observer to detect the appearance and disappearance of the Immersive Panel.
-         * It monitors DOM changes and, upon detecting a state change, publishes a `visibilityRecheck` event to allow other components (like standing images) to update their visibility.
-         */
-        static startCanvasObserver() {
-            let isCurrentlyActive = this.isCanvasModeActive();
-            const debouncedStateCheck = debounce(() => {
-                const newState = this.isCanvasModeActive();
-                if (newState !== isCurrentlyActive) {
-                    isCurrentlyActive = newState;
-                    EventBus.publish(`${APPID}:visibilityRecheck`);
-                }
-            }, TIMING.DEBOUNCE_DELAYS.LAYOUT_RECALCULATION);
-
-            const mutationObserver = new MutationObserver(() => {
-                debouncedStateCheck();
-            });
-
-            mutationObserver.observe(document.body, { childList: true, subtree: true });
-        }
-
-        /**
-         * @private
-         * @description Sets up an observer to detect the "Files in this chat" panel (`context-sidebar`).
-         * When the panel's visibility is toggled (via class/style attribute changes),
-         * it dynamically adjusts the z-index of the user's standing image to ensure the panel is displayed on top.
-         */
-        static async startFilePanelObserver() {
-            const userImage = document.getElementById(`${APPID}-standing-image-user`);
-            // The '${APPID}-standing-image-user' element is guaranteed to exist at this point.
-            // StandingImageManager.createContainers() is called during the initial automator.init(),
-            // which creates the container divs for standing images regardless of whether a theme uses them.
-
-            const Z_INDEX_DEFAULT = CONSTANTS.Z_INDICES.STANDING_IMAGE;
-            const Z_INDEX_BEHIND_PANEL = '0';
-
-            const panelObserverCallback = () => {
-                const filePanel = document.querySelector(this.SELECTORS.FILE_PANEL_CONTAINER);
-                if (filePanel) {
-                    // Panel is open, move standing image behind it.
-                    userImage.style.zIndex = Z_INDEX_BEHIND_PANEL;
-                } else {
-                    // Panel is closed, restore default z-index from the stylesheet.
-                    userImage.style.zIndex = Z_INDEX_DEFAULT;
-                }
-            };
-
-            // Wait for the main container to exist before observing.
-            const mainContainer = await waitForElement(this.SELECTORS.MAIN_APP_CONTAINER);
-            if (!mainContainer) {
-                Logger.warn('File panel observer could not start: main container not found.');
-                return;
-            }
-
-            const observer = new MutationObserver(panelObserverCallback);
-            // Observe attribute changes within the entire main container, as this is how
-            // the file panel's visibility is toggled.
-            observer.observe(mainContainer, {
-                attributes: true,
-                subtree: true,
-                attributeFilter: ['class', 'style'],
-            });
-
-            // Initial check in case the panel is already open when the script loads.
-            panelObserverCallback();
-        }
-
-        /**
-         * @private
-         * @description Sets up the monitoring for title changes.
-         */
-        static startGlobalTitleObserver(instance) {
-            // Not required for Gemini at the moment but reserved
-        }
-
-        /**
-         * @private
-         * @description Sets up a targeted observer on the sidebar for title and selection changes.
-         */
-        static async startSidebarObserver(instance) {
-            const sidebar = await waitForElement(this.SELECTORS.SIDEBAR_WIDTH_TARGET);
-            if (!sidebar) {
-                Logger.warn('Sidebar element not found for targeted observation.');
-                return;
-            }
-
-            const debouncedThemeUpdate = debounce(() => EventBus.publish(`${APPID}:themeUpdate`), TIMING.DEBOUNCE_DELAYS.THEME_UPDATE);
-            const sidebarObserver = new MutationObserver(() => {
-                debouncedThemeUpdate();
-                instance.debouncedLayoutRecalculate();
-            });
-            sidebarObserver.observe(sidebar, {
-                childList: true,
-                subtree: true,
-                attributes: true,
-                characterData: true,
-                attributeFilter: ['class'],
-            });
-            debouncedThemeUpdate();
-        }
-
-        /**
-         * @private
-         * @description Sets up the monitoring for URL changes.
-         */
-        static startURLChangeObserver(instance) {
-            let lastHref = null; // Initialize with null to ensure the first check always runs.
-            const handler = async () => {
-                if (location.href !== lastHref) {
-                    lastHref = location.href;
-                    Logger.debug('URL changed:', location.href);
-
-                    instance.stopMainObserver();
-                    instance.cleanupActiveTurnObservers();
-
-                    PlatformAdapter.startGlobalTitleObserver(instance);
-                    EventBus.publish(`${APPID}:themeUpdate`);
-                    EventBus.publish(`${APPID}:navigation`);
-
-                    const chatContainer = await waitForElement(this.SELECTORS.MAIN_APP_CONTAINER);
-                    if (chatContainer) {
-                        const waiterObserver = new MutationObserver(() => {
-                            // This observer now only waits for the container to start re-populating.
-                            // The actual processing of elements is handled by the more precise Sentinel.
-                            if (chatContainer.querySelector(this.SELECTORS.CONVERSATION_CONTAINER)) {
-                                waiterObserver.disconnect();
-                                instance.startMainObserver(chatContainer);
-                                instance.debouncedCacheUpdate();
-                                // Publish the event here, after confirming the new content is present.
-                                EventBus.publish(`${APPID}:autoScrollRequest`);
-                            }
-                        });
-                        waiterObserver.observe(chatContainer, { childList: true, subtree: true });
-                    }
-                }
-            };
-            for (const m of ['pushState', 'replaceState']) {
-                const orig = history[m];
-                history[m] = function (...args) {
-                    orig.apply(this, args);
-                    handler();
-                };
-            }
-            window.addEventListener('popstate', handler);
-
-            // Manually call the handler once on initialization to process the initial page load.
-            handler();
-        }
-
-        static repositionSettingsButton(settingsButton) {
-            // This method is a no-op for Gemini, as dynamic repositioning is not needed.
-            // It exists to make the UIManager class identical across platforms.
-            return;
-        }
-
-        static handleInfiniteScroll(fixedNavManagerInstance, highlightedMessage, previousTotalMessages) {
-            const currentTotalMessages = fixedNavManagerInstance.messageCacheManager.getTotalMessages().length;
-
-            // If new messages have been loaded (scrolled up), and a message is currently highlighted.
-            if (currentTotalMessages > previousTotalMessages && highlightedMessage) {
-                // Re-calculate the indices based on the updated (larger) message cache.
-                fixedNavManagerInstance.setHighlightAndIndices(highlightedMessage);
-            }
-        }
-
-        static applyBubbleFeatures(messageElement, managerInstance, config) {
-            this._applyCollapsibleFeature(messageElement, config);
-            this._applySequentialNavFeature(messageElement, managerInstance, config);
-            this._applyScrollToTopFeature(messageElement, managerInstance, config);
-        }
-
-        static _applyCollapsibleFeature(messageElement, config) {
-            if (messageElement.tagName.toLowerCase() !== this.SELECTORS.ASSISTANT_MESSAGE) {
-                return;
-            }
-
-            const featureEnabled = config.features.collapsible_button.enabled;
-            if (featureEnabled) {
-                // The setup logic
-                if (messageElement.classList.contains(`${APPID}-collapsible-processed`)) {
-                    const toggleBtn = messageElement.querySelector(`.${APPID}-collapsible-toggle-btn`);
-                    if (toggleBtn) toggleBtn.classList.remove(`${APPID}-hidden`);
-                } else {
-                    messageElement.classList.add(`${APPID}-collapsible-processed`, `${APPID}-collapsible`);
-                    const toggleBtn = h(
-                        `button.${APPID}-collapsible-toggle-btn`,
-                        {
-                            type: 'button',
-                            title: 'Toggle message',
-                            onclick: (e) => {
-                                e.stopPropagation();
-                                messageElement.classList.toggle(`${APPID}-bubble-collapsed`);
-                            },
-                        },
-                        [h('svg', { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, [h('path', { d: 'M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z' })])]
-                    );
-                    messageElement.appendChild(toggleBtn);
-                }
-                const bubble = messageElement.querySelector(this.SELECTORS.RAW_ASSISTANT_BUBBLE);
-                if (bubble && !bubble.classList.contains(`${APPID}-collapsible-content`)) {
-                    bubble.classList.add(`${APPID}-collapsible-content`);
-                }
-            } else {
-                // The cleanup logic
-                if (messageElement.classList.contains(`${APPID}-collapsible-processed`)) {
-                    const toggleBtn = messageElement.querySelector(`.${APPID}-collapsible-toggle-btn`);
-                    if (toggleBtn) toggleBtn.classList.add(`${APPID}-hidden`);
-                    // Ensure message is expanded when feature is disabled
-                    messageElement.classList.remove(`${APPID}-bubble-collapsed`);
-                }
-            }
-        }
-
-        static _applySequentialNavFeature(messageElement, managerInstance, config) {
-            if (!this.getNavPositioningParent(messageElement)) return;
-
-            const featureEnabled = config.features.sequential_nav_buttons.enabled;
-            const container = managerInstance._getOrCreateNavContainer(messageElement);
-
-            if (featureEnabled && container && !container.querySelector(`.${APPID}-nav-group-top`)) {
-                const buttonsWrapper = container.querySelector(`.${APPID}-nav-buttons`);
-                const createClickHandler = (direction) => (e) => {
-                    e.stopPropagation();
-                    const roleInfo = managerInstance.messageCacheManager.findMessageIndex(messageElement);
-                    if (!roleInfo) return;
-                    const newIndex = roleInfo.index + direction;
-                    const targetMsg = managerInstance.messageCacheManager.getMessageAtIndex(roleInfo.role, newIndex);
-                    if (targetMsg) {
-                        scrollToElement(targetMsg, { offset: CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV });
-                        EventBus.publish(`${APPID}:nav:highlightMessage`, targetMsg);
-                    }
-                };
-                const prevBtn = h(`button.${APPID}-bubble-nav-btn.${APPID}-nav-prev`, { type: 'button', title: 'Scroll to previous message', dataset: { originalTitle: 'Scroll to previous message' }, onclick: createClickHandler(-1) }, [
-                    h('svg', { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, [h('path', { d: 'M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z' })]),
-                ]);
-                const nextBtn = h(`button.${APPID}-bubble-nav-btn.${APPID}-nav-next`, { type: 'button', title: 'Scroll to next message', dataset: { originalTitle: 'Scroll to next message' }, onclick: createClickHandler(1) }, [
-                    h('svg', { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, [h('path', { d: 'M480-344 240-584l56-56 184 184 184-184 56 56-240 240Z' })]),
-                ]);
-                const topGroup = h(`div.${APPID}-nav-group-top`, [prevBtn, nextBtn]);
-                buttonsWrapper.prepend(topGroup);
-            }
-            const topGroup = messageElement.querySelector(`.${APPID}-nav-group-top`);
-            if (topGroup) topGroup.classList.toggle(`${APPID}-hidden`, !featureEnabled);
-        }
-
-        static _applyScrollToTopFeature(messageElement, managerInstance, config) {
-            if (!this.getNavPositioningParent(messageElement)) return;
-            const featureEnabled = config.features.scroll_to_top_button.enabled;
-
-            const container = managerInstance._getOrCreateNavContainer(messageElement);
-            if (featureEnabled && container && !container.querySelector(`.${APPID}-nav-group-bottom`)) {
-                const buttonsWrapper = container.querySelector(`.${APPID}-nav-buttons`);
-                const topBtn = h(
-                    `button.${APPID}-bubble-nav-btn.${APPID}-nav-top`,
-                    {
-                        type: 'button',
-                        title: 'Scroll to top of this message',
-                        onclick: (e) => {
-                            e.stopPropagation();
-                            scrollToElement(messageElement, { offset: CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV });
-                        },
-                    },
-                    [
-                        h('svg', { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' }, [
-                            h('path', { d: 'M440-160v-480L280-480l-56-56 256-256 256 256-56 56-160-160v480h-80Zm-200-640v-80h400v80H240Z' }),
-                        ]),
-                    ]
-                );
-                const bottomGroup = h(`div.${APPID}-nav-group-bottom`, [topBtn]);
-                buttonsWrapper.appendChild(bottomGroup);
-            }
-            const bottomGroup = messageElement.querySelector(`.${APPID}-nav-group-bottom`);
-            if (bottomGroup) bottomGroup.classList.toggle(`${APPID}-hidden`, !featureEnabled);
-        }
-
-        static updateAllBubbleFeatures(managerInstance) {
-            const config = managerInstance.configManager.get();
-            if (!config) return;
-
-            const allMessageElements = managerInstance.messageCacheManager.getTotalMessages();
-
-            // Re-evaluate and apply all features for all existing messages.
-            allMessageElements.forEach((element) => {
-                this.applyBubbleFeatures(element, managerInstance, config);
-            });
-
-            // Update the enabled/disabled state of any visible sequential nav buttons.
-            const disabledHint = '(No message to scroll to)';
-            const updateActorButtons = (messages) => {
-                messages.forEach((message, index) => {
-                    const container = managerInstance.navContainers.get(message);
-                    if (!container) return;
-                    const prevBtn = container.querySelector(`.${APPID}-nav-prev`);
-                    if (prevBtn) {
-                        const isDisabled = index === 0;
-                        prevBtn.disabled = isDisabled;
-                        prevBtn.title = isDisabled ? `${prevBtn.dataset.originalTitle} ${disabledHint}` : prevBtn.dataset.originalTitle;
-                    }
-                    const nextBtn = container.querySelector(`.${APPID}-nav-next`);
-                    if (nextBtn) {
-                        const isDisabled = index === messages.length - 1;
-                        nextBtn.disabled = isDisabled;
-                        nextBtn.title = isDisabled ? `${nextBtn.dataset.originalTitle} ${disabledHint}` : nextBtn.dataset.originalTitle;
-                    }
-                });
-            };
-            updateActorButtons(managerInstance.messageCacheManager.getUserMessages());
-            updateActorButtons(managerInstance.messageCacheManager.getAssistantMessages());
-        }
-    }
-
-    // =================================================================================
-    // SECTION: Configuration and Constants
-    // Description: Defines default settings, global constants, and CSS selectors.
-    // =================================================================================
-
-    const TIMING = {
-        DEBOUNCE_DELAYS: {
-            // Delay for recalculating UI elements after visibility changes
-            VISIBILITY_CHECK: 250,
-            // Delay for updating the message cache after DOM mutations
-            CACHE_UPDATE: 250,
-            // Delay for recalculating layout-dependent elements (e.g., standing images) after resize
-            LAYOUT_RECALCULATION: 150,
-            // Delay for updating navigation buttons after a message is completed
-            NAVIGATION_UPDATE: 100,
-            // Delay for repositioning UI elements like the settings button
-            UI_REPOSITION: 100,
-            // Delay for updating the theme after sidebar mutations (Gemini-specific)
-            THEME_UPDATE: 150,
-            // Delay for saving settings after user input in the settings panel
-            SETTINGS_SAVE: 300,
-            // Delay for updating the theme editor's preview pane
-            THEME_PREVIEW: 50,
-        },
-        TIMEOUTS: {
-            // Delay to wait for the DOM to settle after a URL change before re-scanning
-            POST_NAVIGATION_DOM_SETTLE: 200,
-            // Delay before removing the temporary anchor element used for smooth scrolling with an offset
-            VIRTUAL_ANCHOR_CLEANUP: 1500,
-            // Delay before reopening a modal after a settings sync conflict is resolved
-            MODAL_REOPEN_DELAY: 100,
-            // Delay between retries for calculating avatar heights
-            AVATAR_HEIGHT_RETRY: 50,
         },
     };
 
-    const RETRY_CONFIG = {
-        // Maximum number of times to retry calculating avatar height if it's zero
-        MAX_AVATAR_HEIGHT_ATTEMPTS: 5,
-    };
+    const EVENTS = {
+        // Theme & Style
+        /**
+         * @description Fired when the chat title changes, signaling a potential theme change.
+         * @event TITLE_CHANGED
+         * @property {null} detail - No payload.
+         */
+        TITLE_CHANGED: `${APPID}:titleChanged`,
+        /**
+         * @description Requests a re-evaluation and application of the current theme.
+         * @event THEME_UPDATE
+         * @property {null} detail - No payload.
+         */
+        THEME_UPDATE: `${APPID}:themeUpdate`,
+        /**
+         * @description Fired after all theme styles, including asynchronous images, have been fully applied.
+         * @event THEME_APPLIED
+         * @property {object} detail - Contains the theme and config objects.
+         * @property {ThemeSet} detail.theme - The theme set that was applied.
+         * @property {AppConfig} detail.config - The full application configuration.
+         */
+        THEME_APPLIED: `${APPID}:themeApplied`,
+        /**
+         * @description Fired when a width-related slider in the settings panel is changed, to preview the new width.
+         * @event WIDTH_PREVIEW
+         * @property {string | null} detail - The new width value (e.g., '60vw') or null for default.
+         */
+        WIDTH_PREVIEW: `${APPID}:widthPreview`,
 
-    // ---- Default Settings & Theme Configuration ----
-    const CONSTANTS = {
-        CONFIG_KEY: `${APPID}_config`,
-        CONFIG_SIZE_LIMIT_BYTES: 5033164, // 4.8MB
-        CACHE_SIZE_LIMIT_BYTES: 10 * 1024 * 1024, // 10MB
-        ICON_SIZE: 64,
-        ICON_SIZE_VALUES: [64, 96, 128, 160, 192],
-        ICON_MARGIN: 16,
-        BUTTON_VISIBILITY_THRESHOLD_PX: 128,
-        RETRY: {
-            MAX_STANDING_IMAGES: 10,
-            STANDING_IMAGES_INTERVAL: 250,
-            SCROLL_OFFSET_FOR_NAV: 40,
-        },
-        SLIDER_CONFIGS: {
-            CHAT_WIDTH: {
-                MIN: 29,
-                MAX: 80,
-                NULL_THRESHOLD: 30,
-                DEFAULT: null,
-            },
-        },
-        Z_INDICES: {
-            SETTINGS_BUTTON: 10000,
-            SETTINGS_PANEL: 11000,
-            THEME_MODAL: 12000,
-            JSON_MODAL: 15000,
-            JUMP_LIST_PREVIEW: 16000,
-            STANDING_IMAGE: 1,
-            BUBBLE_NAVIGATION: 'auto',
-            NAV_CONSOLE: 500,
-        },
-        MODAL: {
-            WIDTH: 440,
-            PADDING: 4,
-            RADIUS: 8,
-            BTN_RADIUS: 5,
-            BTN_FONT_SIZE: 13,
-            BTN_PADDING: '5px 16px',
-            TITLE_MARGIN_BOTTOM: 8,
-            BTN_GROUP_GAP: 8,
-            TEXTAREA_HEIGHT: 200,
-        },
-        UI_DEFAULTS: {
-            SETTINGS_BUTTON_CANVAS_OFFSET_PX: 96,
-            SETTINGS_BUTTON_DEFAULT_POSITION: { top: '10px', right: '320px' },
-        },
-        SELECTORS: PlatformAdapter.SELECTORS,
+        // UI & Layout
+        /**
+         * @description Fired by ThemeManager after it has applied a new chat content width.
+         * @event CHAT_CONTENT_WIDTH_UPDATED
+         * @property {null} detail - No payload.
+         */
+        CHAT_CONTENT_WIDTH_UPDATED: `${APPID}:chatContentWidthUpdated`,
+        /**
+         * @description Fired when the main window is resized.
+         * @event WINDOW_RESIZED
+         * @property {null} detail - No payload.
+         */
+        WINDOW_RESIZED: `${APPID}:windowResized`,
+        /**
+         * @description Fired when the sidebar's layout (width or visibility) changes.
+         * @event SIDEBAR_LAYOUT_CHANGED
+         * @property {null} detail - No payload.
+         */
+        SIDEBAR_LAYOUT_CHANGED: `${APPID}:sidebarLayoutChanged`,
+        /**
+         * @description Requests a re-check of visibility-dependent UI elements (e.g., standing images when a panel appears).
+         * @event VISIBILITY_RECHECK
+         * @property {null} detail - No payload.
+         */
+        VISIBILITY_RECHECK: `${APPID}:visibilityRecheck`,
+        /**
+         * @description Requests a repositioning of floating UI elements like the settings button.
+         * @event UI_REPOSITION
+         * @property {null} detail - No payload.
+         */
+        UI_REPOSITION: `${APPID}:uiReposition`,
+        /**
+         * @description Fired when the chat input area is resized.
+         * @event INPUT_AREA_RESIZED
+         * @property {null} detail - No payload.
+         */
+        INPUT_AREA_RESIZED: `${APPID}:inputAreaResized`,
+        /**
+         * @description Requests to reopen a modal, typically after a settings sync conflict is resolved.
+         * @event REOPEN_MODAL
+         * @property {object} detail - Context for which modal to reopen (e.g., { type: 'json' }).
+         */
+        REOPEN_MODAL: `${APPID}:reOpenModal`,
+
+        // Navigation & Cache
+        /**
+         * @description Fired when a page navigation is about to start.
+         * @event NAVIGATION_START
+         * @property {null} detail - No payload.
+         */
+        NAVIGATION_START: `${APPID}:navigationStart`,
+        /**
+         * @description Fired after a page navigation has completed and the UI is stable.
+         * @event NAVIGATION_END
+         * @property {null} detail - No payload.
+         */
+        NAVIGATION_END: `${APPID}:navigationEnd`,
+        /**
+         * @description Fired when a page navigation (URL change) is detected. Used to reset manager states.
+         * @event NAVIGATION
+         * @property {null} detail - No payload.
+         */
+        NAVIGATION: `${APPID}:navigation`,
+        /**
+         * @description Fired to request an update of the message cache, typically after a DOM mutation.
+         * @event CACHE_UPDATE_REQUEST
+         * @property {null} detail - No payload.
+         */
+        CACHE_UPDATE_REQUEST: `${APPID}:cacheUpdateRequest`,
+        /**
+         * @description Fired after the MessageCacheManager has finished rebuilding its cache.
+         * @event CACHE_UPDATED
+         * @property {null} detail - No payload.
+         */
+        CACHE_UPDATED: `${APPID}:cacheUpdated`,
+        /**
+         * @description Requests that a specific message element be highlighted by the navigation system.
+         * @event NAV_HIGHLIGHT_MESSAGE
+         * @property {HTMLElement} detail - The message element to highlight.
+         */
+        NAV_HIGHLIGHT_MESSAGE: `${APPID}:nav:highlightMessage`,
+
+        // Message Lifecycle
+        /**
+         * @description Fired by Sentinel when a new message bubble's core content is added to the DOM.
+         * @event RAW_MESSAGE_ADDED
+         * @property {HTMLElement} detail - The raw bubble element that was added.
+         */
+        RAW_MESSAGE_ADDED: `${APPID}:rawMessageAdded`,
+        /**
+         * @description Fired to request the injection of an avatar into a specific message element.
+         * @event AVATAR_INJECT
+         * @property {HTMLElement} detail - The message element (e.g., `user-query`) to inject the avatar into.
+         */
+        AVATAR_INJECT: `${APPID}:avatarInject`,
+        /**
+         * @description Fired when a message container has been identified and is ready for further processing, such as the injection of UI addons (e.g., navigation buttons).
+         * @event MESSAGE_COMPLETE
+         * @property {HTMLElement} detail - The completed message element.
+         */
+        MESSAGE_COMPLETE: `${APPID}:messageComplete`,
+        /**
+         * @description Fired when an entire conversation turn (user query and assistant response) is complete, including streaming.
+         * @event TURN_COMPLETE
+         * @property {HTMLElement} detail - The completed turn container element.
+         */
+        TURN_COMPLETE: `${APPID}:turnComplete`,
+        /**
+         * @description Fired when an assistant response starts streaming.
+         * @event STREAMING_START
+         */
+        STREAMING_START: `${APPID}:streamingStart`,
+        /**
+         * @description Fired when an assistant response finishes streaming.
+         * @event STREAMING_END
+         */
+        STREAMING_END: `${APPID}:streamingEnd`,
+        /**
+         * @description Fired after streaming ends to trigger deferred layout updates.
+         * @event DEFERRED_LAYOUT_UPDATE
+         */
+        DEFERRED_LAYOUT_UPDATE: `${APPID}:deferredLayoutUpdate`,
+
+        // System & Config
+        /**
+         * @description Fired when a remote configuration change is detected from another tab/window.
+         * @event REMOTE_CONFIG_CHANGED
+         * @property {object} detail - Contains the new configuration string.
+         * @property {string} detail.newValue - The raw string of the new configuration.
+         */
+        REMOTE_CONFIG_CHANGED: `${APPID}:remoteConfigChanged`,
+        /**
+         * @description Requests the temporary suspension of all major DOM observers (MutationObserver, Sentinel).
+         * @event SUSPEND_OBSERVERS
+         * @property {null} detail - No payload.
+         */
+        SUSPEND_OBSERVERS: `${APPID}:suspendObservers`,
+        /**
+         * @description Requests the resumption of suspended observers and a forced refresh of the UI.
+         * @event RESUME_OBSERVERS_AND_REFRESH
+         * @property {null} detail - No payload.
+         */
+        RESUME_OBSERVERS_AND_REFRESH: `${APPID}:resumeObserversAndRefresh`,
+        /**
+         * @description Fired when the configuration size exceeds the storage limit.
+         * @event CONFIG_SIZE_EXCEEDED
+         * @property {object} detail - Contains the error message.
+         * @property {string} detail.message - The warning message to display.
+         */
+        CONFIG_SIZE_EXCEEDED: `${APPID}:configSizeExceeded`,
+        /**
+         * @description Fired to update the display state of a configuration-related warning.
+         * @event CONFIG_WARNING_UPDATE
+         * @property {object} detail - The warning state.
+         * @property {boolean} detail.show - Whether to show the warning.
+         * @property {string} detail.message - The message to display.
+         */
+        CONFIG_WARNING_UPDATE: `${APPID}:configWarningUpdate`,
+        /**
+         * @description Fired when the configuration is successfully saved.
+         * @event CONFIG_SAVE_SUCCESS
+         * @property {null} detail - No payload.
+         */
+        CONFIG_SAVE_SUCCESS: `${APPID}:configSaveSuccess`,
+        /**
+         * @description Fired when the configuration has been updated, signaling UI components to refresh.
+         * @event CONFIG_UPDATED
+         * @property {AppConfig} detail - The new, complete configuration object.
+         */
+        CONFIG_UPDATED: `${APPID}:configUpdated`,
+        /**
+         * @description Fired to request a full application shutdown and cleanup.
+         * @event APP_SHUTDOWN
+         * @property {null} detail - No payload.
+         */
+        APP_SHUTDOWN: `${APPID}:appShutdown`,
+
+        /**
+         * @description (ChatGPT-only) Fired by the polling scanner when it detects new messages.
+         * @event POLLING_MESSAGES_FOUND
+         * @property {null} detail - No payload.
+         */
+        POLLING_MESSAGES_FOUND: `${APPID}:pollingMessagesFound`,
+        /**
+         * @description (Gemini-only) Requests the start of the auto-scroll process to load full chat history.
+         * @event AUTO_SCROLL_REQUEST
+         * @property {null} detail - No payload.
+         */
+        AUTO_SCROLL_REQUEST: `${APPID}:autoScrollRequest`,
+        /**
+         * @description (Gemini-only) Requests the cancellation of an in-progress auto-scroll.
+         * @event AUTO_SCROLL_CANCEL_REQUEST
+         * @property {null} detail - No payload.
+         */
+        AUTO_SCROLL_CANCEL_REQUEST: `${APPID}:autoScrollCancelRequest`,
+        /**
+         * @description (Gemini-only) Fired when the auto-scroll process has actively started (i.e., progress bar detected).
+         * @event AUTO_SCROLL_START
+         * @property {null} detail - No payload.
+         */
+        AUTO_SCROLL_START: `${APPID}:autoScrollStart`,
+        /**
+         * @description (Gemini-only) Fired when the auto-scroll process has completed or been cancelled.
+         * @event AUTO_SCROLL_COMPLETE
+         * @property {null} detail - No payload.
+         */
+        AUTO_SCROLL_COMPLETE: `${APPID}:autoScrollComplete`,
     };
 
     // ---- Site-specific Style Variables ----
     const SITE_STYLES = {
+        ICONS: {
+            // For ThemeModal
+            folder: {
+                tag: 'svg',
+                props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
+                children: [{ tag: 'path', props: { d: 'M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z' } }],
+            },
+            // For BubbleUI (prev, collapse), FixedNav (prev), ThemeModal (up)
+            arrowUp: {
+                tag: 'svg',
+                props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
+                children: [{ tag: 'path', props: { d: 'M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z' } }],
+            },
+            // For BubbleUI (next), FixedNav (next), ThemeModal (down)
+            arrowDown: {
+                tag: 'svg',
+                props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
+                children: [{ tag: 'path', props: { d: 'M480-344 240-584l56-56 184 184 184-184 56 56-240 240Z' } }],
+            },
+            // For BubbleUI (top)
+            scrollToTop: {
+                tag: 'svg',
+                props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
+                children: [{ tag: 'path', props: { d: 'M440-160v-480L280-480l-56-56 256-256 256 256-56 56-160-160v480h-80Zm-200-640v-80h400v80H240Z' } }],
+            },
+            // For FixedNav
+            scrollToFirst: {
+                tag: 'svg',
+                props: { viewBox: '0 -960 960 960' },
+                children: [{ tag: 'path', props: { d: 'm280-280 200-200 200 200-56 56-144-144-144 144-56-56Zm-40-360v-80h480v80H240Z' } }],
+            },
+            scrollToLast: {
+                tag: 'svg',
+                props: { viewBox: '0 -960 960 960' },
+                children: [{ tag: 'path', props: { d: 'M240-200v-80h480v80H240Zm240-160L280-560l56-56 144 144 144-144 56 56-200 200Z' } }],
+            },
+            bulkCollapse: {
+                tag: 'svg',
+                props: { className: 'icon-collapse', viewBox: '0 -960 960 960' },
+                children: [{ tag: 'path', props: { d: 'M440-440v240h-80v-160H200v-80h240Zm160-320v160h160v80H520v-240h80Z' } }],
+            },
+            bulkExpand: {
+                tag: 'svg',
+                props: { className: 'icon-expand', viewBox: '0 -960 960 960' },
+                children: [{ tag: 'path', props: { d: 'M200-200v-240h80v160h160v80H200Zm480-320v-160H520v-80h240v240h-80Z' } }],
+            },
+            refresh: {
+                tag: 'svg',
+                props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
+                children: [
+                    {
+                        tag: 'path',
+                        props: {
+                            d: 'M480-160q-134 0-227-93t-93-227q0-134 93-227t227-93q69 0 132 28.5T720-690v-110h80v280H520v-80h168q-32-54-87-87t-121-33q-100 0-170 70t-70 170q0 100 70 170t170 70q77 0 139-44t87-116h84q-28 106-114 173t-196 67Z',
+                        },
+                    },
+                ],
+            },
+        },
         SETTINGS_BUTTON: {
             background: 'var(--gem-sys-color--surface-container-high)',
             borderColor: 'var(--gem-sys-color--outline)',
@@ -869,7 +727,7 @@
             input_bg: 'var(--gem-sys-color--surface-container-low)',
             input_text: 'var(--gem-sys-color--on-surface)',
             input_border: 'var(--gem-sys-color--outline)',
-            slider_display_text: 'var(--gem-sys-color--on-surface-variant)',
+            slider_display_text: 'var(--gem-sys-color--on-surface)',
             popup_bg: 'var(--gem-sys-color--surface-container-highest)',
             popup_border: 'var(--gem-sys-color--outline)',
             dnd_indicator_color: 'var(--gem-sys-color--primary)',
@@ -930,7 +788,6 @@
             .${APPID}-collapsible-content {
                 border: 1px solid transparent;
                 box-sizing: border-box;
-                transition: border-color 0.15s ease-in-out;
                 overflow: hidden;
                 max-height: 999999px;
             }
@@ -995,6 +852,7 @@
                 opacity: 0;
                 transition: visibility 0s linear 0.1s, opacity 0.1s ease-in-out;
                 pointer-events: auto;
+                gap: 4px; /* Add gap between top and bottom groups when space is limited */
             }
             .${APPID}-bubble-parent-with-nav:hover .${APPID}-nav-buttons,
             .${APPID}-bubble-nav-container:hover .${APPID}-nav-buttons {
@@ -1002,20 +860,28 @@
                 opacity: 1;
                 transition-delay: 0s;
             }
+            /* Default for assistant text turns */
             ${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} .${APPID}-bubble-nav-container {
                 left: -25px;
+            }
+            /* Override for assistant image turns where the anchor is the image container */
+            ${CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE} > .${APPID}-bubble-nav-container {
+                left: 0;
+                transform: translateX(calc(-100% - 4px));
             }
             ${CONSTANTS.SELECTORS.USER_MESSAGE} .${APPID}-bubble-nav-container {
                 right: -25px;
             }
             .${APPID}-nav-group-top, .${APPID}-nav-group-bottom {
-                position: absolute;
+                position: relative; /* Changed from absolute */
                 display: flex;
                 flex-direction: column;
                 gap: 4px;
+                width: 100%; /* Ensure groups take full width of the flex container */
             }
-            .${APPID}-nav-group-top { top: 4px; }
-            .${APPID}-nav-group-bottom { bottom: 4px; }
+            .${APPID}-nav-group-bottom {
+                margin-top: auto; /* Push to the bottom if space is available */
+            }
             .${APPID}-nav-group-top.${APPID}-hidden, .${APPID}-nav-group-bottom.${APPID}-hidden {
                 display: none !important;
             }
@@ -1026,13 +892,14 @@
                 border-radius: 5px;
                 box-sizing: border-box;
                 cursor: pointer;
-                background: var(--gem-sys-color--surface-container-high);
+                background-color: var(--gem-sys-color--surface-container-high);
                 color: var(--gem-sys-color--on-surface-variant);
                 border: 1px solid var(--gem-sys-color--outline);
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 transition: all 0.15s ease-in-out;
+                margin: 0 auto; /* Center the buttons within the group */
             }
             .${APPID}-bubble-nav-btn:hover {
                 background-color: var(--gem-sys-color--surface-container-higher);
@@ -1054,35 +921,6 @@
         bubbleBorderRadius: { unit: 'px', min: 0, max: 50, nullable: true },
         bubbleMaxWidth: { unit: '%', min: 30, max: 100, nullable: true },
     };
-    /**
-     * @typedef {object} ActorConfig
-     * @property {string | null} name
-     * @property {string | null} icon
-     * @property {string | null} textColor
-     * @property {string | null} font
-     * @property {string | null} bubbleBackgroundColor
-     * @property {string | null} bubblePadding
-     * @property {string | null} bubbleBorderRadius
-     * @property {string | null} bubbleMaxWidth
-     * @property {string | null} standingImageUrl
-     */
-
-    /**
-     * @typedef {object} ThemeSet
-     * @property {{id: string, name: string, matchPatterns: string[]}} metadata
-     * @property {ActorConfig} user
-     * @property {ActorConfig} assistant
-     * @property {{backgroundColor: string | null, backgroundImageUrl: string | null, backgroundSize: string | null, backgroundPosition: string | null, backgroundRepeat: string | null}} window
-     * @property {{backgroundColor: string | null, textColor: string | null}} inputArea
-     */
-
-    /**
-     * @typedef {object} AppConfig
-     * @property {{icon_size: number, chat_content_max_width: string | null}} options
-     * @property {{collapsible_button: {enabled: boolean}, scroll_to_top_button: {enabled: boolean}, sequential_nav_buttons: {enabled: boolean}}} features
-     * @property {ThemeSet[]} themeSets
-     * @property {Omit<ThemeSet, 'metadata'>} defaultSet
-     */
 
     /** @type {AppConfig} */
     const DEFAULT_THEME_CONFIG = {
@@ -1191,60 +1029,1443 @@
     };
 
     // =================================================================================
+    // SECTION: Platform-Specific Adapter
+    // Description: Centralizes all platform-specific logic, such as selectors and
+    //              DOM manipulation strategies. This isolates platform differences
+    //              from the core application logic.
+    // =================================================================================
+
+    const PlatformAdapters = {
+        // =================================================================================
+        // SECTION: General Adapters
+        // =================================================================================
+        General: {
+            /**
+             * Checks if the Canvas feature is currently active on the page.
+             * @returns {boolean} True if Canvas mode is detected, otherwise false.
+             */
+            isCanvasModeActive() {
+                return !!document.querySelector(CONSTANTS.SELECTORS.CANVAS_CONTAINER);
+            },
+
+            /**
+             * Checks if the current page URL is on the exclusion list for this platform.
+             * @returns {boolean} True if the page should be excluded, otherwise false.
+             */
+            isExcludedPage() {
+                // No excluded pages for this platform.
+                return false;
+            },
+
+            /**
+             * Checks if the File Panel feature is currently active on the page.
+             * @returns {boolean} True if File Panel mode is detected, otherwise false.
+             */
+            isFilePanelActive() {
+                return !!document.querySelector(CONSTANTS.SELECTORS.FILE_PANEL_CONTAINER);
+            },
+
+            /**
+             * Gets the platform-specific role identifier from a message element.
+             * @param {Element} messageElement The message element.
+             * @returns {string | null} The platform's role identifier (e.g., 'user', 'user-query').
+             */
+            getMessageRole(messageElement) {
+                if (!messageElement) return null;
+                return messageElement.tagName.toLowerCase();
+            },
+
+            /**
+             * Gets the current chat title in a platform-specific way.
+             * @returns {string | null}
+             */
+            getChatTitle() {
+                // GGGUX gets the title from a specific DOM element.
+                return document.querySelector('[data-test-id="conversation"].selected')?.querySelector('.conversation-title')?.textContent.trim() ?? null;
+            },
+
+            /**
+             * Gets the platform-specific display text from a message element for the jump list.
+             * This method centralizes the logic for extracting the most relevant text,
+             * bypassing irrelevant content like system messages or UI elements within the message container.
+             * @param {HTMLElement} messageElement The message element.
+             * @returns {string} The text content to be displayed in the jump list.
+             */
+            getJumpListDisplayText(messageElement) {
+                const role = this.getMessageRole(messageElement);
+                let contentEl;
+
+                if (role === CONSTANTS.SELECTORS.ASSISTANT_MESSAGE) {
+                    // Gemini has a more specific structure for assistant messages we can target first
+                    const answerContainer = messageElement.querySelector(CONSTANTS.SELECTORS.ASSISTANT_ANSWER_CONTENT);
+                    contentEl = answerContainer?.querySelector(CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT);
+                    // Fallback to the general assistant content selector if the specific one isn't found
+                    if (!contentEl) {
+                        contentEl = messageElement.querySelector(CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT);
+                    }
+                } else if (role === CONSTANTS.SELECTORS.USER_MESSAGE) {
+                    contentEl = messageElement.querySelector(CONSTANTS.SELECTORS.USER_TEXT_CONTENT);
+                }
+
+                return contentEl?.textContent || '';
+            },
+
+            /**
+             * @description Finds the root message container element for a given content element within it.
+             * @param {Element} contentElement The element inside a message bubble (e.g., the text content or an image).
+             * @returns {HTMLElement | null} The closest parent message container element (e.g., `user-query`, `div[data-message-author-role="user"]`), or `null` if not found.
+             */
+            findMessageElement(contentElement) {
+                return contentElement.closest(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
+            },
+
+            /**
+             * Filters out ghost/empty message containers before they are added to the cache.
+             * @param {Element} messageElement The message element to check.
+             * @returns {boolean} Returns `false` to exclude the message, `true` to keep it.
+             */
+            filterMessage(messageElement) {
+                // This issue does not occur on Gemini, so we always keep the message.
+                return true;
+            },
+
+            /**
+             * Placeholder for ensuring a message container exists for an image.
+             * On Gemini, images are already within message containers, so this is a no-op.
+             * @param {HTMLElement} imageContentElement The image container element.
+             * @returns {null} Always returns null as no action is needed.
+             */
+            ensureMessageContainerForImage(imageContentElement) {
+                // Not needed for Gemini, images are structured within model-response.
+                return null;
+            },
+
+            /**
+             * @description Sets up platform-specific Sentinel listeners to detect when new message content elements are added to the DOM.
+             * @param {(element: HTMLElement) => void} callback The function to be called when a new message content element is detected by Sentinel.
+             */
+            initializeSentinel(callback) {
+                const userBubbleSelector = `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE}`;
+                const assistantBubbleSelector = `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE}`;
+                sentinel.on(userBubbleSelector, callback);
+                sentinel.on(assistantBubbleSelector, callback);
+            },
+
+            /**
+             * @description (Gemini) No-op. This platform does not require an initial scan for messages.
+             * The method exists for architectural consistency.
+             * @param {MessageLifecycleManager} lifecycleManager
+             * @returns {number}
+             */
+            performInitialScan(lifecycleManager) {
+                // No-op for this platform.
+                return 0;
+            },
+
+            /**
+             * @description (Gemini) No-op. This platform does not require special handling on navigation end.
+             * The method exists for architectural consistency.
+             * @param {MessageLifecycleManager} lifecycleManager
+             */
+            onNavigationEnd(lifecycleManager) {
+                // No-op for this platform.
+            },
+        },
+
+        // =================================================================================
+        // SECTION: Adapters for class StyleManager
+        // =================================================================================
+        StyleManager: {
+            /**
+             * Returns the platform-specific static CSS that does not change with themes.
+             * @returns {string} The static CSS string.
+             */
+            getStaticCss() {
+                return `
+                    ${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} {
+                        transition: background-image 0.3s ease-in-out;
+                    }
+                    /* This rule is now conditional on a body class, which is toggled by applyChatContentMaxWidth. */
+                    body.${APPID}-max-width-active ${CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH}{
+                        max-width: var(--${APPID}-chat-content-max-width) !important;
+                        margin-inline: auto !important;
+                    }
+
+                    /* Ensure the user message container inside the turn expands and aligns the bubble to the right. */
+                    ${CONSTANTS.SELECTORS.CHAT_HISTORY_MAIN} ${CONSTANTS.SELECTORS.CONVERSATION_CONTAINER} ${CONSTANTS.SELECTORS.USER_MESSAGE} {
+                        width: 100% !important;
+                        max-width: none !important;
+                        display: flex !important;
+                        justify-content: flex-end !important;
+                    }
+
+                    /* Make content areas transparent to show the main background */
+                    ${CONSTANTS.SELECTORS.CHAT_WINDOW},
+                    ${CONSTANTS.SELECTORS.INPUT_CONTAINER},
+                    ${CONSTANTS.SELECTORS.INPUT_AREA_BG_TARGET} {
+                        background: none !important;
+                    }
+
+                    /* Forcefully hide the gradient pseudo-element on the input container */
+                    ${CONSTANTS.SELECTORS.INPUT_CONTAINER}::before {
+                        display: none !important;
+                    }
+                `;
+            },
+        },
+
+        // =================================================================================
+        // SECTION: Adapters for class ThemeManager
+        // =================================================================================
+        ThemeManager: {
+            /**
+             * Determines if the initial theme application should be deferred on this platform.
+             * @param {ThemeManager} themeManager - The main controller instance.
+             * @returns {boolean} True if theme application should be deferred.
+             */
+            shouldDeferInitialTheme(themeManager) {
+                // This issue is specific to ChatGPT's title behavior, so Gemini never defers.
+                return false;
+            },
+
+            /**
+             * Selects the appropriate theme set based on platform-specific logic during an update check.
+             * @param {ThemeManager} themeManager - The instance of the theme manager.
+             * @param {AppConfig} config - The full application configuration.
+             * @param {boolean} urlChanged - Whether the URL has changed since the last check.
+             * @param {boolean} titleChanged - Whether the title has changed since the last check.
+             * @returns {ThemeSet} The theme set that should be applied.
+             */
+            selectThemeForUpdate(themeManager, config, urlChanged, titleChanged) {
+                // GGGUX-specific logic: If the URL changed but the title hasn't (yet),
+                // apply the default theme as a fallback to prevent applying the previous chat's theme.
+                if (urlChanged && !titleChanged) {
+                    return { ...config.defaultSet, metadata: /** @type {{id: string, name: string, matchPatterns: string[]}} */ ({}) };
+                }
+
+                // Default logic
+                return themeManager.getThemeSet();
+            },
+
+            /**
+             * Returns platform-specific CSS overrides for the style definition generator.
+             * @returns {object} An object containing CSS rule strings.
+             */
+            getStyleOverrides() {
+                // The default block alignment is sufficient for Gemini.
+                return {};
+            },
+        },
+
+        // =================================================================================
+        // SECTION: Adapters for class BubbleUIManager
+        // =================================================================================
+        BubbleUI: {
+            /**
+             * @description Gets the platform-specific parent element for attaching navigation buttons.
+             * On Gemini, the positioning context differs between user and assistant messages due to the DOM structure.
+             * For user messages, a specific inner container must be used as the anchor.
+             * For assistant messages, the main message element itself is the correct anchor.
+             * @param {HTMLElement} messageElement The message element.
+             * @returns {HTMLElement | null} The parent element for the nav container.
+             */
+            getNavPositioningParent(messageElement) {
+                const role = PlatformAdapters.General.getMessageRole(messageElement);
+
+                if (role === CONSTANTS.SELECTORS.USER_MESSAGE) {
+                    // For user messages, use the specific content container as the positioning context.
+                    return messageElement.querySelector(CONSTANTS.SELECTORS.USER_QUERY_CONTAINER);
+                } else {
+                    // For model-response, the element itself remains the correct context.
+                    return messageElement;
+                }
+            },
+
+            /**
+             * @description Retrieves the necessary DOM elements for applying the collapsible button feature to a message.
+             * @description The returned object contains the elements needed to manage the collapsed state and position the toggle button correctly. The specific elements returned are platform-dependent.
+             * @param {HTMLElement} messageElement The root element of the message to be processed.
+             * @returns {{msgWrapper: HTMLElement, bubbleElement: HTMLElement, positioningParent: HTMLElement} | null} An object containing key elements for the feature, or `null` if the message is not eligible for the collapse feature on the current platform.
+             */
+            getCollapsibleInfo(messageElement) {
+                if (messageElement.tagName.toLowerCase() !== CONSTANTS.SELECTORS.ASSISTANT_MESSAGE) {
+                    return null;
+                }
+
+                const bubbleElement = messageElement.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE);
+                if (!(bubbleElement instanceof HTMLElement)) return null;
+
+                // For Gemini, the messageElement serves as both msgWrapper and positioningParent
+                return {
+                    msgWrapper: messageElement,
+                    bubbleElement,
+                    positioningParent: messageElement,
+                };
+            },
+
+            /**
+             * @description Determines if a message element is eligible for sequential navigation buttons (previous/next).
+             * @description This method is designed for extensibility. Currently, it allows buttons on all messages.
+             * @param {HTMLElement} messageElement The message element to check.
+             * @returns {object | null} An empty object `{}` if the buttons should be rendered, or `null` to prevent rendering.
+             */
+            getSequentialNavInfo(messageElement) {
+                return {};
+            },
+
+            /**
+             * @description Determines if a message element is eligible for the "Scroll to Top" button.
+             * @description This method is designed for extensibility. Currently, it allows buttons on all messages.
+             * @param {HTMLElement} messageElement The message element to check.
+             * @returns {object | null} An empty object `{}` if the buttons should be rendered, or `null` to prevent rendering.
+             */
+            getScrollToTopInfo(messageElement) {
+                return {};
+            },
+        },
+
+        // =================================================================================
+        // SECTION: Adapters for class ThemeAutomator
+        // =================================================================================
+        ThemeAutomator: {
+            /**
+             * Initializes platform-specific managers and registers them with the main application controller.
+             * @param {ThemeAutomator} automatorInstance - The main controller instance.
+             */
+            initializePlatformManagers(automatorInstance) {
+                // =================================================================================
+                // SECTION: Auto Scroll Manager
+                // Description: Manages the auto-scrolling feature to load the entire chat history.
+                // =================================================================================
+
+                class AutoScrollManager {
+                    static CONFIG = {
+                        // The minimum number of messages required to trigger the auto-scroll feature.
+                        MESSAGE_THRESHOLD: 20,
+                        // The maximum time (in ms) to wait for the progress bar to appear after scrolling up.
+                        APPEAR_TIMEOUT_MS: 2000,
+                        // The maximum time (in ms) to wait for the progress bar to disappear after it has appeared.
+                        DISAPPEAR_TIMEOUT_MS: 5000,
+                    };
+
+                    /**
+                     * @param {ConfigManager} configManager
+                     * @param {MessageCacheManager} messageCacheManager
+                     */
+                    constructor(configManager, messageCacheManager) {
+                        this.configManager = configManager;
+                        this.messageCacheManager = messageCacheManager;
+                        this.scrollContainer = null;
+                        this.observerContainer = null;
+                        this.isEnabled = false;
+                        this.isScrolling = false;
+                        this.toastShown = false;
+                        this.isInitialScrollCheckDone = false;
+                        this.boundStop = null;
+                        this.subscriptions = [];
+                        this.PROGRESS_BAR_SELECTOR = 'mat-progress-bar[role="progressbar"]';
+                        this.progressObserver = null;
+                        this.appearTimeout = null;
+                        this.disappearTimeout = null;
+                    }
+
+                    _subscribe(event, listener) {
+                        const key = createEventKey(this, event);
+                        EventBus.subscribe(event, listener, key);
+                        this.subscriptions.push({ event, key });
+                    }
+
+                    init() {
+                        this.isEnabled = this.configManager.get().features.load_full_history_on_chat_load.enabled;
+                        this._subscribe(EVENTS.AUTO_SCROLL_REQUEST, () => this.start());
+                        this._subscribe(EVENTS.AUTO_SCROLL_CANCEL_REQUEST, () => this.stop());
+                        this._subscribe(EVENTS.CACHE_UPDATED, () => this._onCacheUpdated());
+                        this._subscribe(EVENTS.NAVIGATION, () => this._onNavigation());
+                        this._subscribe(EVENTS.APP_SHUTDOWN, () => this.destroy());
+                    }
+
+                    destroy() {
+                        this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
+                        this.subscriptions = [];
+                        this.stop();
+                    }
+
+                    enable() {
+                        this.isEnabled = true;
+                    }
+
+                    disable() {
+                        this.isEnabled = false;
+                        this.stop();
+                    }
+
+                    async start() {
+                        if (this.isScrolling) return;
+
+                        this.observerContainer = await waitForElement(CONSTANTS.SELECTORS.CHAT_WINDOW_CONTENT);
+                        this.scrollContainer = this.observerContainer?.querySelector('[data-test-id="chat-history-container"]');
+
+                        if (!this.observerContainer || !this.scrollContainer) {
+                            Logger.warn('AutoScrollManager: Could not find required containers.');
+                            this.stop();
+                            return;
+                        }
+
+                        // Set the flag immediately to prevent re-entrancy from other events.
+                        this.isScrolling = true;
+                        Logger.log('AutoScrollManager: Starting auto-scroll with MutationObserver.');
+                        this.toastShown = false;
+
+                        EventBus.publish(EVENTS.SUSPEND_OBSERVERS);
+
+                        this.boundStop = () => this.stop();
+                        this.scrollContainer.addEventListener('wheel', this.boundStop, { passive: true, once: true });
+                        this.scrollContainer.addEventListener('touchmove', this.boundStop, { passive: true, once: true });
+
+                        this._startObserver();
+                        this._triggerScroll();
+                    }
+
+                    stop(isNavigation = false) {
+                        if (!this.isScrolling && !this.progressObserver) return; // Prevent multiple stops
+
+                        Logger.log('AutoScrollManager: Stopping auto-scroll.');
+                        this.isScrolling = false;
+                        this.toastShown = false;
+
+                        // Cleanup listeners and observers
+                        if (this.boundStop) {
+                            this.scrollContainer?.removeEventListener('wheel', this.boundStop);
+                            this.scrollContainer?.removeEventListener('touchmove', this.boundStop);
+                            this.boundStop = null;
+                        }
+                        this.progressObserver?.disconnect();
+                        this.progressObserver = null;
+                        clearTimeout(this.appearTimeout);
+                        clearTimeout(this.disappearTimeout);
+                        this.appearTimeout = null;
+                        this.disappearTimeout = null;
+
+                        this.scrollContainer = null;
+                        this.observerContainer = null;
+
+                        EventBus.publish(EVENTS.AUTO_SCROLL_COMPLETE);
+
+                        // On navigation, ObserverManager handles observer resumption.
+                        if (!isNavigation) {
+                            EventBus.publish(EVENTS.RESUME_OBSERVERS_AND_REFRESH);
+                            // Ensure the theme is re-evaluated and applied after scrolling is complete and observers are resumed.
+                            EventBus.publish(EVENTS.THEME_UPDATE);
+                        }
+                    }
+
+                    /**
+                     * Starts the MutationObserver to watch for the progress bar.
+                     */
+                    _startObserver() {
+                        if (this.progressObserver) this.progressObserver.disconnect();
+
+                        const observerCallback = (mutations) => {
+                            for (const mutation of mutations) {
+                                this._handleProgressChange(mutation.addedNodes, mutation.removedNodes);
+                            }
+                        };
+
+                        this.progressObserver = new MutationObserver(observerCallback);
+                        this.progressObserver.observe(this.observerContainer, {
+                            childList: true,
+                            subtree: true,
+                        });
+                    }
+
+                    /**
+                     * Handles the appearance and disappearance of the progress bar.
+                     * @param {NodeList} addedNodes
+                     * @param {NodeList} removedNodes
+                     */
+                    _handleProgressChange(addedNodes, removedNodes) {
+                        const progressBarAppeared = Array.from(addedNodes).some((node) => {
+                            if (node instanceof Element) {
+                                return node.matches(this.PROGRESS_BAR_SELECTOR) || node.querySelector(this.PROGRESS_BAR_SELECTOR);
+                            }
+                            return false;
+                        });
+                        const progressBarDisappeared = Array.from(removedNodes).some((node) => {
+                            if (node instanceof Element) {
+                                return node.matches(this.PROGRESS_BAR_SELECTOR) || node.querySelector(this.PROGRESS_BAR_SELECTOR);
+                            }
+                            return false;
+                        });
+
+                        if (progressBarAppeared) {
+                            Logger.debug('AutoScrollManager: Progress bar appeared.');
+                            clearTimeout(this.appearTimeout); // Cancel the "end of history" timer
+                            if (!this.toastShown) {
+                                EventBus.publish(EVENTS.AUTO_SCROLL_START);
+                                this.toastShown = true;
+                            }
+                            // Set a safety timeout in case loading gets stuck
+                            this.disappearTimeout = setTimeout(() => {
+                                Logger.warn('AutoScrollManager: Timed out waiting for progress bar to disappear. Stopping.');
+                                this.stop();
+                            }, AutoScrollManager.CONFIG.DISAPPEAR_TIMEOUT_MS);
+                        }
+
+                        if (progressBarDisappeared) {
+                            Logger.debug('AutoScrollManager: Progress bar disappeared.');
+                            clearTimeout(this.disappearTimeout); // Cancel the "stuck" timer
+                            this._triggerScroll(); // Trigger the next scroll
+                        }
+                    }
+
+                    /**
+                     * Scrolls the container to the top and sets a timeout to check if loading has started.
+                     */
+                    _triggerScroll() {
+                        if (!this.isScrolling || !this.scrollContainer) return;
+                        this.scrollContainer.scrollTop = 0;
+
+                        // Set a timeout to detect the end of the history. If the progress bar
+                        // doesn't appear within this time, we assume there's no more content to load.
+                        this.appearTimeout = setTimeout(() => {
+                            Logger.log('AutoScrollManager: Progress bar did not appear. Assuming scroll is complete.');
+                            this.stop();
+                        }, AutoScrollManager.CONFIG.APPEAR_TIMEOUT_MS);
+                    }
+
+                    /**
+                     * @private
+                     * @description Handles the CACHE_UPDATED event to perform the initial scroll check.
+                     */
+                    _onCacheUpdated() {
+                        if (!this.isEnabled || this.isInitialScrollCheckDone) {
+                            return;
+                        }
+                        this.isInitialScrollCheckDone = true;
+
+                        const messageCount = this.messageCacheManager.getTotalMessages().length;
+                        if (messageCount >= AutoScrollManager.CONFIG.MESSAGE_THRESHOLD) {
+                            Logger.log(`AutoScrollManager: ${messageCount} messages found. Triggering auto-scroll.`);
+                            EventBus.publish(EVENTS.AUTO_SCROLL_REQUEST);
+                        } else {
+                            Logger.log(`AutoScrollManager: ${messageCount} messages found. No scroll needed.`);
+                        }
+                    }
+
+                    /**
+                     * @private
+                     * @description Handles the NAVIGATION event to reset the manager's state.
+                     */
+                    _onNavigation() {
+                        if (this.isScrolling) {
+                            // Stop scroll without triggering a UI refresh, as a new page is loading.
+                            this.stop(true);
+                        }
+                        this.isInitialScrollCheckDone = false;
+                    }
+                }
+
+                // =================================================================================
+                // SECTION: Toast Manager
+                // Description: Manages the display of temporary toast notifications.
+                // =================================================================================
+
+                class ToastManager {
+                    constructor() {
+                        this.toastElement = null;
+                        this.subscriptions = [];
+                    }
+
+                    _subscribe(event, listener) {
+                        const key = createEventKey(this, event);
+                        EventBus.subscribe(event, listener, key);
+                        this.subscriptions.push({ event, key });
+                    }
+
+                    init() {
+                        this._injectStyles();
+                        this._subscribe(EVENTS.AUTO_SCROLL_START, () => this.show('Auto-scrolling to load history...', true));
+                        this._subscribe(EVENTS.AUTO_SCROLL_COMPLETE, () => this.hide());
+                        this._subscribe(EVENTS.APP_SHUTDOWN, () => this.destroy());
+                    }
+
+                    destroy() {
+                        this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
+                        this.subscriptions = [];
+                        this.hide();
+                    }
+
+                    _injectStyles() {
+                        const styleId = `${APPID}-toast-style`;
+                        if (document.getElementById(styleId)) return;
+
+                        // Define custom warning styles for the toast
+                        const warnStyles = {
+                            bg: 'rgb(255 165 0 / 0.9)', // Orange background for warning
+                            text: '#ffffff', // White text
+                            border: '#ffa000', // Darker orange border
+                            cancel_btn_bg: 'rgb(255 255 255 / 0.2)', // Semi-transparent white for button background
+                            cancel_btn_text: '#ffffff', // White text for button
+                        };
+
+                        const style = h('style', {
+                            id: styleId,
+                            textContent: `
+                                .${APPID}-toast-container {
+                                    position: fixed; /* Changed to fixed for viewport relative positioning */
+                                    top: 30%; /* Position from the top */
+                                    left: 50%; /* Center horizontally */
+                                    transform: translate(-50%, -50%); /* Adjust for exact centering */
+                                    z-index: 10002; /* Higher z-index */
+                                    background-color: ${warnStyles.bg};
+                                    color: ${warnStyles.text};
+                                    padding: 15px 25px; /* Slightly more padding */
+                                    border-radius: 12px; /* More rounded corners */
+                                    border: 1px solid ${warnStyles.border};
+                                    box-shadow: 0 6px 20px rgb(0 0 0 / 0.2); /* Stronger shadow */
+                                    display: flex;
+                                    align-items: center;
+                                    gap: 15px; /* Increased gap */
+                                    font-size: 1.1em; /* Larger font */
+                                    font-weight: bold; /* Bold text */
+                                    opacity: 0;
+                                    transition: opacity 0.4s ease, transform 0.4s ease; /* Smoother transition */
+                                    pointer-events: none;
+                                    white-space: nowrap; /* Prevent text wrapping */
+                                }
+                                .${APPID}-toast-container.is-visible {
+                                    opacity: 1;
+                                    transform: translate(-50%, 0); /* Move into view from adjusted vertical position */
+                                    pointer-events: auto;
+                                }
+                                .${APPID}-toast-cancel-btn {
+                                    background: ${warnStyles.cancel_btn_bg};
+                                    color: ${warnStyles.cancel_btn_text};
+                                    border: none;
+                                    padding: 8px 15px; /* Larger button padding */
+                                    margin-left: 10px; /* Adjusted margin */
+                                    cursor: pointer;
+                                    font-weight: bold;
+                                    border-radius: 6px; /* Rounded button */
+                                    transition: background-color 0.2s ease;
+                                }
+                                .${APPID}-toast-cancel-btn:hover {
+                                    background-color: rgb(255 255 255 / 0.3); /* Lighter hover background */
+                                }
+                            `,
+                        });
+                        document.head.appendChild(style);
+                    }
+
+                    _renderToast(message, showCancelButton) {
+                        const children = [h('span', message)];
+                        if (showCancelButton) {
+                            const cancelButton = h(
+                                'button',
+                                {
+                                    className: `${APPID}-toast-cancel-btn`,
+                                    title: 'Stop auto-scrolling',
+                                    onclick: () => EventBus.publish(EVENTS.AUTO_SCROLL_CANCEL_REQUEST),
+                                },
+                                'Cancel'
+                            );
+                            children.push(cancelButton);
+                        }
+                        return h(`div.${APPID}-toast-container`, children);
+                    }
+
+                    show(message, showCancelButton = false) {
+                        // Remove existing toast if any
+                        if (this.toastElement) {
+                            this.hide();
+                        }
+
+                        this.toastElement = this._renderToast(message, showCancelButton);
+                        document.body.appendChild(this.toastElement);
+
+                        // Trigger the transition
+                        setTimeout(() => {
+                            this.toastElement?.classList.add('is-visible');
+                        }, 10);
+                    }
+
+                    hide() {
+                        if (!this.toastElement) return;
+
+                        const el = this.toastElement;
+                        el.classList.remove('is-visible');
+
+                        // Remove from DOM after transition ends
+                        setTimeout(() => {
+                            el.remove();
+                        }, 300);
+
+                        this.toastElement = null;
+                    }
+                }
+
+                automatorInstance.autoScrollManager = new AutoScrollManager(automatorInstance.configManager, automatorInstance.messageCacheManager);
+                automatorInstance.autoScrollManager.init();
+
+                automatorInstance.toastManager = new ToastManager();
+                automatorInstance.toastManager.init();
+            },
+
+            /**
+             * Applies UI updates specific to the platform after a configuration change.
+             * @param {ThemeAutomator} automatorInstance - The main controller instance.
+             * @param {object} newConfig - The newly applied configuration object.
+             */
+            applyPlatformSpecificUiUpdates(automatorInstance, newConfig) {
+                // Enable or disable the auto-scroll manager based on the new config.
+                if (newConfig.features.load_full_history_on_chat_load.enabled) {
+                    automatorInstance.autoScrollManager?.enable();
+                } else {
+                    automatorInstance.autoScrollManager?.disable();
+                }
+            },
+        },
+
+        // =================================================================================
+        // SECTION: Adapters for class SettingsPanelComponent
+        // =================================================================================
+        SettingsPanel: {
+            /**
+             * Returns an array of UI definitions for platform-specific feature toggles in the settings panel.
+             * @returns {object[]} An array of definition objects.
+             */
+            getPlatformSpecificFeatureToggles() {
+                return [
+                    {
+                        id: 'load-history-enabled',
+                        configKey: 'features.load_full_history_on_chat_load.enabled',
+                        label: 'Load full history on chat load',
+                        title: 'When enabled, automatically scrolls back through the history when a chat is opened to load all messages.',
+                    },
+                ];
+            },
+        },
+
+        // =================================================================================
+        // SECTION: Adapters for class AvatarManager
+        // =================================================================================
+        Avatar: {
+            /**
+             * Returns the platform-specific CSS for styling avatars.
+             * @param {string} iconSizeCssVar - The CSS variable name for icon size.
+             * @param {string} iconMarginCssVar - The CSS variable name for icon margin.
+             * @returns {string} The CSS string.
+             */
+            getCss(iconSizeCssVar, iconMarginCssVar) {
+                return `
+                    /* Set message containers as positioning contexts */
+                    ${CONSTANTS.SELECTORS.AVATAR_USER},
+                    ${CONSTANTS.SELECTORS.AVATAR_ASSISTANT} {
+                        position: relative !important;
+                        overflow: visible !important;
+                    }
+
+                    /* Performance: Ensure the wrapper is tall enough for the avatar + name without JS calculation. */
+                    ${CONSTANTS.SELECTORS.AVATAR_USER},
+                    ${CONSTANTS.SELECTORS.AVATAR_ASSISTANT} {
+                        min-height: calc(var(${iconSizeCssVar}) + 3em);
+                    }
+
+                    ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {
+                        position: absolute;
+                        top: 0;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        width: var(${iconSizeCssVar});
+                        pointer-events: none;
+                        white-space: normal;
+                        word-break: break-word;
+                    }
+                    /* Position Assistant avatar (inside model-response) to the LEFT */
+                    ${CONSTANTS.SELECTORS.AVATAR_ASSISTANT} ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {
+                        right: 100%;
+                        margin-right: var(${iconMarginCssVar});
+                    }
+                    /* Position User avatar (inside user-query) to the RIGHT */
+                    ${CONSTANTS.SELECTORS.AVATAR_USER} ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {
+                        left: 100%;
+                        margin-left: var(${iconMarginCssVar});
+                    }
+                    ${CONSTANTS.SELECTORS.SIDE_AVATAR_ICON} {
+                        width: var(${iconSizeCssVar});
+                        height: var(${iconSizeCssVar});
+                        border-radius: 50%;
+                        display: block;
+                        box-shadow: 0 0 6px rgb(0 0 0 / 0.2);
+                        background-size: cover;
+                        background-position: center;
+                        background-repeat: no-repeat;
+                        transition: background-image 0.3s ease-in-out;
+                    }
+                    ${CONSTANTS.SELECTORS.SIDE_AVATAR_NAME} {
+                        font-size: 0.75rem;
+                        text-align: center;
+                        margin-top: 4px;
+                        width: 100%;
+                        background-color: rgb(0 0 0 / 0.2);
+                        padding: 2px 6px;
+                        border-radius: 4px;
+                        box-sizing: border-box;
+                    }
+                    ${CONSTANTS.SELECTORS.AVATAR_USER} ${CONSTANTS.SELECTORS.SIDE_AVATAR_ICON} {
+                        background-image: var(--${APPID}-user-icon);
+                    }
+                    ${CONSTANTS.SELECTORS.AVATAR_USER} ${CONSTANTS.SELECTORS.SIDE_AVATAR_NAME} {
+                        color: var(--${APPID}-user-textColor);
+                    }
+                    ${CONSTANTS.SELECTORS.AVATAR_USER} ${CONSTANTS.SELECTORS.SIDE_AVATAR_NAME}::after {
+                        content: var(--${APPID}-user-name);
+                    }
+                    ${CONSTANTS.SELECTORS.AVATAR_ASSISTANT} ${CONSTANTS.SELECTORS.SIDE_AVATAR_ICON} {
+                        background-image: var(--${APPID}-assistant-icon);
+                    }
+                    ${CONSTANTS.SELECTORS.AVATAR_ASSISTANT} ${CONSTANTS.SELECTORS.SIDE_AVATAR_NAME} {
+                        color: var(--${APPID}-assistant-textColor);
+                    }
+                    ${CONSTANTS.SELECTORS.AVATAR_ASSISTANT} ${CONSTANTS.SELECTORS.SIDE_AVATAR_NAME}::after {
+                        content: var(--${APPID}-assistant-name);
+                    }
+
+                    /* Gemini Only: force user message and avatar to be top-aligned */
+                    ${CONSTANTS.SELECTORS.AVATAR_USER} {
+                        align-items: flex-start !important;
+                    }
+                    ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {
+                        align-self: flex-start !important;
+                    }
+                `;
+            },
+
+            /**
+             * Injects the avatar UI into the appropriate location within a message element.
+             * @param {HTMLElement} msgElem - The root message element.
+             * @param {HTMLElement} avatarContainer - The avatar container element to inject.
+             */
+            addAvatarToMessage(msgElem, avatarContainer) {
+                // The guard should only check for the existence of the avatar container itself.
+                if (msgElem.querySelector(CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER)) return;
+
+                const processedClass = `${APPID}-avatar-processed`;
+
+                // Add the container to the message element and mark as processed.
+                msgElem.prepend(avatarContainer);
+                // Add the processed class only if it's not already there.
+                if (!msgElem.classList.contains(processedClass)) {
+                    msgElem.classList.add(processedClass);
+                }
+            },
+        },
+
+        // =================================================================================
+        // SECTION: Adapters for class StandingImageManager
+        // =================================================================================
+        StandingImage: {
+            /**
+             * Recalculates and applies the layout for standing images.
+             * @param {StandingImageManager} instance - The instance of the StandingImageManager.
+             */
+            async recalculateLayout(instance) {
+                // Handle early exits that don't require measurement.
+                if (PlatformAdapters.General.isCanvasModeActive() || PlatformAdapters.General.isFilePanelActive()) {
+                    const rootStyle = document.documentElement.style;
+                    rootStyle.setProperty(`--${APPID}-standing-image-assistant-width`, '0px');
+                    rootStyle.setProperty(`--${APPID}-standing-image-user-width`, '0px');
+                    return;
+                }
+
+                await withLayoutCycle({
+                    measure: () => {
+                        // --- Read Phase ---
+                        const chatArea = document.querySelector(CONSTANTS.SELECTORS.MAIN_APP_CONTAINER);
+                        const messageArea = document.querySelector(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER);
+                        if (!chatArea || !messageArea) return null; // Signal to mutate to reset styles.
+
+                        const assistantImg = document.getElementById(`${APPID}-standing-image-assistant`);
+                        const userImg = document.getElementById(`${APPID}-standing-image-user`);
+
+                        return {
+                            chatRect: chatArea.getBoundingClientRect(),
+                            messageRect: messageArea.getBoundingClientRect(),
+                            windowHeight: window.innerHeight,
+                            assistantImgHeight: assistantImg ? assistantImg.offsetHeight : 0,
+                            userImgHeight: userImg ? userImg.offsetHeight : 0,
+                        };
+                    },
+                    mutate: (measured) => {
+                        // --- Write Phase ---
+                        const rootStyle = document.documentElement.style;
+
+                        if (!measured) {
+                            rootStyle.setProperty(`--${APPID}-standing-image-assistant-width`, '0px');
+                            rootStyle.setProperty(`--${APPID}-standing-image-user-width`, '0px');
+                            return;
+                        }
+
+                        const { chatRect, messageRect, windowHeight, assistantImgHeight, userImgHeight } = measured;
+
+                        // Config values can be read here as they don't cause reflow.
+                        const config = instance.configManager.get();
+                        const iconSize = instance.configManager.getIconSize();
+                        const respectAvatarSpace = config.options.respect_avatar_space;
+                        const avatarGap = respectAvatarSpace ? iconSize + CONSTANTS.ICON_MARGIN * 2 : 0;
+
+                        const assistantWidth = Math.max(0, messageRect.left - chatRect.left - avatarGap);
+                        const userWidth = Math.max(0, chatRect.right - messageRect.right - avatarGap);
+
+                        rootStyle.setProperty(`--${APPID}-standing-image-assistant-left`, `${chatRect.left}px`);
+                        rootStyle.setProperty(`--${APPID}-standing-image-assistant-width`, `${assistantWidth}px`);
+                        rootStyle.setProperty(`--${APPID}-standing-image-user-width`, `${userWidth}px`);
+
+                        // Masking
+                        const maskValue = `linear-gradient(to bottom, transparent 0px, rgb(0 0 0 / 1) 60px, rgb(0 0 0 / 1) 100%)`;
+                        if (assistantImgHeight >= windowHeight - 32) {
+                            rootStyle.setProperty(`--${APPID}-standing-image-assistant-mask`, maskValue);
+                        } else {
+                            rootStyle.setProperty(`--${APPID}-standing-image-assistant-mask`, 'none');
+                        }
+
+                        if (userImgHeight >= windowHeight - 32) {
+                            rootStyle.setProperty(`--${APPID}-standing-image-user-mask`, maskValue);
+                        } else {
+                            rootStyle.setProperty(`--${APPID}-standing-image-user-mask`, 'none');
+                        }
+                    },
+                });
+            },
+
+            /**
+             * Updates the visibility of standing images based on the current context.
+             * @param {StandingImageManager} instance - The instance of the StandingImageManager.
+             */
+            updateVisibility(instance) {
+                const isActiveChat = !!document.querySelector('[data-test-id="conversation"].selected');
+                const hasMessages = instance.messageCacheManager.getTotalMessages().length > 0;
+                const shouldShowActors = isActiveChat && hasMessages;
+                const isCanvasActive = PlatformAdapters.General.isCanvasModeActive();
+                const isFilePanelActive = PlatformAdapters.General.isFilePanelActive();
+
+                ['user', 'assistant'].forEach((actor) => {
+                    const imgElement = document.getElementById(`${APPID}-standing-image-${actor}`);
+                    if (!imgElement) return;
+
+                    const hasImage = !!document.documentElement.style.getPropertyValue(`--${APPID}-${actor}-standing-image`);
+
+                    // Combine all visibility checks
+                    imgElement.style.opacity = shouldShowActors && hasImage && !isCanvasActive && !isFilePanelActive ? '1' : '0';
+                });
+            },
+
+            /**
+             * Sets up platform-specific event listeners for the StandingImageManager.
+             * @param {StandingImageManager} instance - The instance of the StandingImageManager.
+             */
+            setupEventListeners(instance) {
+                // Gemini-specific: Subscribe to cacheUpdated because this platform's updateVisibility() logic depends on the message count.
+                // This ensures standing images reappear correctly when navigating from a new chat to an existing one.
+                instance._subscribe(EVENTS.CACHE_UPDATED, () => instance.updateVisibility());
+            },
+        },
+
+        // =================================================================================
+        // SECTION: Adapters for class DebugManager
+        // =================================================================================
+        Debug: {
+            /**
+             * Returns the platform-specific CSS for debugging layout borders.
+             * @returns {string} The CSS string.
+             */
+            getBordersCss() {
+                const userFrameSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none"><rect x="1" y="1" width="98" height="98" fill="rgb(231 76 60 / 0.1)" stroke="rgb(231 76 60 / 0.9)" stroke-width="2" /></svg>`;
+                const asstFrameSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none"><rect x="1" y="1" width="98" height="98" fill="rgb(52 152 219 / 0.1)" stroke="rgb(52 152 219 / 0.9)" stroke-width="2" /></svg>`;
+                const userFrameDataUri = svgToDataUrl(userFrameSvg);
+                const asstFrameDataUri = svgToDataUrl(asstFrameSvg);
+                return `
+                        /* --- DEBUG BORDERS --- */
+                        :root {
+                            --dbg-layout-color: rgb(26 188 156 / 0.8); /* Greenish */
+                            --dbg-user-color: rgb(231 76 60 / 0.8); /* Reddish */
+                            --dbg-asst-color: rgb(52 152 219 / 0.8); /* Blueish */
+                            --dbg-comp-color: rgb(22 160 133 / 0.8); /* Cyan */
+                            --dbg-zone-color: rgb(142 68 173 / 0.9); /* Purplish */
+                            --dbg-neutral-color: rgb(128 128 128 / 0.7); /* Gray */
+                        }
+
+                        /* Layout Containers */
+                        ${CONSTANTS.SELECTORS.SIDEBAR_WIDTH_TARGET} { outline: 2px solid var(--dbg-layout-color) !important; }
+                        ${CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH} { outline: 2px dashed var(--dbg-layout-color) !important; }
+                        ${CONSTANTS.SELECTORS.INPUT_AREA_BG_TARGET} { outline: 1px solid var(--dbg-layout-color) !important; }
+                        #${APPID}-nav-console { outline: 1px dotted var(--dbg-layout-color) !important; }
+
+                        /* Message Containers */
+                        ${CONSTANTS.SELECTORS.DEBUG_CONTAINER_TURN} { outline: 1px solid var(--dbg-neutral-color) !important; outline-offset: -1px; }
+                        ${CONSTANTS.SELECTORS.DEBUG_CONTAINER_USER} { outline: 2px solid var(--dbg-user-color) !important; outline-offset: -2px; }
+                        ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE} { outline: 1px dashed var(--dbg-user-color) !important; outline-offset: -4px; }
+                        ${CONSTANTS.SELECTORS.DEBUG_CONTAINER_ASSISTANT} { outline: 2px solid var(--dbg-asst-color) !important; outline-offset: -2px; }
+                        ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE} { outline: 1px dashed var(--dbg-asst-color) !important; outline-offset: -4px; }
+
+                        /* Components */
+                        ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} { outline: 1px solid var(--dbg-comp-color) !important; }
+                        ${CONSTANTS.SELECTORS.SIDE_AVATAR_ICON} { outline: 1px dotted var(--dbg-comp-color) !important; }
+                        ${CONSTANTS.SELECTORS.SIDE_AVATAR_NAME} { outline: 1px dotted var(--dbg-comp-color) !important; }
+
+                        /* Standing Image Debug Overrides */
+                        #${APPID}-standing-image-user {
+                            background-image: url("${userFrameDataUri}") !important;
+                            z-index: 15000 !important;
+                            opacity: 0.7 !important;
+                            min-width: 30px !important;
+                        }
+                        #${APPID}-standing-image-assistant {
+                            background-image: url("${asstFrameDataUri}") !important;
+                            z-index: 15000 !important;
+                            opacity: 0.7 !important;
+                            min-width: 30px !important;
+                        }
+
+                        /* Interactive Zones */
+                        model-response.${APPID}-collapsible::before {
+                            outline: 1px solid var(--dbg-zone-color) !important;
+                            content: 'HOVER AREA' !important;
+                            color: var(--dbg-zone-color);
+                            font-size: 10px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                        }
+                        .${APPID}-bubble-nav-container { outline: 1px dashed var(--dbg-zone-color) !important; }
+                    `;
+            },
+        },
+
+        // =================================================================================
+        // SECTION: Adapters for class ObserverManager
+        // =================================================================================
+        Observer: {
+            /**
+             * Returns an array of functions that start platform-specific observers.
+             * Each function, when called, should return a cleanup function to stop its observer.
+             * @returns {Array<Function>} An array of observer starter functions.
+             */
+            getPlatformObserverStarters() {
+                return [this.startSidebarObserver, this.startPanelObserver];
+            },
+
+            /**
+             * @private
+             * @description Starts a stateful observer to detect the appearance and disappearance of panels (Immersive/File) using a high-performance hybrid approach.
+             * @param {object} dependencies The dependencies passed from ObserverManager (unused in this platform).
+             * @returns {Promise<() => void>} A promise that resolves with a cleanup function.
+             */
+            async startPanelObserver(dependencies) {
+                let isPanelVisible = false;
+                let isStateUpdating = false; // Lock to prevent race conditions
+                let disappearanceObserver = null;
+                let repositionTimeoutId = null;
+
+                const panelSelector = `${CONSTANTS.SELECTORS.CANVAS_CONTAINER}, ${CONSTANTS.SELECTORS.FILE_PANEL_CONTAINER}`;
+
+                // This is the single source of truth for updating the UI based on panel visibility.
+                const updatePanelState = async () => {
+                    if (isStateUpdating) return; // Prevent concurrent executions
+                    isStateUpdating = true;
+
+                    try {
+                        const panel = document.querySelector(panelSelector);
+                        const isNowVisible = !!panel;
+
+                        // Do nothing if the state hasn't changed. This prevents event loops.
+                        if (isNowVisible === isPanelVisible) {
+                            return;
+                        }
+
+                        isPanelVisible = isNowVisible;
+                        clearTimeout(repositionTimeoutId);
+
+                        if (isNowVisible) {
+                            // --- Panel just appeared ---
+                            Logger.debug('[Stateful Observer] Panel appeared:', panel.tagName);
+                            const chatWindow = await waitForElement(CONSTANTS.SELECTORS.CHAT_WINDOW);
+                            if (!chatWindow) return;
+
+                            // Setup a lightweight observer to detect when the panel is removed.
+                            disappearanceObserver = new MutationObserver(() => {
+                                // Re-check state if the parent container's children change.
+                                updatePanelState();
+                            });
+                            disappearanceObserver.observe(chatWindow, { childList: true, subtree: false });
+                        } else {
+                            // --- Panel just disappeared ---
+                            Logger.debug('[Stateful Observer] Panel disappeared.');
+                            disappearanceObserver?.disconnect();
+                            disappearanceObserver = null;
+                        }
+
+                        // Publish events after state change.
+                        EventBus.publish(EVENTS.VISIBILITY_RECHECK);
+                        repositionTimeoutId = setTimeout(() => {
+                            EventBus.publish(EVENTS.UI_REPOSITION);
+                        }, CONSTANTS.TIMING.TIMEOUTS.PANEL_TRANSITION_DURATION);
+                    } finally {
+                        isStateUpdating = false; // Release the lock
+                    }
+                };
+
+                // Use Sentinel to efficiently detect when a panel might have been added.
+                sentinel.on(panelSelector, updatePanelState);
+
+                // Perform an initial check in case a panel is already present on load.
+                updatePanelState();
+
+                // Return the cleanup function for all resources created by this observer.
+                return () => {
+                    sentinel.off(panelSelector, updatePanelState);
+                    disappearanceObserver?.disconnect();
+                };
+            },
+
+            /**
+             * @param {{themeManager: ThemeManager}} dependencies The required properties from ObserverManager.
+             * @private
+             * @description Sets up the monitoring for title changes.
+             */
+            startGlobalTitleObserver(dependencies) {
+                // Not required for Gemini at the moment but reserved
+            },
+
+            /**
+             * @param {object} dependencies The dependencies passed from ObserverManager (unused in this method).
+             * @private
+             * @description Sets up a targeted observer on the sidebar for title and selection changes.
+             * @returns {Promise<(() => void) | null>} A promise that resolves with a cleanup function, or null if setup fails.
+             */
+            async startSidebarObserver(dependencies) {
+                const sidebar = await waitForElement(CONSTANTS.SELECTORS.SIDEBAR_WIDTH_TARGET);
+                if (!sidebar) {
+                    Logger.warn('Sidebar element not found for targeted observation.');
+                    return null;
+                }
+
+                const debouncedTitleUpdate = debounce(() => EventBus.publish(EVENTS.TITLE_CHANGED), CONSTANTS.TIMING.DEBOUNCE_DELAYS.THEME_UPDATE);
+                const debouncedSidebarLayoutChanged = debounce(() => EventBus.publish(EVENTS.SIDEBAR_LAYOUT_CHANGED), CONSTANTS.TIMING.DEBOUNCE_DELAYS.LAYOUT_RECALCULATION);
+
+                const handleTransitionEnd = () => debouncedSidebarLayoutChanged();
+                sidebar.addEventListener('transitionend', handleTransitionEnd);
+
+                const renameObserver = new MutationObserver((mutations) => {
+                    for (const mutation of mutations) {
+                        if (mutation.type === 'characterData' && mutation.target.parentElement?.matches('.conversation-title')) {
+                            debouncedTitleUpdate();
+                            return;
+                        }
+                    }
+                });
+                renameObserver.observe(sidebar, {
+                    characterData: true,
+                    subtree: true,
+                    attributes: false,
+                    childList: false,
+                });
+
+                // Initial triggers for the first load.
+                debouncedTitleUpdate();
+                debouncedSidebarLayoutChanged();
+
+                // Return the cleanup function for all resources created by this observer.
+                return () => {
+                    sidebar.removeEventListener('transitionend', handleTransitionEnd);
+                    renameObserver.disconnect();
+                };
+            },
+
+            /**
+             * Checks if a conversation turn is complete based on Gemini's DOM structure.
+             * @param {HTMLElement} turnNode The turn container element.
+             * @returns {boolean} True if the turn is complete.
+             */
+            isTurnComplete(turnNode) {
+                // In Gemini, a single turn container can include the user message.
+                // Therefore, a turn is considered complete *only* when the assistant's
+                // action buttons are present, regardless of whether a user message exists.
+                const assistantActions = turnNode.querySelector(CONSTANTS.SELECTORS.TURN_COMPLETE_SELECTOR);
+                return !!assistantActions;
+            },
+        },
+
+        // =================================================================================
+        // SECTION: Adapters for class UIManager
+        // =================================================================================
+        UIManager: {
+            repositionSettingsButton(settingsButton) {
+                // This method is a no-op for Gemini, as dynamic repositioning is not needed.
+                // It exists to make the UIManager class identical across platforms.
+                return;
+            },
+        },
+
+        // =================================================================================
+        // SECTION: Adapters for class FixedNavigationManager
+        // =================================================================================
+        FixedNav: {
+            /**
+             * @description (Gemini) A lifecycle hook for `FixedNavigationManager` to handle UI state changes after new messages are loaded via infinite scrolling.
+             * @description When the user scrolls to the top and older messages are loaded into the DOM, this function ensures that the navigation indices (`currentIndices`) are recalculated relative to the newly expanded message list, preventing the highlighted message from "losing its place".
+             * @param {FixedNavigationManager} fixedNavManagerInstance The instance of the `FixedNavigationManager`.
+             * @param {HTMLElement | null} highlightedMessage The currently highlighted message element.
+             * @param {number} previousTotalMessages The total number of messages before the cache update.
+             * @returns {void}
+             */
+            handleInfiniteScroll(fixedNavManagerInstance, highlightedMessage, previousTotalMessages) {
+                const currentTotalMessages = fixedNavManagerInstance.messageCacheManager.getTotalMessages().length;
+
+                // If new messages have been loaded (scrolled up), and a message is currently highlighted.
+                if (currentTotalMessages > previousTotalMessages && highlightedMessage) {
+                    // Re-calculate the indices based on the updated (larger) message cache.
+                    fixedNavManagerInstance.setHighlightAndIndices(highlightedMessage);
+                }
+            },
+
+            /**
+             * Applies additional, platform-specific highlight classes if needed.
+             * @param {HTMLElement} messageElement The currently highlighted message element.
+             */
+            applyAdditionalHighlight(messageElement) {
+                // No additional logic is needed for Gemini.
+            },
+
+            /**
+             * @description Returns an array of platform-specific UI elements, such as buttons and separators,
+             * to be added to the left side of the navigation console.
+             * @param {FixedNavigationManager} fixedNavManagerInstance The instance of the FixedNavigationManager.
+             * @returns {Element[]} An array of `Element` objects. Returns an empty array
+             * if no platform-specific buttons are needed for the current platform.
+             */
+            getPlatformSpecificButtons(fixedNavManagerInstance) {
+                const autoscrollBtn = h(
+                    `button#${APPID}-autoscroll-btn.${APPID}-nav-btn`,
+                    {
+                        title: 'Load full chat history',
+                        onclick: () => EventBus.publish(EVENTS.AUTO_SCROLL_REQUEST),
+                    },
+                    [createIconFromDef(SITE_STYLES.ICONS.scrollToTop)]
+                );
+
+                return [autoscrollBtn, h(`div.${APPID}-nav-separator`)];
+            },
+        },
+    };
+
+    // =================================================================================
+    // SECTION: Declarative Style Mapper
+    // Description: Single source of truth for all theme-driven style generation.
+    // This array declaratively maps configuration properties to CSS variables and rules.
+    // The StyleGenerator engine processes this array to build the final CSS.
+    // =================================================================================
+
+    /**
+     * @param {string} actor - 'user' or 'assistant'
+     * @param {object} [overrides={}] - Platform-specific overrides.
+     * @returns {object[]} An array of style definition objects for the given actor.
+     */
+    function createActorStyleDefinitions(actor, overrides = {}) {
+        const actorUpper = actor.toUpperCase();
+        const important = SITE_STYLES.CSS_IMPORTANT_FLAG;
+
+        return [
+            {
+                configKey: `${actor}.name`,
+                fallbackKey: `defaultSet.${actor}.name`,
+                cssVar: `--${APPID}-${actor}-name`,
+                transformer: (value) => (value ? `'${value.replace(/'/g, "\\'")}'` : null),
+            },
+            {
+                configKey: `${actor}.icon`,
+                fallbackKey: `defaultSet.${actor}.icon`,
+                cssVar: `--${APPID}-${actor}-icon`,
+            },
+            {
+                configKey: `${actor}.standingImageUrl`,
+                fallbackKey: `defaultSet.${actor}.standingImageUrl`,
+                cssVar: `--${APPID}-${actor}-standing-image`,
+            },
+            {
+                configKey: `${actor}.textColor`,
+                fallbackKey: `defaultSet.${actor}.textColor`,
+                cssVar: `--${APPID}-${actor}-textColor`,
+                selector: `${CONSTANTS.SELECTORS[`${actorUpper}_MESSAGE`]} ${CONSTANTS.SELECTORS[`${actorUpper}_TEXT_CONTENT`]}`,
+                property: 'color',
+                generator: (value) => {
+                    if (actor !== 'assistant' || !value) return '';
+                    // This generator is specific to the assistant and is common across platforms.
+                    const childSelectors = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul li', 'ol li', 'ul li::marker', 'ol li::marker', 'strong', 'em', 'blockquote', 'table', 'th', 'td'];
+                    const fullSelectors = childSelectors.map((s) => `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT} ${s}`);
+                    return `${fullSelectors.join(', ')} { color: var(--${APPID}-assistant-textColor); }`;
+                },
+            },
+            {
+                configKey: `${actor}.font`,
+                fallbackKey: `defaultSet.${actor}.font`,
+                cssVar: `--${APPID}-${actor}-font`,
+                selector: `${CONSTANTS.SELECTORS[`${actorUpper}_MESSAGE`]} ${CONSTANTS.SELECTORS[`${actorUpper}_TEXT_CONTENT`]}`,
+                property: 'font-family',
+            },
+            {
+                configKey: `${actor}.bubbleBackgroundColor`,
+                fallbackKey: `defaultSet.${actor}.bubbleBackgroundColor`,
+                cssVar: `--${APPID}-${actor}-bubble-bg`,
+                selector: `${CONSTANTS.SELECTORS[`${actorUpper}_MESSAGE`]} ${CONSTANTS.SELECTORS[`RAW_${actorUpper}_BUBBLE`]}`,
+                property: 'background-color',
+            },
+            {
+                configKey: `${actor}.bubblePadding`,
+                fallbackKey: `defaultSet.${actor}.bubblePadding`,
+                cssVar: `--${APPID}-${actor}-bubble-padding`,
+                selector: `${CONSTANTS.SELECTORS[`${actorUpper}_MESSAGE`]} ${CONSTANTS.SELECTORS[`RAW_${actorUpper}_BUBBLE`]}`,
+                property: 'padding',
+            },
+            {
+                configKey: `${actor}.bubbleBorderRadius`,
+                fallbackKey: `defaultSet.${actor}.bubbleBorderRadius`,
+                cssVar: `--${APPID}-${actor}-bubble-radius`,
+                selector: `${CONSTANTS.SELECTORS[`${actorUpper}_MESSAGE`]} ${CONSTANTS.SELECTORS[`RAW_${actorUpper}_BUBBLE`]}`,
+                property: 'border-radius',
+            },
+            {
+                configKey: `${actor}.bubbleMaxWidth`,
+                fallbackKey: `defaultSet.${actor}.bubbleMaxWidth`,
+                cssVar: `--${APPID}-${actor}-bubble-maxwidth`,
+                generator: (value) => {
+                    if (!value) return '';
+                    const selector = `${CONSTANTS.SELECTORS[`${actorUpper}_MESSAGE`]} ${CONSTANTS.SELECTORS[`RAW_${actorUpper}_BUBBLE`]}`;
+                    const cssVar = `--${APPID}-${actor}-bubble-maxwidth`;
+                    const extraRule = overrides[actor] || '';
+                    return `${selector} { max-width: var(${cssVar})${important};${extraRule} }`;
+                },
+            },
+        ];
+    }
+
+    const STYLE_DEFINITIONS = {
+        user: createActorStyleDefinitions('user', PlatformAdapters.ThemeManager.getStyleOverrides()),
+        assistant: createActorStyleDefinitions('assistant', PlatformAdapters.ThemeManager.getStyleOverrides()),
+        window: [
+            {
+                configKey: 'window.backgroundColor',
+                fallbackKey: 'defaultSet.window.backgroundColor',
+                cssVar: `--${APPID}-window-bg-color`,
+                selector: CONSTANTS.SELECTORS.MAIN_APP_CONTAINER,
+                property: 'background-color',
+            },
+            {
+                configKey: 'window.backgroundImageUrl',
+                fallbackKey: 'defaultSet.window.backgroundImageUrl',
+                cssVar: `--${APPID}-window-bg-image`,
+                generator: (value) => (value ? `${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} { background-image: var(--${APPID}-window-bg-image)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''),
+            },
+            {
+                configKey: 'window.backgroundSize',
+                fallbackKey: 'defaultSet.window.backgroundSize',
+                cssVar: `--${APPID}-window-bg-size`,
+                generator: (value) => (value ? `${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} { background-size: var(--${APPID}-window-bg-size)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''),
+            },
+            {
+                configKey: 'window.backgroundPosition',
+                fallbackKey: 'defaultSet.window.backgroundPosition',
+                cssVar: `--${APPID}-window-bg-pos`,
+                generator: (value) => (value ? `${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} { background-position: var(--${APPID}-window-bg-pos)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''),
+            },
+            {
+                configKey: 'window.backgroundRepeat',
+                fallbackKey: 'defaultSet.window.backgroundRepeat',
+                cssVar: `--${APPID}-window-bg-repeat`,
+                generator: (value) => (value ? `${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} { background-repeat: var(--${APPID}-window-bg-repeat)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''),
+            },
+        ],
+        inputArea: [
+            {
+                configKey: 'inputArea.backgroundColor',
+                fallbackKey: 'defaultSet.inputArea.backgroundColor',
+                cssVar: `--${APPID}-input-bg`,
+                selector: CONSTANTS.SELECTORS.INPUT_AREA_BG_TARGET,
+                property: 'background-color',
+                generator: (value) => (value ? `${CONSTANTS.SELECTORS.INPUT_TEXT_FIELD_TARGET} { background-color: transparent; }` : ''),
+            },
+            {
+                configKey: 'inputArea.textColor',
+                fallbackKey: 'defaultSet.inputArea.textColor',
+                cssVar: `--${APPID}-input-color`,
+                selector: CONSTANTS.SELECTORS.INPUT_TEXT_FIELD_TARGET,
+                property: 'color',
+            },
+        ],
+    };
+
+    // Flatten the structured definitions into a single array for easier iteration.
+    const ALL_STYLE_DEFINITIONS = Object.values(STYLE_DEFINITIONS).flat();
+
+    // =================================================================================
     // SECTION: Event-Driven Architecture (Pub/Sub)
     // Description: A event bus for decoupled communication between classes.
     // =================================================================================
 
     const EventBus = {
         events: {},
+        uiWorkQueue: [],
+        isUiWorkScheduled: false,
+        _logAggregation: {},
+        _aggregatedEvents: new Set([EVENTS.RAW_MESSAGE_ADDED, EVENTS.AVATAR_INJECT, EVENTS.MESSAGE_COMPLETE, EVENTS.TURN_COMPLETE]),
+        _aggregationDelay: 500, // ms
+
         /**
-         * Subscribes a listener to an event. Prevents duplicate subscriptions.
+         * Subscribes a listener to an event using a unique key.
+         * If a subscription with the same event and key already exists, it will be overwritten.
          * @param {string} event The event name.
          * @param {Function} listener The callback function.
-         * @returns {Function} An unsubscribe function.
+         * @param {string} key A unique key for this subscription (e.g., 'ClassName.methodName').
          */
-        subscribe(event, listener) {
+        subscribe(event, listener, key) {
+            if (!key) {
+                Logger.error('EventBus.subscribe requires a unique key.');
+                return;
+            }
             if (!this.events[event]) {
-                this.events[event] = [];
+                this.events[event] = new Map();
             }
-            // Prevent adding the same listener multiple times.
-            if (!this.events[event].includes(listener)) {
-                this.events[event].push(listener);
-            }
-
-            // Return an unsubscribe function for easy cleanup.
-            const unsubscribe = () => {
-                this.unsubscribe(event, listener);
-            };
-            return unsubscribe;
+            this.events[event].set(key, listener);
         },
         /**
          * Subscribes a listener that will be automatically unsubscribed after one execution.
          * @param {string} event The event name.
          * @param {Function} listener The callback function.
-         * @returns {Function} An unsubscribe function.
+         * @param {string} key A unique key for this subscription.
          */
-        once(event, listener) {
-            const unsubscribe = this.subscribe(event, (...args) => {
-                unsubscribe();
-                listener(...args);
-            });
-            return unsubscribe;
-        },
-        /**
-         * Unsubscribes a listener from an event.
-         * Cleans up the event array if it becomes empty.
-         * @param {string} event The event name.
-         * @param {Function} listener The callback function to remove.
-         */
-        unsubscribe(event, listener) {
-            if (!this.events[event]) {
+        once(event, listener, key) {
+            if (!key) {
+                Logger.error('EventBus.once requires a unique key.');
                 return;
             }
-            this.events[event] = this.events[event].filter((l) => l !== listener);
-
-            // If the event has no more listeners, remove the event property to save memory.
-            if (this.events[event].length === 0) {
+            const onceListener = (...args) => {
+                this.unsubscribe(event, key);
+                listener(...args);
+            };
+            this.subscribe(event, onceListener, key);
+        },
+        /**
+         * Unsubscribes a listener from an event using its unique key.
+         * @param {string} event The event name.
+         * @param {string} key The unique key used during subscription.
+         */
+        unsubscribe(event, key) {
+            if (!this.events[event] || !key) {
+                return;
+            }
+            this.events[event].delete(key);
+            if (this.events[event].size === 0) {
                 delete this.events[event];
             }
         },
@@ -1257,20 +2478,117 @@
             if (!this.events[event]) {
                 return;
             }
-            // Iterate over a copy of the array in case a listener unsubscribes itself (e.g., 'once').
-            [...this.events[event]].forEach((listener) => {
-                try {
-                    listener(...args);
-                } catch (e) {
-                    Logger.error(`EventBus error in listener for event "${event}":`, e);
+
+            if (Logger.levels[Logger.level] >= Logger.levels.debug) {
+                // --- Aggregation logic START ---
+                if (this._aggregatedEvents.has(event)) {
+                    if (!this._logAggregation[event]) {
+                        this._logAggregation[event] = { timer: null, count: 0 };
+                    }
+                    const aggregation = this._logAggregation[event];
+                    aggregation.count++;
+
+                    clearTimeout(aggregation.timer);
+                    aggregation.timer = setTimeout(() => {
+                        const finalCount = this._logAggregation[event]?.count || 0;
+                        if (finalCount > 0) {
+                            console.log(LOG_PREFIX, `Event Published: ${event} (x${finalCount})`);
+                        }
+                        delete this._logAggregation[event];
+                    }, this._aggregationDelay);
+
+                    // Execute subscribers for the aggregated event, but without the verbose individual logs.
+                    [...this.events[event].values()].forEach((listener) => {
+                        try {
+                            listener(...args);
+                        } catch (e) {
+                            Logger.error(`EventBus error in listener for event "${event}":`, e);
+                        }
+                    });
+                    return; // End execution here for aggregated events in debug mode.
                 }
-            });
+                // --- Aggregation logic END ---
+
+                // In debug mode, provide detailed logging for NON-aggregated events.
+                const subscriberKeys = [...this.events[event].keys()];
+
+                // Use groupCollapsed for a cleaner default view
+                console.groupCollapsed(LOG_PREFIX, `Event Published: ${event}`);
+
+                if (args.length > 0) {
+                    console.log('  - Payload:', ...args);
+                } else {
+                    console.log('  - Payload: (No data)');
+                }
+
+                // Displaying subscribers helps in understanding the event's impact.
+                if (subscriberKeys.length > 0) {
+                    console.log('  - Subscribers:\n' + subscriberKeys.map((key) => `    > ${key}`).join('\n'));
+                } else {
+                    console.log('  - Subscribers: (None)');
+                }
+
+                // Iterate with keys for better logging
+                this.events[event].forEach((listener, key) => {
+                    try {
+                        // Log which specific subscriber is being executed
+                        Logger.debug(`-> Executing: ${key}`);
+                        listener(...args);
+                    } catch (e) {
+                        // Enhance error logging with the specific subscriber key
+                        Logger.error(`EventBus error in listener "${key}" for event "${event}":`, e);
+                    }
+                });
+
+                console.groupEnd();
+            } else {
+                // Iterate over a copy of the values in case a listener unsubscribes itself.
+                [...this.events[event].values()].forEach((listener) => {
+                    try {
+                        listener(...args);
+                    } catch (e) {
+                        Logger.error(`EventBus error in listener for event "${event}":`, e);
+                    }
+                });
+            }
+        },
+
+        /**
+         * Queues a function to be executed on the next animation frame.
+         * Batches multiple UI updates into a single repaint cycle.
+         * @param {Function} workFunction The function to execute.
+         */
+        queueUIWork(workFunction) {
+            this.uiWorkQueue.push(workFunction);
+            if (!this.isUiWorkScheduled) {
+                this.isUiWorkScheduled = true;
+                requestAnimationFrame(this._processUIWorkQueue.bind(this));
+            }
+        },
+
+        /**
+         * @private
+         * Processes all functions in the UI work queue.
+         */
+        _processUIWorkQueue() {
+            // Prevent modifications to the queue while processing.
+            const queueToProcess = [...this.uiWorkQueue];
+            this.uiWorkQueue.length = 0;
+
+            for (const work of queueToProcess) {
+                try {
+                    work();
+                } catch (e) {
+                    Logger.error('EventBus error in queued UI work:', e);
+                }
+            }
+            this.isUiWorkScheduled = false;
         },
     };
 
     // =================================================================================
     // SECTION: Data Conversion Utilities
-    // Description: Handles image optimization and config data compression.
+    // Description: Handles image optimization.
     // =================================================================================
 
     class DataConverter {
@@ -1280,7 +2598,7 @@
          * @param {object} options
          * @param {number} [options.maxWidth] Max width for resizing.
          * @param {number} [options.maxHeight] Max height for resizing.
-         * @param {number} [options.quality=0.85] The quality for WebP compression (0 to 1).
+         * @param {number} [options.quality] The quality for WebP compression (0 to 1).
          * @returns {Promise<string>} A promise that resolves with the optimized Data URL.
          */
         imageToOptimizedDataUrl(file, { maxWidth, maxHeight, quality = 0.85 }) {
@@ -1295,7 +2613,11 @@
 
                         if (isWebP && !needsResize) {
                             // It's an appropriately sized WebP, so just use the original Data URL.
-                            resolve(event.target.result);
+                            if (event.target && typeof event.target.result === 'string') {
+                                resolve(event.target.result);
+                            } else {
+                                reject(new Error('Failed to read file as a data URL.'));
+                            }
                             return;
                         }
 
@@ -1323,60 +2645,15 @@
                         resolve(canvas.toDataURL('image/webp', quality));
                     };
                     img.onerror = (err) => reject(new Error('Failed to load image.'));
-                    img.src = event.target.result;
+                    if (event.target && typeof event.target.result === 'string') {
+                        img.src = event.target.result;
+                    } else {
+                        reject(new Error('Failed to read file as a data URL.'));
+                    }
                 };
                 reader.onerror = (err) => reject(new Error('Failed to read file.'));
                 reader.readAsDataURL(file);
             });
-        }
-
-        /**
-         * Compresses a configuration object into a gzipped, Base64-encoded string.
-         * @param {object} config The configuration object.
-         * @returns {Promise<string>} A promise that resolves with the compressed string.
-         */
-        async compressConfig(config) {
-            try {
-                const jsonString = JSON.stringify(config);
-                const data = new TextEncoder().encode(jsonString);
-                const stream = new Response(data).body.pipeThrough(new CompressionStream('gzip'));
-                const compressed = await new Response(stream).arrayBuffer();
-
-                // Convert ArrayBuffer to Base64 in chunks to avoid "Maximum call stack size exceeded"
-                let binary = '';
-                const bytes = new Uint8Array(compressed);
-                const len = bytes.byteLength;
-                const CHUNK_SIZE = 8192;
-                for (let i = 0; i < len; i += CHUNK_SIZE) {
-                    const chunk = bytes.subarray(i, i + CHUNK_SIZE);
-                    binary += String.fromCharCode.apply(null, chunk);
-                }
-                return btoa(binary);
-            } catch (error) {
-                Logger.error('Compression failed:', error);
-                throw new Error('Configuration compression failed.');
-            }
-        }
-
-        /**
-         * Decompresses a gzipped, Base64-encoded string back into a configuration object.
-         * @param {string} base64String The compressed string.
-         * @returns {Promise<object>} A promise that resolves with the decompressed config object.
-         */
-        async decompressConfig(base64String) {
-            try {
-                const binaryString = atob(base64String);
-                const bytes = new Uint8Array(binaryString.length);
-                for (let i = 0; i < binaryString.length; i++) {
-                    bytes[i] = binaryString.charCodeAt(i);
-                }
-                const stream = new Response(bytes).body.pipeThrough(new DecompressionStream('gzip'));
-                const decompressed = await new Response(stream).text();
-                return JSON.parse(decompressed);
-            } catch (error) {
-                Logger.error('Decompression failed:', error);
-                throw new Error('Configuration is corrupt or in an unknown format.');
-            }
         }
     }
 
@@ -1384,6 +2661,19 @@
     // SECTION: Utility Functions
     // Description: General helper functions used across the script.
     // =================================================================================
+
+    /**
+     * Schedules a function to run when the browser is idle.
+     * @param {(deadline: IdleDeadline) => void} callback The function to execute.
+     * @param {number} [timeout] The maximum delay in milliseconds.
+     */
+    function runWhenIdle(callback, timeout = 2000) {
+        if ('requestIdleCallback' in window) {
+            window.requestIdleCallback(callback, { timeout });
+        } else {
+            setTimeout(callback, CONSTANTS.TIMING.TIMEOUTS.IDLE_EXECUTION_FALLBACK);
+        }
+    }
 
     /**
      * @param {Function} func
@@ -1394,7 +2684,10 @@
         let timeout;
         return function (...args) {
             clearTimeout(timeout);
-            timeout = setTimeout(() => func.apply(this, args), delay);
+            timeout = setTimeout(() => {
+                // After the debounce delay, schedule the actual execution for when the browser is idle.
+                runWhenIdle(() => func.apply(this, args));
+            }, delay);
         };
     }
 
@@ -1431,11 +2724,31 @@
     }
 
     /**
+     * Checks if the current page is the "New Chat" page.
+     * This is determined by checking if the URL path is exactly '/'.
+     * @returns {boolean} True if it is the new chat page, otherwise false.
+     */
+    function isNewChatPage() {
+        return window.location.pathname === '/';
+    }
+
+    /**
+     * Checks if the current browser is Firefox.
+     * @returns {boolean} True if the browser is Firefox, otherwise false.
+     */
+    function isFirefox() {
+        return navigator.userAgent.includes('Firefox');
+    }
+
+    /**
+     * @typedef {Node|string|number|boolean|null|undefined} HChild
+     */
+    /**
      * Creates a DOM element using a hyperscript-style syntax.
      * @param {string} tag - Tag name with optional ID/class (e.g., "div#app.container", "my-element").
-     * @param {Object|Array|string|Node} [propsOrChildren] - Attributes object or children.
-     * @param {Array|string|Node} [children] - Children (if props are specified).
-     * @returns {HTMLElement|SVGElement} - The created DOM element.
+     * @param {object | HChild | HChild[]} [propsOrChildren] - Attributes object or children.
+     * @param {HChild | HChild[]} [children] - Children (if props are specified).
+     * @returns {HTMLElement|SVGElement} The created DOM element.
      */
     function h(tag, propsOrChildren, children) {
         const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -1447,7 +2760,12 @@
         const el = isSVG ? document.createElementNS(SVG_NS, tagName) : document.createElement(tagName);
 
         if (id) el.id = id.slice(1);
-        if (classList) el.className = classList.replace(/\./g, ' ').trim();
+        if (classList) {
+            const classes = classList.replace(/\./g, ' ').trim();
+            if (classes) {
+                el.classList.add(...classes.split(/\s+/));
+            }
+        }
 
         let props = {};
         let childrenArray;
@@ -1461,7 +2779,7 @@
         // --- Start of Attribute/Property Handling ---
         const directProperties = new Set(['value', 'checked', 'selected', 'readOnly', 'disabled', 'multiple', 'textContent']);
         const urlAttributes = new Set(['href', 'src', 'action', 'formaction']);
-        const safeUrlRegex = /^\s*(?:(?:https?|mailto|tel|ftp|blob):|[^a-z0-9+.-]*[#/])/i;
+        const safeProtocols = new Set(['https:', 'http:', 'mailto:', 'tel:', 'blob:', 'data:']);
 
         for (const [key, value] of Object.entries(props)) {
             // 0. Handle `ref` callback (highest priority after props parsing).
@@ -1471,11 +2789,17 @@
             // 1. Security check for URL attributes.
             else if (urlAttributes.has(key)) {
                 const url = String(value);
-                if (safeUrlRegex.test(url)) {
-                    el.setAttribute(key, url);
-                } else {
+                try {
+                    const parsedUrl = new URL(url); // Throws if not an absolute URL.
+                    if (safeProtocols.has(parsedUrl.protocol)) {
+                        el.setAttribute(key, url);
+                    } else {
+                        el.setAttribute(key, '#');
+                        Logger.warn(`Blocked potentially unsafe protocol "${parsedUrl.protocol}" in attribute "${key}":`, url);
+                    }
+                } catch {
                     el.setAttribute(key, '#');
-                    Logger.warn(`Blocked potentially unsafe URL in attribute "${key}":`, url);
+                    Logger.warn(`Blocked invalid or relative URL in attribute "${key}":`, url);
                 }
             }
             // 2. Direct property assignments.
@@ -1492,26 +2816,29 @@
             } else if (key.startsWith('on') && typeof value === 'function') {
                 el.addEventListener(key.slice(2).toLowerCase(), value);
             } else if (key === 'className') {
-                if (isSVG) {
-                    el.setAttribute('class', value);
-                } else {
-                    el.className = value;
+                const classes = String(value).trim();
+                if (classes) {
+                    el.classList.add(...classes.split(/\s+/));
                 }
             } else if (key.startsWith('aria-')) {
-                el.setAttribute(key, value);
+                el.setAttribute(key, String(value));
             }
             // 4. Default attribute handling.
-            else if (value !== false && value != null) {
-                el.setAttribute(key, value === true ? '' : value);
+            else if (value !== false && value !== null) {
+                el.setAttribute(key, value === true ? '' : String(value));
             }
         }
         // --- End of Attribute/Property Handling ---
 
         const fragment = document.createDocumentFragment();
+        /**
+         *
+         * @param child
+         */
         function append(child) {
-            if (child == null || child === false) return;
+            if (child === null || child === false || typeof child === 'undefined') return;
             if (typeof child === 'string' || typeof child === 'number') {
-                fragment.appendChild(document.createTextNode(child));
+                fragment.appendChild(document.createTextNode(String(child)));
             } else if (Array.isArray(child)) {
                 child.forEach(append);
             } else if (child instanceof Node) {
@@ -1528,6 +2855,147 @@
     }
 
     /**
+     * @description A dispatch table object that maps UI schema types to their respective rendering functions.
+     */
+    const UI_SCHEMA_RENDERERS = {
+        _renderContainer(def) {
+            let className = def.className;
+            if (!className) {
+                const classMap = {
+                    'compound-slider': `${APPID}-compound-slider-container`,
+                    'compound-container': `${APPID}-compound-form-field-container`,
+                    'slider-container': `${APPID}-slider-container`,
+                    'container-row': `${APPID}-submenu-row`,
+                    'container-stacked-row': `${APPID}-submenu-row ${APPID}-submenu-row-stacked`,
+                };
+                className = classMap[def.type] || '';
+            }
+            const element = h(`div`, { className });
+            if (def.children) {
+                element.appendChild(buildUIFromSchema(def.children));
+            }
+            return element;
+        },
+        fieldset(def) {
+            const element = h(`fieldset.${APPID}-submenu-fieldset`, [h('legend', def.legend)]);
+            if (def.children) {
+                element.appendChild(buildUIFromSchema(def.children));
+            }
+            return element;
+        },
+        separator(def) {
+            let element = h(`hr.${APPID}-theme-separator`, { tabIndex: -1 });
+            if (def.legend) {
+                element = h('fieldset', [h('legend', def.legend), element]);
+            }
+            return element;
+        },
+        'submenu-separator': (def) => h(`div.${APPID}-submenu-separator`),
+        textarea(def, formId) {
+            return h(`div.${APPID}-form-field`, [
+                h('label', { htmlFor: formId, title: def.tooltip }, def.label),
+                h('textarea', { id: formId, rows: def.rows }),
+                h(`div.${APPID}-form-error-msg`, { 'data-error-for': def.id.replace(/\./g, '-') }),
+            ]);
+        },
+        textfield(def, formId) {
+            const isImageField = ['image', 'icon'].includes(def.fieldType);
+            const inputWrapperChildren = [h('input', { type: 'text', id: formId })];
+            if (isImageField) {
+                inputWrapperChildren.push(h(`button.${APPID}-local-file-btn`, { type: 'button', 'data-target-id': def.id.replace(/\./g, '-'), title: 'Select local file' }, [createIconFromDef(SITE_STYLES.ICONS.folder)]));
+            }
+            return h(`div.${APPID}-form-field`, [
+                h('label', { htmlFor: formId, title: def.tooltip }, def.label),
+                h(`div.${APPID}-input-wrapper`, inputWrapperChildren),
+                h(`div.${APPID}-form-error-msg`, { 'data-error-for': def.id.replace(/\./g, '-') }),
+            ]);
+        },
+        colorfield(def, formId) {
+            const hint = 'Click the swatch to open the color picker.\nAccepts any valid CSS color string.';
+            const fullTooltip = def.tooltip ? `${def.tooltip}\n---\n${hint}` : hint;
+            return h(`div.${APPID}-form-field`, [
+                h('label', { htmlFor: formId, title: fullTooltip }, def.label),
+                h(`div.${APPID}-color-field-wrapper`, [
+                    h('input', { type: 'text', id: formId, autocomplete: 'off' }),
+                    h(`button.${APPID}-color-swatch`, { type: 'button', 'data-controls-color': def.id.replace(/\./g, '-'), title: 'Open color picker' }, [h(`span.${APPID}-color-swatch-checkerboard`), h(`span.${APPID}-color-swatch-value`)]),
+                ]),
+            ]);
+        },
+        select(def, formId) {
+            return h(`div.${APPID}-form-field`, [
+                h('label', { htmlFor: formId, title: def.tooltip }, def.label),
+                h('select', { id: formId }, [h('option', { value: '' }, '(not set)'), ...def.options.map((o) => h('option', { value: o }, o))]),
+            ]);
+        },
+        slider(def, formId) {
+            const wrapperTag = def.containerClass ? `div.${def.containerClass}` : 'div';
+            const inputId = `${formId}-slider`;
+            return h(wrapperTag, [
+                h('label', { htmlFor: inputId, title: def.tooltip }, def.label),
+                h(`div.${APPID}-slider-subgroup-control`, [h('input', { type: 'range', id: inputId, min: def.min, max: def.max, step: def.step, dataset: def.dataset }), h('span', { 'data-slider-display-for': def.id })]),
+            ]);
+        },
+        paddingslider(def, formId) {
+            const createSubgroup = (name, suffix, min, max, step) => {
+                const sliderId = `${APPID}-form-${def.actor}-bubblePadding-${suffix}`;
+                return h(`div.${APPID}-slider-subgroup`, [
+                    h('label', { htmlFor: sliderId }, name),
+                    h(`div.${APPID}-slider-subgroup-control`, [
+                        h('input', { type: 'range', id: sliderId, min, max, step, dataset: { nullThreshold: 0, sliderFor: sliderId, unit: 'px' } }),
+                        h('span', { 'data-slider-display-for': sliderId }),
+                    ]),
+                ]);
+            };
+            return h(`div.${APPID}-form-field`, { id: formId }, [h(`div.${APPID}-compound-slider-container`, [createSubgroup('Padding Top/Bottom:', `tb`, -1, 30, 1), createSubgroup('Padding Left/Right:', `lr`, -1, 30, 1)])]);
+        },
+        preview(def) {
+            const wrapperClass = `${APPID}-preview-bubble-wrapper ${def.actor === 'user' ? 'user-preview' : ''}`;
+            return h(`div.${APPID}-preview-container`, [h('label', 'Preview:'), h('div', { className: wrapperClass }, [h(`div.${APPID}-preview-bubble`, { 'data-preview-for': def.actor }, [h('span', 'Sample Text')])])]);
+        },
+        'preview-input': (def) =>
+            h(`div.${APPID}-preview-container`, [h('label', 'Preview:'), h(`div.${APPID}-preview-bubble-wrapper`, [h(`div.${APPID}-preview-input-area`, { 'data-preview-for': 'inputArea' }, [h('span', 'Sample input text')])])]),
+        'preview-background': (def) =>
+            h(`div.${APPID}-form-field`, [h('label', 'BG Preview:'), h(`div.${APPID}-preview-bubble-wrapper`, { style: { padding: '0', minHeight: '0' } }, [h(`div.${APPID}-preview-background`, { 'data-preview-for': 'window' })])]),
+        button: (def) => h(`button#${def.id}.${APPID}-modal-button`, { title: def.title, style: { width: def.fullWidth ? '100%' : 'auto' } }, def.text),
+        label: (def) => h('label', { htmlFor: def.for, title: def.title }, def.text),
+        toggle: (def, formId) => h(`label.${APPID}-toggle-switch`, [h('input', { type: 'checkbox', id: formId }), h(`span.${APPID}-toggle-slider`)]),
+    };
+
+    // Assign aliases for container types
+    ['container', 'grid', 'compound-slider', 'compound-container', 'slider-container', 'container-row', 'container-stacked-row'].forEach((type) => {
+        UI_SCHEMA_RENDERERS[type] = UI_SCHEMA_RENDERERS._renderContainer;
+    });
+
+    /**
+     * @description Recursively builds a DOM fragment from a declarative schema object.
+     * This function is the core of the declarative UI system, translating object definitions into DOM elements.
+     * @param {Array<object>} definitions - An array of objects, each defining a UI element.
+     * @returns {DocumentFragment} A document fragment containing the constructed DOM elements.
+     */
+    function buildUIFromSchema(definitions) {
+        const fragment = document.createDocumentFragment();
+        if (!definitions) return fragment;
+
+        for (const def of definitions) {
+            const formId = def.id ? `${APPID}-form-${def.id.replace(/\./g, '-')}` : '';
+            const renderer = UI_SCHEMA_RENDERERS[def.type];
+            let element = null;
+
+            if (renderer) {
+                element = renderer(def, formId);
+            }
+
+            if (element) {
+                if (def.isDefaultHidden) {
+                    element.dataset.isDefaultHidden = 'true';
+                }
+                fragment.appendChild(element);
+            }
+        }
+        return fragment;
+    }
+
+    /**
      * Recursively builds a DOM element from a definition object using the h() function.
      * @param {object} def The definition object for the element.
      * @returns {HTMLElement | SVGElement | null} The created DOM element.
@@ -1539,49 +3007,56 @@
     }
 
     /**
-     * Waits for a specific element to appear in the DOM using MutationObserver for efficiency.
+     * Waits for a specific HTMLElement to appear in the DOM using a high-performance, Sentinel-based approach.
+     * It specifically checks for `instanceof HTMLElement` and will not resolve for other element types (e.g., SVGElement), even if they match the selector.
      * @param {string} selector The CSS selector for the element.
      * @param {object} [options]
-     * @param {number} [options.timeout=10000] The maximum time to wait in milliseconds.
-     * @param {HTMLElement} [options.context=document] The element to search within.
-     * @returns {Promise<HTMLElement | null>} A promise that resolves with the element or null if timed out.
+     * @param {number} [options.timeout] The maximum time to wait in milliseconds.
+     * @param {Document | HTMLElement} [options.context] The element to search within.
+     * @returns {Promise<HTMLElement | null>} A promise that resolves with the HTMLElement or null if timed out.
      */
     function waitForElement(selector, { timeout = 10000, context = document } = {}) {
+        // First, check if the element already exists.
+        const existingEl = context.querySelector(selector);
+        if (existingEl instanceof HTMLElement) {
+            return Promise.resolve(existingEl);
+        }
+
+        // If not, use Sentinel wrapped in a Promise.
         return new Promise((resolve) => {
-            // First, check if the element already exists within the given context.
-            const el = context.querySelector(selector);
-            if (el) {
-                return resolve(el);
-            }
+            let timer = null;
+            let sentinelCallback = null;
 
-            const observer = new MutationObserver(() => {
-                const found = context.querySelector(selector);
-                if (found) {
-                    observer.disconnect();
-                    clearTimeout(timer);
-                    resolve(found);
-                }
-            });
+            const cleanup = () => {
+                if (timer) clearTimeout(timer);
+                if (sentinelCallback) sentinel.off(selector, sentinelCallback);
+            };
 
-            const timer = setTimeout(() => {
-                observer.disconnect();
+            timer = setTimeout(() => {
+                cleanup();
                 Logger.warn(`Timed out after ${timeout}ms waiting for element "${selector}"`);
                 resolve(null);
             }, timeout);
 
-            observer.observe(context, {
-                childList: true,
-                subtree: true,
-            });
+            sentinelCallback = (element) => {
+                // Ensure the found element is an HTMLElement and is within the specified context.
+                if (element instanceof HTMLElement && context.contains(element)) {
+                    cleanup();
+                    resolve(element);
+                }
+            };
+
+            sentinel.on(selector, sentinelCallback);
         });
     }
 
     /**
-     * Generates a unique ID string.
+     * Generates a unique ID string with a given prefix.
+     * @param {string} [prefix='theme'] - The prefix for the ID.
      * @returns {string}
      */
-    function generateUniqueId() {
-        return `${APPID}-theme-` + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
+    function generateUniqueId(prefix = 'theme') {
+        return `${APPID}-${prefix}-` + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
     }
 
     /**
@@ -1700,7 +3175,7 @@
      */
     function getSidebarWidth() {
         const sidebar = document.querySelector(CONSTANTS.SELECTORS.SIDEBAR_WIDTH_TARGET);
-        if (sidebar && sidebar.offsetParent !== null) {
+        if (sidebar instanceof HTMLElement && sidebar.offsetParent !== null) {
             const styleWidth = sidebar.style.width;
             if (styleWidth && styleWidth.endsWith('px')) {
                 return parseInt(styleWidth, 10);
@@ -1719,8 +3194,8 @@
      * This method temporarily injects an invisible element positioned above the target, scrolls to it, and then removes it.
      * @param {HTMLElement} element The target element to scroll to.
      * @param {object} [options] - Scrolling options.
-     * @param {number} [options.offset=0] - A pixel offset to apply above the target element.
-     * @param {boolean} [options.smooth=false] - Whether to use smooth scrolling.
+     * @param {number} [options.offset] - A pixel offset to apply above the target element.
+     * @param {boolean} [options.smooth] - Whether to use smooth scrolling.
      */
     function scrollToElement(element, options = {}) {
         if (!element) return;
@@ -1775,13 +3250,525 @@
                 if (originalPosition === 'static') {
                     target.style.position = originalPosition;
                 }
-            }, TIMING.TIMEOUTS.VIRTUAL_ANCHOR_CLEANUP);
+            }, CONSTANTS.TIMING.TIMEOUTS.VIRTUAL_ANCHOR_CLEANUP);
         }
+    }
+
+    /**
+     * Sets a nested property on an object using a dot-notation path.
+     * @param {object} obj The object to modify.
+     * @param {string} path The dot-separated path to the property.
+     * @param {any} value The value to set.
+     */
+    function setPropertyByPath(obj, path, value) {
+        const keys = path.split('.');
+        let current = obj;
+        for (let i = 0; i < keys.length - 1; i++) {
+            const key = keys[i];
+            if (!isObject(current[key])) {
+                current[key] = {};
+            }
+            current = current[key];
+        }
+        current[keys[keys.length - 1]] = value;
+    }
+
+    /**
+     * Populates a form with data from a configuration object based on a UI schema.
+     * @param {Array<object>} definitions The UI schema definitions.
+     * @param {HTMLElement} rootElement The root element of the form to populate.
+     * @param {object} config The configuration object containing the data.
+     * @param {object} componentInstance The component instance, passed to the handler for context.
+     */
+    function populateFormFromSchema(definitions, rootElement, config, componentInstance) {
+        for (const def of definitions) {
+            const configKey = def.configKey || def.id;
+            const handler = FORM_FIELD_HANDLERS[def.type];
+
+            if (handler && configKey) {
+                const formId = `${APPID}-form-${configKey.replace(/\./g, '-')}`;
+                const element = rootElement.querySelector(`#${formId}, #${formId}-slider`);
+
+                if (element) {
+                    const value = getPropertyByPath(config, configKey);
+                    handler.setValue(element, value, { componentInstance });
+                }
+            }
+            if (def.children) {
+                populateFormFromSchema(def.children, rootElement, config, componentInstance);
+            }
+        }
+    }
+
+    /**
+     * Collects data from a form into a configuration object based on a UI schema.
+     * @param {Array<object>} definitions The UI schema definitions.
+     * @param {HTMLElement} rootElement The root element of the form.
+     * @param {object} configObject The configuration object to populate with data.
+     */
+    function collectDataFromSchema(definitions, rootElement, configObject) {
+        for (const def of definitions) {
+            const configKey = def.configKey || def.id;
+            const handler = FORM_FIELD_HANDLERS[def.type];
+
+            if (handler && configKey) {
+                const formId = `${APPID}-form-${configKey.replace(/\./g, '-')}`;
+                const element = rootElement.querySelector(`#${formId}, #${formId}-slider`);
+
+                if (element) {
+                    const value = handler.getValue(element);
+                    setPropertyByPath(configObject, configKey, value);
+                }
+            }
+            if (def.children) {
+                collectDataFromSchema(def.children, rootElement, configObject);
+            }
+        }
+    }
+
+    /**
+     * @description A utility function to update the text display of a slider component.
+     * It handles values from a predefined map, nullable thresholds, and units.
+     * @param {HTMLInputElement} slider The slider input element.
+     * @param {HTMLElement} display The element where the slider's value is displayed.
+     */
+    function updateSliderDisplay(slider, display) {
+        if (!slider || !display) return;
+
+        const sliderValue = parseInt(slider.value, 10);
+        const { valueMapKey, unit, nullThreshold } = slider.dataset;
+        const sliderContainer = slider.closest(`.${APPID}-slider-subgroup-control`);
+
+        if (valueMapKey) {
+            const values = getPropertyByPath(CONSTANTS, valueMapKey);
+            if (values) {
+                display.textContent = `${values[sliderValue]}px`;
+            }
+            return;
+        }
+
+        const threshold = parseInt(nullThreshold, 10);
+        if (!isNaN(threshold) && sliderValue < threshold) {
+            display.textContent = 'Auto';
+            display.title = 'Auto means the default value is used.';
+            if (sliderContainer) sliderContainer.classList.add('is-default');
+        } else {
+            display.textContent = `${sliderValue}${unit}`;
+            display.title = '';
+            if (sliderContainer) sliderContainer.classList.remove('is-default');
+        }
+    }
+
+    /**
+     * @description A dispatch table defining how to get/set values for different form field types.
+     */
+    const FORM_FIELD_HANDLERS = {
+        textfield: {
+            getValue: (el) => el.value.trim() || null,
+            setValue: (el, value) => {
+                el.value = value ?? '';
+            },
+        },
+        textarea: {
+            getValue: (el) =>
+                el.value
+                    .split('\n')
+                    .map((p) => p.trim())
+                    .filter(Boolean) || [],
+            setValue: (el, value) => {
+                el.value = Array.isArray(value) ? value.join('\n') : value ?? '';
+            },
+        },
+        select: {
+            getValue: (el) => el.value || null,
+            setValue: (el, value) => {
+                el.value = value ?? '';
+            },
+        },
+        colorfield: {
+            getValue: (el) => el.value.trim() || null,
+            setValue: (el, value, { modalElement }) => {
+                el.value = value ?? '';
+                // Manually update the swatch color
+                const swatch = el.closest(`.${APPID}-color-field-wrapper`)?.querySelector(`.${APPID}-color-swatch-value`);
+                if (swatch) {
+                    swatch.style.backgroundColor = value || 'transparent';
+                }
+            },
+        },
+        slider: {
+            getValue: (slider) => {
+                const value = parseInt(slider.value, 10);
+                const { valueMapKey, unit, nullThreshold } = slider.dataset;
+
+                if (valueMapKey) {
+                    const values = getPropertyByPath(CONSTANTS, valueMapKey);
+                    return values?.[value] ?? values?.[0];
+                }
+
+                const threshold = parseInt(nullThreshold, 10);
+                if (!isNaN(threshold) && value < threshold) {
+                    return null;
+                }
+
+                return unit ? `${value}${unit}` : `${value}px`; // Default to 'px' if no unit is specified
+            },
+            setValue: (slider, value, { componentInstance }) => {
+                const { valueMapKey, nullThreshold } = slider.dataset;
+
+                if (valueMapKey) {
+                    const values = getPropertyByPath(CONSTANTS, valueMapKey);
+                    if (values) {
+                        const index = values.indexOf(value);
+                        slider.value = index !== -1 ? String(index) : '0';
+                    }
+                } else {
+                    const threshold = parseInt(nullThreshold, 10);
+                    const numVal = parseInt(String(value), 10);
+
+                    if (value === null || isNaN(numVal)) {
+                        slider.value = String(!isNaN(threshold) ? threshold - 1 : slider.min);
+                    } else {
+                        slider.value = String(numVal);
+                    }
+                }
+                componentInstance._updateSliderDisplay(slider);
+            },
+        },
+        paddingslider: {
+            getValue: (el) => {
+                const tb = el.querySelector(`[id$="-bubblePadding-tb"]`);
+                const lr = el.querySelector(`[id$="-bubblePadding-lr"]`);
+                if (!tb || !lr || tb.value < 0 || lr.value < 0) {
+                    return null;
+                }
+                return `${tb.value}px ${lr.value}px`;
+            },
+            setValue: (el, value, { componentInstance }) => {
+                const tbSlider = el.querySelector(`[id$="-bubblePadding-tb"]`);
+                const lrSlider = el.querySelector(`[id$="-bubblePadding-lr"]`);
+                if (!tbSlider || !lrSlider) return;
+
+                if (value === null) {
+                    tbSlider.value = -1;
+                    lrSlider.value = -1;
+                } else {
+                    const parts = String(value)
+                        .replace(/px/g, '')
+                        .trim()
+                        .split(/\s+/)
+                        .map((p) => parseInt(p, 10));
+                    if (parts.length === 1 && !isNaN(parts[0])) {
+                        tbSlider.value = lrSlider.value = parts[0];
+                    } else if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+                        tbSlider.value = parts[0];
+                        lrSlider.value = parts[1];
+                    } else {
+                        tbSlider.value = -1;
+                        lrSlider.value = -1;
+                    }
+                }
+                componentInstance._updateSliderDisplay(tbSlider);
+                componentInstance._updateSliderDisplay(lrSlider);
+            },
+        },
+        toggle: {
+            getValue: (el) => el.checked,
+            setValue: (el, value) => {
+                el.checked = !!value;
+            },
+        },
+    };
+
+    /**
+     * @description Synchronizes a cache Map against the current list of messages from MessageCacheManager.
+     * It removes entries from the map if their key (a message element) is no longer in the live message list.
+     * @param {Map<HTMLElement, any>} cacheMap The cache Map to synchronize. The keys are expected to be message HTMLElements.
+     * @param {MessageCacheManager} messageCacheManager The instance of the message cache manager.
+     */
+    function syncCacheWithMessages(cacheMap, messageCacheManager) {
+        const currentMessages = new Set(messageCacheManager.getTotalMessages());
+        for (const messageElement of cacheMap.keys()) {
+            if (!currentMessages.has(messageElement)) {
+                cacheMap.delete(messageElement);
+            }
+        }
+    }
+
+    /**
+     * Creates a unique, consistent event subscription key for EventBus.
+     * @param {object} context The `this` context of the subscribing class instance.
+     * @param {string} eventName The full event name from the EVENTS constant (e.g., 'EVENTS.NAVIGATION').
+     * @returns {string} A key in the format 'ClassName.purpose'.
+     */
+    function createEventKey(context, eventName) {
+        const purpose = eventName.split(':')[1] || eventName;
+        if (!context || !context.constructor || !context.constructor.name) {
+            // Fallback for contexts where constructor name might not be available
+            return `UnknownContext.${purpose}`;
+        }
+        return `${context.constructor.name}.${purpose}`;
+    }
+
+    /**
+     * @description A utility to prevent layout thrashing by separating DOM reads (measure)
+     * from DOM writes (mutate). The mutate function is executed in the next animation frame.
+     * @param {{
+     * measure: () => T,
+     * mutate: (data: T) => void
+     * }} param0 - An object containing the measure and mutate functions.
+     * @returns {Promise<void>} A promise that resolves after the mutate function has completed.
+     * @template T
+     */
+    function withLayoutCycle({ measure, mutate }) {
+        return new Promise((resolve, reject) => {
+            let measuredData;
+
+            // Phase 1: Synchronously read all required layout properties from the DOM.
+            try {
+                measuredData = measure();
+            } catch (e) {
+                Logger.error('withLayoutCycle: Error during measure phase:', e);
+                reject(e);
+                return;
+            }
+
+            // Phase 2: Schedule the DOM mutations to run in the next animation frame.
+            requestAnimationFrame(() => {
+                try {
+                    mutate(measuredData);
+                    resolve();
+                } catch (e) {
+                    Logger.error('withLayoutCycle: Error during mutate phase:', e);
+                    reject(e);
+                }
+            });
+        });
+    }
+
+    /**
+     * @description Processes an array of items in asynchronous batches to avoid blocking the main thread.
+     * @param {Array<T>} items The array of items to process.
+     * @param {(item: T, index: number) => void} processItem The function to execute for each item.
+     * @param {number} batchSize The number of items to process in each batch.
+     * @param {() => void} [onComplete] An optional callback to execute when all batches are complete.
+     * @template T
+     */
+    function processInBatches(items, processItem, batchSize, onComplete) {
+        let index = 0;
+        const totalItems = items.length;
+
+        if (totalItems === 0) {
+            onComplete?.();
+            return;
+        }
+
+        function runNextBatch() {
+            const endIndex = Math.min(index + batchSize, totalItems);
+            for (; index < endIndex; index++) {
+                processItem(items[index], index);
+            }
+
+            if (index < totalItems) {
+                requestAnimationFrame(runNextBatch);
+            } else {
+                onComplete?.();
+            }
+        }
+
+        requestAnimationFrame(runNextBatch);
     }
 
     // =================================================================================
     // SECTION: Configuration Management (GM Storage)
     // =================================================================================
+
+    /**
+     * @description A centralized utility for validating and sanitizing configuration objects.
+     * @typedef {{
+     * id: string;
+     * type: 'icon' | 'image';
+     * label: string;
+     * }} ImageFieldDefinition
+     */
+    const ConfigProcessor = {
+        /**
+         * Validates a single theme object and returns user-facing errors. Does not mutate the object.
+         * @param {object} themeData The theme data to validate.
+         * @param {boolean} isDefaultSet Whether the theme being validated is the defaultSet.
+         * @returns {{isValid: boolean, errors: Array<{field: string, message: string}>}} Validation result.
+         */
+        validate(themeData, isDefaultSet = false) {
+            /** @type {Array<{field: string, message: string}>} */
+            const errors = [];
+
+            // --- Image and Icon Validation ---
+            /** @type {ImageFieldDefinition[]} */
+            const imageFields = [
+                { id: 'user.icon', type: 'icon', label: 'Icon:' },
+                { id: 'user.standingImageUrl', type: 'image', label: 'Standing image:' },
+                { id: 'assistant.icon', type: 'icon', label: 'Icon:' },
+                { id: 'assistant.standingImageUrl', type: 'image', label: 'Standing image:' },
+                { id: 'window.backgroundImageUrl', type: 'image', label: 'Background image:' },
+            ];
+            for (const { id, type, label } of imageFields) {
+                const value = getPropertyByPath(themeData, id);
+                const result = validateImageString(value, type);
+                if (!result.isValid) {
+                    errors.push({ field: id.replace(/\./g, '-'), message: `${label} ${result.message}` });
+                }
+            }
+
+            // --- RegExp Pattern Validation (only for non-default themes) ---
+            if (!isDefaultSet && themeData.metadata?.matchPatterns) {
+                for (const p of themeData.metadata.matchPatterns) {
+                    try {
+                        const lastSlash = p.lastIndexOf('/');
+                        new RegExp(p.slice(1, lastSlash), p.slice(lastSlash + 1));
+                    } catch (e) {
+                        errors.push({ field: 'metadata-matchPatterns', message: `Invalid RegExp: "${p}". ${e.message}` });
+                        break; // Stop after first invalid regex
+                    }
+                }
+            }
+
+            return { isValid: errors.length === 0, errors };
+        },
+
+        /**
+         * Processes and sanitizes an entire configuration object, applying defaults for invalid values.
+         * Mutates the passed config object.
+         * @param {AppConfig} config The full configuration object to process.
+         * @returns {AppConfig} The sanitized configuration object.
+         */
+        process(config) {
+            // 1. Sanitize Global Options
+            if (config.options) {
+                // Sanitize icon_size
+                if (!CONSTANTS.ICON_SIZE_VALUES.includes(config.options.icon_size)) {
+                    config.options.icon_size = CONSTANTS.ICON_SIZE;
+                }
+
+                // Sanitize chat_content_max_width
+                const width = config.options.chat_content_max_width;
+                const widthConfig = CONSTANTS.SLIDER_CONFIGS.CHAT_WIDTH;
+                const defaultValue = widthConfig.DEFAULT;
+                let sanitized = false;
+                if (width === null) {
+                    sanitized = true;
+                } else if (typeof width === 'string' && width.endsWith('vw')) {
+                    const numVal = parseInt(width, 10);
+                    if (!isNaN(numVal) && numVal >= widthConfig.NULL_THRESHOLD && numVal <= widthConfig.MAX) {
+                        sanitized = true;
+                    }
+                }
+                if (!sanitized) {
+                    config.options.chat_content_max_width = defaultValue;
+                }
+            }
+
+            // 2. Sanitize all theme sets and the default set
+            const allThemes = [...(config.themeSets || []), config.defaultSet];
+            for (const theme of allThemes) {
+                if (!theme) continue;
+                // Sanitize image strings (throws error on invalid format)
+                this._validateThemeImageStrings(theme);
+
+                // Sanitize numeric/unit properties (falls back to default)
+                ['user', 'assistant'].forEach((actor) => {
+                    if (!theme[actor]) theme[actor] = {};
+                    const actorConf = theme[actor];
+                    const defaultActorConf = DEFAULT_THEME_CONFIG.defaultSet[actor];
+
+                    for (const key in THEME_VALIDATION_RULES) {
+                        if (Object.prototype.hasOwnProperty.call(actorConf, key)) {
+                            const rule = THEME_VALIDATION_RULES[key];
+                            actorConf[key] = this._sanitizeProperty(actorConf[key], rule, defaultActorConf[key]);
+                        }
+                    }
+                });
+            }
+
+            // 3. Validate RegExp patterns (throws error on invalid format)
+            this._validateThemeMatchPatterns(config);
+
+            return config;
+        },
+
+        /**
+         * @private
+         * Throws an error if any image string in a theme is invalid.
+         * @param {Partial<ThemeSet>} theme
+         */
+        _validateThemeImageStrings(theme) {
+            const themeName = theme.metadata?.name || 'Default Set';
+            const check = (value, type) => {
+                const result = validateImageString(value, type);
+                if (!result.isValid) throw new Error(`Theme "${themeName}": ${result.message}`);
+            };
+            if (theme.user) {
+                check(theme.user.icon, 'icon');
+                check(theme.user.standingImageUrl, 'image');
+            }
+            if (theme.assistant) {
+                check(theme.assistant.icon, 'icon');
+                check(theme.assistant.standingImageUrl, 'image');
+            }
+            if (theme.window) {
+                check(theme.window.backgroundImageUrl, 'image');
+            }
+        },
+
+        /**
+         * @private
+         * Validates the matchPatterns within the themeSets of a given config object.
+         * Throws an error if validation fails.
+         * @param {AppConfig} config - The configuration object to validate.
+         */
+        _validateThemeMatchPatterns(config) {
+            if (!config || !config.themeSets || !Array.isArray(config.themeSets)) {
+                return;
+            }
+            for (const set of config.themeSets) {
+                if (!set.metadata || !Array.isArray(set.metadata.matchPatterns)) continue;
+                for (const p of set.metadata.matchPatterns) {
+                    if (typeof p !== 'string' || !/^\/.*\/[gimsuy]*$/.test(p)) {
+                        throw new Error(`Invalid format. Must be /pattern/flags string: ${p}`);
+                    }
+                    try {
+                        const lastSlash = p.lastIndexOf('/');
+                        new RegExp(p.slice(1, lastSlash), p.slice(lastSlash + 1));
+                    } catch (e) {
+                        throw new Error(`Invalid RegExp: "${p}"\n${e.message}`);
+                    }
+                }
+            }
+        },
+
+        /**
+         * @private
+         * @param {string | null} value The value to sanitize.
+         * @param {object} rule The validation rule from THEME_VALIDATION_RULES.
+         * @param {string | null} defaultValue The fallback value.
+         * @returns {string | null} The sanitized value.
+         */
+        _sanitizeProperty(value, rule, defaultValue) {
+            if (rule.nullable && value === null) {
+                return value;
+            }
+
+            if (typeof value !== 'string' || !value.endsWith(rule.unit)) {
+                return defaultValue;
+            }
+
+            const numVal = parseInt(value, 10);
+            if (isNaN(numVal) || numVal < rule.min || numVal > rule.max) {
+                return defaultValue;
+            }
+
+            return value; // The original value is valid
+        },
+    };
 
     /**
      * @abstract
@@ -1801,14 +3788,14 @@
             }
             this.CONFIG_KEY = configKey;
             this.DEFAULT_CONFIG = defaultConfig;
-            /** @type {object|null} */
+            /** @type {AppConfig|null} */
             this.config = null;
         }
 
         /**
          * Loads the configuration from storage.
          * Assumes the configuration is stored as a JSON string.
-         * @returns {Promise<void>}
+         * @returns {Promise<any>}
          */
         async load() {
             const raw = await GM_getValue(this.CONFIG_KEY);
@@ -1839,7 +3826,7 @@
         }
 
         /**
-         * @returns {object|null} The current configuration object.
+         * @returns {AppConfig|null} The current configuration object.
          */
         get() {
             return this.config;
@@ -1858,43 +3845,33 @@
     }
 
     class ConfigManager extends ConfigManagerBase {
-        constructor() {
+        constructor(dataConverter) {
             super({
                 configKey: CONSTANTS.CONFIG_KEY,
                 defaultConfig: DEFAULT_THEME_CONFIG,
             });
-            this.dataConverter = new DataConverter();
+            this.dataConverter = dataConverter;
         }
 
         /**
          * @override
          * Loads the configuration from storage.
-         * It attempts to parse as JSON for backward
-         * compatibility, then falls back to decompressing the new gzipped format.
-         * @returns {Promise<void>}
+         * @returns {Promise<AppConfig>}
          */
         async load() {
             const raw = await GM_getValue(this.CONFIG_KEY);
             let userConfig = null;
-            let migrationNeeded = false;
 
             if (raw) {
-                // 1. Try parsing as plain JSON first.
+                // Try parsing as plain JSON.
                 try {
                     const parsed = JSON.parse(raw);
                     if (isObject(parsed)) {
                         userConfig = parsed;
                     }
-                } catch {
-                    // 2. If JSON parsing fails, try decompressing the old format.
-                    try {
-                        userConfig = await this.dataConverter.decompressConfig(raw);
-                        migrationNeeded = true; // Mark for re-saving in the new format.
-                        Logger.log('Old compressed config detected. Will migrate to plain JSON on load.');
-                    } catch (e) {
-                        Logger.error(`Failed to parse or decompress config. Resetting to default. Error: ${e.message}`);
-                        userConfig = null;
-                    }
+                } catch (e) {
+                    Logger.error('Failed to parse config. Resetting to default.', e);
+                    userConfig = null;
                 }
             }
 
@@ -1902,22 +3879,12 @@
             this.config = deepMerge(completeConfig, userConfig || {});
 
             this._validateAndSanitizeOptions();
-
-            // 3. If migration was needed, save the config back in plain JSON format.
-            if (migrationNeeded) {
-                try {
-                    await this.save(this.config);
-                    Logger.log('Successfully migrated config to plain JSON format.');
-                } catch (e) {
-                    Logger.error('Failed to save migrated config:', e);
-                }
-            }
+            return this.config;
         }
 
         /**
          * @override
-         * Compresses and saves the configuration object to storage, but only if it's
-         * under the size limit.
+         * Saves the configuration object to storage, but only if it's under the size limit.
          * Throws a specific error if the limit is exceeded.
          * @param {object} obj The configuration object to save.
          * @returns {Promise<void>}
@@ -1932,66 +3899,13 @@
                 const limitInMB = (CONSTANTS.CONFIG_SIZE_LIMIT_BYTES / 1024 / 1024).toFixed(1);
                 const errorMsg = `Configuration size (${sizeInMB} MB) exceeds the ${limitInMB} MB limit. Changes are not saved.`;
 
-                EventBus.publish(`${APPID}:configSizeExceeded`, { message: errorMsg });
+                EventBus.publish(EVENTS.CONFIG_SIZE_EXCEEDED, { message: errorMsg });
                 throw new Error(errorMsg); // Throw error for immediate UI feedback
             }
 
             this.config = obj;
             await GM_setValue(this.CONFIG_KEY, jsonString);
-            EventBus.publish(`${APPID}:configSaveSuccess`); // Notify UI to clear warnings
-        }
-
-        /**
-         * Decodes a raw string from storage into a user configuration object.
-         * Handles both plain JSON and legacy compressed formats.
-         * @param {string | null} rawValue The raw string from GM_getValue.
-         * @returns {Promise<object | null>} The parsed user configuration object, or null if parsing fails.
-         */
-        async decode(rawValue) {
-            if (!rawValue) return null;
-
-            // 1. Try parsing as plain JSON first.
-            try {
-                const parsed = JSON.parse(rawValue);
-                if (isObject(parsed)) {
-                    return parsed;
-                }
-            } catch {
-                // Not a valid JSON, fall through to try decompression.
-            }
-
-            // 2. If JSON parsing fails, try decompressing the old format.
-            try {
-                return await this.dataConverter.decompressConfig(rawValue);
-            } catch (e) {
-                Logger.error(`Failed to parse or decompress raw value. Error: ${e.message}`);
-                return null;
-            }
-        }
-
-        /**
-         * Validates the matchPatterns within the themeSets of a given config object.
-         * Throws an error if validation fails.
-         * @param {object} config - The configuration object to validate.
-         */
-        validateThemeMatchPatterns(config) {
-            if (!config || !config.themeSets || !Array.isArray(config.themeSets)) {
-                return;
-            }
-            for (const set of config.themeSets) {
-                if (!set.metadata || !Array.isArray(set.metadata.matchPatterns)) continue;
-                for (const p of set.metadata.matchPatterns) {
-                    if (typeof p !== 'string' || !/^\/.*\/[gimsuy]*$/.test(p)) {
-                        throw new Error(`Invalid format. Must be /pattern/flags string: ${p}`);
-                    }
-                    try {
-                        const lastSlash = p.lastIndexOf('/');
-                        new RegExp(p.slice(1, lastSlash), p.slice(lastSlash + 1));
-                    } catch (e) {
-                        throw new Error(`Invalid RegExp: "${p}"\n${e.message}`);
-                    }
-                }
-            }
+            EventBus.publish(EVENTS.CONFIG_SAVE_SUCCESS); // Notify UI to clear warnings
         }
 
         /**
@@ -2002,7 +3916,7 @@
         _validateAndSanitizeOptions() {
             if (!this.config || !this.config.options) return;
             const options = this.config.options;
-            let width = options.chat_content_max_width;
+            const width = options.chat_content_max_width;
             const widthConfig = CONSTANTS.SLIDER_CONFIGS.CHAT_WIDTH;
             const defaultValue = widthConfig.DEFAULT;
 
@@ -2036,121 +3950,43 @@
     // =================================================================================
 
     class SyncManager {
-        /**
-         * @param {ThemeAutomator} appInstance The main application controller instance.
-         */
-        constructor(appInstance) {
-            this.app = appInstance;
-            this.pendingRemoteConfig = null;
+        constructor() {
+            this.listenerId = null;
+            this.subscriptions = [];
+        }
+
+        _subscribe(event, listener) {
+            const key = createEventKey(this, event);
+            EventBus.subscribe(event, listener, key);
+            this.subscriptions.push({ event, key });
         }
 
         init() {
-            GM_addValueChangeListener(this.app.configKey, async (name, oldValue, newValue, remote) => {
+            this.listenerId = GM_addValueChangeListener(CONSTANTS.CONFIG_KEY, (name, oldValue, newValue, remote) => {
                 if (remote) {
-                    await this._handleRemoteChange(newValue);
+                    this._handleRemoteChange(newValue);
                 }
             });
+            this._subscribe(EVENTS.APP_SHUTDOWN, () => this.destroy());
         }
 
-        onModalClose() {
-            if (this.pendingRemoteConfig) {
-                Logger.log('SyncManager: Modal closed with a pending update. Applying it now.');
-                this.app.applyUpdate(this.pendingRemoteConfig);
-                this.pendingRemoteConfig = null;
+        destroy() {
+            if (this.listenerId) {
+                GM_removeValueChangeListener(this.listenerId);
+                this.listenerId = null;
             }
-        }
-
-        onSave() {
-            // A local save overwrites any pending remote changes.
-            this.pendingRemoteConfig = null;
-            // Also, clear any visible conflict notifications.
-            const activeModal = this.app.uiManager.getActiveModal?.();
-            if (activeModal) {
-                this._clearConflictNotification(activeModal);
-            }
+            this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
+            this.subscriptions = [];
         }
 
         /**
-         * Handles the config change event from another tab/window.
+         * Handles the config change event from another tab/window by publishing an event.
          * @private
-         * @param {string} rawValue The new configuration value from storage.
+         * @param {string} newValue The new configuration value from the storage event.
          */
-        async _handleRemoteChange(rawValue) {
-            Logger.log('SyncManager: Remote config change detected.');
-            try {
-                const newConfig = await this.app.configManager.decode(rawValue);
-                const activeModal = this.app.uiManager.getActiveModal?.();
-
-                if (activeModal) {
-                    Logger.log('SyncManager: A modal is open. Storing update and displaying conflict notification.');
-                    this.pendingRemoteConfig = newConfig;
-                    this._showConflictNotification(activeModal);
-                } else {
-                    Logger.log('SyncManager: No modal open. Applying silent update.');
-                    this.app.applyUpdate(newConfig);
-                }
-            } catch (e) {
-                Logger.error('SyncManager: Failed to handle remote config change:', e);
-            }
-        }
-
-        /**
-         * Displays a conflict notification within an active modal.
-         * @private
-         * @param {object} modalComponent The active modal component instance (e.g., JsonModalComponent).
-         */
-        _showConflictNotification(modalComponent) {
-            if (!modalComponent?.modal) return;
-            this._clearConflictNotification(modalComponent); // Clear previous state first
-
-            const styles = modalComponent.callbacks.siteStyles;
-            const messageArea = modalComponent.modal.dom.footerMessage;
-
-            if (messageArea) {
-                const messageText = h('span', {
-                    textContent: 'Settings updated in another tab.',
-                    style: { display: 'flex', alignItems: 'center' },
-                });
-
-                const reloadBtn = h('button', {
-                    id: `${APPID}-conflict-reload-btn`,
-                    className: `${APPID}-modal-button`,
-                    textContent: 'Reload UI',
-                    title: 'Discard local changes and load the settings from the other tab.',
-                    style: {
-                        borderColor: styles.error_text || 'red',
-                        marginLeft: '12px',
-                    },
-                    onclick: () => {
-                        const reopenContext = modalComponent.getContextForReopen?.();
-                        modalComponent.close();
-                        // onModalClose will handle applying the pending update.
-                        // Request to reopen the modal after a short delay to ensure sync completion.
-                        setTimeout(() => {
-                            EventBus.publish(`${APPID}:reOpenModal`, reopenContext);
-                        }, TIMING.TIMEOUTS.MODAL_REOPEN_DELAY);
-                    },
-                });
-
-                messageArea.textContent = '';
-                messageArea.classList.add(`${APPID}-conflict-text`);
-                messageArea.style.color = styles.error_text || 'red';
-                messageArea.append(messageText, reloadBtn);
-            }
-        }
-
-        /**
-         * Clears any visible conflict notification from a modal.
-         * @private
-         * @param {object} modalComponent The active modal component instance.
-         */
-        _clearConflictNotification(modalComponent) {
-            if (!modalComponent?.modal) return;
-            const messageArea = modalComponent.modal.dom.footerMessage;
-            if (messageArea) {
-                messageArea.textContent = '';
-                messageArea.classList.remove(`${APPID}-conflict-text`);
-            }
+        _handleRemoteChange(newValue) {
+            Logger.log('SyncManager: Remote config change detected. Publishing event.');
+            EventBus.publish(EVENTS.REMOTE_CONFIG_CHANGED, { newValue });
         }
     }
 
@@ -2160,9 +3996,12 @@
     // =================================================================================
 
     class ImageDataManager {
-        constructor() {
+        constructor(dataConverter) {
+            this.dataConverter = dataConverter;
             /** @type {Map<string, {data: string, size: number}>} */
             this.cache = new Map();
+            /** @type {Set<string>} */
+            this.failedUrls = new Set();
             this.currentCacheSize = 0;
         }
 
@@ -2191,19 +4030,29 @@
 
         /**
          * Gets an image as a data URL. Returns a cached version immediately if available.
+         * Can fetch and resize the image based on the provided options.
          * @param {string} url The URL of the image to fetch.
+         * @param {object} [resizeOptions] Optional resizing parameters.
+         * @param {number} [resizeOptions.width] The target max width for resizing.
+         * @param {number} [resizeOptions.height] The target max height for resizing.
          * @returns {Promise<string|null>} A promise that resolves with the data URL or null on failure.
          */
-        async getImageAsDataUrl(url) {
+        async getImageAsDataUrl(url, resizeOptions = {}) {
             if (!url || typeof url !== 'string' || !url.startsWith('http')) {
                 return url; // Return data URIs or other values directly
             }
 
-            if (this.cache.has(url)) {
-                const cached = this.cache.get(url);
+            const cacheKey = resizeOptions.width ? `${url}|w=${resizeOptions.width},h=${resizeOptions.height}` : url;
+
+            if (this.failedUrls.has(cacheKey)) {
+                return null;
+            }
+
+            if (this.cache.has(cacheKey)) {
+                const cached = this.cache.get(cacheKey);
                 // Move to the end of the map to mark as recently used
-                this.cache.delete(url);
-                this.cache.set(url, cached);
+                this.cache.delete(cacheKey);
+                this.cache.set(cacheKey, cached);
                 return cached.data;
             }
 
@@ -2212,34 +4061,39 @@
                     method: 'GET',
                     url: url,
                     responseType: 'blob',
-                    onload: (response) => {
+                    onload: async (response) => {
                         if (response.status >= 200 && response.status < 300) {
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                                const dataUrl = reader.result;
-                                const size = dataUrl.length;
+                            try {
+                                const dataUrl = await this.dataConverter.imageToOptimizedDataUrl(response.response, {
+                                    maxWidth: resizeOptions.width,
+                                    maxHeight: resizeOptions.height,
+                                    quality: 0.85,
+                                });
+                                const size = new Blob([dataUrl]).size;
 
                                 this._makeSpaceForNewItem(size);
-                                this.cache.set(url, { data: dataUrl, size });
+                                this.cache.set(cacheKey, { data: dataUrl, size });
                                 this.currentCacheSize += size;
                                 resolve(dataUrl);
-                            };
-                            reader.onerror = () => {
-                                Logger.error(`FileReader error for URL: ${url}`);
+                            } catch (e) {
+                                Logger.error(`Data conversion error for URL: ${url}`, e);
+                                this.failedUrls.add(cacheKey);
                                 resolve(null);
-                            };
-                            reader.readAsDataURL(response.response);
+                            }
                         } else {
                             Logger.error(`Failed to fetch image. Status: ${response.status}, URL: ${url}`);
+                            this.failedUrls.add(cacheKey);
                             resolve(null);
                         }
                     },
                     onerror: (error) => {
                         Logger.error(`GM_xmlhttpRequest error for URL: ${url}`, error);
+                        this.failedUrls.add(cacheKey);
                         resolve(null);
                     },
                     ontimeout: () => {
                         Logger.error(`GM_xmlhttpRequest timeout for URL: ${url}`);
+                        this.failedUrls.add(cacheKey);
                         resolve(null);
                     },
                 });
@@ -2257,22 +4111,33 @@
             this.userMessages = [];
             this.assistantMessages = [];
             this.totalMessages = [];
-            this.debouncedRebuildCache = debounce(this._rebuildCache.bind(this), TIMING.DEBOUNCE_DELAYS.CACHE_UPDATE);
-            this.unsubscribers = [];
+            this.subscriptions = [];
+            this.isStreaming = false;
+            this.debouncedRebuildCache = debounce(this._rebuildCache.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.CACHE_UPDATE);
+        }
+
+        _subscribe(event, listener) {
+            const key = createEventKey(this, event);
+            EventBus.subscribe(event, listener, key);
+            this.subscriptions.push({ event, key });
         }
 
         init() {
-            this.unsubscribers.push(EventBus.subscribe(`${APPID}:cacheUpdateRequest`, () => this.debouncedRebuildCache()));
-            this.unsubscribers.push(EventBus.subscribe(`${APPID}:navigation`, () => this.clear()));
+            this._subscribe(EVENTS.CACHE_UPDATE_REQUEST, () => this.debouncedRebuildCache());
+            this._subscribe(EVENTS.NAVIGATION, () => this.clear());
+            this._subscribe(EVENTS.APP_SHUTDOWN, () => this.destroy());
+            this._subscribe(EVENTS.STREAMING_START, () => (this.isStreaming = true));
+            this._subscribe(EVENTS.STREAMING_END, () => (this.isStreaming = false));
             this._rebuildCache();
         }
 
         destroy() {
-            this.unsubscribers.forEach((unsub) => unsub());
-            this.unsubscribers = [];
+            this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
+            this.subscriptions = [];
         }
 
         _rebuildCache() {
+            if (this.isStreaming) return;
             Logger.time('MessageCacheManager._rebuildCache');
             // Guard clause: If no conversation turns are on the page (e.g., on the homepage),
             // clear the cache if it's not already empty and exit early to prevent unnecessary queries.
@@ -2284,8 +4149,22 @@
                 return;
             }
             this.userMessages = Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.USER_MESSAGE));
-            this.assistantMessages = Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.ASSISTANT_MESSAGE));
-            this.totalMessages = Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS));
+            const rawAssistantMessages = Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.ASSISTANT_MESSAGE));
+            // Filter out empty, non-functional message containers that might appear in image-only turns.
+            this.assistantMessages = rawAssistantMessages.filter((msg) => PlatformAdapters.General.filterMessage(msg));
+
+            // Construct totalMessages from the filtered lists and sort them by DOM order.
+            const allMessages = [...this.userMessages, ...this.assistantMessages];
+            allMessages.sort((a, b) => {
+                const position = a.compareDocumentPosition(b);
+                if (position & Node.DOCUMENT_POSITION_FOLLOWING) {
+                    return -1; // a comes before b
+                } else if (position & Node.DOCUMENT_POSITION_PRECEDING) {
+                    return 1; // a comes after b
+                }
+                return 0;
+            });
+            this.totalMessages = allMessages;
 
             this.notify();
             Logger.timeEnd('MessageCacheManager._rebuildCache');
@@ -2296,7 +4175,7 @@
          * Useful for notifying newly initialized components.
          */
         notify() {
-            EventBus.publish(`${APPID}:cacheUpdated`);
+            EventBus.publish(EVENTS.CACHE_UPDATED);
         }
 
         /**
@@ -2381,235 +4260,7 @@
         return path.split('.').reduce((o, k) => (o && o[k] !== 'undefined' ? o[k] : undefined), obj);
     }
 
-    // =================================================================================
-    // SECTION: Declarative Style Mapper
-    // Description: Single source of truth for all theme-driven style generation.
-    // This array declaratively maps configuration properties to CSS variables and rules.
-    // The StyleGenerator engine processes this array to build the final CSS.
-    // =================================================================================
-
-    const STATIC_CSS = `
-        ${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} {
-            transition: background-image 0.3s ease-in-out;
-        }
-        /* This rule is now conditional on a body class, which is toggled by applyChatContentMaxWidth. */
-        body.${APPID}-max-width-active ${CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH}{
-            max-width: var(--${APPID}-chat-content-max-width) !important;
-            margin-inline: auto !important;
-        }
-
-        /* Ensure the user message container inside the turn expands and aligns the bubble to the right. */
-        ${CONSTANTS.SELECTORS.CHAT_HISTORY_MAIN} ${CONSTANTS.SELECTORS.CONVERSATION_CONTAINER} ${CONSTANTS.SELECTORS.USER_MESSAGE} {
-            width: 100% !important;
-            max-width: none !important;
-            display: flex !important;
-            justify-content: flex-end !important;
-        }
-
-        /* Make content areas transparent to show the main background */
-        ${CONSTANTS.SELECTORS.CHAT_WINDOW},
-        ${CONSTANTS.SELECTORS.INPUT_CONTAINER},
-        ${CONSTANTS.SELECTORS.INPUT_AREA_BG_TARGET} {
-            background: none !important;
-        }
-
-        /* Forcefully hide the gradient pseudo-element on the input container */
-        ${CONSTANTS.SELECTORS.INPUT_CONTAINER}::before {
-            display: none !important;
-        }
-    `;
-
-    const STYLE_DEFINITIONS = {
-        user: [
-            {
-                configKey: 'user.name',
-                fallbackKey: 'defaultSet.user.name',
-                cssVar: `--${APPID}-user-name`,
-                transformer: (value) => (value ? `'${value.replace(/'/g, "\\'")}'` : null),
-            },
-            {
-                configKey: 'user.icon',
-                fallbackKey: 'defaultSet.user.icon',
-                cssVar: `--${APPID}-user-icon`,
-            },
-            {
-                configKey: 'user.standingImageUrl',
-                fallbackKey: 'defaultSet.user.standingImageUrl',
-                cssVar: `--${APPID}-user-standing-image`,
-            },
-            {
-                configKey: 'user.textColor',
-                fallbackKey: 'defaultSet.user.textColor',
-                cssVar: `--${APPID}-user-textColor`,
-                selector: `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.USER_TEXT_CONTENT}`,
-                property: 'color',
-            },
-            {
-                configKey: 'user.font',
-                fallbackKey: 'defaultSet.user.font',
-                cssVar: `--${APPID}-user-font`,
-                selector: `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.USER_TEXT_CONTENT}`,
-                property: 'font-family',
-            },
-            {
-                configKey: 'user.bubbleBackgroundColor',
-                fallbackKey: 'defaultSet.user.bubbleBackgroundColor',
-                cssVar: `--${APPID}-user-bubble-bg`,
-                selector: `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE}`,
-                property: 'background-color',
-            },
-            {
-                configKey: 'user.bubblePadding',
-                fallbackKey: 'defaultSet.user.bubblePadding',
-                cssVar: `--${APPID}-user-bubble-padding`,
-                selector: `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE}`,
-                property: 'padding',
-            },
-            {
-                configKey: 'user.bubbleBorderRadius',
-                fallbackKey: 'defaultSet.user.bubbleBorderRadius',
-                cssVar: `--${APPID}-user-bubble-radius`,
-                selector: `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE}`,
-                property: 'border-radius',
-            },
-            {
-                configKey: 'user.bubbleMaxWidth',
-                fallbackKey: 'defaultSet.user.bubbleMaxWidth',
-                cssVar: `--${APPID}-user-bubble-maxwidth`,
-                generator: (value) => (value ? `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE} { max-width: var(--${APPID}-user-bubble-maxwidth)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''),
-            },
-        ],
-        assistant: [
-            {
-                configKey: 'assistant.name',
-                fallbackKey: 'defaultSet.assistant.name',
-                cssVar: `--${APPID}-assistant-name`,
-                transformer: (value) => (value ? `'${value.replace(/'/g, "\\'")}'` : null),
-            },
-            {
-                configKey: 'assistant.icon',
-                fallbackKey: 'defaultSet.assistant.icon',
-                cssVar: `--${APPID}-assistant-icon`,
-            },
-            {
-                configKey: 'assistant.standingImageUrl',
-                fallbackKey: 'defaultSet.assistant.standingImageUrl',
-                cssVar: `--${APPID}-assistant-standing-image`,
-            },
-            {
-                configKey: 'assistant.textColor',
-                fallbackKey: 'defaultSet.assistant.textColor',
-                cssVar: `--${APPID}-assistant-textColor`,
-                selector: `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT}`,
-                property: 'color',
-                generator: (value) => {
-                    if (!value) return '';
-                    const childSelectors = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul li', 'ol li', 'ul li::marker', 'ol li::marker', 'strong', 'em', 'blockquote', 'table', 'th', 'td'];
-                    const fullSelectors = childSelectors.map((s) => `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT} ${s}`);
-                    return `${fullSelectors.join(', ')} { color: var(--${APPID}-assistant-textColor); }`;
-                },
-            },
-            {
-                configKey: 'assistant.font',
-                fallbackKey: 'defaultSet.assistant.font',
-                cssVar: `--${APPID}-assistant-font`,
-                selector: `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT}`,
-                property: 'font-family',
-            },
-            {
-                configKey: 'assistant.bubbleBackgroundColor',
-                fallbackKey: 'defaultSet.assistant.bubbleBackgroundColor',
-                cssVar: `--${APPID}-assistant-bubble-bg`,
-                selector: `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE}`,
-                property: 'background-color',
-            },
-            {
-                configKey: 'assistant.bubblePadding',
-                fallbackKey: 'defaultSet.assistant.bubblePadding',
-                cssVar: `--${APPID}-assistant-bubble-padding`,
-                selector: `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE}`,
-                property: 'padding',
-            },
-            {
-                configKey: 'assistant.bubbleBorderRadius',
-                fallbackKey: 'defaultSet.assistant.bubbleBorderRadius',
-                cssVar: `--${APPID}-assistant-bubble-radius`,
-                selector: `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE}`,
-                property: 'border-radius',
-            },
-            {
-                configKey: 'assistant.bubbleMaxWidth',
-                fallbackKey: 'defaultSet.assistant.bubbleMaxWidth',
-                cssVar: `--${APPID}-assistant-bubble-maxwidth`,
-                generator: (value) => {
-                    if (!value) return '';
-                    return `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE} { max-width: var(--${APPID}-assistant-bubble-maxwidth)${SITE_STYLES.CSS_IMPORTANT_FLAG}; margin-left: 0; margin-right: auto; }`;
-                },
-            },
-        ],
-        window: [
-            {
-                configKey: 'window.backgroundColor',
-                fallbackKey: 'defaultSet.window.backgroundColor',
-                cssVar: `--${APPID}-window-bg-color`,
-                selector: CONSTANTS.SELECTORS.MAIN_APP_CONTAINER,
-                property: 'background-color',
-            },
-            {
-                configKey: 'window.backgroundImageUrl',
-                fallbackKey: 'defaultSet.window.backgroundImageUrl',
-                cssVar: `--${APPID}-window-bg-image`,
-                generator: (value) => (value ? `${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} { background-image: var(--${APPID}-window-bg-image)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''),
-            },
-            {
-                configKey: 'window.backgroundSize',
-                fallbackKey: 'defaultSet.window.backgroundSize',
-                cssVar: `--${APPID}-window-bg-size`,
-                generator: (value) => (value ? `${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} { background-size: var(--${APPID}-window-bg-size)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''),
-            },
-            {
-                configKey: 'window.backgroundPosition',
-                fallbackKey: 'defaultSet.window.backgroundPosition',
-                cssVar: `--${APPID}-window-bg-pos`,
-                generator: (value) => (value ? `${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} { background-position: var(--${APPID}-window-bg-pos)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''),
-            },
-            {
-                configKey: 'window.backgroundRepeat',
-                fallbackKey: 'defaultSet.window.backgroundRepeat',
-                cssVar: `--${APPID}-window-bg-repeat`,
-                generator: (value) => (value ? `${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} { background-repeat: var(--${APPID}-window-bg-repeat)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''),
-            },
-        ],
-        inputArea: [
-            {
-                configKey: 'inputArea.backgroundColor',
-                fallbackKey: 'defaultSet.inputArea.backgroundColor',
-                cssVar: `--${APPID}-input-bg`,
-                // Use 'background' property to override potential gradients in Gemini's input area.
-                selector: CONSTANTS.SELECTORS.INPUT_AREA_BG_TARGET,
-                property: 'background',
-            },
-            {
-                configKey: 'inputArea.textColor',
-                fallbackKey: 'defaultSet.inputArea.textColor',
-                cssVar: `--${APPID}-input-color`,
-                selector: CONSTANTS.SELECTORS.INPUT_TEXT_FIELD_TARGET,
-                property: 'color',
-            },
-        ],
-    };
-    // Flatten the structured definitions into a single array for easier iteration.
-    const ALL_STYLE_DEFINITIONS = Object.values(STYLE_DEFINITIONS).flat();
-
     class StyleGenerator {
-        /**
-         * Creates the static CSS template that does not change with themes.
-         * @returns {string} The static CSS string.
-         */
-        generateStaticCss() {
-            return STATIC_CSS;
-        }
-
         /**
          * Generates all dynamic CSS rules based on the active theme and STYLE_DEFINITIONS.
          * @param {ThemeSet} currentThemeSet The active theme configuration.
@@ -2646,12 +4297,10 @@
         /**
          * @param {ConfigManager} configManager
          * @param {ImageDataManager} imageDataManager
-         * @param {StandingImageManager} standingImageManager
          */
-        constructor(configManager, imageDataManager, standingImageManager) {
+        constructor(configManager, imageDataManager) {
             this.configManager = configManager;
             this.imageDataManager = imageDataManager;
-            this.standingImageManager = standingImageManager;
             this.styleGenerator = new StyleGenerator();
             this.themeStyleElem = null;
             this.dynamicRulesStyleElem = null;
@@ -2659,17 +4308,46 @@
             this.lastTitle = null;
             this.lastAppliedThemeSet = null;
             this.cachedTitle = null;
+            /** @type {ThemeSet | null} */
             this.cachedThemeSet = null;
-            this.unsubscribers = [];
-            this.debouncedUpdateTheme = debounce(this.updateTheme.bind(this), TIMING.DEBOUNCE_DELAYS.THEME_UPDATE);
-            this.unsubscribers.push(EventBus.subscribe(`${APPID}:themeUpdate`, this.debouncedUpdateTheme));
-            this.unsubscribers.push(EventBus.subscribe(`${APPID}:layoutRecalculate`, () => this.applyChatContentMaxWidth()));
-            this.unsubscribers.push(EventBus.subscribe(`${APPID}:widthPreview`, (newWidth) => this.applyChatContentMaxWidth(newWidth)));
+            this.subscriptions = [];
+            this.debouncedUpdateTheme = debounce(this.updateTheme.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.THEME_UPDATE);
+            this.isStreaming = false;
+        }
+
+        _subscribe(event, listener) {
+            const key = createEventKey(this, event);
+            EventBus.subscribe(event, listener, key);
+            this.subscriptions.push({ event, key });
+        }
+
+        init() {
+            this._subscribe(EVENTS.NAVIGATION, () => this._onNavigation());
+            this._subscribe(EVENTS.TITLE_CHANGED, this.debouncedUpdateTheme);
+            this._subscribe(EVENTS.THEME_UPDATE, this.debouncedUpdateTheme);
+            this._subscribe(EVENTS.STREAMING_START, () => (this.isStreaming = true));
+            this._subscribe(EVENTS.STREAMING_END, () => (this.isStreaming = false));
+            this._subscribe(EVENTS.DEFERRED_LAYOUT_UPDATE, () => this._handleLayoutEvent());
         }
 
         destroy() {
-            this.unsubscribers.forEach((unsub) => unsub());
-            this.unsubscribers = [];
+            this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
+            this.subscriptions = [];
+            this.themeStyleElem?.remove();
+            this.dynamicRulesStyleElem?.remove();
+            this.themeStyleElem = null;
+            this.dynamicRulesStyleElem = null;
+        }
+
+        _onNavigation() {
+            if (!PlatformAdapters.ThemeManager.shouldDeferInitialTheme(this)) {
+                this.updateTheme();
+            }
+        }
+
+        _handleLayoutEvent(forcedWidth = undefined) {
+            if (this.isStreaming) return;
+            this.applyChatContentMaxWidth(forcedWidth);
         }
 
         /**
@@ -2677,7 +4355,7 @@
          * @returns {string | null}
          */
         getChatTitleAndCache() {
-            const currentTitle = PlatformAdapter.getChatTitle();
+            const currentTitle = PlatformAdapters.General.getChatTitle();
             if (currentTitle !== this.cachedTitle) {
                 this.cachedTitle = currentTitle;
                 this.cachedThemeSet = null;
@@ -2707,8 +4385,6 @@
                         } else {
                             Logger.error(`Invalid match pattern format (must be /pattern/flags): ${title}`);
                         }
-                    } else if (title instanceof RegExp) {
-                        regexArr.push({ pattern: new RegExp(title.source, title.flags), set });
                     }
                 }
             }
@@ -2723,14 +4399,16 @@
             }
 
             // Fallback to default if no title or no match
-            this.cachedThemeSet = config.defaultSet;
-            return config.defaultSet;
+            const defaultMetadata = { id: 'default', name: 'Default Settings', matchPatterns: [] };
+            this.cachedThemeSet = { ...config.defaultSet, metadata: defaultMetadata };
+            return this.cachedThemeSet;
         }
 
         /**
          * Main theme update handler.
+         * @param {boolean} [force] - If true, forces the theme to be reapplied even if no changes are detected.
          */
-        updateTheme() {
+        updateTheme(force = false) {
             Logger.debug('Theme update triggered.');
             const currentLiveURL = location.href;
             const currentTitle = this.getChatTitleAndCache();
@@ -2740,11 +4418,19 @@
             if (titleChanged) this.lastTitle = currentTitle;
 
             const config = this.configManager.get();
-            const currentThemeSet = PlatformAdapter.selectThemeForUpdate(this, config, urlChanged, titleChanged);
+            const currentThemeSet = PlatformAdapters.ThemeManager.selectThemeForUpdate(this, config, urlChanged, titleChanged);
+
+            // If the adapter returns null, it signals that the theme update should be deferred.
+            // This is used to wait for a final page title after navigating from an excluded page.
+            if (currentThemeSet === null) {
+                Logger.debug('Theme update deferred by platform adapter.');
+                return;
+            }
+
             // Deep comparison to detect changes from the settings panel
             const contentChanged = JSON.stringify(currentThemeSet) !== JSON.stringify(this.lastAppliedThemeSet);
 
-            const themeShouldUpdate = urlChanged || titleChanged || contentChanged;
+            const themeShouldUpdate = force || urlChanged || titleChanged || contentChanged;
             if (themeShouldUpdate) {
                 this.applyThemeStyles(currentThemeSet, config);
                 this.applyChatContentMaxWidth();
@@ -2760,7 +4446,7 @@
             if (!this.themeStyleElem) {
                 this.themeStyleElem = h('style', {
                     id: `${APPID}-theme-style`,
-                    textContent: this.styleGenerator.generateStaticCss(),
+                    textContent: PlatformAdapters.StyleManager.getStaticCss(),
                 });
                 document.head.appendChild(this.themeStyleElem);
             }
@@ -2811,7 +4497,13 @@
                             if (val.startsWith('<svg')) {
                                 finalCssValue = `url("${svgToDataUrl(val)}")`;
                             } else if (val.startsWith('http')) {
-                                const dataUrl = await this.imageDataManager.getImageAsDataUrl(val);
+                                const isIcon = definition.configKey.endsWith('icon');
+                                let resizeOptions = {};
+                                if (isIcon) {
+                                    const iconSize = this.configManager.getIconSize();
+                                    resizeOptions = { width: iconSize, height: iconSize };
+                                }
+                                const dataUrl = await this.imageDataManager.getImageAsDataUrl(val, resizeOptions);
                                 finalCssValue = dataUrl ? `url("${dataUrl}")` : 'none';
                             } else if (val.startsWith('data:image')) {
                                 finalCssValue = `url("${val}")`;
@@ -2836,12 +4528,9 @@
                 }
             }
 
-            // Publish the first event immediately after synchronous styles are set.
-            EventBus.publish(`${APPID}:themeApplied`, { theme: currentThemeSet, config: fullConfig });
-
             // After all image processing promises have resolved, publish the final event.
             Promise.all(imageProcessingPromises).then(() => {
-                EventBus.publish(`${APPID}:imagesApplied`, { theme: currentThemeSet, config: fullConfig });
+                EventBus.publish(EVENTS.THEME_APPLIED, { theme: currentThemeSet, config: fullConfig });
             });
 
             Logger.timeEnd('ThemeManager.applyThemeStyles');
@@ -2849,7 +4538,7 @@
 
         /**
          * Calculates and applies the dynamic max-width for the chat content area.
-         * @param {string | null} [forcedWidth=null] - A specific width value to apply for previews.
+         * @param {string | null} [forcedWidth] - A specific width value to apply for previews.
          */
         applyChatContentMaxWidth(forcedWidth = undefined) {
             const rootStyle = document.documentElement.style;
@@ -2858,40 +4547,51 @@
 
             // Use forcedWidth for preview if provided; otherwise, get from config.
             const userMaxWidth = forcedWidth !== undefined ? forcedWidth : config.options.chat_content_max_width;
-            // If user has not set a custom width, remove the class and variable to use the default style.
-            if (!userMaxWidth) {
-                document.body.classList.remove(`${APPID}-max-width-active`);
-                rootStyle.removeProperty(`--${APPID}-chat-content-max-width`);
-            } else {
-                // If a width is set, add the class to enable the rule.
-                document.body.classList.add(`${APPID}-max-width-active`);
 
-                const themeSet = this.getThemeSet();
-                const iconSize = config.options.icon_size;
+            withLayoutCycle({
+                measure: () => {
+                    // --- Read Phase ---
+                    // Read layout properties needed for the 'else' block.
+                    return {
+                        sidebarWidth: getSidebarWidth(),
+                        windowWidth: window.innerWidth,
+                    };
+                },
+                mutate: (measured) => {
+                    // --- Write Phase ---
+                    if (!userMaxWidth) {
+                        document.body.classList.remove(`${APPID}-max-width-active`);
+                        rootStyle.removeProperty(`--${APPID}-chat-content-max-width`);
+                    } else {
+                        document.body.classList.add(`${APPID}-max-width-active`);
 
-                // Check if standing images are active in the current theme or default.
-                const hasStandingImage =
-                    getPropertyByPath(themeSet, 'user.standingImageUrl') ||
-                    getPropertyByPath(themeSet, 'assistant.standingImageUrl') ||
-                    getPropertyByPath(config.defaultSet, 'user.standingImageUrl') ||
-                    getPropertyByPath(config.defaultSet, 'assistant.standingImageUrl');
-                let requiredMarginPerSide = iconSize + CONSTANTS.ICON_MARGIN * 2;
-                if (hasStandingImage) {
-                    const minStandingImageWidth = iconSize * 2;
-                    requiredMarginPerSide = Math.max(requiredMarginPerSide, minStandingImageWidth);
-                }
+                        const themeSet = this.getThemeSet();
+                        const iconSize = config.options.icon_size;
 
-                const sidebarWidth = getSidebarWidth();
-                // Calculate max allowed width based on the full window, sidebar, and required margins.
-                const totalRequiredMargin = sidebarWidth + requiredMarginPerSide * 2;
-                const maxAllowedWidth = window.innerWidth - totalRequiredMargin;
-                // Use CSS min() to ensure the user's value does not exceed the calculated available space.
-                const finalMaxWidth = `min(${userMaxWidth}, ${maxAllowedWidth}px)`;
-                rootStyle.setProperty(`--${APPID}-chat-content-max-width`, finalMaxWidth);
-            }
+                        // Check if standing images are active in the current theme or default.
+                        const hasStandingImage =
+                            getPropertyByPath(themeSet, 'user.standingImageUrl') ||
+                            getPropertyByPath(themeSet, 'assistant.standingImageUrl') ||
+                            getPropertyByPath(config.defaultSet, 'user.standingImageUrl') ||
+                            getPropertyByPath(config.defaultSet, 'assistant.standingImageUrl');
+                        let requiredMarginPerSide = iconSize + CONSTANTS.ICON_MARGIN * 2;
+                        if (hasStandingImage) {
+                            const minStandingImageWidth = iconSize * 2;
+                            requiredMarginPerSide = Math.max(requiredMarginPerSide, minStandingImageWidth);
+                        }
 
-            // Trigger the (debounced) standing image recalculation.
-            this.standingImageManager.debouncedRecalculateStandingImagesLayout();
+                        const { sidebarWidth, windowWidth } = measured;
+                        const totalRequiredMargin = sidebarWidth + requiredMarginPerSide * 2;
+                        const maxAllowedWidth = windowWidth - totalRequiredMargin;
+                        // Use CSS min() to ensure the user's value does not exceed the calculated available space.
+                        const finalMaxWidth = `min(${userMaxWidth}, ${maxAllowedWidth}px)`;
+                        rootStyle.setProperty(`--${APPID}-chat-content-max-width`, finalMaxWidth);
+                    }
+                },
+            });
+
+            // Notify other managers that the chat content width may have changed.
+            EventBus.publish(EVENTS.CHAT_CONTENT_WIDTH_UPDATED);
         }
     }
 
@@ -2900,30 +4600,288 @@
     // =================================================================================
 
     class ObserverManager {
-        constructor(automator) {
-            this.automator = automator; // Store a reference to the main controller.
+        constructor() {
             this.mainObserver = null;
-            this.layoutResizeObserver = null;
-            this.registeredNodeAddedTasks = [];
-            this.activeTurnObservers = new Map();
+            this.mainObserverContainer = null;
+            this.layoutResizeObserver = new ResizeObserver(this._handleResize.bind(this));
+            this.observedElements = new Map();
             this.processedTurnNodes = new Set();
-            this.debouncedNavUpdate = debounce(this._publishNavUpdate.bind(this), TIMING.DEBOUNCE_DELAYS.NAVIGATION_UPDATE);
-            this.debouncedCacheUpdate = debounce(this._publishCacheUpdate.bind(this), TIMING.DEBOUNCE_DELAYS.CACHE_UPDATE);
-            this.debouncedLayoutRecalculate = debounce(this._publishLayoutRecalculate.bind(this), TIMING.DEBOUNCE_DELAYS.LAYOUT_RECALCULATION);
+            this.sentinelTurnListeners = new Map();
+            this.subscriptions = [];
+            this.debouncedCacheUpdate = debounce(this._publishCacheUpdate.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.CACHE_UPDATE);
+            this.activeObservers = [];
+            this.activePageObservers = [];
+            this.urlObserverInitialized = false;
 
-            // Delegate platform-specific property initialization to the adapter
-            PlatformAdapter.initializeObserver(this);
+            // Properties for robust URL observation lifecycle
+            this.originalHistoryMethods = { pushState: null, replaceState: null };
+            this.boundURLChangeHandler = null;
+
+            // The debounced visibility check
+            this.debouncedVisibilityCheck = debounce(() => EventBus.queueUIWork(this.publishVisibilityRecheck.bind(this)), CONSTANTS.TIMING.DEBOUNCE_DELAYS.VISIBILITY_CHECK);
+        }
+
+        _subscribe(event, listener) {
+            const key = createEventKey(this, event);
+            EventBus.subscribe(event, listener, key);
+            this.subscriptions.push({ event, key });
+        }
+
+        _subscribeOnce(event, listener) {
+            const key = createEventKey(this, event);
+            EventBus.once(event, listener, key);
+            // 'once' subscriptions manage their own lifecycle, so we don't add them to the array for manual cleanup.
         }
 
         /**
-         * Disconnects all active turn-specific observers and clears the tracking map.
-         * Essential for preventing memory leaks on navigation.
+         * Initializes the manager by subscribing to system-wide events.
+         * This method's functionality was previously part of start().
          */
-        cleanupActiveTurnObservers() {
-            for (const observer of this.activeTurnObservers.values()) {
-                observer.disconnect();
+        init() {
+            this._subscribe(EVENTS.SUSPEND_OBSERVERS, () => this.stopMainObserver());
+            this._subscribe(EVENTS.RESUME_OBSERVERS_AND_REFRESH, () => {
+                if (this.mainObserverContainer) {
+                    this.startMainObserver(this.mainObserverContainer);
+                    // Manually trigger a full refresh.
+                    this.debouncedCacheUpdate.bind(this)();
+                }
+            });
+            this._subscribe(EVENTS.APP_SHUTDOWN, () => this.destroy());
+        }
+
+        addObserver(observer) {
+            this.activeObservers.push(observer);
+        }
+
+        /**
+         * Starts all platform-specific observers.
+         */
+        async start() {
+            const container = await waitForElement(CONSTANTS.SELECTORS.MAIN_APP_CONTAINER);
+            if (!container) {
+                Logger.error('Main container not found. Observer not started.');
+                return;
             }
-            this.activeTurnObservers.clear();
+            this.mainObserverContainer = container;
+
+            this.mainObserver = new MutationObserver((mutations) => this._handleMainMutations(mutations));
+
+            // Centralized ResizeObserver for layout changes
+            this.observeElement(document.body, CONSTANTS.OBSERVED_ELEMENT_TYPES.BODY);
+
+            // Call the URL change observer to set up all page-specific listeners.
+            this.startURLChangeObserver();
+            await this.startInputAreaObserver();
+        }
+
+        destroy() {
+            this.stopMainObserver();
+            // Clean up any lingering turn completion listeners.
+            for (const [selector, callback] of this.sentinelTurnListeners.values()) {
+                sentinel.off(selector, callback);
+            }
+            this.sentinelTurnListeners.clear();
+
+            this.layoutResizeObserver?.disconnect();
+            this.activeObservers.forEach((observer) => observer.disconnect());
+            this.activeObservers = [];
+
+            // Add cleanup for page-specific observers
+            this.activePageObservers.forEach((cleanup) => cleanup());
+            this.activePageObservers = [];
+
+            this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
+            this.subscriptions = [];
+
+            // Restore original history methods and remove listeners if they were initialized.
+            if (this.urlObserverInitialized) {
+                if (this.originalHistoryMethods.pushState) {
+                    history.pushState = this.originalHistoryMethods.pushState;
+                    this.originalHistoryMethods.pushState = null;
+                }
+                if (this.originalHistoryMethods.replaceState) {
+                    history.replaceState = this.originalHistoryMethods.replaceState;
+                    this.originalHistoryMethods.replaceState = null;
+                }
+                if (this.boundURLChangeHandler) {
+                    window.removeEventListener('popstate', this.boundURLChangeHandler);
+                }
+                this.urlObserverInitialized = false;
+                this.boundURLChangeHandler = null;
+            }
+        }
+
+        /**
+         * @private
+         * @description Sets up the monitoring for URL changes, which acts as the main entry point for initializing page-specific observers.
+         */
+        startURLChangeObserver() {
+            // The handler is now defined only once and bound to the instance for stable reference.
+            if (!this.boundURLChangeHandler) {
+                // Initialize with null to ensure the handler logic runs on the first call after any init.
+                let lastHref = null;
+
+                this.boundURLChangeHandler = async () => {
+                    if (location.href !== lastHref) {
+                        lastHref = location.href;
+                        EventBus.publish(EVENTS.NAVIGATION_START);
+
+                        // Check if the new URL is an excluded page
+                        if (PlatformAdapters.General.isExcludedPage()) {
+                            Logger.log('Excluded URL detected. Shutting down script.');
+                            EventBus.publish(EVENTS.APP_SHUTDOWN);
+                            return; // Stop further processing
+                        }
+
+                        // --- Default behavior for navigation between valid chat pages ---
+
+                        // Clean up all observers from the previous page before setting up new ones.
+                        this.activePageObservers.forEach((cleanup) => cleanup());
+                        this.activePageObservers = [];
+
+                        // This one-time listener is the key to transitioning from "navigating" to "stable" state.
+                        this._subscribeOnce(EVENTS.CACHE_UPDATED, () => {
+                            EventBus.publish(EVENTS.NAVIGATION_END);
+                            Logger.debug('Initial cache updated. Sentinel is now active for real-time messages.');
+                        });
+
+                        this.stopMainObserver();
+                        // Clean up any lingering turn completion listeners from the previous page.
+                        for (const [selector, callback] of this.sentinelTurnListeners.values()) {
+                            sentinel.off(selector, callback);
+                        }
+                        this.sentinelTurnListeners.clear();
+
+                        EventBus.publish(EVENTS.NAVIGATION);
+
+                        // Wait for the main app container, which is always present on chat pages.
+                        const appContainer = await waitForElement(CONSTANTS.SELECTORS.MAIN_APP_CONTAINER);
+                        if (!appContainer) {
+                            Logger.warn('ObserverManager: Main app container not found after URL change.');
+                            return;
+                        }
+
+                        // --- Start all page-specific observers from here ---
+                        const observerStarters = PlatformAdapters.Observer.getPlatformObserverStarters();
+                        for (const startObserver of observerStarters) {
+                            const cleanup = await startObserver({
+                                observeElement: this.observeElement.bind(this),
+                                unobserveElement: this.unobserveElement.bind(this),
+                            });
+                            if (typeof cleanup === 'function') {
+                                this.activePageObservers.push(cleanup);
+                            }
+                        }
+
+                        // Function to set up the main observer on the message container
+                        const setupMainObserver = (messageContainer) => {
+                            this.mainObserverContainer = messageContainer;
+                            this.startMainObserver(messageContainer);
+                        };
+
+                        // Wait for the new message container to appear, then set up the permanent observer.
+                        const newParentContainer = await waitForElement(CONSTANTS.SELECTORS.MESSAGE_CONTAINER_PARENT, { context: appContainer });
+                        if (newParentContainer) {
+                            setupMainObserver(newParentContainer);
+                        }
+
+                        // Trigger an initial cache update in case the DOM is already stable.
+                        this.debouncedCacheUpdate();
+                    }
+                };
+            }
+
+            // Hook into history changes only once per lifecycle, managed by the destroy method.
+            if (!this.urlObserverInitialized) {
+                this.urlObserverInitialized = true;
+
+                // Capture the ObserverManager instance for use in the wrapper function.
+                const observerManagerInstance = this;
+
+                for (const m of ['pushState', 'replaceState']) {
+                    const orig = history[m];
+                    this.originalHistoryMethods[m] = orig; // Store original for restoration
+
+                    history[m] = function (...args) {
+                        // Call original method with the correct context (`this` = `history`).
+                        const result = orig.apply(this, args);
+
+                        // Call our handler using the captured instance.
+                        if (observerManagerInstance.boundURLChangeHandler) {
+                            observerManagerInstance.boundURLChangeHandler();
+                        }
+                        return result;
+                    };
+                }
+                window.addEventListener('popstate', this.boundURLChangeHandler);
+            }
+
+            // Manually call the handler on initialization to process the initial page load/navigation.
+            if (this.boundURLChangeHandler) {
+                this.boundURLChangeHandler();
+            }
+        }
+
+        /**
+         * @private
+         * @description Starts a stateful observer for the input area, attaching a ResizeObserver to trigger UI repositioning events.
+         * @returns {Promise<void>}
+         */
+        async startInputAreaObserver() {
+            let observedInputArea = null;
+            // Capture the ObserverManager instance for use in the callback
+            const instance = this;
+
+            const setupObserver = (inputArea) => {
+                if (inputArea === observedInputArea) return; // Already observing this element
+
+                // Unobserve the old element if it exists and is different
+                if (observedInputArea) {
+                    instance.unobserveElement(observedInputArea);
+                }
+
+                // Observe the new element
+                instance.observeElement(inputArea, CONSTANTS.OBSERVED_ELEMENT_TYPES.INPUT_AREA);
+                observedInputArea = inputArea;
+            };
+
+            const selector = CONSTANTS.SELECTORS.FIXED_NAV_INPUT_AREA_TARGET;
+            sentinel.on(selector, setupObserver);
+
+            // Initial check in case the element is already present on load
+            const initialInputArea = document.querySelector(selector);
+            if (initialInputArea instanceof HTMLElement) {
+                setupObserver(initialInputArea);
+            }
+        }
+
+        _handleResize(entries) {
+            for (const entry of entries) {
+                const type = this.observedElements.get(entry.target);
+                switch (type) {
+                    case CONSTANTS.OBSERVED_ELEMENT_TYPES.BODY:
+                        EventBus.publish(EVENTS.WINDOW_RESIZED);
+                        break;
+                    case CONSTANTS.OBSERVED_ELEMENT_TYPES.INPUT_AREA:
+                        EventBus.publish(EVENTS.INPUT_AREA_RESIZED);
+                        break;
+                    case CONSTANTS.OBSERVED_ELEMENT_TYPES.SIDE_PANEL:
+                        EventBus.publish(EVENTS.UI_REPOSITION);
+                        break;
+                }
+            }
+        }
+
+        observeElement(element, type) {
+            if (!element || this.observedElements.has(element)) return;
+            this.observedElements.set(element, type);
+            this.layoutResizeObserver.observe(element);
+        }
+
+        unobserveElement(element) {
+            if (!element || !this.observedElements.has(element)) return;
+            this.layoutResizeObserver.unobserve(element);
+            this.observedElements.delete(element);
         }
 
         /**
@@ -2932,7 +4890,7 @@
          */
         startMainObserver(container) {
             if (this.mainObserver && container) {
-                this.mainObserver.observe(container, { childList: true, subtree: true });
+                this.mainObserver.observe(container, { childList: true, subtree: false });
             }
         }
 
@@ -2946,227 +4904,115 @@
         }
 
         /**
-         * Starts all platform-specific observers.
-         * @param {ObserverManager} instance The ObserverManager instance.
-         */
-        async start() {
-            const container = await waitForElement(PlatformAdapter.SELECTORS.MAIN_APP_CONTAINER);
-            if (!container) {
-                Logger.error('Main container not found. Observer not started.');
-                return;
-            }
-
-            this.mainObserver = new MutationObserver((mutations) => this._handleMainMutations(mutations));
-
-            // Centralized ResizeObserver for layout changes
-            this.layoutResizeObserver = new ResizeObserver(this.debouncedLayoutRecalculate);
-            this.layoutResizeObserver.observe(document.body);
-
-            // Get the list of platform-specific observer initializers and run them.
-            const initializers = PlatformAdapter.getObserverInitializers();
-            for (const init of initializers) {
-                // Since these are static methods on PlatformAdapter, call them with PlatformAdapter as `this`.
-                init.call(PlatformAdapter, this);
-            }
-
-            // Initial static scan, then start the main observer.
-            this.startMainObserver(container);
-        }
-
-        /**
-         * The main callback, a dispatcher that calls specialized handlers.
-         * This is a lightweight version that only triggers debounced updates.
-         * @param {MutationRecord[]} mutations
+         * @private
+         * @description Callback for the main MutationObserver, now specialized to handle only message deletions.
+         * Message additions are handled exclusively by the Sentinel class for performance.
+         * If a deletion of a message node is detected, it triggers a debounced update of the message cache
+         * to keep the application state consistent.
+         * @param {MutationRecord[]} mutations An array of MutationRecord objects provided by the observer.
          */
         _handleMainMutations(mutations) {
-            PerfMonitor.throttleLog('_handleMainMutations (Entry)');
+            // Check only for removed nodes that are message containers.
+            // Additions are handled exclusively by Sentinel for better performance.
+            const hasDeletion = mutations.some((mutation) => Array.from(mutation.removedNodes).some((node) => node instanceof Element && node.matches(CONSTANTS.SELECTORS.MESSAGE_ROOT_NODE)));
 
-            const inputFormSelector = CONSTANTS.SELECTORS.FIXED_NAV_INPUT_AREA_TARGET;
-
-            // First filter: Check if all mutations occurred within the input form area.
-            const isOnlyInputFormChanges = mutations.every((mutation) => {
-                return mutation.target.closest(inputFormSelector);
-            });
-
-            // If all changes are confined to the input form, we can skip message-related checks.
-            if (isOnlyInputFormChanges) {
-                PerfMonitor.throttleLog('_handleMainMutations (Exit: Input Form)');
-                this.debouncedLayoutRecalculate();
-                return;
-            }
-
-            this._dispatchNodeAddedTasks(mutations);
-
-            // Second filter: Efficiently check for relevant message/turn changes.
-            let hasRelevantChanges = false;
-            // This check is only needed if no turn is actively streaming, to avoid redundant cache updates.
-            if (this.activeTurnObservers.size === 0) {
-                for (const mutation of mutations) {
-                    const checkNodes = (nodes) => {
-                        for (const node of nodes) {
-                            if (node.nodeType !== Node.ELEMENT_NODE) continue;
-                            if (node.matches(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER) || node.querySelector(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER)) {
-                                return true;
-                            }
-                        }
-                        return false;
-                    };
-
-                    if (checkNodes(mutation.addedNodes) || checkNodes(mutation.removedNodes)) {
-                        hasRelevantChanges = true;
-                        break; // Found a relevant change, no need to check further.
-                    }
-                }
-            }
-
-            if (hasRelevantChanges) {
-                PerfMonitor.throttleLog('_handleMainMutations (Processing: Message Changes)');
+            if (hasDeletion) {
+                Logger.debug('_handleMainMutations (UPDATE: Message was deleted)');
+                // A deletion occurred, so a full cache rebuild is necessary.
                 this.debouncedCacheUpdate();
-            } else {
-                // Log only if we performed the check and found nothing.
-                if (this.activeTurnObservers.size === 0) {
-                    PerfMonitor.throttleLog('_handleMainMutations (Skip: No Message Changes)');
-                }
             }
-
-            this.debouncedLayoutRecalculate();
-
-            if (this.debouncedVisibilityCheck) {
-                this.debouncedVisibilityCheck();
-            }
-        }
-
-        /**
-         * A public method to register a task that runs when a node matching the selector is added.
-         * @param {string} selector
-         * @param {Function} callback
-         */
-        registerNodeAddedTask(selector, callback) {
-            this.registeredNodeAddedTasks.push({ selector, callback });
         }
 
         /**
          * @description Processes a turn node, handling both completed and streaming turns.
          * If the turn is already complete, it triggers final updates (e.g., for navigation).
          * If the turn is streaming, it attaches a dedicated MutationObserver to watch for its completion.
-         * @private
          * @param {HTMLElement} turnNode The turn container element to process or observe.
          */
         observeTurnForCompletion(turnNode) {
             // If this turn contains a user message, it signifies the start of a new interaction.
-            // Resetting the performance monitor here ensures that subsequent logs for this interaction (like the assistant's response) start with a fresh timer.
             if (turnNode.querySelector(CONSTANTS.SELECTORS.USER_MESSAGE)) {
                 PerfMonitor.reset();
             }
 
             PerfMonitor.throttleLog('observeTurnForCompletion');
-            // Do not re-process turns that have already been handled by checking the in-memory Set.
-            if (this.processedTurnNodes.has(turnNode)) return;
-            if (turnNode.nodeType !== Node.ELEMENT_NODE || this.activeTurnObservers.has(turnNode)) return;
+            // Do not re-process turns that have already been handled or are currently being observed.
+            if (this.processedTurnNodes.has(turnNode) || this.sentinelTurnListeners.has(turnNode)) return;
+            if (turnNode.nodeType !== Node.ELEMENT_NODE) return;
 
             if (this._isTurnComplete(turnNode)) {
-                EventBus.publish(`${APPID}:turnComplete`, turnNode);
-                this.debouncedNavUpdate();
+                EventBus.publish(EVENTS.TURN_COMPLETE, turnNode);
                 this.debouncedCacheUpdate(); // Update cache for completed turns to immediately reflect the message count in the navigation console.
                 // Mark this turn as processed to prevent redundant executions.
                 this.processedTurnNodes.add(turnNode);
             } else {
-                // This branch handles streaming turns.
+                // This branch handles streaming turns using the efficient Sentinel observer.
+                const sentinelCallback = (completionElement) => {
+                    // Ensure the completion element belongs to the turn we are observing.
+                    const completedTurnNode = completionElement.closest(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER);
+                    if (completedTurnNode !== turnNode) return;
 
-                const turnObserver = new MutationObserver((turnMutations, observer) => {
-                    // If the turn node has been disconnected from the DOM (e.g., by user action or error),
-                    // clean up its observer immediately to prevent memory leaks.
-                    if (!turnNode.isConnected) {
-                        observer.disconnect();
-                        this.activeTurnObservers.delete(turnNode);
-                        return; // No further processing needed for a disconnected node.
-                    }
+                    // Self-remove the listener to prevent memory leaks and redundant calls.
+                    sentinel.off(CONSTANTS.SELECTORS.TURN_COMPLETE_SELECTOR, sentinelCallback);
+                    this.sentinelTurnListeners.delete(turnNode);
 
-                    // Finalize: If the turn is now complete, run final processing and disconnect.
-                    if (this._isTurnComplete(turnNode)) {
-                        EventBus.publish(`${APPID}:turnComplete`, turnNode);
-                        this.debouncedNavUpdate();
+                    EventBus.publish(EVENTS.TURN_COMPLETE, turnNode);
 
-                        // Manually trigger a cache update now that streaming is complete.
-                        this.debouncedCacheUpdate();
+                    // Manually trigger a cache update now that streaming is complete.
+                    this.debouncedCacheUpdate();
+                    this.processedTurnNodes.add(turnNode);
+                };
 
-                        observer.disconnect();
-                        this.activeTurnObservers.delete(turnNode);
-                        // Mark this turn as processed to prevent redundant executions.
-                        this.processedTurnNodes.add(turnNode);
-                    }
-                });
-
-                turnObserver.observe(turnNode, { childList: true, subtree: true });
-                this.activeTurnObservers.set(turnNode, turnObserver);
+                // Store the listener so it can be cleaned up on navigation.
+                this.sentinelTurnListeners.set(turnNode, [CONSTANTS.SELECTORS.TURN_COMPLETE_SELECTOR, sentinelCallback]);
+                sentinel.on(CONSTANTS.SELECTORS.TURN_COMPLETE_SELECTOR, sentinelCallback);
             }
         }
 
-        /**
-         * Handles tasks for newly added nodes.
-         * @param {MutationRecord[]} mutations
-         */
-        _dispatchNodeAddedTasks(mutations) {
-            for (const mutation of mutations) {
-                if (mutation.type === 'childList' && mutation.addedNodes.length) {
-                    for (const addedNode of mutation.addedNodes) {
-                        if (addedNode.nodeType !== Node.ELEMENT_NODE) continue;
-                        // Process tasks for the added node itself and its descendants
-                        for (const task of this.registeredNodeAddedTasks) {
-                            if (addedNode.matches(task.selector)) {
-                                task.callback(addedNode);
-                            }
-                            addedNode.querySelectorAll(task.selector).forEach(task.callback);
-                        }
-                    }
-                }
-            }
+        publishVisibilityRecheck() {
+            EventBus.publish(EVENTS.VISIBILITY_RECHECK);
         }
 
         /**
-         * Checks if a conversation turn is complete.
-         * @param {HTMLElement} turnNode
-         * @returns {boolean}
+         * Checks if a conversation turn is complete by delegating to the platform-specific adapter.
+         * @param {HTMLElement} turnNode The turn container element.
+         * @returns {boolean} True if the turn is considered complete.
          * @private
          */
         _isTurnComplete(turnNode) {
-            // A turn is complete if it's a user message, or if it's an assistant
-            // message that has rendered its action buttons.
-            const userMessage = turnNode.querySelector(CONSTANTS.SELECTORS.USER_MESSAGE);
-            const assistantActions = turnNode.querySelector(CONSTANTS.SELECTORS.TURN_COMPLETE_SELECTOR);
-            return !!(userMessage || assistantActions);
-        }
-
-        /** @private */
-        _publishNavUpdate() {
-            EventBus.publish(`${APPID}:navButtonsUpdate`);
+            return PlatformAdapters.Observer.isTurnComplete(turnNode);
         }
 
         /** @private */
         _publishCacheUpdate() {
-            EventBus.publish(`${APPID}:cacheUpdateRequest`);
-        }
-
-        /** @private */
-        _publishLayoutRecalculate() {
-            EventBus.publish(`${APPID}:layoutRecalculate`);
-        }
-
-        /** @private */
-        _publishVisibilityRecheck() {
-            EventBus.publish(`${APPID}:visibilityRecheck`);
+            EventBus.publish(EVENTS.CACHE_UPDATE_REQUEST);
         }
     }
 
     class AvatarManager {
         /**
          * @param {ConfigManager} configManager
+         * @param messageCacheManager
          */
         constructor(configManager, messageCacheManager) {
             this.configManager = configManager;
             this.messageCacheManager = messageCacheManager;
-            this.debouncedUpdateAllMessageHeights = debounce(this.updateAllMessageHeights.bind(this), TIMING.DEBOUNCE_DELAYS.VISIBILITY_CHECK);
-            this.unsubscribers = [];
+            this.subscriptions = [];
+            // A queue to hold incoming avatar injection requests.
+            this._injectionQueue = [];
+            // A debounced function to process the queue in a single batch.
+            this._debouncedProcessQueue = debounce(this._processInjectionQueue.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.AVATAR_INJECTION);
+            this._handleAvatarDisappearance = (element) => {
+                if (element instanceof HTMLElement) {
+                    this.queueForInjection(element);
+                }
+            };
+        }
+
+        _subscribe(event, listener) {
+            const key = createEventKey(this, event);
+            EventBus.subscribe(event, listener, key);
+            this.subscriptions.push({ event, key });
         }
 
         /**
@@ -3174,84 +5020,86 @@
          */
         init() {
             this.injectAvatarStyle();
-            this.unsubscribers.push(EventBus.subscribe(`${APPID}:avatarInject`, (elem) => this.injectAvatar(elem)));
-            this.unsubscribers.push(EventBus.subscribe(`${APPID}:cacheUpdated`, () => this.debouncedUpdateAllMessageHeights()));
+            // Instead of processing immediately, queue the element for batch processing.
+            this._subscribe(EVENTS.AVATAR_INJECT, (elem) => this.queueForInjection(elem));
+            this._subscribe(EVENTS.APP_SHUTDOWN, () => this.destroy());
 
-            // Add a global listener for the animation that detects removed avatars.
-            // This is highly performant as it avoids JS-based DOM polling.
-            document.addEventListener(
-                'animationstart',
-                (e) => {
-                    if (e.animationName === `${APPID}-avatar-removed-check`) {
-                        // Re-inject the avatar only on the element that triggered the animation.
-                        this.injectAvatar(e.target);
-                    }
-                },
-                true
-            );
+            // Use the Sentinel class to detect when an avatar has been removed from a processed element.
+            // This is a highly performant self-healing mechanism.
+            const disappearanceSelector = `.${APPID}-avatar-processed:not(:has(${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER}))`;
+            sentinel.on(disappearanceSelector, this._handleAvatarDisappearance);
         }
 
         destroy() {
-            this.unsubscribers.forEach((unsub) => unsub());
-            this.unsubscribers = [];
-            // Note: The global document.addEventListener is not removed as it's lightweight
-            // and tied to the script's lifecycle, not this specific instance.
+            this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
+            this.subscriptions = [];
+            document.getElementById(`${APPID}-avatar-style`)?.remove();
+            // Clean up the listener from the Sentinel instance.
+            const disappearanceSelector = `.${APPID}-avatar-processed:not(:has(${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER}))`;
+            sentinel.off(disappearanceSelector, this._handleAvatarDisappearance);
         }
 
         /**
-         * Schedules a min-height update for a message element.
-         * Retries if the element's height is not yet available.
+         * Adds a message element to the injection queue and triggers the debounced processor.
+         * @param {HTMLElement} msgElem The message element to process.
+         */
+        queueForInjection(msgElem) {
+            const ATTEMPT_KEY = 'avatarInjectAttempts';
+            const MAX_ATTEMPTS = 5;
+
+            const attempts = parseInt(msgElem.dataset[ATTEMPT_KEY] || '0', 10);
+
+            if (attempts >= MAX_ATTEMPTS) {
+                // Log the failure only once to avoid spamming the console.
+                if (!msgElem.dataset.avatarInjectFailed) {
+                    Logger.warn(`Avatar injection for an element failed after ${MAX_ATTEMPTS} attempts. Halting retries for this element:`, msgElem);
+                    msgElem.dataset.avatarInjectFailed = 'true';
+                }
+                return; // Stop trying
+            }
+
+            msgElem.dataset[ATTEMPT_KEY] = String(attempts + 1);
+
+            if (!this._injectionQueue.includes(msgElem)) {
+                this._injectionQueue.push(msgElem);
+            }
+            this._debouncedProcessQueue();
+        }
+
+        /**
+         * Processes all queued avatar injection requests in a batch to optimize performance.
+         * This method separates DOM writes from reads to prevent layout thrashing.
          * @private
-         * @param {HTMLElement} msgElem The element to apply the min-height style to.
          */
-        _scheduleMinHeightUpdate(msgElem) {
-            const nameDiv = msgElem.querySelector(CONSTANTS.SELECTORS.SIDE_AVATAR_NAME);
-            if (!nameDiv) return;
+        _processInjectionQueue() {
+            if (this._injectionQueue.length === 0) {
+                return;
+            }
+            Logger.debug(`Processing avatar injection queue with ${this._injectionQueue.length} items.`);
 
-            const setMinHeight = (retryCount = 0) => {
-                requestAnimationFrame(() => {
-                    const iconSize = this.configManager.getIconSize();
-                    const nameHeight = nameDiv.offsetHeight;
+            const messagesToProcess = [...this._injectionQueue];
+            this._injectionQueue = [];
 
-                    if (nameHeight > 0 && iconSize) {
-                        msgElem.style.minHeight = iconSize + nameHeight + 'px';
-                    } else if (retryCount < RETRY_CONFIG.MAX_AVATAR_HEIGHT_ATTEMPTS) {
-                        setTimeout(() => setMinHeight(retryCount + 1), TIMING.TIMEOUTS.AVATAR_HEIGHT_RETRY);
+            processInBatches(
+                messagesToProcess,
+                (msgElem) => {
+                    const role = PlatformAdapters.General.getMessageRole(msgElem);
+                    if (!role) return;
+
+                    const container = h(`div${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER}`, [h(`span${CONSTANTS.SELECTORS.SIDE_AVATAR_ICON}`), h(`div${CONSTANTS.SELECTORS.SIDE_AVATAR_NAME}`)]);
+                    if (container instanceof HTMLElement) {
+                        PlatformAdapters.Avatar.addAvatarToMessage(msgElem, container);
+
+                        // On successful injection attempt, remove the counter.
+                        // If the injection somehow fails and the avatar is still missing,
+                        // Sentinel will re-queue it, and the counter will be incremented again.
+                        // Also clear the permanent failure flag.
+                        delete msgElem.dataset.avatarInjectAttempts;
+                        delete msgElem.dataset.avatarInjectFailed;
                     }
-                });
-            };
-            setMinHeight();
-        }
-
-        /**
-         * Updates the min-height of all message wrappers on the page.
-         */
-        updateAllMessageHeights() {
-            const allMessageElements = this.messageCacheManager.getTotalMessages();
-            allMessageElements.forEach((msgElem) => {
-                this._scheduleMinHeightUpdate(msgElem);
-            });
-        }
-
-        /**
-         * Injects the avatar element into the message wrapper.
-         * @param {HTMLElement} msgElem
-         */
-        injectAvatar(msgElem) {
-            PerfMonitor.throttleLog('avatar.inject');
-            // Use a unique class to prevent re-injection
-            const processedClass = `${APPID}-avatar-processed`;
-            if (msgElem.classList.contains(processedClass)) return;
-
-            const role = PlatformAdapter.getMessageRole(msgElem);
-            if (!role) return;
-            // This is the main container that gets the icon and name.
-            const container = h(`div${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER}`, [h(`span${CONSTANTS.SELECTORS.SIDE_AVATAR_ICON}`), h(`div${CONSTANTS.SELECTORS.SIDE_AVATAR_NAME}`)]);
-            // Add the container to the message element and mark as processed.
-            msgElem.prepend(container);
-            msgElem.classList.add(processedClass);
-            // Schedule the height update for the newly injected avatar.
-            this._scheduleMinHeightUpdate(msgElem);
+                },
+                CONSTANTS.BATCH_PROCESSING_SIZE
+            );
         }
 
         /**
@@ -3265,92 +5113,12 @@
             }
 
             this.updateIconSizeCss();
+            const iconSizeCssVar = `--${APPID}-icon-size`;
+            const iconMarginCssVar = `--${APPID}-icon-margin`;
+
             const avatarStyle = h('style', {
                 id: styleId,
-                textContent: `
-                /* Define a dummy animation used to detect when an avatar is removed. */
-                @keyframes ${APPID}-avatar-removed-check { from { transform: none; } to { transform: none; } }
-
-                /* This rule applies the animation only to elements that should have an avatar but don't. */
-                .${APPID}-avatar-processed:not(:has(${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER})) {
-                    animation: ${APPID}-avatar-removed-check 0.001s;
-                }
-
-                /* Set message containers as positioning contexts */
-                ${CONSTANTS.SELECTORS.AVATAR_USER},
-                ${CONSTANTS.SELECTORS.AVATAR_ASSISTANT} {
-                    position: relative !important;
-                    overflow: visible !important;
-                }
-                ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {
-                    position: absolute;
-                    top: 0;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    width: var(--${APPID}-icon-size);
-                    pointer-events: none;
-                    white-space: normal;
-                    word-break: break-word;
-                }
-                /* Position Assistant avatar (inside model-response) to the LEFT */
-                ${CONSTANTS.SELECTORS.AVATAR_ASSISTANT} ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {
-                    right: 100%;
-                    margin-right: var(--${APPID}-icon-margin);
-                }
-                /* Position User avatar (inside user-query) to the RIGHT */
-                ${CONSTANTS.SELECTORS.AVATAR_USER} ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {
-                    left: 100%;
-                    margin-left: var(--${APPID}-icon-margin);
-                }
-                ${CONSTANTS.SELECTORS.SIDE_AVATAR_ICON} {
-                    width: var(--${APPID}-icon-size);
-                    height: var(--${APPID}-icon-size);
-                    border-radius: 50%;
-                    display: block;
-                    box-shadow: 0 0 6px rgb(0 0 0 / 0.2);
-                    background-size: cover;
-                    background-position: center;
-                    background-repeat: no-repeat;
-                    transition: background-image 0.3s ease-in-out;
-                }
-                ${CONSTANTS.SELECTORS.SIDE_AVATAR_NAME} {
-                    font-size: 0.75rem;
-                    text-align: center;
-                    margin-top: 4px;
-                    width: 100%;
-                    background-color: rgb(0 0 0 / 0.2);
-                    padding: 2px 6px;
-                    border-radius: 4px;
-                    box-sizing: border-box;
-                }
-                ${CONSTANTS.SELECTORS.AVATAR_USER} ${CONSTANTS.SELECTORS.SIDE_AVATAR_ICON} {
-                    background-image: var(--${APPID}-user-icon);
-                }
-                ${CONSTANTS.SELECTORS.AVATAR_USER} ${CONSTANTS.SELECTORS.SIDE_AVATAR_NAME} {
-                    color: var(--${APPID}-user-textColor);
-                }
-                ${CONSTANTS.SELECTORS.AVATAR_USER} ${CONSTANTS.SELECTORS.SIDE_AVATAR_NAME}::after {
-                    content: var(--${APPID}-user-name);
-                }
-                ${CONSTANTS.SELECTORS.AVATAR_ASSISTANT} ${CONSTANTS.SELECTORS.SIDE_AVATAR_ICON} {
-                    background-image: var(--${APPID}-assistant-icon);
-                }
-                ${CONSTANTS.SELECTORS.AVATAR_ASSISTANT} ${CONSTANTS.SELECTORS.SIDE_AVATAR_NAME} {
-                    color: var(--${APPID}-assistant-textColor);
-                }
-                ${CONSTANTS.SELECTORS.AVATAR_ASSISTANT} ${CONSTANTS.SELECTORS.SIDE_AVATAR_NAME}::after {
-                    content: var(--${APPID}-assistant-name);
-                }
-
-                /* Gemini Only: force user message and avatar to be top-aligned */
-                ${CONSTANTS.SELECTORS.AVATAR_USER} {
-                    align-items: flex-start !important;
-                }
-                ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {
-                    align-self: flex-start !important;
-                }
-            `,
+                textContent: PlatformAdapters.Avatar.getCss(iconSizeCssVar, iconMarginCssVar),
             });
             document.head.appendChild(avatarStyle);
         }
@@ -3368,12 +5136,23 @@
     class StandingImageManager {
         /**
          * @param {ConfigManager} configManager
+         * @param messageCacheManager
          */
         constructor(configManager, messageCacheManager) {
             this.configManager = configManager;
             this.messageCacheManager = messageCacheManager;
-            this.debouncedRecalculateStandingImagesLayout = debounce(this.recalculateStandingImagesLayout.bind(this), CONSTANTS.RETRY.STANDING_IMAGES_INTERVAL);
-            this.unsubscribers = [];
+            this.subscriptions = [];
+            this.isStreaming = false;
+            this.debouncedRecalculateStandingImagesLayout = debounce(() => {
+                if (this.isStreaming) return;
+                EventBus.queueUIWork(this.recalculateStandingImagesLayout.bind(this));
+            }, CONSTANTS.RETRY.STANDING_IMAGES_INTERVAL);
+        }
+
+        _subscribe(event, listener) {
+            const key = createEventKey(this, event);
+            EventBus.subscribe(event, listener, key);
+            this.subscriptions.push({ event, key });
         }
 
         /**
@@ -3382,28 +5161,32 @@
         init() {
             this.createContainers();
             this.injectStyles();
-            this.unsubscribers.push(EventBus.subscribe(`${APPID}:layoutRecalculate`, this.debouncedRecalculateStandingImagesLayout));
+            this._subscribe(EVENTS.WINDOW_RESIZED, this.debouncedRecalculateStandingImagesLayout);
+            this._subscribe(EVENTS.SIDEBAR_LAYOUT_CHANGED, this.debouncedRecalculateStandingImagesLayout);
             // Subscribe to the new event that fires after all images are processed.
-            this.unsubscribers.push(
-                EventBus.subscribe(`${APPID}:imagesApplied`, () => {
-                    this.updateVisibility();
-                    this.debouncedRecalculateStandingImagesLayout();
-                })
-            );
-            this.unsubscribers.push(
-                EventBus.subscribe(`${APPID}:visibilityRecheck`, () => {
-                    this.updateVisibility();
-                    this.debouncedRecalculateStandingImagesLayout();
-                })
-            );
-            // Gemini-specific: Subscribe to cacheUpdated because this platform's updateVisibility() logic depends on the message count.
-            // This ensures standing images reappear correctly when navigating from a new chat to an existing one.
-            this.unsubscribers.push(EventBus.subscribe(`${APPID}:cacheUpdated`, () => this.updateVisibility()));
+            this._subscribe(EVENTS.THEME_APPLIED, () => {
+                this.updateVisibility();
+                this.debouncedRecalculateStandingImagesLayout();
+            });
+            this._subscribe(EVENTS.VISIBILITY_RECHECK, () => {
+                this.updateVisibility();
+            });
+            // Subscribe to the UI reposition event to recalculate layout after transitions.
+            this._subscribe(EVENTS.UI_REPOSITION, this.debouncedRecalculateStandingImagesLayout);
+            this._subscribe(EVENTS.CHAT_CONTENT_WIDTH_UPDATED, this.debouncedRecalculateStandingImagesLayout);
+            this._subscribe(EVENTS.APP_SHUTDOWN, () => this.destroy());
+            this._subscribe(EVENTS.STREAMING_START, () => (this.isStreaming = true));
+            this._subscribe(EVENTS.STREAMING_END, () => (this.isStreaming = false));
+            this._subscribe(EVENTS.DEFERRED_LAYOUT_UPDATE, this.debouncedRecalculateStandingImagesLayout);
+            PlatformAdapters.StandingImage.setupEventListeners(this);
         }
 
         destroy() {
-            this.unsubscribers.forEach((unsub) => unsub());
-            this.unsubscribers = [];
+            this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
+            this.subscriptions = [];
+            document.getElementById(`${APPID}-standing-image-user`)?.remove();
+            document.getElementById(`${APPID}-standing-image-assistant`)?.remove();
+            document.getElementById(`${APPID}-standing-image-style`)?.remove();
         }
 
         injectStyles() {
@@ -3458,30 +5241,8 @@
             });
         }
 
-        /**
-         * @private
-         */
-        _isChatActive() {
-            return !!document.querySelector('[data-test-id="conversation"].selected');
-        }
-
         updateVisibility() {
-            const isActiveChat = this._isChatActive();
-            const hasMessages = this.messageCacheManager.getTotalMessages().length > 0;
-            const shouldShowActors = isActiveChat && hasMessages;
-            const isCanvasActive = PlatformAdapter.isCanvasModeActive();
-
-            ['user', 'assistant'].forEach((actor) => {
-                const imgElement = document.getElementById(`${APPID}-standing-image-${actor}`);
-                if (!imgElement) return;
-
-                const hasImage = !!document.documentElement.style.getPropertyValue(`--${APPID}-${actor}-standing-image`);
-
-                // Combine all visibility checks
-                imgElement.style.opacity = shouldShowActors && hasImage && !isCanvasActive ? '1' : '0';
-            });
-            this.debouncedRecalculateStandingImagesLayout();
-            EventBus.publish(`${APPID}:uiReposition`);
+            PlatformAdapters.StandingImage.updateVisibility(this);
         }
 
         /**
@@ -3489,95 +5250,200 @@
          * @returns {Promise<void>}
          */
         async recalculateStandingImagesLayout() {
-            const rootStyle = document.documentElement.style;
-
-            // If canvas mode or file panel is active, immediately hide standing images by setting their width to 0 and skip the rest of the layout calculation.
-            // This prevents flicker.
-            if (PlatformAdapter.isCanvasModeActive() || PlatformAdapter.isFilePanelActive()) {
-                rootStyle.setProperty(`--${APPID}-standing-image-assistant-width`, '0px');
-                rootStyle.setProperty(`--${APPID}-standing-image-user-width`, '0px');
-                return;
-            }
-
-            const chatArea = document.querySelector(CONSTANTS.SELECTORS.MAIN_APP_CONTAINER);
-            const messageArea = document.querySelector(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER);
-
-            if (!chatArea || !messageArea) {
-                rootStyle.setProperty(`--${APPID}-standing-image-assistant-width`, '0px');
-                rootStyle.setProperty(`--${APPID}-standing-image-user-width`, '0px');
-                return;
-            }
-
-            const chatRect = chatArea.getBoundingClientRect();
-            const messageRect = messageArea.getBoundingClientRect();
-            const windowHeight = window.innerHeight;
-
-            const config = this.configManager.get();
-            const iconSize = this.configManager.getIconSize();
-            const respectAvatarSpace = config.options.respect_avatar_space;
-            const avatarGap = respectAvatarSpace ? iconSize + CONSTANTS.ICON_MARGIN * 2 : 0;
-
-            const assistantWidth = Math.max(0, messageRect.left - chatRect.left - avatarGap);
-            const userWidth = Math.max(0, chatRect.right - messageRect.right - avatarGap);
-
-            rootStyle.setProperty(`--${APPID}-standing-image-assistant-left`, `${chatRect.left}px`);
-            rootStyle.setProperty(`--${APPID}-standing-image-assistant-width`, `${assistantWidth}px`);
-            rootStyle.setProperty(`--${APPID}-standing-image-user-width`, `${userWidth}px`);
-
-            // Masking
-            const maskValue = `linear-gradient(to bottom, transparent 0px, rgb(0 0 0 / 1) 60px, rgb(0 0 0 / 1) 100%)`;
-            const assistantImg = document.getElementById(`${APPID}-standing-image-assistant`);
-            if (assistantImg && assistantImg.offsetHeight >= windowHeight - 32) {
-                rootStyle.setProperty(`--${APPID}-standing-image-assistant-mask`, maskValue);
-            } else {
-                rootStyle.setProperty(`--${APPID}-standing-image-assistant-mask`, 'none');
-            }
-            const userImg = document.getElementById(`${APPID}-standing-image-user`);
-            if (userImg && userImg.offsetHeight >= windowHeight - 32) {
-                rootStyle.setProperty(`--${APPID}-standing-image-user-mask`, maskValue);
-            } else {
-                rootStyle.setProperty(`--${APPID}-standing-image-user-mask`, 'none');
-            }
+            PlatformAdapters.StandingImage.recalculateLayout(this);
         }
     }
 
     // =================================================================================
-    // SECTION: Bubble Feature Management (Base and Implementations)
+    // SECTION: Bubble Feature Management
     // =================================================================================
 
     /**
-     * @abstract
-     * @description Base class for features that add UI elements to chat bubbles.
-     * Handles the common logic of style injection, element processing, and updates.
+     * Manages the lifecycle of UI elements injected into chat bubbles, such as collapsible and navigation buttons.
+     * It uses a feature-driven architecture, where each UI addition is a self-contained "feature" object.
+     * This class acts as an engine that processes these features for each message element.
      */
-    class BubbleFeatureManagerBase {
+    class BubbleUIManager {
         /**
          * @param {ConfigManager} configManager
+         * @param {MessageCacheManager} messageCacheManager
          */
         constructor(configManager, messageCacheManager) {
             this.configManager = configManager;
             this.messageCacheManager = messageCacheManager;
             this.navContainers = new Map();
-            this.unsubscribers = [];
+            this.featureElementsCache = new Map();
+            this.subscriptions = [];
+
+            /**
+             * @private
+             * @type {Array<object>}
+             */
+            this._features = [
+                // Collapsible Button Feature Definition
+                {
+                    name: 'collapsible',
+                    isEnabled: (config) => config.features.collapsible_button.enabled,
+                    getInfo: (msgElem) => PlatformAdapters.BubbleUI.getCollapsibleInfo(msgElem),
+                    render: (info, msgElem, manager) => {
+                        const button = h(
+                            `button.${APPID}-collapsible-toggle-btn`,
+                            {
+                                type: 'button',
+                                title: 'Toggle message',
+                                onclick: (e) => {
+                                    e.stopPropagation();
+                                    info.msgWrapper.classList.toggle(`${APPID}-bubble-collapsed`);
+                                },
+                            },
+                            [this._createIcon('collapse')]
+                        );
+                        info.positioningParent.appendChild(button);
+                        return button;
+                    },
+                    update: (element, info, isEnabled) => {
+                        if (isEnabled && info) {
+                            element.classList.remove(`${APPID}-hidden`);
+                            info.msgWrapper.classList.add(`${APPID}-collapsible`);
+                            info.bubbleElement.classList.add(`${APPID}-collapsible-content`);
+                            info.positioningParent.classList.add(`${APPID}-collapsible-parent`);
+                        } else {
+                            element.classList.add(`${APPID}-hidden`);
+                            if (info) {
+                                info.msgWrapper.classList.remove(`${APPID}-collapsible`, `${APPID}-bubble-collapsed`);
+                                info.bubbleElement.classList.remove(`${APPID}-collapsible-content`);
+                                info.positioningParent.classList.remove(`${APPID}-collapsible-parent`);
+                            }
+                        }
+                    },
+                },
+                // Sequential Navigation Buttons Feature Definition
+                {
+                    name: 'sequentialNav',
+                    group: 'sideNav',
+                    position: 'top',
+                    isEnabled: (config) => config.features.sequential_nav_buttons.enabled,
+                    getInfo: (msgElem) => PlatformAdapters.BubbleUI.getSequentialNavInfo(msgElem),
+                    render: (info, msgElem, manager) => {
+                        const createClickHandler = (direction) => (e) => {
+                            e.stopPropagation();
+                            const roleInfo = manager.messageCacheManager.findMessageIndex(msgElem);
+                            if (!roleInfo) return;
+                            const newIndex = roleInfo.index + direction;
+                            const targetMsg = manager.messageCacheManager.getMessageAtIndex(roleInfo.role, newIndex);
+                            if (targetMsg) {
+                                scrollToElement(targetMsg, { offset: CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV });
+                                EventBus.publish(EVENTS.NAV_HIGHLIGHT_MESSAGE, targetMsg);
+                            }
+                        };
+                        const prevBtn = h(
+                            `button.${APPID}-bubble-nav-btn.${APPID}-nav-prev`,
+                            { type: 'button', title: 'Scroll to previous message', dataset: { originalTitle: 'Scroll to previous message' }, onclick: createClickHandler(-1) },
+                            [manager._createIcon('prev')]
+                        );
+                        const nextBtn = h(`button.${APPID}-bubble-nav-btn.${APPID}-nav-next`, { type: 'button', title: 'Scroll to next message', dataset: { originalTitle: 'Scroll to next message' }, onclick: createClickHandler(1) }, [
+                            manager._createIcon('next'),
+                        ]);
+                        return h(`div.${APPID}-nav-group-top`, [prevBtn, nextBtn]);
+                    },
+                    update: (element, info, isEnabled) => {
+                        element.classList.toggle(`${APPID}-hidden`, !isEnabled);
+                    },
+                },
+                // Scroll to Top Button Feature Definition
+                {
+                    name: 'scrollToTop',
+                    group: 'sideNav',
+                    position: 'bottom',
+                    isEnabled: (config) => config.features.scroll_to_top_button.enabled,
+                    getInfo: (msgElem) => PlatformAdapters.BubbleUI.getScrollToTopInfo(msgElem),
+                    render: (info, msgElem, manager) => {
+                        const topBtn = h(
+                            `button.${APPID}-bubble-nav-btn.${APPID}-nav-top`,
+                            {
+                                type: 'button',
+                                title: 'Scroll to top of this message',
+                                onclick: (e) => {
+                                    e.stopPropagation();
+                                    scrollToElement(msgElem, { offset: CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV });
+                                },
+                            },
+                            [manager._createIcon('top')]
+                        );
+                        return h(`div.${APPID}-nav-group-bottom`, [topBtn]);
+                    },
+                    update: (element, info, isEnabled) => {
+                        element.classList.toggle(`${APPID}-hidden`, !isEnabled);
+                    },
+                },
+            ];
+        }
+
+        _subscribe(event, listener) {
+            const key = createEventKey(this, event);
+            EventBus.subscribe(event, listener, key);
+            this.subscriptions.push({ event, key });
         }
 
         /**
-         * Initializes the feature by injecting its styles and subscribing to relevant events.
+         * Initializes the manager by injecting styles and subscribing to events.
          */
         init() {
             this.injectStyle();
-            this.unsubscribers.push(EventBus.subscribe(`${APPID}:messageComplete`, (elem) => this.processElement(elem)));
-            this.unsubscribers.push(EventBus.subscribe(`${APPID}:turnComplete`, (turnNode) => this.processTurn(turnNode)));
+            this._subscribe(EVENTS.TURN_COMPLETE, (turnNode) => this.processTurn(turnNode));
+            this._subscribe(EVENTS.NAVIGATION, () => this._onNavigation());
+            this._subscribe(EVENTS.CACHE_UPDATED, () => this.updateAll());
+            this._subscribe(EVENTS.APP_SHUTDOWN, () => this.destroy());
         }
 
+        /**
+         * Cleans up all event listeners and clears caches.
+         */
         destroy() {
-            this.unsubscribers.forEach((unsub) => unsub());
-            this.unsubscribers = [];
+            this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
+            this.subscriptions = [];
+            document.getElementById(this.getStyleId())?.remove();
+            this.navContainers.clear();
+            this.featureElementsCache.clear();
+        }
+
+        /**
+         * Forces a re-processing of all visible messages, typically after a config change.
+         */
+        updateAll() {
+            this._syncCaches();
+            const allMessages = this.messageCacheManager.getTotalMessages();
+            processInBatches(
+                allMessages,
+                (messageElement) => {
+                    this.processElement(messageElement);
+                },
+                CONSTANTS.BATCH_PROCESSING_SIZE,
+                () => {
+                    // Update nav button states after all elements have been processed.
+                    this._updateNavButtonStates();
+                }
+            );
+        }
+
+        /**
+         * Gets the unique ID for the style element.
+         * @returns {string}
+         */
+        getStyleId() {
+            return `${APPID}-bubble-ui-style`;
+        }
+
+        /**
+         * Generates the consolidated CSS string for all bubble features.
+         * @returns {string}
+         */
+        generateCss() {
+            return SITE_STYLES.COLLAPSIBLE_CSS + '\n' + SITE_STYLES.BUBBLE_NAV_CSS;
         }
 
         /**
          * Injects the feature's specific CSS into the document head if not already present.
-         * @private
          */
         injectStyle() {
             const styleId = this.getStyleId();
@@ -3590,39 +5456,146 @@
         }
 
         /**
-         * Updates all feature elements on the page according to the current configuration.
+         * Processes a single message element, applying all relevant features.
+         * @param {HTMLElement} messageElement The message element to process.
          */
-        updateAll() {
-            const allMessageElements = this.messageCacheManager.getTotalMessages();
-            allMessageElements.forEach((elem) => this.processElement(elem));
+        processElement(messageElement) {
+            const config = this.configManager.get();
+            if (!config) return;
 
-            const turnContainerSelector = CONSTANTS.SELECTORS.BUBBLE_FEATURE_TURN_CONTAINERS;
-            if (turnContainerSelector) {
-                const allTurnNodes = document.querySelectorAll(turnContainerSelector);
-                allTurnNodes.forEach((turn) => this.processTurn(turn));
+            // Self-correction: If this element was previously marked as an image-only anchor but is now receiving content, remove the anchor class to restore normal layout.
+            if (messageElement.classList.contains(`${APPID}-image-only-anchor`)) {
+                messageElement.classList.remove(`${APPID}-image-only-anchor`);
+            }
+
+            const uniqueId = messageElement.dataset[`${APPID}UniqueId`] || (messageElement.dataset[`${APPID}UniqueId`] = generateUniqueId('msg'));
+
+            // Phase 1: Read/Gather information without modifying the DOM.
+            const featureTasks = this._features.map((feature) => ({
+                feature,
+                cacheKey: `${feature.name}-${uniqueId}`,
+                isEnabled: feature.isEnabled(config),
+                info: feature.getInfo(messageElement),
+            }));
+
+            // Phase 2: Write/Mutate the DOM based on the gathered information.
+            let sideNavContainer = null;
+
+            for (const task of featureTasks) {
+                const { feature, cacheKey, isEnabled, info } = task;
+
+                if (isEnabled && info) {
+                    let featureElement = this.featureElementsCache.get(cacheKey);
+                    if (!featureElement) {
+                        featureElement = feature.render(info, messageElement, this);
+                        if (featureElement) {
+                            this.featureElementsCache.set(cacheKey, featureElement);
+
+                            if (feature.group === 'sideNav') {
+                                if (!sideNavContainer) {
+                                    sideNavContainer = this._getOrCreateNavContainer(messageElement);
+                                }
+                                const navButtons = sideNavContainer?.querySelector(`.${APPID}-nav-buttons`);
+                                if (feature.position === 'top') {
+                                    navButtons?.prepend(featureElement);
+                                } else {
+                                    navButtons?.appendChild(featureElement);
+                                }
+                            }
+                        }
+                    }
+                    if (featureElement) {
+                        feature.update(featureElement, info, true);
+                    }
+                } else {
+                    const featureElement = this.featureElementsCache.get(cacheKey);
+                    if (featureElement) {
+                        feature.update(featureElement, info, false);
+                    }
+                }
             }
         }
 
         /**
-         * Retrieves or creates the navigation button container for a given message element.
+         * Processes a conversation turn after it has completed rendering.
+         * @param {HTMLElement} turnNode The turn container element.
+         */
+        processTurn(turnNode) {
+            /** @type {NodeListOf<HTMLElement>} */
+            const allMessageElements = turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
+            allMessageElements.forEach((messageElement) => {
+                this.processElement(messageElement);
+            });
+        }
+
+        /**
+         * Resets caches on page navigation.
          * @private
-         * @param {HTMLElement} messageElement The message element to attach the nav container to.
-         * @returns {HTMLElement | null} The navigation container element or null if creation failed.
+         */
+        _onNavigation() {
+            this.navContainers.clear();
+            this.featureElementsCache.clear();
+        }
+
+        /**
+         * Removes stale entries from caches.
+         * @private
+         */
+        _syncCaches() {
+            // Remove entries for messages that are no longer in the DOM.
+            syncCacheWithMessages(this.navContainers, this.messageCacheManager);
+
+            // Remove entries for feature elements that are no longer connected to the DOM.
+            for (const [key, element] of this.featureElementsCache.entries()) {
+                if (!element.isConnected) {
+                    this.featureElementsCache.delete(key);
+                }
+            }
+        }
+
+        /**
+         * Creates an SVG icon element from a predefined map.
+         * @param {string} type The type of icon to create.
+         * @returns {SVGElement | null}
+         * @private
+         */
+        _createIcon(type) {
+            const iconMap = {
+                collapse: 'arrowUp',
+                prev: 'arrowUp',
+                next: 'arrowDown',
+                top: 'scrollToTop',
+            };
+            const iconKey = iconMap[type];
+            if (!iconKey) {
+                return null;
+            }
+            const element = createIconFromDef(SITE_STYLES.ICONS[iconKey]);
+            if (element instanceof SVGElement) {
+                return element;
+            }
+            return null;
+        }
+
+        /**
+         * Retrieves or creates the shared navigation button container for a message element.
+         * @private
+         * @param {HTMLElement} messageElement The message to attach the container to.
+         * @returns {HTMLElement | null} The navigation container element.
          */
         _getOrCreateNavContainer(messageElement) {
             if (this.navContainers.has(messageElement)) {
                 return this.navContainers.get(messageElement);
             }
 
-            const positioningParent = PlatformAdapter.getNavPositioningParent(messageElement);
+            const positioningParent = PlatformAdapters.BubbleUI.getNavPositioningParent(messageElement);
             if (!positioningParent) {
                 Logger.warn('Navigation button container could not be attached. Positioning parent not found for:', messageElement);
                 return null;
             }
 
-            // Always query from the messageElement itself to ensure a consistent and reliable search scope.
             let container = messageElement.querySelector(`.${APPID}-bubble-nav-container`);
-            if (container) {
+            if (container instanceof HTMLElement) {
                 this.navContainers.set(messageElement, container);
                 return container;
             }
@@ -3631,83 +5604,40 @@
             positioningParent.classList.add(`${APPID}-bubble-parent-with-nav`);
 
             container = h(`div.${APPID}-bubble-nav-container`, [h(`div.${APPID}-nav-buttons`)]);
+            if (!(container instanceof HTMLElement)) return null;
 
             positioningParent.appendChild(container);
             this.navContainers.set(messageElement, container);
             return container;
         }
 
-        // --- Abstract methods to be implemented by subclasses ---
-
         /**
-         * Processes a single message element, setting up, updating, or cleaning up the feature.
-         * @param {HTMLElement} messageElement
+         * Updates the enabled/disabled state of sequential navigation buttons.
+         * @private
          */
-        processElement(messageElement) {
-            // To be implemented by subclasses if they operate on a per-message basis.
-        }
-
-        /**
-         * Processes a conversation turn element, typically for features that depend on the turn context.
-         * @param {HTMLElement} turnNode
-         */
-        processTurn(turnNode) {
-            // To be implemented by subclasses if they operate on a per-turn basis.
-        }
-
-        /** @returns {string} The unique ID for the style element. */
-        getStyleId() {
-            throw new Error('Subclass must implement getStyleId()');
-        }
-
-        /** @returns {string} The CSS string for the feature. */
-        generateCss() {
-            throw new Error('Subclass must implement generateCss()');
-        }
-    }
-
-    class BubbleUIManager extends BubbleFeatureManagerBase {
-        constructor(configManager, messageCacheManager) {
-            super(configManager, messageCacheManager);
-        }
-
-        /** @override */
-        getStyleId() {
-            return `${APPID}-bubble-ui-style`;
-        }
-
-        /** @override */
-        generateCss() {
-            // Consolidate CSS from all features.
-            return SITE_STYLES.COLLAPSIBLE_CSS + '\n' + SITE_STYLES.BUBBLE_NAV_CSS;
-        }
-
-        /** @override */
-        processElement(messageElement) {
-            const config = this.configManager.get();
-            if (!config) return;
-
-            // Delegate platform-specific application of features.
-            PlatformAdapter.applyBubbleFeatures(messageElement, this, config);
-        }
-
-        /**
-         * @override
-         * Processes a conversation turn after it has completed rendering.
-         * This is crucial for features that depend on the final dimensions of a message.
-         * @param {HTMLElement} turnNode
-         */
-        processTurn(turnNode) {
-            const allMessageElements = turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
-            allMessageElements.forEach((messageElement) => {
-                this.processElement(messageElement);
-            });
-        }
-
-        /** @override */
-        updateAll() {
-            // Delegate the update logic to the platform adapter.
-            PlatformAdapter.updateAllBubbleFeatures(this);
+        _updateNavButtonStates() {
+            this._syncCaches(); // Clean up caches before processing
+            const disabledHint = '(No message to scroll to)';
+            const updateActorButtons = (messages) => {
+                messages.forEach((message, index) => {
+                    const container = this.navContainers.get(message);
+                    if (!container) return;
+                    const prevBtn = container.querySelector(`.${APPID}-nav-prev`);
+                    if (prevBtn) {
+                        const isDisabled = index === 0;
+                        prevBtn.disabled = isDisabled;
+                        prevBtn.title = isDisabled ? `${prevBtn.dataset.originalTitle} ${disabledHint}` : prevBtn.dataset.originalTitle;
+                    }
+                    const nextBtn = container.querySelector(`.${APPID}-nav-next`);
+                    if (nextBtn) {
+                        const isDisabled = index === messages.length - 1;
+                        nextBtn.disabled = isDisabled;
+                        nextBtn.title = isDisabled ? `${nextBtn.dataset.originalTitle} ${disabledHint}` : nextBtn.dataset.originalTitle;
+                    }
+                });
+            };
+            updateActorButtons(this.messageCacheManager.getUserMessages());
+            updateActorButtons(this.messageCacheManager.getAssistantMessages());
         }
     }
 
@@ -3720,23 +5650,31 @@
         constructor(role, messages, highlightedMessage, callbacks, siteStyles, initialFilterValue = '') {
             this.role = role;
             this.messages = messages;
-            this.highlightedMessage = highlightedMessage;
             this.callbacks = callbacks;
             this.siteStyles = siteStyles;
-            this.initialFilterValue = initialFilterValue;
+
+            // Pre-cache the display text for each message to avoid repeated DOM queries during filtering.
+            this.searchableMessages = this.messages.map((msg) => ({
+                element: msg,
+                text: PlatformAdapters.General.getJumpListDisplayText(msg),
+            }));
+
+            // --- Component state ---
+            this.state = {
+                highlightedMessage: highlightedMessage,
+                initialFilterValue: initialFilterValue,
+                filteredMessages: [],
+                scrollTop: 0,
+                focusedIndex: -1,
+                isRendering: false,
+            };
 
             // --- Virtual scroll properties ---
             this.itemHeight = 34; // The fixed height of each list item in pixels.
-            this.filteredMessages = [];
-            this.scrollTop = 0;
-            this.isRendering = false;
-
-            // --- Component state ---
             this.element = null; // The main component container
             this.scrollBox = null; // The dedicated scrolling element
             this.listElement = null; // The inner element that provides the virtual height
             this.previewTooltip = null;
-            this.focusedIndex = -1;
             this.hideTimeout = null;
             this.hoveredItem = null;
 
@@ -3752,17 +5690,12 @@
             // 1. The inner list (ul) acts as a "sizer" or "spacer".
             // It has no overflow and its height is set to the total virtual height of all items.
             this.listElement = h(`ul#${APPID}-jump-list`, {
-                style: {
-                    position: 'relative',
-                    overflow: 'hidden',
-                    height: '0px', // Set dynamically by _updateContainerHeight
-                },
+                style: { position: 'relative', overflow: 'hidden', height: '0px' },
             });
 
             // 2. The scrollBox (div) is the "viewport".
             // It is the element that actually scrolls and has a fixed visible height.
             this.scrollBox = h(`div.${APPID}-jump-list-scrollbox`, {
-                onscroll: this._handleScroll,
                 onkeydown: this._handleKeyDown,
                 tabindex: -1,
                 style: {
@@ -3772,14 +5705,15 @@
                 },
             });
             this.scrollBox.appendChild(this.listElement);
+            this.scrollBox.addEventListener('scroll', this._handleScroll, { passive: true });
 
             // 3. The filter input container.
             const filterInput = h('input', {
                 type: 'text',
                 placeholder: 'Filter with text or /pattern/flags',
-                title: `Filter by plain text or a regular expression.\nEnter text for a simple search.\nUse /regex/flags format for advanced filtering.`,
+                title: 'Filter by plain text or a regular expression.\nEnter text for a simple search.\nUse /regex/flags format for advanced filtering.',
                 className: `${APPID}-jump-list-filter`,
-                value: this.initialFilterValue,
+                value: this.state.initialFilterValue,
                 oninput: this._handleFilter,
                 onkeydown: this._handleFilterKeyDown,
                 onclick: (e) => e.stopPropagation(),
@@ -3824,8 +5758,10 @@
 
                 this.element.classList.add('is-visible');
                 const filterInput = this.element.querySelector(`.${APPID}-jump-list-filter`);
-                filterInput.focus();
-                filterInput.select();
+                if (filterInput instanceof HTMLInputElement) {
+                    filterInput.focus();
+                    filterInput.select();
+                }
             });
         }
 
@@ -3839,9 +5775,9 @@
         }
 
         updateHighlightedMessage(newMessage) {
-            this.highlightedMessage = newMessage;
+            this.state.highlightedMessage = newMessage;
             // Re-render visible items to update the '.is-current' class
-            this._updateVisibleItems();
+            this._renderUI();
         }
 
         _createPreviewTooltip() {
@@ -3853,28 +5789,28 @@
         }
 
         _showPreview(index) {
-            if (!this.previewTooltip || index < 0 || index >= this.filteredMessages.length) {
+            if (!this.previewTooltip || index < 0 || index >= this.state.filteredMessages.length) {
                 this._hidePreview();
                 return;
             }
 
-            const messageElement = this.filteredMessages[index];
-            if (!messageElement) {
+            const searchableMessage = this.state.filteredMessages[index];
+            if (!searchableMessage) {
                 this._hidePreview();
                 return;
             }
 
-            const fullText = (PlatformAdapter.getJumpListDisplayText(messageElement) || '').replace(/\s+/g, ' ').trim();
+            const fullText = (searchableMessage.text || '').replace(/\s+/g, ' ').trim();
             const filterInput = this.element.querySelector(`.${APPID}-jump-list-filter`);
-            const searchTerm = filterInput ? filterInput.value : '';
+            const searchTerm = filterInput instanceof HTMLInputElement ? filterInput.value : '';
 
             const contentFragment = document.createDocumentFragment();
-            contentFragment.appendChild(document.createTextNode(`${this.messages.indexOf(messageElement) + 1}: `));
+            contentFragment.appendChild(document.createTextNode(`${this.messages.indexOf(searchableMessage.element) + 1}: `));
 
             let regex = null;
             if (searchTerm.trim()) {
                 const regexMatch = searchTerm.match(/^\/(.*)\/([gimsuy]*)$/);
-                if (regexMatch && filterInput.classList.contains('is-regex-valid')) {
+                if (regexMatch && filterInput?.classList.contains('is-regex-valid')) {
                     // This will be a valid regex because it's pre-validated in _handleFilter
                     regex = new RegExp(regexMatch[1], regexMatch[2]);
                 } else {
@@ -3899,34 +5835,45 @@
             this.previewTooltip.textContent = '';
             this.previewTooltip.appendChild(contentFragment);
 
-            requestAnimationFrame(() => {
-                if (!this.element || !this.previewTooltip) return;
-                const listItem = this.listElement.querySelector(`li[data-filtered-index="${index}"]`);
-                if (!listItem) {
-                    this._hidePreview();
-                    return;
-                }
+            withLayoutCycle({
+                measure: () => {
+                    const listItem = this.listElement.querySelector(`li[data-filtered-index="${index}"]`);
+                    if (!this.element || !this.previewTooltip || !(listItem instanceof HTMLElement)) {
+                        return null;
+                    }
+                    return {
+                        listRect: this.element.getBoundingClientRect(),
+                        itemRect: listItem.getBoundingClientRect(),
+                        tooltipRect: this.previewTooltip.getBoundingClientRect(),
+                        windowWidth: window.innerWidth,
+                        windowHeight: window.innerHeight,
+                    };
+                },
+                mutate: (measured) => {
+                    if (!measured) {
+                        this._hidePreview();
+                        return;
+                    }
 
-                const listRect = this.element.getBoundingClientRect();
-                const itemRect = listItem.getBoundingClientRect();
-                const tooltipRect = this.previewTooltip.getBoundingClientRect();
-                const margin = 12;
+                    const { listRect, itemRect, tooltipRect, windowWidth, windowHeight } = measured;
+                    const margin = 12;
 
-                let top = itemRect.top;
-                let left = listRect.right + margin;
+                    let top = itemRect.top;
+                    let left = listRect.right + margin;
 
-                if (left + tooltipRect.width > window.innerWidth - margin) {
-                    left = listRect.left - tooltipRect.width - margin;
-                }
-                if (top + tooltipRect.height > window.innerHeight - margin) {
-                    top = window.innerHeight - tooltipRect.height - margin;
-                }
-                top = Math.max(margin, top);
-                left = Math.max(margin, left);
+                    if (left + tooltipRect.width > windowWidth - margin) {
+                        left = listRect.left - tooltipRect.width - margin;
+                    }
+                    if (top + tooltipRect.height > windowHeight - margin) {
+                        top = windowHeight - tooltipRect.height - margin;
+                    }
+                    top = Math.max(margin, top);
+                    left = Math.max(margin, left);
 
-                this.previewTooltip.style.left = `${left}px`;
-                this.previewTooltip.style.top = `${top}px`;
-                this.previewTooltip.classList.add('is-visible');
+                    this.previewTooltip.style.left = `${left}px`;
+                    this.previewTooltip.style.top = `${top}px`;
+                    this.previewTooltip.classList.add('is-visible');
+                },
             });
         }
 
@@ -3937,20 +5884,20 @@
         }
 
         _revertToFocusedPreview() {
-            if (this.focusedIndex > -1) {
-                this._showPreview(this.focusedIndex);
+            if (this.state.focusedIndex > -1) {
+                this._showPreview(this.state.focusedIndex);
             } else {
                 this._hidePreview();
             }
         }
 
-        _createListItem(messageElement, index) {
+        _createListItem(searchableMessage, index) {
+            const messageElement = searchableMessage.element;
             const originalIndex = this.messages.indexOf(messageElement);
-            const role = PlatformAdapter.getMessageRole(messageElement);
+            const role = PlatformAdapters.General.getMessageRole(messageElement);
 
             // Use the adapter to get the appropriate display text, handling platform differences.
-            let textContent = PlatformAdapter.getJumpListDisplayText(messageElement);
-            textContent = (textContent || '').replace(/\s+/g, ' ').trim();
+            const textContent = (searchableMessage.text || '').replace(/\s+/g, ' ').trim();
 
             const displayText = `${originalIndex + 1}: ${textContent}`;
 
@@ -3960,7 +5907,6 @@
                     dataset: {
                         messageIndex: originalIndex,
                         filteredIndex: index,
-                        filterText: textContent.toLowerCase(),
                     },
                     style: {
                         position: 'absolute',
@@ -3984,10 +5930,10 @@
                 displayText
             );
 
-            if (this.highlightedMessage === messageElement) {
+            if (this.state.highlightedMessage === messageElement) {
                 item.classList.add('is-current');
             }
-            if (this.focusedIndex === index) {
+            if (this.state.focusedIndex === index) {
                 item.classList.add('is-focused');
             }
             if (role) {
@@ -3997,262 +5943,299 @@
             return item;
         }
 
-        _updateContainerHeight() {
-            if (!this.listElement) return;
-            this.listElement.style.height = `${this.filteredMessages.length * this.itemHeight}px`;
-        }
-
-        _handleScroll(event) {
-            this.scrollTop = event.target.scrollTop;
-            if (!this.isRendering) {
-                requestAnimationFrame(() => {
-                    this._updateVisibleItems();
-                    this.isRendering = false;
-                });
-                this.isRendering = true;
-            }
-        }
-
-        _updateVisibleItems() {
-            if (!this.scrollBox) return;
-
-            const containerHeight = this.scrollBox.clientHeight;
-            const buffer = 5;
-            const startIndex = Math.max(0, Math.floor(this.scrollTop / this.itemHeight) - buffer);
-            const endIndex = Math.min(this.filteredMessages.length - 1, Math.ceil((this.scrollTop + containerHeight) / this.itemHeight) + buffer);
-
-            const visibleIndices = new Set();
-            for (let i = startIndex; i <= endIndex; i++) {
-                visibleIndices.add(i);
-            }
-
-            for (const child of this.listElement.children) {
-                const index = parseInt(child.dataset.filteredIndex, 10);
-                if (!visibleIndices.has(index)) {
-                    child.remove();
-                }
-            }
-
-            for (let i = startIndex; i <= endIndex; i++) {
-                if (!this.listElement.querySelector(`li[data-filtered-index="${i}"]`)) {
-                    const message = this.filteredMessages[i];
-                    const listItem = this._createListItem(message, i);
-                    this.listElement.appendChild(listItem);
-                }
-            }
-
-            this.listElement.querySelectorAll('li.is-focused').forEach((el) => el.classList.remove('is-focused'));
-            if (this.focusedIndex >= startIndex && this.focusedIndex <= endIndex) {
-                const focusedEl = this.listElement.querySelector(`li[data-filtered-index="${this.focusedIndex}"]`);
-                if (focusedEl) {
-                    focusedEl.classList.add('is-focused');
-                }
-            }
-
-            // Always synchronize the '.is-current' class after any potential change.
-            this.listElement.querySelectorAll('li.is-current').forEach((el) => el.classList.remove('is-current'));
-            if (this.highlightedMessage) {
-                const currentIndex = this.filteredMessages.indexOf(this.highlightedMessage);
-                if (currentIndex >= startIndex && currentIndex <= endIndex) {
-                    const currentEl = this.listElement.querySelector(`li[data-filtered-index="${currentIndex}"]`);
-                    if (currentEl) {
-                        currentEl.classList.add('is-current');
-                    }
-                }
-            }
-        }
-
-        _handleFilter(event) {
-            const inputElement = event.target;
-            const searchTerm = inputElement.value;
+        _filterMessages(searchTerm, inputElement) {
             const modeLabel = this.element.querySelector(`.${APPID}-jump-list-mode-label`);
-
             let regex = null;
+
             inputElement.classList.remove('is-regex-valid');
+            modeLabel.setAttribute('class', `${APPID}-jump-list-mode-label is-string`);
             modeLabel.textContent = 'Text';
-            modeLabel.className = `${APPID}-jump-list-mode-label is-string`;
 
             const regexMatch = searchTerm.match(/^\/(.*)\/([gimsuy]*)$/);
             if (regexMatch) {
                 try {
                     regex = new RegExp(regexMatch[1], regexMatch[2]);
                     inputElement.classList.add('is-regex-valid');
+                    modeLabel.setAttribute('class', `${APPID}-jump-list-mode-label is-regex`);
                     modeLabel.textContent = 'RegExp';
-                    modeLabel.className = `${APPID}-jump-list-mode-label is-regex`;
                 } catch {
                     // Invalid regex, remains null and will be treated as a plain string.
+                    modeLabel.setAttribute('class', `${APPID}-jump-list-mode-label is-regex-invalid`);
                     modeLabel.textContent = 'Invalid';
-                    modeLabel.className = `${APPID}-jump-list-mode-label is-regex-invalid`;
                 }
             }
 
             const lowerCaseSearchTerm = searchTerm.toLowerCase();
-            this.filteredMessages = this.messages.filter((msg) => {
-                const itemText = (msg.textContent || '').toLowerCase();
+
+            return this.searchableMessages.filter((msg) => {
+                const originalItemText = msg.text;
+
                 if (regex) {
-                    return regex.test(itemText);
+                    // For regex, test against the original, case-preserved text.
+                    // The user controls case-sensitivity with the 'i' flag.
+                    return regex.test(originalItemText);
+                } else {
+                    // For plain text, perform a case-insensitive search.
+                    const lowerCaseItemText = originalItemText.toLowerCase();
+                    return lowerCaseSearchTerm === '' || lowerCaseItemText.includes(lowerCaseSearchTerm);
                 }
-                return lowerCaseSearchTerm === '' || itemText.includes(lowerCaseSearchTerm);
             });
-
-            this.focusedIndex = -1;
-            if (this.scrollBox) {
-                this.scrollBox.scrollTop = 0;
-            }
-            this._updateContainerHeight();
-
-            // Forcefully clear existing list items before re-rendering.
-            // This ensures the view is correctly synchronized with the filteredMessages array.
-            if (this.listElement) {
-                this.listElement.textContent = '';
-            }
-
-            this._updateVisibleItems();
-            this._hidePreview();
         }
 
-        _handleFilterKeyDown(event) {
-            if (this.filteredMessages.length === 0) return;
+        _getVisibleRange() {
+            if (!this.scrollBox) return { startIndex: 0, endIndex: -1 };
 
-            switch (event.key) {
-                case 'ArrowDown':
-                case 'Tab':
-                    if (!event.shiftKey) {
-                        event.preventDefault();
-                        this.focusedIndex = 0;
-                        this._updateFocus(true); // Always scroll to the target, even if it's the first item.
-                        this.scrollBox.focus({ preventScroll: true });
-                    }
-                    break;
-                case 'ArrowUp':
-                    event.preventDefault();
-                    this.focusedIndex = this.filteredMessages.length - 1;
-                    this._updateFocus(true);
-                    this.scrollBox.focus({ preventScroll: true });
-                    break;
-                case 'Enter':
-                    event.preventDefault();
-                    if (this.filteredMessages.length > 0) {
-                        this.focusedIndex = 0;
-                        this._updateFocus(false);
-                        const targetMessage = this.filteredMessages[this.focusedIndex];
-                        if (targetMessage) {
-                            this.callbacks.onSelect?.(targetMessage);
-                        }
-                    }
-                    break;
+            const containerHeight = this.scrollBox.clientHeight;
+            const buffer = 5;
+            const startIndex = Math.max(0, Math.floor(this.state.scrollTop / this.itemHeight) - buffer);
+
+            if (containerHeight === 0) {
+                // Initial render, container height not yet known. Render a default batch.
+                const initialBatchSize = 20;
+                const endIndex = Math.min(this.state.filteredMessages.length - 1, initialBatchSize);
+                return { startIndex: 0, endIndex };
             }
 
-            if (event.shiftKey && event.key === 'Tab') {
-                event.preventDefault();
-                this.focusedIndex = this.filteredMessages.length - 1;
-                this._updateFocus(true);
-                this.scrollBox.focus({ preventScroll: true });
-            }
+            const endIndex = Math.min(this.state.filteredMessages.length - 1, Math.ceil((this.state.scrollTop + containerHeight) / this.itemHeight) + buffer);
+            return { startIndex, endIndex };
         }
 
-        _handleKeyDown(event) {
-            if (!this.scrollBox || document.activeElement !== this.scrollBox || this.filteredMessages.length === 0) return;
+        _renderUI() {
+            if (!this.listElement || !this.scrollBox) return;
 
-            let currentFocusedItemIndex = this.focusedIndex;
-            const totalItems = this.filteredMessages.length;
+            // Step 1: Update the virtual height immediately to ensure correct layout calculations.
+            this.listElement.style.height = `${this.state.filteredMessages.length * this.itemHeight}px`;
 
-            switch (event.key) {
-                case 'ArrowDown': {
-                    event.preventDefault();
-                    this.focusedIndex = currentFocusedItemIndex === -1 ? 0 : (currentFocusedItemIndex + 1) % totalItems;
-                    break;
-                }
-                case 'ArrowUp': {
-                    event.preventDefault();
-                    this.focusedIndex = currentFocusedItemIndex === -1 ? totalItems - 1 : (currentFocusedItemIndex - 1 + totalItems) % totalItems;
-                    break;
-                }
-                case 'Home': {
-                    event.preventDefault();
-                    this.focusedIndex = 0;
-                    break;
-                }
-                case 'End': {
-                    event.preventDefault();
-                    this.focusedIndex = totalItems - 1;
-                    break;
-                }
-                case 'PageDown': {
-                    event.preventDefault();
-                    if (currentFocusedItemIndex === -1) currentFocusedItemIndex = 0;
-                    const itemsPerPage = Math.floor(this.scrollBox.clientHeight / this.itemHeight);
-                    this.focusedIndex = Math.min(totalItems - 1, currentFocusedItemIndex + itemsPerPage);
-                    break;
-                }
-                case 'PageUp': {
-                    event.preventDefault();
-                    if (currentFocusedItemIndex === -1) currentFocusedItemIndex = 0;
-                    const itemsPerPage = Math.floor(this.scrollBox.clientHeight / this.itemHeight);
-                    this.focusedIndex = Math.max(0, currentFocusedItemIndex - itemsPerPage);
-                    break;
-                }
-                case 'Enter': {
-                    event.preventDefault();
-                    if (this.focusedIndex > -1) {
-                        const targetMessage = this.filteredMessages[this.focusedIndex];
-                        if (targetMessage) {
-                            this.callbacks.onSelect?.(targetMessage);
-                        }
-                    }
-                    break;
-                }
-                case 'Tab': {
-                    event.preventDefault();
-                    this.element.querySelector(`.${APPID}-jump-list-filter`).focus();
-                    this.focusedIndex = -1;
-                    this._updateFocus(false);
-                    return;
-                }
-                default:
-                    return;
+            // Step 2: Determine the new visible range.
+            const { startIndex, endIndex } = this._getVisibleRange();
+            const visibleIndices = new Set();
+            for (let i = startIndex; i <= endIndex; i++) {
+                visibleIndices.add(i);
             }
 
-            this._updateFocus(true);
-        }
+            // Step 3: Map existing DOM elements for efficient lookup.
+            const existingElements = new Map(
+                Array.from(this.listElement.children)
+                    .filter((el) => el instanceof HTMLElement)
+                    .map((el) => [parseInt(el.dataset.filteredIndex, 10), el])
+            );
 
-        getFilterValue() {
-            return this.element?.querySelector(`.${APPID}-jump-list-filter`)?.value || '';
+            // Step 4: Reconcile the DOM against the new state.
+            const fragment = document.createDocumentFragment();
+
+            // First, remove any elements that are no longer in the visible range.
+            for (const [index, element] of existingElements.entries()) {
+                if (!visibleIndices.has(index)) {
+                    element.remove();
+                }
+            }
+
+            // Then, add or update elements that should be visible.
+            for (let i = startIndex; i <= endIndex; i++) {
+                const message = this.state.filteredMessages[i];
+                const existingEl = existingElements.get(i);
+
+                if (existingEl) {
+                    // Element exists, just update its state (e.g., current/focused classes).
+                    existingEl.classList.toggle('is-current', this.state.highlightedMessage === message);
+                    existingEl.classList.toggle('is-focused', this.state.focusedIndex === i);
+                } else {
+                    // Element is missing, create it and add to the fragment for batch insertion.
+                    const newItem = this._createListItem(message, i);
+                    fragment.appendChild(newItem);
+                }
+            }
+
+            // Append all new items at once.
+            if (fragment.children.length > 0) {
+                this.listElement.appendChild(fragment);
+            }
         }
 
         _updateFocus(shouldScroll = true) {
             if (!this.scrollBox) return;
 
-            if (shouldScroll && this.focusedIndex > -1) {
-                const container = this.scrollBox;
-                const itemTop = this.focusedIndex * this.itemHeight;
+            if (shouldScroll && this.state.focusedIndex > -1) {
+                const itemTop = this.state.focusedIndex * this.itemHeight;
                 const itemBottom = itemTop + this.itemHeight;
-                const viewTop = container.scrollTop;
-                const viewBottom = viewTop + container.clientHeight;
+                const viewTop = this.scrollBox.scrollTop;
+                const viewBottom = viewTop + this.scrollBox.clientHeight;
 
                 if (itemTop < viewTop) {
-                    container.scrollTop = itemTop;
+                    this.scrollBox.scrollTop = itemTop;
                 } else if (itemBottom > viewBottom) {
-                    container.scrollTop = itemBottom - container.clientHeight;
+                    this.scrollBox.scrollTop = itemBottom - this.scrollBox.clientHeight;
                 }
+                // Update state after potential scroll change
+                this.state.scrollTop = this.scrollBox.scrollTop;
             }
 
-            this._updateVisibleItems();
+            this._renderUI();
 
             // Defer the preview update to the next animation frame.
-            // This ensures that the DOM updates from _updateVisibleItems have been rendered by the browser,
+            // This ensures that the DOM updates from _renderUI have been rendered by the browser,
             // making the target <li> element available for _showPreview to find.
             requestAnimationFrame(() => {
-                if (this.focusedIndex > -1) {
-                    this._showPreview(this.focusedIndex);
+                if (this.state.focusedIndex > -1) {
+                    this._showPreview(this.state.focusedIndex);
                 } else {
                     this._hidePreview();
                 }
             });
         }
 
+        _handleScroll(event) {
+            this.state.scrollTop = event.target.scrollTop;
+            if (!this.state.isRendering) {
+                requestAnimationFrame(() => {
+                    this._renderUI();
+                    this.state.isRendering = false;
+                });
+                this.state.isRendering = true;
+            }
+        }
+
+        _handleFilter(event) {
+            const inputElement = event.target;
+            const searchTerm = inputElement.value;
+
+            if (this.listElement) {
+                this.listElement.textContent = '';
+            }
+
+            // Update state
+            this.state.filteredMessages = this._filterMessages(searchTerm, inputElement);
+            this.state.focusedIndex = -1;
+            this.state.scrollTop = 0;
+            if (this.scrollBox) this.scrollBox.scrollTop = 0;
+
+            this._renderUI();
+            this._hidePreview();
+        }
+
+        _handleFilterKeyDown(event) {
+            if (this.state.filteredMessages.length === 0) return;
+
+            switch (event.key) {
+                case 'ArrowDown':
+                case 'Tab':
+                    if (!event.shiftKey) {
+                        event.preventDefault();
+                        this.state.focusedIndex = 0;
+                        this._updateFocus(true);
+                        this.scrollBox.focus({ preventScroll: true });
+                    }
+                    break;
+                case 'ArrowUp':
+                    event.preventDefault();
+                    this.state.focusedIndex = this.state.filteredMessages.length - 1;
+                    this._updateFocus(true);
+                    this.scrollBox.focus({ preventScroll: true });
+                    break;
+                case 'Enter':
+                    event.preventDefault();
+                    if (this.state.filteredMessages.length > 0) {
+                        this.state.focusedIndex = 0;
+                        this._updateFocus(false);
+                        const targetMessage = this.state.filteredMessages[this.state.focusedIndex].element;
+                        if (targetMessage) this.callbacks.onSelect?.(targetMessage);
+                    }
+                    break;
+            }
+
+            if (event.shiftKey && event.key === 'Tab') {
+                event.preventDefault();
+                this.state.focusedIndex = this.state.filteredMessages.length - 1;
+                this._updateFocus(true);
+                this.scrollBox.focus({ preventScroll: true });
+            }
+        }
+
+        /** @param {KeyboardEvent} event */
+        _handleKeyDown(event) {
+            if (!this.scrollBox || document.activeElement !== this.scrollBox || this.state.filteredMessages.length === 0) return;
+
+            const totalItems = this.state.filteredMessages.length;
+            let newFocusedIndex = this.state.focusedIndex;
+
+            switch (event.key) {
+                case 'ArrowDown': {
+                    event.preventDefault();
+                    newFocusedIndex = newFocusedIndex === -1 ? 0 : (newFocusedIndex + 1) % totalItems;
+                    break;
+                }
+                case 'ArrowUp': {
+                    event.preventDefault();
+                    newFocusedIndex = newFocusedIndex === -1 ? totalItems - 1 : (newFocusedIndex - 1 + totalItems) % totalItems;
+                    break;
+                }
+                case 'Home': {
+                    event.preventDefault();
+                    newFocusedIndex = 0;
+                    break;
+                }
+                case 'End': {
+                    event.preventDefault();
+                    newFocusedIndex = totalItems - 1;
+                    break;
+                }
+                case 'PageDown': {
+                    event.preventDefault();
+                    if (newFocusedIndex === -1) newFocusedIndex = 0;
+                    const itemsPerPage = Math.floor(this.scrollBox.clientHeight / this.itemHeight);
+                    newFocusedIndex = Math.min(totalItems - 1, newFocusedIndex + itemsPerPage);
+                    break;
+                }
+                case 'PageUp': {
+                    event.preventDefault();
+                    if (newFocusedIndex === -1) newFocusedIndex = 0;
+                    const itemsPerPage = Math.floor(this.scrollBox.clientHeight / this.itemHeight);
+                    newFocusedIndex = Math.max(0, newFocusedIndex - itemsPerPage);
+                    break;
+                }
+                case 'Enter': {
+                    event.preventDefault();
+                    if (this.state.focusedIndex > -1) {
+                        const targetMessage = this.state.filteredMessages[this.state.focusedIndex].element;
+                        if (targetMessage) this.callbacks.onSelect?.(targetMessage);
+                    }
+                    return; // Don't update focus on enter
+                }
+                case 'Tab': {
+                    event.preventDefault();
+                    const filterInput = this.element.querySelector(`.${APPID}-jump-list-filter`);
+                    if (filterInput instanceof HTMLInputElement) {
+                        filterInput.focus();
+                        filterInput.select();
+                    }
+                    this.state.focusedIndex = -1;
+                    this._updateFocus(false);
+                    return; // Don't update focus on tab
+                }
+                default:
+                    return;
+            }
+
+            if (newFocusedIndex !== this.state.focusedIndex) {
+                this.state.focusedIndex = newFocusedIndex;
+                this._updateFocus(true);
+            }
+        }
+
+        getFilterValue() {
+            const filterInput = this.element?.querySelector(`.${APPID}-jump-list-filter`);
+            if (filterInput instanceof HTMLInputElement) {
+                return filterInput.value || '';
+            }
+            return '';
+        }
+
+        /** @param {MouseEvent} event */
         _handleClick(event) {
-            const listItem = event.target.closest('li');
+            const target = event.target;
+            if (!(target instanceof Element)) return;
+
+            const listItem = target.closest('li');
             if (!listItem) return;
 
             const originalIndex = parseInt(listItem.dataset.messageIndex, 10);
@@ -4264,26 +6247,41 @@
 
     class FixedNavigationManager {
         /**
-         * @param {MessageCacheManager} messageCacheManager An instance of the message cache manager.
+         * @param {object} dependencies
+         * @param {MessageCacheManager} dependencies.messageCacheManager
+         * @param {ConfigManager} dependencies.configManager
+         * @param {any} dependencies.autoScrollManager
+         * @param {MessageLifecycleManager} dependencies.messageLifecycleManager
+         * @param {object} [options]
          */
-        constructor(messageCacheManager) {
-            this.navConsole = null;
+        constructor({ messageCacheManager, configManager, autoScrollManager, messageLifecycleManager }, options = {}) {
             this.messageCacheManager = messageCacheManager;
-            this.currentIndices = { user: -1, asst: -1, total: -1 };
-            this.highlightedMessage = null;
-            this.unsubscribers = [];
-            this.resizeObserver = null;
-            this.isInitialSelectionDone = false;
-            this.previousTotalMessages = 0;
-            this.isAutoScrolling = false;
-            this.jumpListComponent = null;
-            this.lastFilterValue = '';
+            this.configManager = configManager;
+            this.autoScrollManager = autoScrollManager; // May be null
+            this.messageLifecycleManager = messageLifecycleManager;
 
-            this.debouncedUpdateUI = debounce(this._updateUI.bind(this), TIMING.DEBOUNCE_DELAYS.THEME_PREVIEW);
-            this.debouncedReposition = debounce(this.repositionContainers.bind(this), TIMING.DEBOUNCE_DELAYS.NAVIGATION_UPDATE);
+            // Centralized state management
+            this.state = {
+                currentIndices: { user: -1, asst: -1, total: -1 },
+                highlightedMessage: null,
+                isInitialSelectionDone: !!options.isReEnabling,
+                jumpListComponent: null,
+                lastFilterValue: '',
+                previousTotalMessages: 0,
+                isAutoScrolling: false,
+            };
+
+            this.subscriptions = [];
+            this.debouncedReposition = debounce(() => EventBus.queueUIWork(this.repositionContainers.bind(this)), CONSTANTS.TIMING.DEBOUNCE_DELAYS.NAVIGATION_UPDATE);
 
             this.handleBodyClick = this.handleBodyClick.bind(this);
             this._handleKeyDown = this._handleKeyDown.bind(this);
+        }
+
+        _subscribe(event, listener) {
+            const key = createEventKey(this, event);
+            EventBus.subscribe(event, listener, key);
+            this.subscriptions.push({ event, key });
         }
 
         /**
@@ -4294,44 +6292,62 @@
             this.injectStyle();
             this.createContainers();
 
-            // Store the unsubscribe functions returned by EventBus.subscribe
-            this.unsubscribers.push(
-                EventBus.subscribe(`${APPID}:cacheUpdated`, this.debouncedUpdateUI),
-                EventBus.subscribe(`${APPID}:navigation`, this.resetState.bind(this)),
-                EventBus.subscribe(`${APPID}:nav:highlightMessage`, this.setHighlightAndIndices.bind(this)),
-                EventBus.subscribe(`${APPID}:layoutRecalculate`, this.debouncedReposition),
-                // Subscribe to the auto-scroll start and completion events.
-                EventBus.subscribe(`${APPID}:autoScrollStart`, () => {
-                    this.isAutoScrolling = true;
-                }),
-                EventBus.subscribe(`${APPID}:autoScrollComplete`, () => {
-                    this.isAutoScrolling = false;
+            this._subscribe(EVENTS.CACHE_UPDATED, this._handleCacheUpdate.bind(this));
+            this._subscribe(EVENTS.NAVIGATION, this.resetState.bind(this));
+            this._subscribe(EVENTS.POLLING_MESSAGES_FOUND, this._handlePollingMessagesFound.bind(this));
+            this._subscribe(EVENTS.NAV_HIGHLIGHT_MESSAGE, this.setHighlightAndIndices.bind(this));
+            this._subscribe(EVENTS.WINDOW_RESIZED, this.debouncedReposition);
+            this._subscribe(EVENTS.SIDEBAR_LAYOUT_CHANGED, this.debouncedReposition);
+            this._subscribe(EVENTS.INPUT_AREA_RESIZED, this.debouncedReposition);
+            this._subscribe(EVENTS.UI_REPOSITION, this.debouncedReposition);
+            this._subscribe(EVENTS.APP_SHUTDOWN, () => this.destroy());
+            this._subscribe(EVENTS.MESSAGE_COMPLETE, this._detectStreamingStart.bind(this));
+            this._subscribe(EVENTS.TURN_COMPLETE, this._handleTurnComplete.bind(this));
+            this._subscribe(EVENTS.DEFERRED_LAYOUT_UPDATE, this.debouncedReposition);
+
+            // Subscribe to auto-scroll events if the manager exists.
+            if (this.autoScrollManager) {
+                this._subscribe(EVENTS.AUTO_SCROLL_START, () => {
+                    this.state.isAutoScrolling = true;
+                    this.updateUI(); // Re-render the UI to reflect the state change.
+                    this.hideJumpList();
+                });
+                this._subscribe(EVENTS.AUTO_SCROLL_COMPLETE, () => {
+                    this.state.isAutoScrolling = false;
+                    this.updateUI(); // Re-render the UI to reflect the state change.
                     this.selectLastMessage();
-                })
-            );
+                });
+            }
 
             // After the main UI is ready, trigger an initial UI update.
-            this.debouncedUpdateUI();
+            this._handleCacheUpdate();
         }
 
         resetState() {
-            if (this.highlightedMessage) {
-                this.highlightedMessage.classList.remove(`${APPID}-highlight-message`);
-                this.highlightedMessage = null;
+            if (this.state.highlightedMessage) {
+                this.state.highlightedMessage.classList.remove(`${APPID}-highlight-message`);
             }
-            this.currentIndices = { user: -1, asst: -1, total: -1 };
-            if (this.navConsole) {
-                this.navConsole.querySelector(`#${APPID}-nav-group-user .${APPID}-counter-current`).textContent = '--';
-                this.navConsole.querySelector(`#${APPID}-nav-group-assistant .${APPID}-counter-current`).textContent = '--';
-                this.navConsole.querySelector(`#${APPID}-nav-group-total .${APPID}-counter-current`).textContent = '--';
-            }
-            this.isInitialSelectionDone = false;
-            this.previousTotalMessages = 0;
+            this.state = {
+                currentIndices: { user: -1, asst: -1, total: -1 },
+                highlightedMessage: null,
+                isInitialSelectionDone: false,
+                jumpListComponent: null,
+                lastFilterValue: '',
+                previousTotalMessages: 0,
+                isAutoScrolling: false,
+                isStreaming: false,
+            };
 
-            // Disconnect the observer on navigation to prevent leaks.
-            // It will be re-initialized by _updateUI when the new page content loads.
-            this.resizeObserver?.disconnect();
-            this.resizeObserver = null;
+            // Reset filter text
+            this.lastFilterValue = '';
+
+            // Reset the bulk collapse button to its default state
+            const collapseBtn = this.navConsole?.querySelector(`#${APPID}-bulk-collapse-btn`);
+            if (collapseBtn instanceof HTMLElement) {
+                collapseBtn.dataset.state = 'expanded';
+            }
+
+            this._renderUI();
         }
 
         /**
@@ -4339,179 +6355,127 @@
          * @returns {void}
          */
         destroy() {
-            if (this.highlightedMessage) {
-                this.highlightedMessage.classList.remove(`${APPID}-highlight-message`);
-                this.highlightedMessage = null;
+            if (this.state.highlightedMessage) {
+                this.state.highlightedMessage.classList.remove(`${APPID}-highlight-message`);
             }
 
-            // Disconnect the dedicated resize observer.
-            this.resizeObserver?.disconnect();
-            this.resizeObserver = null;
+            this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
+            this.subscriptions = [];
 
-            // Call all unsubscribe functions
-            this.unsubscribers.forEach((unsub) => unsub());
-            this.unsubscribers = [];
-
-            this.jumpListComponent?.destroy();
+            this.state.jumpListComponent?.destroy();
             this.navConsole?.remove();
             this.navConsole = null;
+            document.getElementById(`${APPID}-fixed-nav-style`)?.remove();
             document.body.removeEventListener('click', this.handleBodyClick, true);
             document.removeEventListener('keydown', this._handleKeyDown, true);
         }
 
-        _toggleJumpList(labelElement) {
-            const role = labelElement.dataset.role;
-            if (this.jumpListComponent?.role === role) {
-                this._hideJumpList();
+        _detectStreamingStart(messageElement) {
+            // Guard against re-entry if streaming is already detected.
+            if (this.state.isStreaming) {
                 return;
             }
 
-            this._hideJumpList();
+            // Guard: Do not check for streaming during the initial page load or auto-scrolling phase.
+            if (!this.state.isInitialSelectionDone || this.state.isAutoScrolling) {
+                return;
+            }
 
-            const roleMap = {
-                user: this.messageCacheManager.getUserMessages(),
-                asst: this.messageCacheManager.getAssistantMessages(),
-                total: this.messageCacheManager.getTotalMessages(),
-            };
-            const messages = roleMap[role];
-            if (!messages || messages.length === 0) return;
-
-            this.jumpListComponent = new JumpListComponent(
-                role,
-                messages,
-                this.highlightedMessage,
-                {
-                    onSelect: (message) => this._handleJumpListSelect(message),
-                },
-                SITE_STYLES.FIXED_NAV,
-                this.lastFilterValue
-            );
-            this.jumpListComponent.show(labelElement);
-        }
-
-        _hideJumpList() {
-            if (!this.jumpListComponent) return;
-            this.lastFilterValue = this.jumpListComponent.getFilterValue();
-            this.jumpListComponent.destroy();
-            this.jumpListComponent = null;
-        }
-
-        _handleJumpListSelect(messageElement) {
-            this.navigateToMessage(messageElement);
-            this._hideJumpList();
-        }
-
-        _handleKeyDown(e) {
-            if (e.key === 'Escape' && this.jumpListComponent) {
-                e.preventDefault();
-                e.stopPropagation();
-                this._hideJumpList();
+            const role = PlatformAdapters.General.getMessageRole(messageElement);
+            // If an assistant message is detected and it's not yet complete, flag that streaming has started.
+            if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT) {
+                const turnNode = messageElement.closest(CONSTANTS.SELECTORS.FIXED_NAV_TURN_CONTAINER);
+                if (turnNode && !PlatformAdapters.Observer.isTurnComplete(turnNode)) {
+                    this.state.isStreaming = true;
+                    EventBus.publish(EVENTS.STREAMING_START);
+                }
             }
         }
 
-        createContainers() {
-            if (document.getElementById(`${APPID}-nav-console`)) return;
-            this.navConsole = h(`div#${APPID}-nav-console.${APPID}-nav-unpositioned`);
-            document.body.appendChild(this.navConsole);
-
-            this.renderInitialUI();
-            this.attachEventListeners();
+        _handleTurnComplete(turnNode) {
+            // If streaming was in progress, reset the flag and trigger a cache update,
+            // which will then update the UI with the final message counts.
+            if (this.state.isStreaming) {
+                this.state.isStreaming = false;
+                EventBus.publish(EVENTS.STREAMING_END);
+                this.messageCacheManager.debouncedRebuildCache();
+                EventBus.publish(EVENTS.DEFERRED_LAYOUT_UPDATE);
+            }
+            // Also trigger a cache update for non-streaming turns (e.g., user messages)
+            // to keep the nav console in sync.
+            else {
+                // Failsafe: If a non-streaming turn (like a user message) completes while
+                // the flag is stuck on true (e.g., from a previously failed stream), reset it.
+                if (this.state.isStreaming) {
+                    this.state.isStreaming = false;
+                    EventBus.publish(EVENTS.STREAMING_END);
+                    EventBus.publish(EVENTS.DEFERRED_LAYOUT_UPDATE);
+                }
+                this.messageCacheManager.debouncedRebuildCache();
+            }
         }
 
-        renderInitialUI() {
+        _handlePollingMessagesFound() {
+            this.selectLastMessage();
+        }
+
+        updateUI() {
+            this._renderUI();
+        }
+
+        _handleCacheUpdate() {
+            // Do not update the UI while a message is streaming to prevent flickering and performance issues.
+            // The UI will be updated once the turn is complete.
+            if (this.state.isStreaming) return;
+
+            // If the jump list is open, a cache update means its data is stale.
+            // Close it to prevent inconsistent state and user confusion.
+            if (this.state.jumpListComponent) {
+                this._hideJumpList();
+                return; // Exit early to prevent further UI changes while the user was interacting.
+            }
+
+            const totalMessages = this.messageCacheManager.getTotalMessages();
+
+            // Validate the currently highlighted message.
+            if (this.state.highlightedMessage && !totalMessages.includes(this.state.highlightedMessage)) {
+                Logger.log('Highlighted message was removed from the DOM. Reselecting...');
+                // The highlighted message was deleted. Find the best candidate to re-highlight.
+                const lastKnownIndex = this.state.currentIndices.total;
+                // Try to select the message at the same index, or the new last message if the index is now out of bounds.
+                const newIndex = Math.min(lastKnownIndex, totalMessages.length - 1);
+
+                if (newIndex >= 0) {
+                    this.setHighlightAndIndices(totalMessages[newIndex]);
+                } else {
+                    // Cache is empty, reset state.
+                    this.resetState();
+                }
+            }
+
+            // Select the last message on initial load, but only if auto-scroll is not in progress.
+            if (!this.state.isAutoScrolling && !this.state.isInitialSelectionDone && totalMessages.length > 0) {
+                this.selectLastMessage();
+                this.state.isInitialSelectionDone = true;
+            } else if (!this.state.highlightedMessage && totalMessages.length > 0) {
+                this.setHighlightAndIndices(totalMessages[0]);
+            }
+
+            PlatformAdapters.FixedNav.handleInfiniteScroll(this, this.state.highlightedMessage, this.state.previousTotalMessages);
+            this.state.previousTotalMessages = totalMessages.length;
+
+            this._renderUI();
+        }
+
+        _renderUI() {
             if (!this.navConsole) return;
-            const svgIcons = {
-                first: () => h('svg', { viewBox: '0 -960 960 960' }, [h('path', { d: 'm280-280 200-200 200 200-56 56-144-144-144 144-56-56Zm-40-360v-80h480v80H240Z' })]),
-                prev: () => h('svg', { viewBox: '0 -960 960 960' }, [h('path', { d: 'm480-528-200 200-56-56 256-256 256 256-56 56-200-200Z' })]),
-                next: () => h('svg', { viewBox: '0 -960 960 960' }, [h('path', { d: 'M480-344 224-590l56-56 200 200 200-200 56 56-256 256Z' })]),
-                last: () => h('svg', { viewBox: '0 -960 960 960' }, [h('path', { d: 'M240-200v-80h480v80H240Zm240-160L280-560l56-56 144 144 144-144 56 56-200 200Z' })]),
-            };
-            const navUI = [
-                h(`div#${APPID}-nav-group-assistant.${APPID}-nav-group`, [
-                    h(`button.${APPID}-nav-btn`, { 'data-nav': 'asst-prev', title: 'Previous assistant message' }, [svgIcons.prev()]),
-                    h(`button.${APPID}-nav-btn`, { 'data-nav': 'asst-next', title: 'Next assistant message' }, [svgIcons.next()]),
-                    h(`span.${APPID}-nav-label`, { 'data-role': 'asst', title: 'Show message list' }, 'Assistant:'),
-                    h(`span.${APPID}-nav-counter`, { 'data-role': 'asst', title: 'Click to jump to a message' }, [h(`span.${APPID}-counter-current`, '--'), ' / ', h(`span.${APPID}-counter-total`, '--')]),
-                ]),
-                h(`div.${APPID}-nav-separator`),
-                h(`div#${APPID}-nav-group-total.${APPID}-nav-group`, [
-                    h(`button.${APPID}-nav-btn`, { 'data-nav': 'total-first', title: 'First message' }, [svgIcons.first()]),
-                    h(`button.${APPID}-nav-btn`, { 'data-nav': 'total-prev', title: 'Previous message' }, [svgIcons.prev()]),
-                    h(`span.${APPID}-nav-label`, { 'data-role': 'total', title: 'Show message list' }, 'Total:'),
-                    h(`span.${APPID}-nav-counter`, { 'data-role': 'total', title: 'Click to jump to a message' }, [h(`span.${APPID}-counter-current`, '--'), ' / ', h(`span.${APPID}-counter-total`, '--')]),
-                    h(`button.${APPID}-nav-btn`, { 'data-nav': 'total-next', title: 'Next message' }, [svgIcons.next()]),
-                    h(`button.${APPID}-nav-btn`, { 'data-nav': 'total-last', title: 'Last message' }, [svgIcons.last()]),
-                ]),
-                h(`div.${APPID}-nav-separator`),
-                h(`div#${APPID}-nav-group-user.${APPID}-nav-group`, [
-                    h(`span.${APPID}-nav-label`, { 'data-role': 'user', title: 'Show message list' }, 'User:'),
-                    h(`span.${APPID}-nav-counter`, { 'data-role': 'user', title: 'Click to jump to a message' }, [h(`span.${APPID}-counter-current`, '--'), ' / ', h(`span.${APPID}-counter-total`, '--')]),
-                    h(`button.${APPID}-nav-btn`, { 'data-nav': 'user-prev', title: 'Previous user message' }, [svgIcons.prev()]),
-                    h(`button.${APPID}-nav-btn`, { 'data-nav': 'user-next', title: 'Next user message' }, [svgIcons.next()]),
-                ]),
-            ];
-            this.navConsole.textContent = '';
-            navUI.forEach((el) => this.navConsole.appendChild(el));
-        }
-
-        attachEventListeners() {
-            document.body.addEventListener('click', this.handleBodyClick, true);
-            document.addEventListener('keydown', this._handleKeyDown, true);
-        }
-
-        /**
-         * Handles clicks on the document body to delegate actions for the nav console.
-         * @param {MouseEvent} e The click event object.
-         * @returns {void}
-         */
-        handleBodyClick(e) {
-            // If the click is inside the jump list, let the component handle it.
-            if (this.jumpListComponent?.element.contains(e.target)) {
-                return;
-            }
-
-            // Close the jump list if the click is outside both the console and the list itself.
-            if (this.jumpListComponent && !this.navConsole?.contains(e.target)) {
-                this._hideJumpList();
-            }
-
-            const navButton = e.target.closest(`.${APPID}-nav-btn`);
-            if (navButton && this.navConsole?.contains(navButton)) {
-                this.handleButtonClick(navButton);
-                return;
-            }
-
-            const counter = e.target.closest(`.${APPID}-nav-counter[data-role]`);
-            if (counter) {
-                this.handleCounterClick(e, counter);
-                return;
-            }
-
-            const label = e.target.closest(`.${APPID}-nav-label[data-role]`);
-            if (label) {
-                this._toggleJumpList(label);
-                return;
-            }
-
-            const messageElement = e.target.closest(CONSTANTS.SELECTORS.FIXED_NAV_MESSAGE_CONTAINERS);
-            if (messageElement && !e.target.closest(`a, button, input, #${APPID}-nav-console`)) {
-                this.setHighlightAndIndices(messageElement);
-            }
-        }
-
-        _updateUI() {
-            if (!this.navConsole) return;
-
+            const { currentIndices, highlightedMessage } = this.state;
             const userMessages = this.messageCacheManager.getUserMessages();
             const asstMessages = this.messageCacheManager.getAssistantMessages();
             const totalMessages = this.messageCacheManager.getTotalMessages();
 
-            // Disconnect any existing observer before making changes.
-            this.resizeObserver?.disconnect();
-            this.resizeObserver = null;
-
-            // Toggle visibility based on message count
-            if (totalMessages.length === 0) {
+            // Toggle visibility based on message count or if it's a new chat page
+            if (totalMessages.length === 0 || isNewChatPage()) {
                 this.navConsole.classList.add(`${APPID}-nav-hidden`);
             } else {
                 this.navConsole.classList.remove(`${APPID}-nav-hidden`);
@@ -4519,32 +6483,88 @@
                 if (this.navConsole.classList.contains(`${APPID}-nav-unpositioned`)) {
                     this.navConsole.classList.remove(`${APPID}-nav-unpositioned`);
                 }
+            }
 
-                // Find the input form and attach a new ResizeObserver.
-                // This ensures the observer is always attached to the correct, visible element.
-                const inputForm = document.querySelector(CONSTANTS.SELECTORS.FIXED_NAV_INPUT_AREA_TARGET);
-                if (inputForm) {
-                    this.resizeObserver = new ResizeObserver(() => this.debouncedReposition());
-                    this.resizeObserver.observe(inputForm);
+            this.navConsole.querySelector(`#${APPID}-nav-group-user .${APPID}-counter-total`).textContent = String(userMessages.length ? userMessages.length : '--');
+            this.navConsole.querySelector(`#${APPID}-nav-group-assistant .${APPID}-counter-total`).textContent = String(asstMessages.length ? asstMessages.length : '--');
+            this.navConsole.querySelector(`#${APPID}-nav-group-total .${APPID}-counter-total`).textContent = String(totalMessages.length ? totalMessages.length : '--');
+
+            this.navConsole.querySelector(`#${APPID}-nav-group-user .${APPID}-counter-current`).textContent = String(currentIndices.user > -1 ? currentIndices.user + 1 : '--');
+            this.navConsole.querySelector(`#${APPID}-nav-group-assistant .${APPID}-counter-current`).textContent = String(currentIndices.asst > -1 ? currentIndices.asst + 1 : '--');
+            this.navConsole.querySelector(`#${APPID}-nav-group-total .${APPID}-counter-current`).textContent = String(currentIndices.total > -1 ? currentIndices.total + 1 : '--');
+
+            document.querySelectorAll(`.${APPID}-highlight-message, .${APPID}-highlight-turn`).forEach((el) => {
+                el.classList.remove(`${APPID}-highlight-message`);
+                el.classList.remove(`${APPID}-highlight-turn`);
+            });
+            if (highlightedMessage) {
+                highlightedMessage.classList.add(`${APPID}-highlight-message`);
+                PlatformAdapters.FixedNav.applyAdditionalHighlight(highlightedMessage);
+            }
+
+            if (this.state.jumpListComponent) {
+                this.state.jumpListComponent.updateHighlightedMessage(highlightedMessage);
+            }
+
+            // Update UI state for the auto-scroll feature.
+            if (this.autoScrollManager) {
+                const autoscrollBtn = this.navConsole.querySelector(`#${APPID}-autoscroll-btn`);
+                if (autoscrollBtn instanceof HTMLButtonElement) {
+                    autoscrollBtn.disabled = this.state.isAutoScrolling;
                 }
             }
 
-            this.navConsole.querySelector(`#${APPID}-nav-group-user .${APPID}-counter-total`).textContent = userMessages.length || '--';
-            this.navConsole.querySelector(`#${APPID}-nav-group-assistant .${APPID}-counter-total`).textContent = asstMessages.length || '--';
-            this.navConsole.querySelector(`#${APPID}-nav-group-total .${APPID}-counter-total`).textContent = totalMessages.length || '--';
-
-            PlatformAdapter.handleInfiniteScroll(this, this.highlightedMessage, this.previousTotalMessages);
-
-            // Select the last message on initial load, but only if auto-scroll is not in progress.
-            if (!this.isAutoScrolling && !this.isInitialSelectionDone && totalMessages.length > 0) {
-                this.selectLastMessage();
-                this.isInitialSelectionDone = true;
-            } else if (!this.highlightedMessage && totalMessages.length > 0) {
-                this.setHighlightAndIndices(totalMessages[0]);
+            // Update bulk collapse button visibility
+            const config = this.configManager.get();
+            const collapseBtn = this.navConsole.querySelector(`#${APPID}-bulk-collapse-btn`);
+            if (collapseBtn instanceof HTMLElement) {
+                const collapsibleEnabled = config?.features?.collapsible_button?.enabled ?? false;
+                const shouldShow = collapsibleEnabled && totalMessages.length > 0;
+                collapseBtn.style.display = shouldShow ? 'flex' : 'none';
+                const separator = collapseBtn.previousElementSibling;
+                if (separator instanceof HTMLElement && separator.classList.contains(`${APPID}-nav-separator`)) {
+                    separator.style.display = shouldShow ? 'flex' : 'none';
+                }
+                this._updateBulkCollapseButtonTooltip(collapseBtn);
             }
 
             this.repositionContainers();
-            this.previousTotalMessages = totalMessages.length;
+        }
+
+        _updateBulkCollapseButtonTooltip(button) {
+            if (!button) return;
+            const currentState = button.dataset.state;
+            // Set the tooltip to describe the action that WILL be taken on click.
+            const tooltipText = currentState === 'expanded' ? 'Collapse all messages' : 'Expand all messages';
+            button.title = tooltipText;
+        }
+
+        _toggleAllMessages() {
+            const button = this.navConsole.querySelector(`#${APPID}-bulk-collapse-btn`);
+            if (!(button instanceof HTMLElement)) return;
+
+            const currentState = button.dataset.state;
+            const nextState = currentState === 'expanded' ? 'collapsed' : 'expanded';
+            button.dataset.state = nextState;
+            this._updateBulkCollapseButtonTooltip(button);
+
+            const messages = document.querySelectorAll(`.${APPID}-collapsible`);
+            const shouldCollapse = nextState === 'collapsed';
+            const highlightedMessage = this.state.highlightedMessage;
+
+            messages.forEach((msg) => {
+                msg.classList.toggle(`${APPID}-bubble-collapsed`, shouldCollapse);
+            });
+
+            if (highlightedMessage) {
+                requestAnimationFrame(() => {
+                    document.body.offsetHeight; // Forcing reflow
+
+                    requestAnimationFrame(() => {
+                        this._scrollToMessage(highlightedMessage);
+                    });
+                });
+            }
         }
 
         /**
@@ -4553,54 +6573,68 @@
          * @returns {void}
          */
         setHighlightAndIndices(targetMsg) {
-            if (!targetMsg || !this.navConsole) return;
-            this.highlightMessage(targetMsg);
-
-            // If the jump list is open, notify it of the change.
-            if (this.jumpListComponent) {
-                this.jumpListComponent.updateHighlightedMessage(targetMsg);
-            }
+            if (!targetMsg) return;
 
             const userMessages = this.messageCacheManager.getUserMessages();
             const asstMessages = this.messageCacheManager.getAssistantMessages();
             const totalMessages = this.messageCacheManager.getTotalMessages();
 
-            this.currentIndices.total = totalMessages.indexOf(targetMsg);
-            const role = PlatformAdapter.getMessageRole(targetMsg);
+            const newIndices = {
+                total: totalMessages.indexOf(targetMsg),
+                user: -1,
+                asst: -1,
+            };
+
+            const role = PlatformAdapters.General.getMessageRole(targetMsg);
 
             if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER) {
-                this.currentIndices.user = userMessages.indexOf(targetMsg);
-                this.currentIndices.asst = this.findNearestIndex(targetMsg, asstMessages);
+                newIndices.user = userMessages.indexOf(targetMsg);
+                newIndices.asst = this.findNearestIndex(targetMsg, asstMessages);
             } else {
-                this.currentIndices.asst = asstMessages.indexOf(targetMsg);
-                this.currentIndices.user = this.findNearestIndex(targetMsg, userMessages);
+                newIndices.asst = asstMessages.indexOf(targetMsg);
+                newIndices.user = this.findNearestIndex(targetMsg, userMessages);
             }
 
-            this.navConsole.querySelector(`#${APPID}-nav-group-user .${APPID}-counter-current`).textContent = this.currentIndices.user > -1 ? this.currentIndices.user + 1 : '--';
-            this.navConsole.querySelector(`#${APPID}-nav-group-assistant .${APPID}-counter-current`).textContent = this.currentIndices.asst > -1 ? this.currentIndices.asst + 1 : '--';
-            this.navConsole.querySelector(`#${APPID}-nav-group-total .${APPID}-counter-current`).textContent = this.currentIndices.total > -1 ? this.currentIndices.total + 1 : '--';
+            this.state.highlightedMessage = targetMsg;
+            this.state.currentIndices = newIndices;
+
+            this._renderUI();
         }
 
         /**
          * @private
-         * @description Finds the index of the message in a given array that is nearest to (but not after) the current message's vertical position.
-         * This is used to synchronize the 'user' and 'assistant' counters.
-         * For example, when an assistant message is highlighted, this finds the most recent user message that appeared before it on the screen.
-         * It iterates backwards for efficiency and to correctly find the last message that meets the criteria.
+         * @description Finds the index of the message in a given array that is nearest to the current message, using DOM order. This avoids performance-intensive layout calculations.
+         * @description It iterates backwards through a master list of all messages from the current message's position, looking for the first message that exists in the target role's array.
          * @param {HTMLElement} currentMsg The reference message element.
-         * @param {HTMLElement[]} messageArray The array of messages to search within.
-         * @returns {number} The index of the nearest message in the array, or -1 if not found.
+         * @param {HTMLElement[]} messageArray The array of messages (e.g., only user messages) to search within.
+         * @returns {number} The index of the nearest message in `messageArray`, or -1 if not found.
          */
         findNearestIndex(currentMsg, messageArray) {
-            const currentMsgTop = currentMsg.getBoundingClientRect().top;
-            let nearestIndex = -1;
-            for (let i = messageArray.length - 1; i >= 0; i--) {
-                if (messageArray[i].getBoundingClientRect().top <= currentMsgTop) {
-                    nearestIndex = i;
-                    break;
+            if (messageArray.length === 0) {
+                return -1;
+            }
+
+            const totalMessages = this.messageCacheManager.getTotalMessages();
+            const currentIndexInTotal = totalMessages.indexOf(currentMsg);
+
+            if (currentIndexInTotal === -1) {
+                return -1; // Should not happen in normal operation
+            }
+
+            // Create a Set for efficient O(1) average time complexity lookups.
+            const messageSet = new Set(messageArray);
+
+            // Iterate backwards from the current message's position in the master list.
+            for (let i = currentIndexInTotal; i >= 0; i--) {
+                const candidateMsg = totalMessages[i];
+                // Check if the candidate message belongs to the target role array.
+                if (messageSet.has(candidateMsg)) {
+                    // Found the nearest message. Now, find its index within its own role array.
+                    return messageArray.indexOf(candidateMsg);
                 }
             }
-            return nearestIndex;
+
+            return -1; // Fallback if no preceding message is found
         }
 
         /**
@@ -4609,55 +6643,55 @@
          * @returns {void}
          */
         handleButtonClick(buttonElement) {
-            let targetMsg = null;
-            const userMessages = this.messageCacheManager.getUserMessages();
-            const asstMessages = this.messageCacheManager.getAssistantMessages();
-            const totalMessages = this.messageCacheManager.getTotalMessages();
+            const navCommand = buttonElement.dataset.nav;
+            if (!navCommand) return;
 
-            const { user: currentUserIndex, asst: currentAsstIndex, total: currentTotalIndex } = this.currentIndices;
+            const [role, direction] = navCommand.split('-');
+            if (role && direction) {
+                this._navigateTo(role, direction);
+            }
+        }
 
-            switch (buttonElement.dataset.nav) {
-                case 'user-prev': {
-                    const userPrevIndex = currentUserIndex > -1 ? currentUserIndex : 0;
-                    targetMsg = this.messageCacheManager.getMessageAtIndex('user', Math.max(0, userPrevIndex - 1));
+        /**
+         * Navigates to a message based on role and direction.
+         * @private
+         * @param {string} role The role to navigate within ('user', 'asst', 'total').
+         * @param {string} direction The direction to navigate ('prev', 'next', 'first', 'last').
+         */
+        _navigateTo(role, direction) {
+            const { user: currentUserIndex, asst: currentAsstIndex, total: currentTotalIndex } = this.state.currentIndices;
+            const roleMap = {
+                user: { messages: this.messageCacheManager.getUserMessages(), currentIndex: currentUserIndex },
+                asst: { messages: this.messageCacheManager.getAssistantMessages(), currentIndex: currentAsstIndex },
+                total: { messages: this.messageCacheManager.getTotalMessages(), currentIndex: currentTotalIndex },
+            };
+
+            const { messages, currentIndex } = roleMap[role];
+            if (!messages || messages.length === 0) return;
+
+            let nextIndex = -1;
+            switch (direction) {
+                case 'first':
+                    nextIndex = 0;
+                    break;
+                case 'last':
+                    nextIndex = messages.length - 1;
+                    break;
+                case 'prev': {
+                    const prevIndex = currentIndex > -1 ? currentIndex : 0;
+                    nextIndex = Math.max(0, prevIndex - 1);
                     break;
                 }
-                case 'user-next': {
-                    const userNextIndex = currentUserIndex === -1 ? 0 : currentUserIndex + 1;
-                    targetMsg = this.messageCacheManager.getMessageAtIndex('user', Math.min(userMessages.length - 1, userNextIndex));
-                    break;
-                }
-                case 'asst-prev': {
-                    const asstPrevIndex = currentAsstIndex > -1 ? currentAsstIndex : 0;
-                    targetMsg = this.messageCacheManager.getMessageAtIndex('asst', Math.max(0, asstPrevIndex - 1));
-                    break;
-                }
-                case 'asst-next': {
-                    const asstNextIndex = currentAsstIndex === -1 ? 0 : currentAsstIndex + 1;
-                    targetMsg = this.messageCacheManager.getMessageAtIndex('asst', Math.min(asstMessages.length - 1, asstNextIndex));
-                    break;
-                }
-                case 'total-first': {
-                    targetMsg = totalMessages[0];
-                    break;
-                }
-                case 'total-last': {
-                    targetMsg = totalMessages[totalMessages.length - 1];
-                    break;
-                }
-                case 'total-prev': {
-                    const totalPrevIndex = currentTotalIndex > -1 ? currentTotalIndex : 0;
-                    targetMsg = totalMessages[Math.max(0, totalPrevIndex - 1)];
-                    break;
-                }
-                case 'total-next': {
-                    const totalNextIndex = currentTotalIndex === -1 ? 0 : currentTotalIndex + 1;
-                    targetMsg = totalMessages[Math.min(totalMessages.length - 1, totalNextIndex)];
+                case 'next': {
+                    const nextIndexBase = currentIndex === -1 ? 0 : currentIndex + 1;
+                    nextIndex = Math.min(messages.length - 1, nextIndexBase);
                     break;
                 }
             }
 
-            this.navigateToMessage(targetMsg);
+            if (nextIndex !== -1 && messages[nextIndex]) {
+                this.navigateToMessage(messages[nextIndex]);
+            }
         }
 
         /**
@@ -4669,6 +6703,8 @@
         handleCounterClick(e, counterSpan) {
             const role = counterSpan.dataset.role;
             const input = h(`input.${APPID}-nav-jump-input`, { type: 'text' });
+            if (!(input instanceof HTMLInputElement)) return;
+
             counterSpan.classList.add('is-hidden');
             counterSpan.parentNode.insertBefore(input, counterSpan.nextSibling);
             input.focus();
@@ -4700,11 +6736,13 @@
 
             input.addEventListener('blur', () => endEdit(false));
             input.addEventListener('keydown', (ev) => {
-                if (ev.key === 'Enter') {
-                    ev.preventDefault();
-                    endEdit(true);
-                } else if (ev.key === 'Escape') {
-                    endEdit(false);
+                if (ev instanceof KeyboardEvent) {
+                    if (ev.key === 'Enter') {
+                        ev.preventDefault();
+                        endEdit(true);
+                    } else if (ev.key === 'Escape') {
+                        endEdit(false);
+                    }
                 }
             });
         }
@@ -4712,29 +6750,13 @@
         navigateToMessage(element) {
             if (!element) return;
             this.setHighlightAndIndices(element);
-
-            const turnSelector = CONSTANTS.SELECTORS.FIXED_NAV_TURN_CONTAINER;
-            const targetToScroll = (turnSelector && element.closest(turnSelector)) || element;
-            scrollToElement(targetToScroll, { offset: CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV });
+            this._scrollToMessage(element);
         }
 
-        /**
-         * Applies a highlight class to a given message element and removes it from the previously highlighted one.
-         * @param {HTMLElement} element The message element to highlight.
-         * @returns {void}
-         */
-        highlightMessage(element) {
-            if (this.highlightedMessage === element) return;
-            if (this.highlightedMessage) {
-                this.highlightedMessage.classList.remove(`${APPID}-highlight-message`);
-            }
-
-            if (element) {
-                element.classList.add(`${APPID}-highlight-message`);
-                this.highlightedMessage = element;
-            } else {
-                this.highlightedMessage = null;
-            }
+        _scrollToMessage(element) {
+            if (!element) return;
+            const targetToScroll = element;
+            scrollToElement(targetToScroll, { offset: CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV });
         }
 
         /**
@@ -4745,14 +6767,28 @@
             const inputForm = document.querySelector(CONSTANTS.SELECTORS.FIXED_NAV_INPUT_AREA_TARGET);
             if (!inputForm || !this.navConsole) return;
 
-            const formRect = inputForm.getBoundingClientRect();
-            const bottomPosition = `${window.innerHeight - formRect.top + 8}px`;
-            if (this.navConsole) {
-                const formCenter = formRect.left + formRect.width / 2;
-                const centerWidth = this.navConsole.offsetWidth;
-                this.navConsole.style.left = `${formCenter - centerWidth / 2}px`;
-                this.navConsole.style.bottom = bottomPosition;
-            }
+            // Use withLayoutCycle to prevent layout thrashing
+            withLayoutCycle({
+                measure: () => {
+                    // --- Read Phase ---
+                    return {
+                        formRect: inputForm.getBoundingClientRect(),
+                        consoleWidth: this.navConsole.offsetWidth,
+                        windowHeight: window.innerHeight,
+                    };
+                },
+                mutate: (measured) => {
+                    // --- Write Phase ---
+                    if (!measured) return;
+
+                    const { formRect, consoleWidth, windowHeight } = measured;
+                    const bottomPosition = `${windowHeight - formRect.top + 8}px`;
+                    const formCenter = formRect.left + formRect.width / 2;
+
+                    this.navConsole.style.left = `${formCenter - consoleWidth / 2}px`;
+                    this.navConsole.style.bottom = bottomPosition;
+                },
+            });
         }
 
         /**
@@ -4764,6 +6800,179 @@
                 const lastMessage = totalMessages[totalMessages.length - 1];
                 this.navigateToMessage(lastMessage);
             }
+        }
+
+        hideJumpList() {
+            this._hideJumpList();
+        }
+
+        _toggleJumpList(labelElement) {
+            const role = labelElement.dataset.role;
+            if (this.state.jumpListComponent?.role === role) {
+                this._hideJumpList();
+                return;
+            }
+
+            this._hideJumpList();
+
+            const roleMap = {
+                user: this.messageCacheManager.getUserMessages(),
+                asst: this.messageCacheManager.getAssistantMessages(),
+                total: this.messageCacheManager.getTotalMessages(),
+            };
+            const messages = roleMap[role];
+            if (!messages || messages.length === 0) return;
+
+            this.state.jumpListComponent = new JumpListComponent(
+                role,
+                messages,
+                this.state.highlightedMessage,
+                {
+                    onSelect: (message) => this._handleJumpListSelect(message),
+                },
+                SITE_STYLES.FIXED_NAV,
+                this.state.lastFilterValue
+            );
+            this.state.jumpListComponent.show(labelElement);
+        }
+
+        _hideJumpList() {
+            if (!this.state.jumpListComponent) return;
+            this.state.lastFilterValue = this.state.jumpListComponent.getFilterValue();
+            this.state.jumpListComponent.destroy();
+            this.state.jumpListComponent = null;
+        }
+
+        _handleJumpListSelect(messageElement) {
+            this.navigateToMessage(messageElement);
+            this._hideJumpList();
+        }
+
+        _handleKeyDown(e) {
+            if (e.key === 'Escape') {
+                // Handle auto-scroll cancellation first.
+                if (this.autoScrollManager?.isScrolling) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    EventBus.publish(EVENTS.AUTO_SCROLL_CANCEL_REQUEST);
+                }
+                // Then handle jump list closure if auto-scroll is not active.
+                else if (this.state.jumpListComponent) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this._hideJumpList();
+                }
+            }
+        }
+
+        /**
+         * Handles clicks on the document body to delegate actions for the nav console.
+         * @param {MouseEvent} e The click event object.
+         * @returns {void}
+         */
+        handleBodyClick(e) {
+            const target = e.target;
+            if (!(target instanceof Element)) {
+                return;
+            }
+
+            // If the click is inside the jump list, let the component handle it.
+            if (this.state.jumpListComponent?.element.contains(target)) {
+                return;
+            }
+
+            // Close the jump list if the click is outside both the console and the list itself.
+            if (this.state.jumpListComponent && !this.navConsole?.contains(target)) {
+                this._hideJumpList();
+            }
+
+            const navButton = target.closest(`.${APPID}-nav-btn`);
+            if (navButton instanceof HTMLElement && this.navConsole?.contains(navButton)) {
+                this.handleButtonClick(navButton);
+                return;
+            }
+
+            const counter = target.closest(`.${APPID}-nav-counter[data-role]`);
+            if (counter instanceof HTMLElement) {
+                this.handleCounterClick(e, counter);
+                return;
+            }
+
+            const label = target.closest(`.${APPID}-nav-label[data-role]`);
+            if (label instanceof HTMLElement) {
+                this._toggleJumpList(label);
+                return;
+            }
+
+            const messageElement = target.closest(CONSTANTS.SELECTORS.FIXED_NAV_MESSAGE_CONTAINERS);
+            if (messageElement instanceof HTMLElement && !target.closest(`a, button, input, #${APPID}-nav-console`)) {
+                this.setHighlightAndIndices(messageElement);
+            }
+        }
+
+        createContainers() {
+            if (document.getElementById(`${APPID}-nav-console`)) return;
+            const navConsole = h(`div#${APPID}-nav-console.${APPID}-nav-unpositioned`);
+            if (!(navConsole instanceof HTMLElement)) return;
+            this.navConsole = navConsole;
+            document.body.appendChild(this.navConsole);
+
+            this.renderInitialUI();
+            this.attachEventListeners();
+        }
+
+        renderInitialUI() {
+            if (!this.navConsole) return;
+
+            const bulkCollapseBtn = h(
+                `button#${APPID}-bulk-collapse-btn.${APPID}-nav-btn`,
+                {
+                    style: { display: 'none' },
+                    dataset: { state: 'expanded' },
+                    onclick: (e) => {
+                        e.stopPropagation();
+                        this._toggleAllMessages();
+                    },
+                },
+                [createIconFromDef(SITE_STYLES.ICONS.bulkCollapse), createIconFromDef(SITE_STYLES.ICONS.bulkExpand)]
+            );
+
+            const platformButtons = PlatformAdapters.FixedNav.getPlatformSpecificButtons(this);
+
+            const navUI = [
+                ...platformButtons,
+                h(`div#${APPID}-nav-group-assistant.${APPID}-nav-group`, [
+                    h(`button.${APPID}-nav-btn`, { 'data-nav': 'asst-prev', title: 'Previous assistant message' }, [createIconFromDef(SITE_STYLES.ICONS.arrowUp)]),
+                    h(`button.${APPID}-nav-btn`, { 'data-nav': 'asst-next', title: 'Next assistant message' }, [createIconFromDef(SITE_STYLES.ICONS.arrowDown)]),
+                    h(`span.${APPID}-nav-label`, { 'data-role': 'asst', title: 'Show message list' }, 'Assistant:'),
+                    h(`span.${APPID}-nav-counter`, { 'data-role': 'asst', title: 'Click to jump to a message' }, [h(`span.${APPID}-counter-current`, '--'), ' / ', h(`span.${APPID}-counter-total`, '--')]),
+                ]),
+                h(`div.${APPID}-nav-separator`),
+                h(`div#${APPID}-nav-group-total.${APPID}-nav-group`, [
+                    h(`button.${APPID}-nav-btn`, { 'data-nav': 'total-first', title: 'First message' }, [createIconFromDef(SITE_STYLES.ICONS.scrollToFirst)]),
+                    h(`button.${APPID}-nav-btn`, { 'data-nav': 'total-prev', title: 'Previous message' }, [createIconFromDef(SITE_STYLES.ICONS.arrowUp)]),
+                    h(`span.${APPID}-nav-label`, { 'data-role': 'total', title: 'Show message list' }, 'Total:'),
+                    h(`span.${APPID}-nav-counter`, { 'data-role': 'total', title: 'Click to jump to a message' }, [h(`span.${APPID}-counter-current`, '--'), ' / ', h(`span.${APPID}-counter-total`, '--')]),
+                    h(`button.${APPID}-nav-btn`, { 'data-nav': 'total-next', title: 'Next message' }, [createIconFromDef(SITE_STYLES.ICONS.arrowDown)]),
+                    h(`button.${APPID}-nav-btn`, { 'data-nav': 'total-last', title: 'Last message' }, [createIconFromDef(SITE_STYLES.ICONS.scrollToLast)]),
+                ]),
+                h(`div.${APPID}-nav-separator`),
+                h(`div#${APPID}-nav-group-user.${APPID}-nav-group`, [
+                    h(`span.${APPID}-nav-label`, { 'data-role': 'user', title: 'Show message list' }, 'User:'),
+                    h(`span.${APPID}-nav-counter`, { 'data-role': 'user', title: 'Click to jump to a message' }, [h(`span.${APPID}-counter-current`, '--'), ' / ', h(`span.${APPID}-counter-total`, '--')]),
+                    h(`button.${APPID}-nav-btn`, { 'data-nav': 'user-prev', title: 'Previous user message' }, [createIconFromDef(SITE_STYLES.ICONS.arrowUp)]),
+                    h(`button.${APPID}-nav-btn`, { 'data-nav': 'user-next', title: 'Next user message' }, [createIconFromDef(SITE_STYLES.ICONS.arrowDown)]),
+                ]),
+                h(`div.${APPID}-nav-separator`),
+                bulkCollapseBtn,
+            ];
+            this.navConsole.textContent = '';
+            navUI.forEach((el) => this.navConsole.appendChild(el));
+        }
+
+        attachEventListeners() {
+            document.body.addEventListener('click', this.handleBodyClick, true);
+            document.addEventListener('keydown', this._handleKeyDown, true);
         }
 
         injectStyle() {
@@ -4843,7 +7052,7 @@
                     font: inherit;
                 }
                 #${APPID}-nav-console .${APPID}-nav-btn {
-                    background: ${navStyles.btn_bg};
+                    background-color: ${navStyles.btn_bg};
                     color: ${navStyles.btn_text};
                     border: 1px solid ${navStyles.btn_border};
                     border-radius: 5px;
@@ -4857,13 +7066,21 @@
                     transition: background-color 0.1s, color 0.1s;
                 }
                 #${APPID}-nav-console .${APPID}-nav-btn:hover {
-                    background: ${navStyles.btn_hover_bg};
+                    background-color: ${navStyles.btn_hover_bg};
                 }
                 #${APPID}-nav-console .${APPID}-nav-btn svg {
                     width: 20px;
                     height: 20px;
                     fill: currentColor;
                 }
+                #${APPID}-bulk-collapse-btn svg {
+                    width: 100%;
+                    height: 100%;
+                }
+                #${APPID}-bulk-collapse-btn[data-state="expanded"] .icon-expand { display: none; }
+                #${APPID}-bulk-collapse-btn[data-state="expanded"] .icon-collapse { display: block; }
+                #${APPID}-bulk-collapse-btn[data-state="collapsed"] .icon-expand { display: block; }
+                #${APPID}-bulk-collapse-btn[data-state="collapsed"] .icon-collapse { display: none; }
                 #${APPID}-nav-console .${APPID}-nav-btn[data-nav$="-prev"],
                 #${APPID}-nav-console .${APPID}-nav-btn[data-nav$="-next"] {
                     color: ${navStyles.btn_accent_text};
@@ -4871,6 +7088,10 @@
                 #${APPID}-nav-console .${APPID}-nav-btn[data-nav="total-first"],
                 #${APPID}-nav-console .${APPID}-nav-btn[data-nav="total-last"] {
                     color: ${navStyles.btn_danger_text};
+                }
+                #${APPID}-autoscroll-btn:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
                 }
                 ${CONSTANTS.SELECTORS.FIXED_NAV_HIGHLIGHT_TARGETS} {
                     outline: 2px solid ${navStyles.highlight_outline} !important;
@@ -5019,168 +7240,134 @@
         }
     }
 
-    class BulkCollapseManager {
-        constructor(configManager, messageCacheManager) {
-            this.configManager = configManager;
+    // =================================================================================
+    // SECTION: Message Lifecycle Orchestrator
+    // Description: Listens for raw message additions from Sentinel and orchestrates
+    //              the appropriate high-level events (avatar injection, UI setup).
+    // =================================================================================
+
+    class MessageLifecycleManager {
+        /**
+         * @param {MessageCacheManager} messageCacheManager
+         */
+        constructor(messageCacheManager) {
             this.messageCacheManager = messageCacheManager;
-            this.button = null;
-            this.debouncedReposition = debounce(this.repositionButton.bind(this), TIMING.DEBOUNCE_DELAYS.NAVIGATION_UPDATE);
-            this.fixedNavManager = null;
-            this.unsubscribers = [];
+            this.scanIntervalId = null;
+            this.scanAttempts = 0;
+            this.subscriptions = [];
+            this.boundStopPollingScan = this.stopPollingScan.bind(this);
         }
 
-        /**
-         * Sets the FixedNavigationManager instance.
-         * @param {FixedNavigationManager | null} manager
-         */
-        setFixedNavManager(manager) {
-            this.fixedNavManager = manager;
+        _subscribe(event, listener) {
+            const key = createEventKey(this, event);
+            EventBus.subscribe(event, listener, key);
+            this.subscriptions.push({ event, key });
         }
 
-        /**
-         * Initializes the bulk collapse/expand button.
-         * Renders the button, injects styles, and sets up event listeners.
-         * @returns {Promise<void>}
-         */
-        async init() {
-            this.render();
-            this.injectStyle();
-
-            this.unsubscribers.push(EventBus.subscribe(`${APPID}:cacheUpdated`, this.updateVisibility.bind(this)));
-            this.unsubscribers.push(EventBus.subscribe(`${APPID}:layoutRecalculate`, this.debouncedReposition));
-
-            const inputArea = await waitForElement(CONSTANTS.SELECTORS.FIXED_NAV_INPUT_AREA_TARGET);
-            if (inputArea && this.button) {
-                this.repositionButton();
-                this.updateVisibility(); // Set initial visibility
-                this.button.style.visibility = 'visible';
-            }
+        init() {
+            this._subscribe(EVENTS.RAW_MESSAGE_ADDED, (elem) => this.processRawMessage(elem));
+            this._subscribe(EVENTS.APP_SHUTDOWN, () => this.destroy());
+            this._subscribe(EVENTS.NAVIGATION_END, () => {
+                PlatformAdapters.General.onNavigationEnd?.(this);
+            });
         }
 
         destroy() {
-            this.unsubscribers.forEach((unsub) => unsub());
-            this.unsubscribers = [];
-            this.button?.remove();
-            this.button = null;
-        }
-
-        render() {
-            const collapseIcon = h('svg', { className: 'icon-collapse', viewBox: '0 -960 960 960' }, [h('path', { d: 'M440-440v240h-80v-160H200v-80h240Zm160-320v160h160v80H520v-240h80Z' })]);
-            const expandIcon = h('svg', { className: 'icon-expand', viewBox: '0 -960 960 960' }, [h('path', { d: 'M200-200v-240h80v160h160v80H200Zm480-320v-160H520v-80h240v240h-80Z' })]);
-            this.button = h(
-                'button',
-                {
-                    id: `${APPID}-bulk-collapse-btn`,
-                    title: 'Toggle all messages',
-                    dataset: { state: 'expanded' }, // Initial state
-                    style: { visibility: 'hidden' },
-                    onclick: (e) => {
-                        e.stopPropagation();
-                        const currentState = this.button.dataset.state;
-                        const nextState = currentState === 'expanded' ? 'collapsed' : 'expanded';
-                        this.button.dataset.state = nextState;
-                        this._toggleAllMessages(nextState);
-                    },
-                },
-                [collapseIcon, expandIcon]
-            );
-            document.body.appendChild(this.button);
-        }
-
-        injectStyle() {
-            const styleId = `${APPID}-bulk-collapse-style`;
-            if (document.getElementById(styleId)) return;
-
-            const styles = SITE_STYLES.SETTINGS_BUTTON;
-            const style = h('style', {
-                id: styleId,
-                textContent: `
-                    #${APPID}-bulk-collapse-btn {
-                        position: fixed;
-                        width: 32px;
-                        height: 32px;
-                        z-index: ${CONSTANTS.Z_INDICES.SETTINGS_BUTTON};
-                        background: ${styles.background};
-                        border: 1px solid ${styles.borderColor};
-                        border-radius: 50%;
-                        cursor: pointer;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        padding: 6px;
-                        box-sizing: border-box;
-                        transition: background 0.12s;
-                    }
-                    #${APPID}-bulk-collapse-btn:hover {
-                        background: ${styles.backgroundHover};
-                    }
-                    #${APPID}-bulk-collapse-btn svg {
-                        width: 100%;
-                        height: 100%;
-                        fill: currentColor;
-                    }
-                    #${APPID}-bulk-collapse-btn[data-state="expanded"] .icon-expand { display: none; }
-                    #${APPID}-bulk-collapse-btn[data-state="expanded"] .icon-collapse { display: block; }
-                    #${APPID}-bulk-collapse-btn[data-state="collapsed"] .icon-expand { display: block; }
-                    #${APPID}-bulk-collapse-btn[data-state="collapsed"] .icon-collapse { display: none; }
-                `,
-            });
-            document.head.appendChild(style);
-        }
-
-        repositionButton() {
-            const inputForm = document.querySelector(CONSTANTS.SELECTORS.FIXED_NAV_INPUT_AREA_TARGET);
-            if (!inputForm || !this.button) {
-                if (this.button) this.button.style.display = 'none';
-                return;
-            }
-
-            const formRect = inputForm.getBoundingClientRect();
-            const buttonHeight = this.button.offsetHeight;
-
-            const top = formRect.top + formRect.height / 2 - buttonHeight / 2;
-            const left = formRect.right + 12; // 12px margin
-
-            this.button.style.top = `${top}px`;
-            this.button.style.left = `${left}px`;
-        }
-
-        updateVisibility() {
-            if (!this.button) return;
-            const config = this.configManager.get();
-            const featureEnabled = config?.features?.collapsible_button?.enabled ?? false;
-            const messagesExist = this.messageCacheManager.getTotalMessages().length > 0;
-
-            const shouldShow = featureEnabled && messagesExist;
-            this.button.style.display = shouldShow ? 'flex' : 'none';
-
-            if (shouldShow) {
-                this.repositionButton();
-            }
+            this.stopPollingScan();
+            this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
+            this.subscriptions = [];
         }
 
         /**
-         * Toggles the collapsed state of all applicable messages.
-         * @private
-         * @param {'expanded' | 'collapsed'} state The target state to apply to all messages.
+         * @description Starts a polling mechanism to repeatedly scan for unprocessed messages.
+         * The polling stops automatically after a set number of attempts, on user interaction, or once a new message is found.
          */
-        _toggleAllMessages(state) {
-            const messages = document.querySelectorAll(`.${APPID}-collapsible`);
-            const shouldCollapse = state === 'collapsed';
-            const highlightedMessage = this.fixedNavManager?.highlightedMessage;
+        startPollingScan() {
+            this.stopPollingScan(); // Ensure any previous polling is stopped
+            this.scanAttempts = 0;
+            const MAX_ATTEMPTS = 7;
+            const INTERVAL_MS = 750;
 
-            messages.forEach((msg) => {
-                msg.classList.toggle(`${APPID}-bubble-collapsed`, shouldCollapse);
-            });
+            Logger.log('Starting polling scan for unprocessed messages.');
 
-            // After toggling, explicitly navigate to the highlighted message to ensure correct scroll position.
-            if (highlightedMessage && this.fixedNavManager) {
-                // Use rAF to wait for the browser to repaint with new heights before navigating.
-                requestAnimationFrame(() => {
-                    requestAnimationFrame(() => {
-                        this.fixedNavManager.navigateToMessage(highlightedMessage);
-                    });
-                });
+            this.scanIntervalId = setInterval(() => {
+                this.scanAttempts++;
+                Logger.log(`Executing polling scan (Attempt ${this.scanAttempts}/${MAX_ATTEMPTS})...`);
+                const newItemsFound = this.scanForUnprocessedMessages();
+
+                if (newItemsFound > 0) {
+                    Logger.log(`Polling scan found ${newItemsFound} new message(s). Stopping early.`);
+                    EventBus.publish(EVENTS.POLLING_MESSAGES_FOUND);
+                    this.stopPollingScan();
+                    return;
+                }
+
+                if (this.scanAttempts >= MAX_ATTEMPTS) {
+                    Logger.log(`Polling scan finished after ${this.scanAttempts} attempts without finding new messages.`);
+                    this.stopPollingScan();
+                }
+            }, INTERVAL_MS);
+
+            // Stop polling immediately on user interaction
+            window.addEventListener('wheel', this.boundStopPollingScan, { once: true, passive: true });
+            window.addEventListener('keydown', this.boundStopPollingScan, { once: true, passive: true });
+        }
+
+        /**
+         * @description Stops the polling scan and cleans up associated listeners.
+         */
+        stopPollingScan() {
+            if (this.scanIntervalId) {
+                clearInterval(this.scanIntervalId);
+                this.scanIntervalId = null;
+                Logger.debug('Polling scan stopped.');
+            }
+            // Clean up interaction listeners regardless
+            window.removeEventListener('wheel', this.boundStopPollingScan);
+            window.removeEventListener('keydown', this.boundStopPollingScan);
+        }
+
+        /**
+         * @description Performs a one-time scan for any unprocessed messages after initial page load,
+         * complementing the real-time detection by Sentinel.
+         * @returns {number} The number of new items found and processed.
+         */
+        scanForUnprocessedMessages() {
+            return PlatformAdapters.General.performInitialScan?.(this) || 0;
+        }
+
+        processRawMessage(contentElement) {
+            // Flag the specific content piece as processed to avoid re-triggering from the same element.
+            const contentProcessedFlag = `${APPID}ContentProcessed`;
+            if (contentElement.dataset[contentProcessedFlag]) {
+                return;
+            }
+            contentElement.dataset[contentProcessedFlag] = 'true';
+
+            let messageElement = PlatformAdapters.General.findMessageElement(contentElement);
+
+            // Platform-specific hook to handle elements that need a container
+            if (!messageElement && PlatformAdapters.General.ensureMessageContainerForImage) {
+                // Let the adapter create a wrapper if needed and return it.
+                // We only do this for the image selector, not for markdown.
+                if (contentElement.matches(CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE)) {
+                    messageElement = PlatformAdapters.General.ensureMessageContainerForImage(contentElement);
+                }
+            }
+
+            // If we have a valid message container, proceed.
+            if (messageElement) {
+                // Fire avatar injection event. The AvatarManager will handle the one-per-turn logic.
+                EventBus.publish(EVENTS.AVATAR_INJECT, messageElement);
+
+                // Fire message complete event for other managers.
+                // Use a different flag to ensure this only fires once per message container,
+                // even if it has multiple content parts detected (e.g. text and images).
+                const messageCompleteFlag = `${APPID}MessageCompleteFired`;
+                if (!messageElement.dataset[messageCompleteFlag]) {
+                    messageElement.dataset[messageCompleteFlag] = 'true';
+                    EventBus.publish(EVENTS.MESSAGE_COMPLETE, messageElement);
+                }
             }
         }
     }
@@ -5193,7 +7380,14 @@
         constructor(configManager, messageCacheManager) {
             this.configManager = configManager;
             this.messageCacheManager = messageCacheManager;
-            this.unsubscribers = [];
+            this.numberSpanCache = new Map();
+            this.subscriptions = [];
+        }
+
+        _subscribe(event, listener) {
+            const key = createEventKey(this, event);
+            EventBus.subscribe(event, listener, key);
+            this.subscriptions.push({ event, key });
         }
 
         /**
@@ -5201,18 +7395,26 @@
          */
         init() {
             this.injectStyle();
-            // Use :avatarInject for flicker-free initial creation, as it fires when the DOM is stable.
-            this.unsubscribers.push(EventBus.subscribe(`${APPID}:avatarInject`, (elem) => this.processMessage(elem)));
             // Use :cacheUpdated for batch updates (re-numbering, visibility toggles after config changes).
-            this.unsubscribers.push(EventBus.subscribe(`${APPID}:cacheUpdated`, () => this.updateAllMessageNumbers()));
+            this._subscribe(EVENTS.CACHE_UPDATED, () => this.updateAllMessageNumbers());
+            this._subscribe(EVENTS.NAVIGATION, () => {
+                this.numberSpanCache.clear();
+            });
+            this._subscribe(EVENTS.APP_SHUTDOWN, () => this.destroy());
         }
 
         /**
          * Cleans up event listeners.
          */
         destroy() {
-            this.unsubscribers.forEach((unsub) => unsub());
-            this.unsubscribers = [];
+            this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
+            this.subscriptions = [];
+            document.getElementById(`${APPID}-message-number-style`)?.remove();
+            this.numberSpanCache.clear();
+        }
+
+        _syncCache() {
+            syncCacheWithMessages(this.numberSpanCache, this.messageCacheManager);
         }
 
         /**
@@ -5260,64 +7462,62 @@
         }
 
         /**
-         * Processes a single message element to add a message number.
-         * @param {HTMLElement} messageElement The message element.
-         */
-        processMessage(messageElement) {
-            const anchor = PlatformAdapter.getNavPositioningParent(messageElement);
-            if (!anchor) return;
-
-            // Ensure the anchor is a positioning context.
-            anchor.classList.add(`${APPID}-parent-with-number`);
-
-            // Prevent re-injection.
-            if (anchor.querySelector(`.${APPID}-message-number`)) return;
-
-            const index = this.messageCacheManager.getTotalMessages().indexOf(messageElement);
-            if (index === -1) return;
-
-            const role = PlatformAdapter.getMessageRole(messageElement);
-            if (!role) return;
-
-            const roleClass = role === PlatformAdapter.SELECTORS.FIXED_NAV_ROLE_USER ? `${APPID}-message-number-user` : `${APPID}-message-number-assistant`;
-
-            const numberSpan = h(`span.${APPID}-message-number.${roleClass}`, `#${index + 1}`);
-
-            // Check config to set initial visibility
-            const config = this.configManager.get();
-            if (config) {
-                const isNavConsoleEnabled = config.features.fixed_nav_console.enabled;
-                numberSpan.classList.toggle(`${APPID}-message-number-hidden`, !isNavConsoleEnabled);
-            }
-
-            anchor.appendChild(numberSpan);
-        }
-
-        /**
          * Updates the text content of all visible message numbers.
          * Creates the number element if it doesn't exist.
          */
         updateAllMessageNumbers() {
+            this._syncCache();
             const config = this.configManager.get();
             if (!config) return;
-            const isNavConsoleEnabled = config.features.fixed_nav_console.enabled;
+
             const allMessages = this.messageCacheManager.getTotalMessages();
+            const isNavConsoleEnabled = config.features.fixed_nav_console.enabled;
 
-            allMessages.forEach((message, index) => {
-                const anchor = PlatformAdapter.getNavPositioningParent(message);
-                if (!anchor) return;
-
-                let numberSpan = anchor.querySelector(`.${APPID}-message-number`);
-                if (!numberSpan) {
-                    // If the element doesn't exist, create it.
-                    // processMessage will handle initial visibility correctly.
-                    this.processMessage(message);
-                } else {
-                    // If it exists, update its number and visibility.
-                    numberSpan.textContent = `#${index + 1}`;
-                    numberSpan.classList.toggle(`${APPID}-message-number-hidden`, !isNavConsoleEnabled);
+            // --- Measure Phase ---
+            const toCreate = [];
+            allMessages.forEach((message) => {
+                if (!this.numberSpanCache.has(message)) {
+                    const anchor = PlatformAdapters.BubbleUI.getNavPositioningParent(message);
+                    if (anchor) {
+                        toCreate.push({ message, anchor });
+                    }
                 }
             });
+
+            // --- Mutate Phase (in batches) ---
+            const createSpans = () => {
+                processInBatches(
+                    toCreate,
+                    ({ message, anchor }) => {
+                        anchor.classList.add(`${APPID}-parent-with-number`);
+                        const role = PlatformAdapters.General.getMessageRole(message);
+                        if (role) {
+                            const roleClass = role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER ? `${APPID}-message-number-user` : `${APPID}-message-number-assistant`;
+                            const numberSpan = h(`span.${APPID}-message-number.${roleClass}`);
+                            anchor.appendChild(numberSpan);
+                            this.numberSpanCache.set(message, numberSpan);
+                        }
+                    },
+                    CONSTANTS.BATCH_PROCESSING_SIZE,
+                    updateNumbers // Chain to the next step
+                );
+            };
+
+            const updateNumbers = () => {
+                processInBatches(
+                    allMessages,
+                    (message, index) => {
+                        const numberSpan = this.numberSpanCache.get(message);
+                        if (numberSpan) {
+                            numberSpan.textContent = `#${index + 1}`;
+                            numberSpan.classList.toggle(`${APPID}-message-number-hidden`, !isNavConsoleEnabled);
+                        }
+                    },
+                    CONSTANTS.BATCH_PROCESSING_SIZE
+                );
+            };
+
+            createSpans(); // Start the chain
         }
     }
 
@@ -5383,6 +7583,10 @@
 
         _handleTextInput(e) {
             const textInput = e.target;
+            if (!(textInput instanceof HTMLInputElement)) {
+                return;
+            }
+
             const idSuffix = textInput.id.replace(new RegExp(`^${APPID}-form-`), '');
             const wrapper = textInput.closest(`.${APPID}-color-field-wrapper`);
             if (!wrapper || !wrapper.querySelector(`[data-controls-color="${idSuffix}"]`)) {
@@ -5401,13 +7605,16 @@
                 this._isSyncing = false;
             } else {
                 // Otherwise, use the static method for validation only.
-                isValid = CustomColorPicker.parseColorString(value);
+                isValid = !!CustomColorPicker.parseColorString(value);
             }
 
             textInput.classList.toggle('is-invalid', value !== '' && !isValid);
             const swatch = wrapper.querySelector(`.${APPID}-color-swatch`);
             if (swatch) {
-                swatch.querySelector(`.${APPID}-color-swatch-value`).style.backgroundColor = value === '' || isValid ? value : 'transparent';
+                const swatchValue = swatch.querySelector(`.${APPID}-color-swatch-value`);
+                if (swatchValue instanceof HTMLElement) {
+                    swatchValue.style.backgroundColor = value === '' || isValid ? value : 'transparent';
+                }
             }
         }
 
@@ -5430,7 +7637,9 @@
         _openPicker(swatchElement) {
             const targetId = swatchElement.dataset.controlsColor;
             const textInput = this.container.querySelector(`#${APPID}-form-${targetId}`);
-            if (!textInput) return;
+            if (!(textInput instanceof HTMLInputElement)) {
+                return;
+            }
 
             let pickerRoot;
             const popupWrapper = h(`div.${APPID}-color-picker-popup`, [(pickerRoot = h('div'))]);
@@ -5465,17 +7674,27 @@
             this._isSyncing = true;
             const initialColor = picker.getColor();
             textInput.value = initialColor;
-            swatch.querySelector(`.${APPID}-color-swatch-value`).style.backgroundColor = initialColor;
+
+            const swatchValue = swatch.querySelector(`.${APPID}-color-swatch-value`);
+            if (swatchValue instanceof HTMLElement) {
+                swatchValue.style.backgroundColor = initialColor;
+            }
+
             textInput.classList.remove('is-invalid');
             this._isSyncing = false;
             // Picker -> Text Input: This remains crucial for updating the text when the user drags the picker.
             picker.rootElement.addEventListener('color-change', (e) => {
                 if (this._isSyncing) return;
-                this._isSyncing = true;
-                textInput.value = e.detail.color;
-                swatch.querySelector(`.${APPID}-color-swatch-value`).style.backgroundColor = e.detail.color;
-                textInput.classList.remove('is-invalid');
-                this._isSyncing = false;
+
+                if (e instanceof CustomEvent) {
+                    this._isSyncing = true;
+                    textInput.value = e.detail.color;
+                    if (swatchValue instanceof HTMLElement) {
+                        swatchValue.style.backgroundColor = e.detail.color;
+                    }
+                    textInput.classList.remove('is-invalid');
+                    this._isSyncing = false;
+                }
             });
         }
 
@@ -5485,11 +7704,15 @@
             const pickerHeight = popupWrapper.offsetHeight;
             const pickerWidth = popupWrapper.offsetWidth;
             const margin = 4;
-            let top = swatchRect.bottom - dialogRect.top + margin;
+            // Default to showing the picker above the swatch.
+            let top = swatchRect.top - dialogRect.top - pickerHeight - margin;
             let left = swatchRect.left - dialogRect.left;
-            if (swatchRect.bottom + pickerHeight + margin > dialogRect.bottom) {
-                top = swatchRect.top - dialogRect.top - pickerHeight - margin;
+
+            // If there's not enough space above, show it below instead.
+            if (top < 0) {
+                top = swatchRect.bottom - dialogRect.top + margin;
             }
+
             if (swatchRect.left + pickerWidth > dialogRect.right) {
                 left = swatchRect.right - dialogRect.left - pickerWidth;
             }
@@ -5520,10 +7743,10 @@
      */
     class CustomColorPicker {
         /**
-         * @param {HTMLElement} rootElement The DOM element to render the picker into.
+         * @param {Element} rootElement The DOM element to render the picker into.
          * @param {object} [options]
-         * @param {string} [options.initialColor='rgb(255 0 0 / 1)'] The initial color to display.
-         * @param {string} [options.cssPrefix='ccp'] A prefix for all CSS classes to avoid conflicts.
+         * @param {string} [options.initialColor] The initial color to display.
+         * @param {string} [options.cssPrefix] A prefix for all CSS classes to avoid conflicts.
          */
         constructor(rootElement, options = {}) {
             this.rootElement = rootElement;
@@ -5613,11 +7836,11 @@
             b /= 255;
             const max = Math.max(r, g, b),
                 min = Math.min(r, g, b);
-            let h,
-                s,
-                v = max;
+            const v = max;
             const d = max - min;
-            s = max === 0 ? 0 : d / max;
+            const s = max === 0 ? 0 : d / max;
+            let h;
+
             if (max === min) {
                 h = 0;
             } else {
@@ -5645,7 +7868,7 @@
          * @param {number} r - Red (0-255)
          * @param {number} g - Green (0-255)
          * @param {number} b - Blue (0-255)
-         * @param {number} [a=1] - Alpha (0-1)
+         * @param {number} [a] - Alpha (0-1)
          * @returns {string} CSS color string.
          */
         static rgbToString(r, g, b, a = 1) {
@@ -5935,19 +8158,22 @@
     /**
      * @class CustomModal
      * @description A reusable, promise-based modal component. It provides a flexible
-     * structure with header, content, and footer sections, and manages its own
-     * lifecycle and styles.
+     * structure with header, content, and footer sections, and manages its own lifecycle and styles.
+     * @callback ModalButtonOnClick
+     * @param {CustomModal} modalInstance - The instance of the modal that the button belongs to.
+     * @param {MouseEvent} event - The mouse click event.
+     * @returns {void}
      */
     class CustomModal {
         /**
          * @param {object} [options]
-         * @param {string} [options.title=''] - The title displayed in the modal header.
-         * @param {string} [options.width='500px'] - The width of the modal.
-         * @param {string} [options.cssPrefix='cm'] - A prefix for all CSS classes.
-         * @param {boolean} [options.closeOnBackdropClick=true] - Whether to close the modal when clicking the backdrop.
-         * @param {Array<object>} [options.buttons=[]] - An array of button definitions for the footer.
+         * @param {string} [options.title] - The title displayed in the modal header.
+         * @param {string} [options.width] - The width of the modal.
+         * @param {string} [options.cssPrefix] - A prefix for all CSS classes.
+         * @param {boolean} [options.closeOnBackdropClick] - Whether to close the modal when clicking the backdrop.
+         * @param {Array<{text: string, id: string, className?: string, title?: string, onClick: ModalButtonOnClick}>} [options.buttons] - An array of button definitions for the footer.
          * @param {function(): void} [options.onDestroy] - A callback function executed when the modal is destroyed.
-         * @param {{text: string, id: string, className: string, onClick: function(modalInstance, event): void}} options.buttons[]
+         * @param {object} [options.styles] - Site-specific styles to apply to the modal.
          */
         constructor(options = {}) {
             this.options = {
@@ -5957,6 +8183,7 @@
                 closeOnBackdropClick: true,
                 buttons: [],
                 onDestroy: null,
+                styles: {}, // Add styles option
                 ...options,
             };
             this.element = null;
@@ -5971,6 +8198,7 @@
 
             const p = this.options.cssPrefix;
             const style = h('style', { id: styleId });
+            // Use CSS variables for theming, which will be set on the element itself.
             style.textContent = `
                 dialog.${p}-dialog {
                     padding: 0;
@@ -5987,9 +8215,9 @@
                 .${p}-box {
                     display: flex;
                     flex-direction: column;
-                    background: var(--${p}-bg, #fff);
-                    color: var(--${p}-text, #000);
-                    border: 1px solid var(--${p}-border-color, #888);
+                    background: var(--${p}-bg);
+                    color: var(--${p}-text);
+                    border: 1px solid var(--${p}-border-color);
                     border-radius: 8px;
                     box-shadow: 0 4px 16px rgb(0 0 0 / 0.2);
                 }
@@ -6000,7 +8228,7 @@
                 .${p}-header {
                     font-size: 1.1em;
                     font-weight: 600;
-                    border-bottom: 1px solid var(--${p}-border-color, #888);
+                    border-bottom: 1px solid var(--${p}-border-color);
                 }
                 .${p}-content {
                     flex-grow: 1;
@@ -6012,7 +8240,7 @@
                     justify-content: space-between;
                     align-items: center;
                     gap: 16px;
-                    border-top: 1px solid var(--${p}-border-color, #888);
+                    border-top: 1px solid var(--${p}-border-color);
                 }
                 .${p}-footer-message {
                     flex-grow: 1;
@@ -6023,9 +8251,9 @@
                     gap: 8px;
                 }
                 .${p}-button {
-                    background: var(--${p}-btn-bg, #efefef);
-                    color: var(--${p}-btn-text, #000);
-                    border: 1px solid var(--${p}-btn-border-color, #ccc);
+                    background: var(--${p}-btn-bg);
+                    color: var(--${p}-btn-text);
+                    border: 1px solid var(--${p}-btn-border-color);
                     border-radius: 5px;
                     padding: 5px 16px;
                     font-size: 13px;
@@ -6033,7 +8261,7 @@
                     transition: background 0.12s;
                 }
                 .${p}-button:hover {
-                    background: var(--${p}-btn-hover-bg, #e0e0e0);
+                    background: var(--${p}-btn-hover-bg);
                 }
             `;
             document.head.appendChild(style);
@@ -6045,7 +8273,7 @@
             let header, content, footer, modalBox, footerMessage;
             // Create footer buttons declaratively using map and h().
             const buttons = this.options.buttons.map((btnDef) => {
-                const fullClassName = [`${p}-button`, btnDef.className].filter(Boolean).join(' ');
+                const fullClassName = [`${p}-button`, btnDef.className, `${APPID}-modal-button`].filter(Boolean).join(' ');
                 return h(
                     'button',
                     {
@@ -6060,7 +8288,7 @@
             const buttonGroup = h(`div.${p}-button-group`, buttons);
 
             // Create the entire modal structure using h().
-            this.element = h(
+            const dialogElement = h(
                 `dialog.${p}-dialog`,
                 (modalBox = h(`div.${p}-box`, { style: { width: this.options.width } }, [
                     (header = h(`div.${p}-header`, this.options.title)),
@@ -6068,6 +8296,29 @@
                     (footer = h(`div.${p}-footer`, [(footerMessage = h(`div.${p}-footer-message`)), buttonGroup])),
                 ]))
             );
+
+            if (!(dialogElement instanceof HTMLDialogElement)) {
+                Logger.error('Failed to create modal dialog element.');
+                return;
+            }
+            this.element = dialogElement;
+
+            // Apply site-specific styles via CSS custom properties.
+            const s = this.options.styles;
+            if (s) {
+                const bg = s.bg || s.modal_bg || '#fff';
+                const text = s.text || s.modal_text || '#000';
+                const border = s.border || s.modal_border || '#888';
+
+                modalBox.style.setProperty(`--${p}-bg`, bg);
+                modalBox.style.setProperty(`--${p}-text`, text);
+                modalBox.style.setProperty(`--${p}-border-color`, border);
+                modalBox.style.setProperty(`--${p}-btn-bg`, s.btn_bg || '#efefef');
+                modalBox.style.setProperty(`--${p}-btn-text`, s.btn_text || '#000');
+                modalBox.style.setProperty(`--${p}-btn-border-color`, s.btn_border || '#ccc');
+                modalBox.style.setProperty(`--${p}-btn-hover-bg`, s.btn_hover_bg || '#e0e0e0');
+            }
+
             // The 'close' event is the single source of truth for when the dialog has been dismissed.
             this.element.addEventListener('close', () => this.destroy());
 
@@ -6096,7 +8347,7 @@
                     const modalWidth = modalBox.offsetWidth || parseInt(this.options.width, 10);
 
                     let left = btnRect.left;
-                    let top = btnRect.bottom + 4;
+                    const top = btnRect.bottom + 4;
 
                     if (left + modalWidth > window.innerWidth - margin) {
                         left = window.innerWidth - modalWidth - margin;
@@ -6136,16 +8387,21 @@
             if (this.options.onDestroy) {
                 this.options.onDestroy();
             }
+
+            // Check if any other modals with the same prefix exist
+            const p = this.options.cssPrefix;
+            const remainingModals = document.querySelector(`dialog.${p}-dialog`);
+            if (!remainingModals) {
+                document.getElementById(`${p}-styles`)?.remove();
+            }
         }
 
+        /**
+         * @param {Node} element
+         */
         setContent(element) {
             this.dom.content.textContent = '';
             this.dom.content.appendChild(element);
-        }
-
-        setHeader(element) {
-            this.dom.header.textContent = '';
-            this.dom.header.appendChild(element);
         }
 
         getContentContainer() {
@@ -6174,6 +8430,12 @@
             this.options = options;
             this.id = this.options.id;
             this.styleId = `${this.id}-style`;
+        }
+
+        destroy() {
+            this.element?.remove();
+            this.element = null;
+            document.getElementById(this.styleId)?.remove();
         }
 
         /**
@@ -6260,7 +8522,7 @@
     class SettingsPanelBase extends UIComponentBase {
         constructor(callbacks) {
             super(callbacks);
-            this.debouncedSave = debounce(this._handleDebouncedSave.bind(this), TIMING.DEBOUNCE_DELAYS.SETTINGS_SAVE);
+            this.debouncedSave = debounce(this._handleDebouncedSave.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.SETTINGS_SAVE);
             this._handleDocumentClick = this._handleDocumentClick.bind(this);
             this._handleDocumentKeydown = this._handleDocumentKeydown.bind(this);
         }
@@ -6293,7 +8555,7 @@
         }
 
         async show() {
-            await this.populateForm();
+            await this._populateForm();
             const anchorRect = this.callbacks.getAnchorElement().getBoundingClientRect();
 
             let top = anchorRect.bottom + 4;
@@ -6355,8 +8617,8 @@
         _injectStyles() {
             throw new Error('Subclass must implement _injectStyles()');
         }
-        populateForm() {
-            throw new Error('Subclass must implement populateForm()');
+        _populateForm() {
+            throw new Error('Subclass must implement _populateForm()');
         }
         _collectDataFromForm() {
             throw new Error('Subclass must implement _collectDataFromForm()');
@@ -6373,6 +8635,28 @@
         constructor(callbacks) {
             super(callbacks);
             this.activeThemeSet = null;
+            this.subscriptions = [];
+        }
+
+        _subscribe(event, listener) {
+            const key = createEventKey(this, event);
+            EventBus.subscribe(event, listener, key);
+            this.subscriptions.push({ event, key });
+        }
+
+        init() {
+            this._subscribe(EVENTS.CONFIG_UPDATED, async () => {
+                if (this.isOpen()) {
+                    await this._populateForm();
+                }
+            });
+        }
+
+        destroy() {
+            super.destroy();
+            this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
+            this.subscriptions = [];
+            document.getElementById(`${APPID}-ui-styles`)?.remove();
         }
 
         /**
@@ -6394,186 +8678,145 @@
         }
 
         _createPanelContent() {
-            const widthConfig = CONSTANTS.SLIDER_CONFIGS.CHAT_WIDTH;
-            const createToggle = (id) => {
-                return h(`label.${APPID}-toggle-switch`, [h('input', { type: 'checkbox', id: id }), h(`span.${APPID}-toggle-slider`)]);
-            };
+            const schema = this._getPanelSchema();
+            // Wrap the generated elements in a single parent div to match the original DOM structure
+            return h('div', [buildUIFromSchema(schema)]);
+        }
 
-            return h('div', [
-                // Return a fragment or a wrapper div
-                h(`fieldset.${APPID}-submenu-fieldset`, [
-                    h('legend', 'Applied Theme'),
-                    h(
-                        `button#${APPID}-applied-theme-name.${APPID}-modal-button`,
+        _getPanelSchema() {
+            const widthConfig = CONSTANTS.SLIDER_CONFIGS.CHAT_WIDTH;
+
+            const commonFeatures = [
+                { id: 'features.collapsible_button.enabled', label: 'Collapsible button', title: 'Enables a button to collapse large message bubbles.' },
+                { id: 'features.sequential_nav_buttons.enabled', label: 'Sequential nav buttons', title: 'Enables buttons to jump to the previous/next message.' },
+                { id: 'features.scroll_to_top_button.enabled', label: 'Scroll to top button', title: 'Enables a button to scroll to the top of a message.' },
+                { id: 'features.fixed_nav_console.enabled', label: 'Navigation console', title: 'When enabled, a navigation console with message counters will be displayed next to the text input area.' },
+            ];
+
+            const platformFeatures = PlatformAdapters.SettingsPanel.getPlatformSpecificFeatureToggles().map((f) => ({ ...f, id: f.configKey }));
+            const allFeatures = [...platformFeatures, ...commonFeatures];
+
+            const featureGroups = allFeatures.map((feature) => {
+                const formId = `${APPID}-form-${feature.id.replace(/\./g, '-')}`;
+                return {
+                    type: 'container',
+                    className: `${APPID}-feature-group`,
+                    children: [
                         {
-                            title: 'Click to edit this theme',
-                            style: { width: '100%' },
-                            onclick: () => {
-                                if (this.activeThemeSet) {
-                                    const themeKey = this.activeThemeSet.metadata?.id || 'defaultSet';
-                                    this.callbacks.onShowThemeModal?.(themeKey);
-                                    this.hide();
-                                }
-                            },
+                            type: 'container-row',
+                            children: [
+                                { type: 'label', for: formId, title: feature.title, text: feature.label },
+                                { type: 'toggle', id: feature.id, configKey: feature.id },
+                            ],
                         },
-                        'Loading...'
-                    ),
-                ]),
-                h(`div.${APPID}-submenu-top-row`, [
-                    h(`fieldset.${APPID}-submenu-fieldset`, [
-                        h('legend', 'Themes'),
-                        h(
-                            `button#${APPID}-submenu-edit-themes-btn.${APPID}-modal-button`,
-                            {
-                                style: { width: '100%' },
-                                title: 'Open the theme editor to create and modify themes.',
-                            },
-                            'Edit Themes...'
-                        ),
-                    ]),
-                    h(`fieldset.${APPID}-submenu-fieldset`, [
-                        h('legend', 'JSON'),
-                        h(
-                            `button#${APPID}-submenu-json-btn.${APPID}-modal-button`,
-                            {
-                                style: { width: '100%' },
-                                title: 'Opens the advanced settings modal to directly edit, import, or export the entire configuration in JSON format.',
-                            },
-                            'JSON...'
-                        ),
-                    ]),
-                ]),
-                h(`fieldset.${APPID}-submenu-fieldset`, [
-                    h('legend', 'Options'),
-                    h(`div.${APPID}-submenu-row.${APPID}-submenu-row-stacked`, [
-                        h('label', { htmlFor: `${APPID}-opt-icon-size-slider`, title: 'Specifies the size of the chat icons in pixels.' }, 'Icon size:'),
-                        h(`div.${APPID}-slider-container`, [h(`input#${APPID}-opt-icon-size-slider`, { type: 'range', min: '0', max: CONSTANTS.ICON_SIZE_VALUES.length - 1, step: '1' }), h(`span#${APPID}-opt-icon-size-display.${APPID}-slider-display`)]),
-                    ]),
-                    h(`div.${APPID}-submenu-row.${APPID}-submenu-row-stacked`, [
-                        h(
-                            'label',
-                            {
-                                htmlFor: `${APPID}-opt-chat-max-width-slider`,
-                                title: `Adjusts the maximum width of the chat content.\nMove slider to the far left for default.\nRange: ${widthConfig.NULL_THRESHOLD}vw to ${widthConfig.MAX}vw.`,
-                            },
-                            'Chat content max width:'
-                        ),
-                        h(`div.${APPID}-slider-container`, [h(`input#${APPID}-opt-chat-max-width-slider`, { type: 'range', min: widthConfig.MIN, max: widthConfig.MAX, step: '1' }), h(`span#${APPID}-opt-chat-max-width-display.${APPID}-slider-display`)]),
-                    ]),
-                    h(`div.${APPID}-submenu-separator`),
-                    h(`div.${APPID}-submenu-row`, [
-                        h(
-                            'label',
-                            {
-                                htmlFor: `${APPID}-opt-respect-avatar-space`,
-                                title: 'When enabled, adjusts the standing image area to not overlap the avatar icon.\nWhen disabled, the standing image is maximized but may overlap the icon.',
-                            },
-                            'Prevent image/avatar overlap:'
-                        ),
-                        createToggle(`${APPID}-opt-respect-avatar-space`),
-                    ]),
-                ]),
-                h(`fieldset.${APPID}-submenu-fieldset`, [
-                    h('legend', 'Features'),
-                    h(`div.${APPID}-feature-group`, [
-                        h(`div.${APPID}-submenu-row`, [
-                            h('label', { htmlFor: `${APPID}-feat-load-history-enabled`, title: 'When enabled, automatically scrolls back through the history when a chat is opened to load all messages.' }, 'Load full history on chat load'),
-                            createToggle(`${APPID}-feat-load-history-enabled`),
-                        ]),
-                    ]),
-                    h(`div.${APPID}-feature-group`, [
-                        h(`div.${APPID}-submenu-row`, [h('label', { htmlFor: `${APPID}-feat-collapsible-enabled`, title: 'Enables a button to collapse large message bubbles.' }, 'Collapsible button'), createToggle(`${APPID}-feat-collapsible-enabled`)]),
-                    ]),
-                    h(`div.${APPID}-feature-group`, [
-                        h(`div.${APPID}-submenu-row`, [h('label', { htmlFor: `${APPID}-feat-seq-nav-enabled`, title: 'Enables buttons to jump to the previous/next message.' }, 'Sequential nav buttons'), createToggle(`${APPID}-feat-seq-nav-enabled`)]),
-                    ]),
-                    h(`div.${APPID}-feature-group`, [
-                        h(`div.${APPID}-submenu-row`, [h('label', { htmlFor: `${APPID}-feat-scroll-top-enabled`, title: 'Enables a button to scroll to the top of a message.' }, 'Scroll to top button'), createToggle(`${APPID}-feat-scroll-top-enabled`)]),
-                    ]),
-                    h(`div.${APPID}-feature-group`, [
-                        h(`div.${APPID}-submenu-row`, [
-                            h('label', { htmlFor: `${APPID}-feat-fixed-nav-enabled`, title: 'When enabled, a navigation console with message counters will be displayed next to the text input area.' }, 'Navigation console'),
-                            createToggle(`${APPID}-feat-fixed-nav-enabled`),
-                        ]),
-                    ]),
-                ]),
-            ]);
+                    ],
+                };
+            });
+
+            return [
+                {
+                    type: 'fieldset',
+                    legend: 'Applied Theme',
+                    children: [{ type: 'button', id: `${APPID}-applied-theme-name`, text: 'Loading...', title: 'Click to edit this theme', fullWidth: true }],
+                },
+                {
+                    type: 'container',
+                    className: `${APPID}-submenu-top-row`,
+                    children: [
+                        { type: 'fieldset', legend: 'Themes', children: [{ type: 'button', id: `${APPID}-submenu-edit-themes-btn`, text: 'Edit Themes...', title: 'Open the theme editor to create and modify themes.', fullWidth: true }] },
+                        {
+                            type: 'fieldset',
+                            legend: 'JSON',
+                            children: [
+                                { type: 'button', id: `${APPID}-submenu-json-btn`, text: 'JSON...', title: 'Opens the advanced settings modal to directly edit, import, or export the entire configuration in JSON format.', fullWidth: true },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    type: 'fieldset',
+                    legend: 'Options',
+                    children: [
+                        {
+                            type: 'slider',
+                            containerClass: `${APPID}-submenu-row-stacked`,
+                            id: 'options.icon_size',
+                            label: 'Icon size:',
+                            tooltip: 'Specifies the size of the chat icons in pixels.',
+                            min: 0,
+                            max: CONSTANTS.ICON_SIZE_VALUES.length - 1,
+                            step: 1,
+                            dataset: { sliderFor: 'options.icon_size', valueMapKey: 'ICON_SIZE_VALUES' },
+                        },
+                        {
+                            type: 'slider',
+                            containerClass: `${APPID}-submenu-row-stacked`,
+                            id: 'options.chat_content_max_width',
+                            label: 'Chat content max width:',
+                            tooltip: `Adjusts the maximum width of the chat content.\nMove slider to the far left for default.\nRange: ${widthConfig.NULL_THRESHOLD}vw to ${widthConfig.MAX}vw.`,
+                            min: widthConfig.MIN,
+                            max: widthConfig.MAX,
+                            step: 1,
+                            dataset: { sliderFor: 'options.chat_content_max_width', unit: 'vw', nullThreshold: widthConfig.NULL_THRESHOLD },
+                        },
+                        { type: 'submenu-separator' },
+                        {
+                            type: 'container-row',
+                            children: [
+                                {
+                                    type: 'label',
+                                    for: `${APPID}-form-options-respect_avatar_space`,
+                                    title: 'When enabled, adjusts the standing image area to not overlap the avatar icon.\nWhen disabled, the standing image is maximized but may overlap the icon.',
+                                    text: 'Prevent image/avatar overlap:',
+                                },
+                                { type: 'toggle', id: 'options.respect_avatar_space', configKey: 'options.respect_avatar_space' },
+                            ],
+                        },
+                    ],
+                },
+                { type: 'fieldset', legend: 'Features', children: featureGroups },
+            ];
         }
 
-        async populateForm() {
+        async _populateForm() {
             const config = await this.callbacks.getCurrentConfig();
-            if (!config) return;
+            if (!config || !this.element) return;
 
-            // Options
-            this.element.querySelector(`#${APPID}-opt-icon-size-slider`).value = CONSTANTS.ICON_SIZE_VALUES.indexOf(config.options.icon_size || CONSTANTS.ICON_SIZE);
-            this.element.querySelector(`#${APPID}-opt-respect-avatar-space`).checked = config.options.respect_avatar_space;
-
-            const widthValueRaw = config.options.chat_content_max_width;
-            const widthConfig = CONSTANTS.SLIDER_CONFIGS.CHAT_WIDTH;
-            const widthSlider = this.element.querySelector(`#${APPID}-opt-chat-max-width-slider`);
-            if (widthValueRaw === null) {
-                widthSlider.value = widthConfig.MIN;
-            } else {
-                widthSlider.value = parseInt(widthValueRaw, 10);
-            }
-            this._updateSliderDisplays();
-            // Features
-            const features = config.features;
-            this.element.querySelector(`#${APPID}-feat-load-history-enabled`).checked = features.load_full_history_on_chat_load.enabled;
-            this.element.querySelector(`#${APPID}-feat-collapsible-enabled`).checked = features.collapsible_button.enabled;
-            this.element.querySelector(`#${APPID}-feat-scroll-top-enabled`).checked = features.scroll_to_top_button.enabled;
-            this.element.querySelector(`#${APPID}-feat-seq-nav-enabled`).checked = features.sequential_nav_buttons.enabled;
-            this.element.querySelector(`#${APPID}-feat-fixed-nav-enabled`).checked = features.fixed_nav_console.enabled;
-        }
-
-        _updateSliderDisplays() {
-            const iconSizeSlider = this.element.querySelector(`#${APPID}-opt-icon-size-slider`);
-            const iconSizeDisplay = this.element.querySelector(`#${APPID}-opt-icon-size-display`);
-            iconSizeDisplay.textContent = `${CONSTANTS.ICON_SIZE_VALUES[iconSizeSlider.value]}px`;
-
-            const widthSlider = this.element.querySelector(`#${APPID}-opt-chat-max-width-slider`);
-            const widthDisplay = this.element.querySelector(`#${APPID}-opt-chat-max-width-display`);
-            const sliderContainer = widthSlider.parentElement;
-            const widthConfig = CONSTANTS.SLIDER_CONFIGS.CHAT_WIDTH;
-            const sliderValue = parseInt(widthSlider.value, 10);
-            if (sliderValue < widthConfig.NULL_THRESHOLD) {
-                widthDisplay.textContent = '(default)';
-                sliderContainer.classList.add('is-default');
-            } else {
-                widthDisplay.textContent = `${sliderValue}vw`;
-                sliderContainer.classList.remove('is-default');
-            }
+            populateFormFromSchema(this._getPanelSchema(), this.element, config, this);
         }
 
         async _collectDataFromForm() {
             const currentConfig = await this.callbacks.getCurrentConfig();
             const newConfig = JSON.parse(JSON.stringify(currentConfig));
+            if (!this.element) return newConfig;
 
-            // Options
-            const iconSizeIndex = parseInt(this.element.querySelector(`#${APPID}-opt-icon-size-slider`).value, 10);
-            newConfig.options.icon_size = CONSTANTS.ICON_SIZE_VALUES[iconSizeIndex] || CONSTANTS.ICON_SIZE;
-
-            const widthSlider = this.element.querySelector(`#${APPID}-opt-chat-max-width-slider`);
-            const sliderValue = parseInt(widthSlider.value, 10);
-            const widthConfig = CONSTANTS.SLIDER_CONFIGS.CHAT_WIDTH;
-            if (sliderValue < widthConfig.NULL_THRESHOLD) {
-                newConfig.options.chat_content_max_width = null;
-            } else {
-                newConfig.options.chat_content_max_width = `${sliderValue}vw`;
-            }
-            newConfig.options.respect_avatar_space = this.element.querySelector(`#${APPID}-opt-respect-avatar-space`).checked;
-            // Features
-            newConfig.features.load_full_history_on_chat_load.enabled = this.element.querySelector(`#${APPID}-feat-load-history-enabled`).checked;
-            newConfig.features.collapsible_button.enabled = this.element.querySelector(`#${APPID}-feat-collapsible-enabled`).checked;
-            newConfig.features.scroll_to_top_button.enabled = this.element.querySelector(`#${APPID}-feat-scroll-top-enabled`).checked;
-            newConfig.features.sequential_nav_buttons.enabled = this.element.querySelector(`#${APPID}-feat-seq-nav-enabled`).checked;
-            newConfig.features.fixed_nav_console.enabled = this.element.querySelector(`#${APPID}-feat-fixed-nav-enabled`).checked;
-
+            collectDataFromSchema(this._getPanelSchema(), this.element, newConfig);
             return newConfig;
+        }
+
+        _updateSliderDisplay(slider) {
+            const displayId = slider.dataset.sliderFor;
+            if (!displayId) return;
+
+            const display = this.element.querySelector(`[data-slider-display-for="${displayId}"]`);
+            if (!display) return;
+
+            updateSliderDisplay(slider, display);
         }
 
         _setupEventListeners() {
             // Modal Buttons
+            this.element.querySelector(`#${APPID}-applied-theme-name`).addEventListener('click', () => {
+                if (this.activeThemeSet) {
+                    let themeKey = this.activeThemeSet.metadata?.id;
+                    // If the ID is 'default', map it to 'defaultSet' to match the <select> option value.
+                    if (themeKey === 'default') {
+                        themeKey = 'defaultSet';
+                    }
+                    this.callbacks.onShowThemeModal?.(themeKey || 'defaultSet');
+                    this.hide();
+                }
+            });
             this.element.querySelector(`#${APPID}-submenu-json-btn`).addEventListener('click', () => {
                 this.callbacks.onShowJsonModal?.();
                 this.hide();
@@ -6582,25 +8825,27 @@
                 this.callbacks.onShowThemeModal?.();
                 this.hide();
             });
-            // Sliders & Toggles
-            this.element.querySelector(`#${APPID}-opt-icon-size-slider`).addEventListener('input', () => {
-                this._updateSliderDisplays();
-                this.debouncedSave();
+
+            // Input event delegation
+            this.element.addEventListener('input', (e) => {
+                if (e.target.matches('input[type="range"]')) {
+                    this._updateSliderDisplay(e.target);
+                    // Special handling for width preview
+                    if (e.target.dataset.sliderFor === 'options.chat_content_max_width') {
+                        const sliderValue = parseInt(e.target.value, 10);
+                        const widthConfig = CONSTANTS.SLIDER_CONFIGS.CHAT_WIDTH;
+                        const newWidthValue = sliderValue < widthConfig.NULL_THRESHOLD ? null : `${sliderValue}vw`;
+                        EventBus.publish(EVENTS.WIDTH_PREVIEW, newWidthValue);
+                    }
+                    this.debouncedSave();
+                }
             });
-            this.element.querySelector(`#${APPID}-opt-chat-max-width-slider`).addEventListener('input', () => {
-                this._updateSliderDisplays();
-                const sliderValue = parseInt(this.element.querySelector(`#${APPID}-opt-chat-max-width-slider`).value, 10);
-                const widthConfig = CONSTANTS.SLIDER_CONFIGS.CHAT_WIDTH;
-                const newWidthValue = sliderValue < widthConfig.NULL_THRESHOLD ? null : `${sliderValue}vw`;
-                EventBus.publish(`${APPID}:widthPreview`, newWidthValue);
-                this.debouncedSave();
+
+            this.element.addEventListener('change', (e) => {
+                if (e.target.matches('input[type="checkbox"]')) {
+                    this.debouncedSave();
+                }
             });
-            this.element.querySelector(`#${APPID}-opt-respect-avatar-space`).addEventListener('change', this.debouncedSave);
-            this.element.querySelector(`#${APPID}-feat-load-history-enabled`).addEventListener('change', this.debouncedSave);
-            this.element.querySelector(`#${APPID}-feat-collapsible-enabled`).addEventListener('change', this.debouncedSave);
-            this.element.querySelector(`#${APPID}-feat-scroll-top-enabled`).addEventListener('change', this.debouncedSave);
-            this.element.querySelector(`#${APPID}-feat-seq-nav-enabled`).addEventListener('change', this.debouncedSave);
-            this.element.querySelector(`#${APPID}-feat-fixed-nav-enabled`).addEventListener('change', this.debouncedSave);
         }
 
         _injectStyles() {
@@ -6667,6 +8912,7 @@
                 .${APPID}-submenu-row-stacked label {
                     margin-inline-end: 0;
                     flex-shrink: 1;
+                    color: ${styles.text_secondary};
                 }
                 .${APPID}-submenu-separator {
                     border-top: 1px solid ${styles.border_light};
@@ -6687,6 +8933,9 @@
                     text-align: right;
                     font-family: monospace;
                     color: ${styles.text_primary};
+                }
+                .${APPID}-slider-subgroup-control.is-default .${APPID}-slider-display {
+                    color: ${styles.text_secondary};
                 }
                 .${APPID}-feature-group {
                     padding: 8px 0;
@@ -6754,11 +9003,6 @@
             this.modal = null; // To hold the CustomModal instance
         }
 
-        render() {
-            // This method is now obsolete as the modal is created on demand in open().
-            return;
-        }
-
         async open(anchorElement) {
             if (this.modal) return;
             this.callbacks.onModalOpenStateChange?.(true);
@@ -6768,19 +9012,20 @@
                 title: `${APPNAME} Settings`,
                 width: `${CONSTANTS.MODAL.WIDTH}px`,
                 cssPrefix: `${p}-modal-shell`,
+                styles: this.callbacks.siteStyles, // Pass styles to the modal
                 buttons: [
-                    { text: 'Export', id: `${p}-json-modal-export-btn`, onClick: () => this._handleExport() },
-                    { text: 'Import', id: `${p}-json-modal-import-btn`, onClick: () => this._handleImport() },
-                    { text: 'Save', id: `${p}-json-modal-save-btn`, onClick: () => this._handleSave() },
-                    { text: 'Cancel', id: `${p}-json-modal-cancel-btn`, onClick: () => this.close() },
+                    { text: 'Export', id: `${p}-json-modal-export-btn`, className: '', onClick: () => this._handleExport() },
+                    { text: 'Import', id: `${p}-json-modal-import-btn`, className: '', onClick: () => this._handleImport() },
+                    { text: 'Save', id: `${p}-json-modal-save-btn`, className: '', onClick: () => this._handleSave() },
+                    { text: 'Cancel', id: `${p}-json-modal-cancel-btn`, className: '', onClick: () => this.close() },
                 ],
                 onDestroy: () => {
                     this.callbacks.onModalOpenStateChange?.(false);
                     this.modal = null;
                 },
             });
-            // Apply App specific theme to the generic modal
-            this._applyTheme();
+
+            this._injectStyles(); // This method is empty but kept for structural consistency
             const contentContainer = this.modal.getContentContainer();
             this._createContent(contentContainer);
 
@@ -6788,45 +9033,22 @@
 
             const config = await this.callbacks.getCurrentConfig();
             const textarea = contentContainer.querySelector('textarea');
-            textarea.value = JSON.stringify(config, null, 2);
+            if (textarea) {
+                textarea.value = JSON.stringify(config, null, 2);
+                // Set focus and move cursor to the start of the textarea.
+                textarea.focus();
+                textarea.scrollTop = 0;
+                textarea.selectionStart = 0;
+                textarea.selectionEnd = 0;
+            }
 
             this.modal.show(anchorElement);
-            // Set focus and move cursor to the start of the textarea.
-            textarea.focus();
-            textarea.scrollTop = 0;
-            textarea.selectionStart = 0;
-            textarea.selectionEnd = 0;
         }
 
         close() {
             if (this.modal) {
                 this.modal.close();
             }
-        }
-
-        _applyTheme() {
-            this._injectStyles();
-            const modalBox = this.modal.dom.modalBox;
-            const p = this.modal.options.cssPrefix;
-            const styles = this.callbacks.siteStyles;
-
-            modalBox.style.setProperty(`--${p}-bg`, styles.bg);
-            modalBox.style.setProperty(`--${p}-text`, styles.text);
-            modalBox.style.setProperty(`--${p}-border-color`, styles.border);
-            const footer = this.modal.dom.footer;
-            const buttons = footer.querySelectorAll(`.${p}-button`);
-            buttons.forEach((button) => {
-                button.classList.add(`${APPID}-modal-button`);
-                button.style.background = styles.btn_bg;
-                button.style.color = styles.btn_text;
-                button.style.border = `1px solid ${styles.btn_border}`;
-                button.addEventListener('mouseover', () => {
-                    button.style.background = styles.btn_hover_bg;
-                });
-                button.addEventListener('mouseout', () => {
-                    button.style.background = styles.btn_bg;
-                });
-            });
         }
 
         _createContent(parent) {
@@ -6858,8 +9080,14 @@
         }
 
         async _handleSave() {
-            const textarea = this.modal.getContentContainer().querySelector('textarea');
-            const msgDiv = this.modal.getContentContainer().querySelector(`.${APPID}-modal-msg`);
+            const contentContainer = this.modal.getContentContainer();
+            const textarea = contentContainer.querySelector('textarea');
+            const msgDiv = contentContainer.querySelector(`.${APPID}-modal-msg`);
+
+            if (!(textarea && msgDiv instanceof HTMLElement)) {
+                return;
+            }
+
             try {
                 const obj = JSON.parse(textarea.value);
                 await this.callbacks.onSave(obj);
@@ -6873,6 +9101,10 @@
 
         async _handleExport() {
             const msgDiv = this.modal.getContentContainer().querySelector(`.${APPID}-modal-msg`);
+            if (!(msgDiv instanceof HTMLElement)) {
+                return;
+            }
+
             try {
                 // Clear previous messages before starting.
                 msgDiv.textContent = '';
@@ -6885,7 +9117,10 @@
                     href: url,
                     download: `${APPID}_config.json`,
                 });
-                a.click();
+
+                if (a instanceof HTMLElement) {
+                    a.click();
+                }
 
                 // Revoke the URL after a delay to ensure the download has time to start.
                 setTimeout(() => URL.revokeObjectURL(url), 10000);
@@ -6898,21 +9133,33 @@
         }
 
         _handleImport() {
-            const textarea = this.modal.getContentContainer().querySelector('textarea');
-            const msgDiv = this.modal.getContentContainer().querySelector(`.${APPID}-modal-msg`);
+            const contentContainer = this.modal.getContentContainer();
+            const textarea = contentContainer.querySelector('textarea');
+            const msgDiv = contentContainer.querySelector(`.${APPID}-modal-msg`);
+
+            if (!(textarea && msgDiv instanceof HTMLElement)) {
+                return;
+            }
+
             const fileInput = h('input', {
                 type: 'file',
                 accept: 'application/json',
                 onchange: (event) => {
-                    const file = event.target.files[0];
+                    const target = event.target;
+                    if (!(target instanceof HTMLInputElement)) return;
+
+                    const file = target.files?.[0];
                     if (file) {
                         const reader = new FileReader();
                         reader.onload = (e) => {
                             try {
-                                const importedConfig = JSON.parse(e.target.result);
-                                textarea.value = JSON.stringify(importedConfig, null, 2);
-                                msgDiv.textContent = 'Import successful. Click "Save" to apply.';
-                                msgDiv.style.color = this.callbacks.siteStyles.msg_success_text;
+                                const readerTarget = e.target;
+                                if (readerTarget && typeof readerTarget.result === 'string') {
+                                    const importedConfig = JSON.parse(readerTarget.result);
+                                    textarea.value = JSON.stringify(importedConfig, null, 2);
+                                    msgDiv.textContent = 'Import successful. Click "Save" to apply.';
+                                    msgDiv.style.color = this.callbacks.siteStyles.msg_success_text;
+                                }
                             } catch (err) {
                                 msgDiv.textContent = `Import failed: ${err.message}`;
                                 msgDiv.style.color = this.callbacks.siteStyles.msg_error_text;
@@ -6922,7 +9169,10 @@
                     }
                 },
             });
-            fileInput.click();
+
+            if (fileInput instanceof HTMLElement) {
+                fileInput.click();
+            }
         }
 
         _injectStyles() {
@@ -6941,17 +9191,173 @@
      * Manages the Theme Settings modal by leveraging the CustomModal component.
      */
     class ThemeModalComponent extends UIComponentBase {
+        static _PREVIEW_STYLE_DEFINITIONS = [
+            // Actor-specific previews (user & assistant)
+            { target: 'actor', property: 'backgroundColor', configKeySuffix: 'bubbleBackgroundColor', fallbackKey: 'bubbleBackgroundColor' },
+            { target: 'actor', property: 'color', configKeySuffix: 'textColor', fallbackKey: 'textColor' },
+            { target: 'actor', property: 'fontFamily', configKeySuffix: 'font', fallbackKey: 'font' },
+            { target: 'actor', handler: '_updatePaddingPreview' },
+            { target: 'actor', handler: '_updateRadiusPreview' },
+            { target: 'actor', handler: '_updateMaxWidthPreview' },
+
+            // InputArea preview
+            { target: 'inputArea', property: 'backgroundColor', configKeySuffix: 'backgroundColor', fallbackKey: 'backgroundColor' },
+            { target: 'inputArea', property: 'color', configKeySuffix: 'textColor', fallbackKey: 'textColor' },
+
+            // Window preview
+            { target: 'window', property: 'backgroundColor', configKeySuffix: 'backgroundColor', fallbackKey: 'backgroundColor' },
+        ];
+
         constructor(callbacks) {
             super(callbacks);
-            this.activeThemeKey = null;
-            this.colorPickerManager = null;
-            this.pendingDeletionKey = null;
             this.modal = null;
+            this.colorPickerManager = null;
             this.dataConverter = callbacks.dataConverter;
-            this.debouncedUpdatePreview = debounce(this._updateAllPreviews.bind(this), TIMING.DEBOUNCE_DELAYS.THEME_PREVIEW);
-            this.renameState = {
-                type: null,
-                isActive: false,
+            this.debouncedUpdatePreview = debounce(this._updateAllPreviews.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.THEME_PREVIEW);
+
+            // Centralized state management
+            this.state = {
+                activeThemeKey: null,
+                uiMode: 'NORMAL', // 'NORMAL', 'RENAMING_THEME', 'CONFIRM_DELETE'
+                pendingDeletionKey: null,
+                config: null, // Holds the working copy of the config
+            };
+
+            // This will hold cached references to DOM elements within the modal.
+            this.domCache = null;
+
+            // Centralized UI definition
+            this.uiDefinition = [
+                {
+                    type: 'container',
+                    className: `${APPID}-theme-general-settings`,
+                    isDefaultHidden: true,
+                    children: [
+                        {
+                            type: 'textarea',
+                            id: 'metadata.matchPatterns',
+                            label: 'Patterns (one per line):',
+                            tooltip: 'Enter one RegEx pattern per line to automatically apply this theme (e.g., /My Project/i).',
+                            rows: 3,
+                            validation: { type: 'regexArray' },
+                        },
+                    ],
+                },
+                { type: 'separator', isDefaultHidden: true },
+                {
+                    type: 'container',
+                    className: `${APPID}-theme-scrollable-area`,
+                    children: [
+                        {
+                            type: 'grid',
+                            className: `${APPID}-theme-grid`,
+                            children: [
+                                this._createActorUiDefinition('assistant'),
+                                this._createActorUiDefinition('user'),
+                                {
+                                    type: 'fieldset',
+                                    legend: 'Background',
+                                    children: [
+                                        { type: 'colorfield', id: 'window.backgroundColor', label: 'Background color:', tooltip: 'Main background color of the chat window.' },
+                                        {
+                                            type: 'textfield',
+                                            id: 'window.backgroundImageUrl',
+                                            label: 'Background image:',
+                                            tooltip: 'URL or Data URI for the main background image.',
+                                            fieldType: 'image',
+                                            validation: { type: 'imageString', imageType: 'image' },
+                                        },
+                                        {
+                                            type: 'compound-container',
+                                            children: [
+                                                { type: 'select', id: 'window.backgroundSize', label: 'Size:', options: ['auto', 'cover', 'contain'], tooltip: 'How the background image is sized.' },
+                                                {
+                                                    type: 'select',
+                                                    id: 'window.backgroundPosition',
+                                                    label: 'Position:',
+                                                    options: ['top left', 'top center', 'top right', 'center left', 'center center', 'center right', 'bottom left', 'bottom center', 'bottom right'],
+                                                    tooltip: 'Position of the background image.',
+                                                },
+                                            ],
+                                        },
+                                        {
+                                            type: 'compound-container',
+                                            children: [{ type: 'select', id: 'window.backgroundRepeat', label: 'Repeat:', options: ['no-repeat', 'repeat'], tooltip: 'How the background image is repeated.' }, { type: 'preview-background' }],
+                                        },
+                                    ],
+                                },
+                                {
+                                    type: 'fieldset',
+                                    legend: 'Input area',
+                                    children: [
+                                        { type: 'colorfield', id: 'inputArea.backgroundColor', label: 'Background color:', tooltip: 'Background color of the text input area.' },
+                                        { type: 'colorfield', id: 'inputArea.textColor', label: 'Text color:', tooltip: 'Color of the text you type.' },
+                                        { type: 'separator' },
+                                        { type: 'preview-input' },
+                                    ],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ];
+        }
+
+        _createActorUiDefinition(actor) {
+            return {
+                type: 'fieldset',
+                legend: actor.charAt(0).toUpperCase() + actor.slice(1),
+                children: [
+                    { type: 'textfield', id: `${actor}.name`, label: 'Name:', tooltip: `The name displayed for the ${actor}.`, fieldType: 'name' },
+                    { type: 'textfield', id: `${actor}.icon`, label: 'Icon:', tooltip: `URL, Data URI, or <svg> for the ${actor}'s icon.`, fieldType: 'icon', validation: { type: 'imageString', imageType: 'icon' } },
+                    {
+                        type: 'textfield',
+                        id: `${actor}.standingImageUrl`,
+                        label: 'Standing image:',
+                        tooltip: `URL or Data URI for the character's standing image.`,
+                        fieldType: 'image',
+                        validation: { type: 'imageString', imageType: 'image' },
+                    },
+                    {
+                        type: 'fieldset',
+                        legend: 'Bubble Settings',
+                        children: [
+                            { type: 'colorfield', id: `${actor}.bubbleBackgroundColor`, label: 'Background color:', tooltip: 'Background color of the message bubble.' },
+                            { type: 'colorfield', id: `${actor}.textColor`, label: 'Text color:', tooltip: 'Color of the text inside the bubble.' },
+                            { type: 'textfield', id: `${actor}.font`, label: 'Font:', tooltip: 'Font family for the text.\nFont names with spaces must be quoted (e.g., "Times New Roman").' },
+                            { type: 'paddingslider', id: `${actor}.bubblePadding`, actor },
+                            {
+                                type: 'compound-slider',
+                                children: [
+                                    {
+                                        type: 'slider',
+                                        containerClass: `${APPID}-slider-subgroup`,
+                                        label: 'Radius:',
+                                        id: `${actor}.bubbleBorderRadius`,
+                                        min: -1,
+                                        max: 50,
+                                        step: 1,
+                                        tooltip: 'Corner roundness of the bubble (e.g., 10px).\nSet to the far left for (auto).',
+                                        dataset: { sliderFor: `${actor}.bubbleBorderRadius`, unit: 'px', nullThreshold: 0 },
+                                    },
+                                    {
+                                        type: 'slider',
+                                        containerClass: `${APPID}-slider-subgroup`,
+                                        label: 'max Width:',
+                                        id: `${actor}.bubbleMaxWidth`,
+                                        min: 29,
+                                        max: 100,
+                                        step: 1,
+                                        tooltip: 'Maximum width of the bubble.\nSet to the far left for (auto).',
+                                        dataset: { sliderFor: `${actor}.bubbleMaxWidth`, unit: '%', nullThreshold: 30 },
+                                    },
+                                ],
+                            },
+                            { type: 'separator' },
+                            { type: 'preview', actor },
+                        ],
+                    },
+                ],
             };
         }
 
@@ -6960,142 +9366,45 @@
         }
 
         async open(selectThemeKey) {
-            this.renameState = { type: null, isActive: false };
-            this.pendingDeletionKey = null;
             if (this.modal) return;
             this.callbacks.onModalOpenStateChange?.(true);
-            if (!this.callbacks.getCurrentConfig) return;
+
+            const initialConfig = await this.callbacks.getCurrentConfig();
+            if (!initialConfig) return;
+
+            // Initialize state for the new session
+            this.state = {
+                activeThemeKey: selectThemeKey || 'defaultSet',
+                uiMode: 'NORMAL',
+                pendingDeletionKey: null,
+                config: JSON.parse(JSON.stringify(initialConfig)), // Create a deep copy for editing
+            };
+
             this.modal = new CustomModal({
                 title: `${APPNAME} - Theme settings`,
                 width: '880px',
                 cssPrefix: `${APPID}-theme-modal-shell`,
                 closeOnBackdropClick: false,
+                styles: this.callbacks.siteStyles, // Pass styles to the modal
                 buttons: [
-                    { text: 'Apply', id: `${APPID}-theme-modal-apply-btn`, className: `${APPID}-modal-button`, title: 'Save changes and keep the modal open.', onClick: () => this._handleThemeAction(false) },
-                    { text: 'Save', id: `${APPID}-theme-modal-save-btn`, className: `${APPID}-modal-button`, title: 'Save changes and close the modal.', onClick: () => this._handleThemeAction(true) },
-                    { text: 'Cancel', id: `${APPID}-theme-modal-cancel-btn`, className: `${APPID}-modal-button`, title: 'Discard changes and close the modal.', onClick: () => this.close() },
+                    { text: 'Apply', id: `${APPID}-theme-modal-apply-btn`, className: ``, title: 'Save changes and keep the modal open.', onClick: () => this._handleThemeAction(false) },
+                    { text: 'Save', id: `${APPID}-theme-modal-save-btn`, className: ``, title: 'Save changes and close the modal.', onClick: () => this._handleThemeAction(true) },
+                    { text: 'Cancel', id: `${APPID}-theme-modal-cancel-btn`, className: ``, title: 'Discard changes and close the modal.', onClick: () => this.close() },
                 ],
                 onDestroy: () => {
                     this.callbacks.onModalOpenStateChange?.(false);
                     this.colorPickerManager?.destroy();
                     this.colorPickerManager = null;
                     this.modal = null;
-                    this._exitDeleteConfirmationMode(false);
+                    this.domCache = null; // Clear the cache on destroy
                 },
             });
-            this._applyThemeToModal();
+
             const headerControls = this._createHeaderControls();
             const mainContent = this._createMainContent();
-            this.modal.dom.header.appendChild(headerControls);
-            this.modal.setContent(mainContent);
-
-            this._setupEventListeners();
-            this.colorPickerManager = new ColorPickerPopupManager(this.modal.element);
-            this.colorPickerManager.init();
-
-            this.callbacks.onModalOpen?.(); // Notify UIManager to check for warnings
-
-            const config = await this.callbacks.getCurrentConfig();
-            if (config) {
-                const keyToSelect = selectThemeKey || this.activeThemeKey || 'defaultSet';
-                this.activeThemeKey = keyToSelect;
-                await this._refreshModalState();
-            }
-
-            this.modal.show();
-            requestAnimationFrame(() => {
-                const scrollableArea = this.modal.element.querySelector(`.${APPID}-theme-scrollable-area`);
-                if (scrollableArea) {
-                    scrollableArea.scrollTop = 0;
-                }
-            });
-        }
-
-        close() {
-            this.modal?.close();
-        }
-
-        async _refreshModalState() {
-            if (!this.modal) return;
-            const config = await this.callbacks.getCurrentConfig();
-            if (!config) return;
-
-            const isAnyRenaming = this.renameState.isActive;
-            const isAnyDeleting = !!this.pendingDeletionKey;
-
-            const headerRow = this.modal.element.querySelector(`.${APPID}-header-row`);
-            const generalSettingsArea = this.modal.element.querySelector(`.${APPID}-theme-general-settings`);
-            const scrollArea = this.modal.element.querySelector(`.${APPID}-theme-scrollable-area`);
-
-            const isRenamingThis = isAnyRenaming && this.renameState.type === 'theme';
-            const isDeletingThis = this.pendingDeletionKey === this.activeThemeKey;
-
-            const select = headerRow.querySelector('select');
-            const renameInput = headerRow.querySelector('input[type="text"]');
-            const mainActions = headerRow.querySelector(`#${APPID}-theme-main-actions`);
-            const renameActions = headerRow.querySelector(`#${APPID}-theme-rename-actions`);
-            const deleteConfirmGroup = headerRow.querySelector(`#${APPID}-theme-delete-confirm-group`);
-
-            const showMainActions = !isRenamingThis && !isDeletingThis;
-            select.style.display = isRenamingThis ? 'none' : 'block';
-            renameInput.style.display = isRenamingThis ? 'block' : 'none';
-            mainActions.style.visibility = showMainActions ? 'visible' : 'hidden';
-            renameActions.style.display = isRenamingThis ? 'flex' : 'none';
-            deleteConfirmGroup.style.display = isDeletingThis ? 'flex' : 'none';
-
-            if (!isRenamingThis) {
-                const scroll = select.scrollTop;
-                select.textContent = '';
-                const defaultOption = h('option', { value: 'defaultSet' }, 'Default Settings');
-                select.appendChild(defaultOption);
-                config.themeSets.forEach((theme, index) => {
-                    const themeName = typeof theme.metadata?.name === 'string' && theme.metadata.name.trim() !== '' ? theme.metadata.name : `Theme ${index + 1}`;
-                    const option = h('option', { value: theme.metadata.id }, themeName);
-                    select.appendChild(option);
-                });
-                select.value = this.activeThemeKey;
-                if (!select.value) {
-                    select.value = 'defaultSet';
-                    this.activeThemeKey = 'defaultSet';
-                }
-                select.scrollTop = scroll;
-            } else {
-                const theme = this.activeThemeKey === 'defaultSet' ? { metadata: { name: 'Default Settings' } } : config.themeSets.find((t) => t.metadata.id === this.activeThemeKey);
-                renameInput.value = theme?.metadata?.name || '';
-            }
-
-            const isAnyActionInProgress = isAnyRenaming || isAnyDeleting;
-            const isDefault = this.activeThemeKey === 'defaultSet';
-            const index = config.themeSets.findIndex((t) => t.metadata.id === this.activeThemeKey);
-
-            headerRow.querySelector(`#${APPID}-theme-up-btn`).disabled = isAnyActionInProgress || isDefault || index <= 0;
-            headerRow.querySelector(`#${APPID}-theme-down-btn`).disabled = isAnyActionInProgress || isDefault || index >= config.themeSets.length - 1;
-            headerRow.querySelector(`#${APPID}-theme-delete-btn`).disabled = isAnyActionInProgress || isDefault;
-            headerRow.querySelector(`#${APPID}-theme-new-btn`).disabled = isAnyActionInProgress;
-            headerRow.querySelector(`#${APPID}-theme-copy-btn`).disabled = isAnyActionInProgress;
-            headerRow.querySelector(`#${APPID}-theme-rename-btn`).disabled = isAnyActionInProgress || isDefault;
-
-            if (generalSettingsArea) generalSettingsArea.classList.toggle('is-disabled', isAnyActionInProgress);
-            scrollArea.classList.toggle('is-disabled', isAnyActionInProgress);
-            this.modal.element.querySelector(`#${APPID}-theme-modal-apply-btn`).disabled = isAnyActionInProgress;
-            this.modal.element.querySelector(`#${APPID}-theme-modal-save-btn`).disabled = isAnyActionInProgress;
-            this.modal.element.querySelector(`#${APPID}-theme-modal-cancel-btn`).disabled = isAnyActionInProgress;
-
-            if (!isAnyActionInProgress) {
-                await this._populateFormWithThemeData(this.activeThemeKey);
-            }
-        }
-
-        _applyThemeToModal() {
-            if (!this.modal) return;
-            const modalBox = this.modal.dom.modalBox;
-            const p = this.modal.options.cssPrefix;
-            const styles = SITE_STYLES.THEME_MODAL;
-            modalBox.style.setProperty(`--${p}-bg`, styles.modal_bg);
-            modalBox.style.setProperty(`--${p}-text`, styles.modal_text);
-            modalBox.style.setProperty(`--${p}-border-color`, styles.modal_border);
+            // CustomModal now handles its own base styling, so we just add content.
             Object.assign(this.modal.dom.header.style, {
-                borderBottom: `1px solid ${styles.modal_border}`,
+                borderBottom: `1px solid ${this.callbacks.siteStyles.modal_border}`,
                 paddingBottom: '12px',
                 display: 'flex',
                 flexDirection: 'column',
@@ -7103,30 +9412,140 @@
                 gap: '12px',
             });
             Object.assign(this.modal.dom.footer.style, {
-                borderTop: `1px solid ${styles.modal_border}`,
+                borderTop: `1px solid ${this.callbacks.siteStyles.modal_border}`,
                 paddingTop: '16px',
             });
-            const buttons = this.modal.dom.footer.querySelectorAll(`.${p}-button`);
-            buttons.forEach((button) => {
-                Object.assign(button.style, {
-                    background: styles.btn_bg,
-                    color: styles.btn_text,
-                    border: `1px solid ${styles.btn_border}`,
-                    borderRadius: `var(--radius-md, ${CONSTANTS.MODAL.BTN_RADIUS}px)`,
-                    padding: CONSTANTS.MODAL.BTN_PADDING,
-                    fontSize: `${CONSTANTS.MODAL.BTN_FONT_SIZE}px`,
-                });
-                button.addEventListener('mouseover', () => {
-                    button.style.background = styles.btn_hover_bg;
-                });
-                button.addEventListener('mouseout', () => {
-                    button.style.background = styles.btn_bg;
-                });
+            this.modal.dom.header.appendChild(headerControls);
+            this.modal.setContent(mainContent);
+
+            this._cacheDomReferences(); // Cache DOM element references once.
+            this._setupEventListeners();
+            this.colorPickerManager = new ColorPickerPopupManager(this.modal.element);
+            this.colorPickerManager.init();
+
+            this.callbacks.onModalOpen?.();
+
+            await this._populateFormWithThemeData();
+            this._renderUI();
+
+            this.modal.show();
+            requestAnimationFrame(() => {
+                const scrollableArea = this.modal.element.querySelector(`.${APPID}-theme-scrollable-area`);
+                if (scrollableArea) scrollableArea.scrollTop = 0;
             });
         }
 
+        /**
+         * @private
+         * Caches references to all frequently accessed DOM elements within the modal
+         * to avoid repeated querySelector calls during preview updates.
+         */
+        _cacheDomReferences() {
+            if (!this.modal) return;
+            const modalElement = this.modal.element;
+
+            this.domCache = {
+                inputs: {},
+                sliders: {},
+                previews: {},
+                paddingSliders: {
+                    user: {},
+                    assistant: {},
+                },
+            };
+
+            this._traverseUIDefinition(this.uiDefinition, (def) => {
+                const formId = `${APPID}-form-${def.id.replace(/\./g, '-')}`;
+                switch (def.type) {
+                    case 'textfield':
+                    case 'textarea':
+                    case 'select':
+                    case 'colorfield':
+                        this.domCache.inputs[def.id] = modalElement.querySelector(`#${formId}`);
+                        break;
+                    case 'slider':
+                        this.domCache.sliders[def.id] = modalElement.querySelector(`#${formId}-slider`);
+                        break;
+                }
+            });
+
+            ['user', 'assistant'].forEach((actor) => {
+                this.domCache.previews[actor] = modalElement.querySelector(`[data-preview-for="${actor}"]`);
+                this.domCache.paddingSliders[actor].tb = modalElement.querySelector(`#${APPID}-form-${actor}-bubblePadding-tb`);
+                this.domCache.paddingSliders[actor].lr = modalElement.querySelector(`#${APPID}-form-${actor}-bubblePadding-lr`);
+            });
+            this.domCache.previews.inputArea = modalElement.querySelector('[data-preview-for="inputArea"]');
+            this.domCache.previews.window = modalElement.querySelector('[data-preview-for="window"]');
+        }
+
+        close() {
+            this.modal?.close();
+        }
+
+        _renderUI() {
+            if (!this.modal) return;
+
+            const { uiMode, activeThemeKey, config } = this.state;
+            const isDefault = activeThemeKey === 'defaultSet';
+            const isRenaming = uiMode === 'RENAMING_THEME';
+            const isDeleting = uiMode === 'CONFIRM_DELETE';
+
+            const headerRow = this.modal.element.querySelector(`.${APPID}-header-row`);
+            const generalSettingsArea = this.modal.element.querySelector(`.${APPID}-theme-general-settings`);
+            const scrollArea = this.modal.element.querySelector(`.${APPID}-theme-scrollable-area`);
+
+            // --- UI Element References ---
+            const select = headerRow.querySelector('select');
+            const renameInput = headerRow.querySelector('input[type="text"]');
+            const mainActions = headerRow.querySelector(`#${APPID}-theme-main-actions`);
+            const renameActions = headerRow.querySelector(`#${APPID}-theme-rename-actions`);
+            const deleteConfirmGroup = headerRow.querySelector(`#${APPID}-theme-delete-confirm-group`);
+
+            // --- Toggle visibility based on mode ---
+            select.style.display = isRenaming ? 'none' : 'block';
+            renameInput.style.display = isRenaming ? 'block' : 'none';
+            mainActions.style.visibility = uiMode === 'NORMAL' ? 'visible' : 'hidden';
+            renameActions.style.display = isRenaming ? 'flex' : 'none';
+            deleteConfirmGroup.style.display = isDeleting ? 'flex' : 'none';
+
+            // --- Populate select box if not renaming ---
+            if (!isRenaming) {
+                const scroll = select.scrollTop;
+                select.textContent = '';
+                select.appendChild(h('option', { value: 'defaultSet' }, 'Default Settings'));
+                config.themeSets.forEach((theme, index) => {
+                    const themeName = (theme.metadata?.name || '').trim() || `Theme ${index + 1}`;
+                    select.appendChild(h('option', { value: theme.metadata.id }, themeName));
+                });
+                select.value = activeThemeKey;
+                select.scrollTop = scroll;
+            }
+
+            // --- Populate rename input if renaming ---
+            if (isRenaming) {
+                const theme = isDefault ? { metadata: { name: 'Default Settings' } } : config.themeSets.find((t) => t.metadata.id === activeThemeKey);
+                renameInput.value = theme?.metadata?.name || '';
+            }
+
+            // --- Set enabled/disabled state of all controls ---
+            const isActionInProgress = uiMode !== 'NORMAL';
+            const index = config.themeSets.findIndex((t) => t.metadata.id === activeThemeKey);
+            headerRow.querySelector(`#${APPID}-theme-up-btn`).disabled = isActionInProgress || isDefault || index <= 0;
+            headerRow.querySelector(`#${APPID}-theme-down-btn`).disabled = isActionInProgress || isDefault || index >= config.themeSets.length - 1;
+            headerRow.querySelector(`#${APPID}-theme-delete-btn`).disabled = isActionInProgress || isDefault;
+            headerRow.querySelector(`#${APPID}-theme-new-btn`).disabled = isActionInProgress;
+            headerRow.querySelector(`#${APPID}-theme-copy-btn`).disabled = isActionInProgress;
+            headerRow.querySelector(`#${APPID}-theme-rename-btn`).disabled = isActionInProgress || isDefault;
+
+            // --- Disable content areas and footer buttons during actions ---
+            if (generalSettingsArea) generalSettingsArea.classList.toggle('is-disabled', isActionInProgress);
+            scrollArea.classList.toggle('is-disabled', isActionInProgress);
+            this.modal.element.querySelector(`#${APPID}-theme-modal-apply-btn`).disabled = isActionInProgress;
+            this.modal.element.querySelector(`#${APPID}-theme-modal-save-btn`).disabled = isActionInProgress;
+            this.modal.element.querySelector(`#${APPID}-theme-modal-cancel-btn`).disabled = isActionInProgress;
+        }
+
         _createHeaderControls() {
-            const styles = this.callbacks.siteStyles;
             const type = 'theme';
             return h(`div.${APPID}-theme-modal-header-controls`, [
                 h(`div.${APPID}-header-row`, { 'data-type': type }, [
@@ -7135,13 +9554,16 @@
                     h(`div.${APPID}-action-area`, [
                         h(`div#${APPID}-${type}-main-actions`, [
                             h(`button#${APPID}-${type}-rename-btn.${APPID}-modal-button`, 'Rename'),
-                            h(`button#${APPID}-${type}-up-btn.${APPID}-modal-button.${APPID}-move-btn`, [createIconFromDef(styles.upIconDef)]),
-                            h(`button#${APPID}-${type}-down-btn.${APPID}-modal-button.${APPID}-move-btn`, [createIconFromDef(styles.downIconDef)]),
+                            h(`button#${APPID}-${type}-up-btn.${APPID}-modal-button.${APPID}-move-btn`, [createIconFromDef(SITE_STYLES.ICONS.arrowUp)]),
+                            h(`button#${APPID}-${type}-down-btn.${APPID}-modal-button.${APPID}-move-btn`, [createIconFromDef(SITE_STYLES.ICONS.arrowDown)]),
                             h(`button#${APPID}-${type}-new-btn.${APPID}-modal-button`, 'New'),
                             h(`button#${APPID}-${type}-copy-btn.${APPID}-modal-button`, 'Copy'),
                             h(`button#${APPID}-${type}-delete-btn.${APPID}-modal-button`, 'Delete'),
                         ]),
-                        h(`div#${APPID}-${type}-rename-actions`, { style: { display: 'none' } }, [h(`button#${APPID}-${type}-rename-ok-btn.${APPID}-modal-button`, 'OK'), h(`button#${APPID}-${type}-rename-cancel-btn.${APPID}-modal-button`, 'Cancel')]),
+                        h(`div#${APPID}-${type}-rename-actions`, { style: { display: 'none' } }, [
+                            h(`button#${APPID}-${type}-rename-ok-btn.${APPID}-modal-button`, 'OK'),
+                            h(`button#${APPID}-${type}-rename-cancel-btn.${APPID}-modal-button`, 'Cancel'),
+                        ]),
                         h(`div#${APPID}-${type}-delete-confirm-group.${APPID}-delete-confirm-group`, { style: { display: 'none' } }, [
                             h(`span.${APPID}-delete-confirm-label`, 'Are you sure?'),
                             h(`button#${APPID}-${type}-delete-confirm-btn.${APPID}-modal-button.${APPID}-delete-confirm-btn-yes`, 'Confirm Delete'),
@@ -7153,227 +9575,125 @@
         }
 
         _createMainContent() {
-            const styles = this.callbacks.siteStyles;
-            const createTextField = (label, id, tooltip = '', fieldType = 'text') => {
-                const isImageField = ['image', 'icon'].includes(fieldType);
-                const inputWrapperChildren = [h('input', { type: 'text', id: `${APPID}-form-${id}` })];
-                if (isImageField) {
-                    inputWrapperChildren.push(h(`button.${APPID}-local-file-btn`, { type: 'button', 'data-target-id': id, title: 'Select local file' }, [createIconFromDef(styles.folderIconDef)]));
-                }
-                const fieldChildren = [h('label', { htmlFor: `${APPID}-form-${id}`, title: tooltip }, label), h(`div.${APPID}-input-wrapper`, inputWrapperChildren)];
-                if (['image', 'icon', 'name', 'patterns'].includes(fieldType)) {
-                    fieldChildren.push(h(`div.${APPID}-form-error-msg`, { 'data-error-for': id.replace(/\./g, '-') }));
-                }
-                return h(`div.${APPID}-form-field`, fieldChildren);
-            };
-            const createColorField = (label, id, tooltip = '') => {
-                const hint = 'Click the swatch to open the color picker.\nAccepts any valid CSS color string.';
-                const fullTooltip = tooltip ? `${tooltip}\n---\n${hint}` : hint;
-                return h(`div.${APPID}-form-field`, [
-                    h('label', { htmlFor: `${APPID}-form-${id}`, title: fullTooltip }, label),
-                    h(`div.${APPID}-color-field-wrapper`, [
-                        h('input', { type: 'text', id: `${APPID}-form-${id}`, autocomplete: 'off' }),
-                        h(`button.${APPID}-color-swatch`, { type: 'button', 'data-controls-color': id, title: 'Open color picker' }, [h(`span.${APPID}-color-swatch-checkerboard`), h(`span.${APPID}-color-swatch-value`)]),
-                    ]),
-                ]);
-            };
-            const createSelectField = (label, id, options, tooltip = '') =>
-                h(`div.${APPID}-form-field`, [h('label', { htmlFor: `${APPID}-form-${id}`, title: tooltip }, label), h('select', { id: `${APPID}-form-${id}` }, [h('option', { value: '' }, '(not set)'), ...options.map((o) => h('option', { value: o }, o))])]);
-            const createSliderField = (containerClass, label, id, min, max, step, tooltip = '', isPercent = false, nullThreshold = -1) =>
-                h(`div`, { className: containerClass }, [
-                    h('label', { htmlFor: `${APPID}-form-${id}-slider`, title: tooltip }, label),
-                    h(`div.${APPID}-slider-subgroup-control`, [
-                        h('input', {
-                            type: 'range',
-                            id: `${APPID}-form-${id}-slider`,
-                            min,
-                            max,
-                            step,
-                            dataset: { sliderFor: id, isPercent, nullThreshold },
-                        }),
-                        h('span', { 'data-slider-display-for': id }),
-                    ]),
-                ]);
-            const createPaddingSliders = (actor) => {
-                const createSubgroup = (name, id, min, max, step) =>
-                    h(`div.${APPID}-slider-subgroup`, [
-                        h('label', { htmlFor: id }, name),
-                        h(`div.${APPID}-slider-subgroup-control`, [h('input', { type: 'range', id, min, max, step, dataset: { sliderFor: id, nullThreshold: 0 } }), h('span', { 'data-slider-display-for': id })]),
-                    ]);
-                return h(`div.${APPID}-form-field`, [
-                    h(`div.${APPID}-compound-slider-container`, [createSubgroup('Padding Top/Bottom:', `${APPID}-form-${actor}-bubblePadding-tb`, -1, 30, 1), createSubgroup('Padding Left/Right:', `${APPID}-form-${actor}-bubblePadding-lr`, -1, 30, 1)]),
-                ]);
-            };
-            const createPreview = (actor) => {
-                const wrapperClass = `${APPID}-preview-bubble-wrapper ${actor === 'user' ? 'user-preview' : ''}`;
-                return h(`div.${APPID}-preview-container`, [h('label', 'Preview:'), h('div', { className: wrapperClass }, [h(`div.${APPID}-preview-bubble`, { 'data-preview-for': actor }, [h('span', 'Sample Text')])])]);
-            };
-            return h(`div.${APPID}-theme-modal-content`, [
-                h(`div.${APPID}-theme-general-settings`, [
-                    h(`div.${APPID}-form-field`, [
-                        h('label', { htmlFor: `${APPID}-form-metadata-matchPatterns`, title: 'Enter one RegEx pattern per line to automatically apply this theme (e.g., /My Project/i).' }, 'Patterns (one per line):'),
-                        h(`textarea`, { id: `${APPID}-form-metadata-matchPatterns`, rows: 3 }),
-                        h(`div.${APPID}-form-error-msg`, { 'data-error-for': 'metadata-matchPatterns' }),
-                    ]),
-                ]),
-                h(`hr.${APPID}-theme-separator`, { tabIndex: -1 }),
-                h(`div.${APPID}-theme-scrollable-area`, [
-                    h(`div.${APPID}-theme-grid`, [
-                        h('fieldset', [
-                            h('legend', 'Assistant'),
-                            createTextField('Name:', 'assistant-name', 'The name displayed for the assistant.', 'name'),
-                            createTextField('Icon:', 'assistant-icon', "URL, Data URI, or <svg> for the assistant's icon.", 'icon'),
-                            createTextField('Standing image:', 'assistant-standingImageUrl', "URL or Data URI for the character's standing image.", 'image'),
-                            h('fieldset', [
-                                h('legend', 'Bubble Settings'),
-                                createColorField('Background color:', 'assistant-bubbleBackgroundColor', 'Background color of the message bubble.'),
-                                createColorField('Text color:', 'assistant-textColor', 'Color of the text inside the bubble.'),
-                                createTextField('Font:', 'assistant-font', 'Font family for the text.\nFont names with spaces must be quoted (e.g., "Times New Roman").'),
-                                createPaddingSliders('assistant'),
-                                h(`div.${APPID}-compound-slider-container`, [
-                                    createSliderField(`${APPID}-slider-subgroup`, 'Radius:', 'assistant-bubbleBorderRadius', -1, 50, 1, 'Corner roundness of the bubble (e.g., 10px).\nSet to the far left for (auto).', false, 0),
-                                    createSliderField(`${APPID}-slider-subgroup`, 'max Width:', 'assistant-bubbleMaxWidth', 29, 100, 1, 'Maximum width of the bubble.\nSet to the far left for (auto).', true, 30),
-                                ]),
-                                h(`hr.${APPID}-theme-separator`),
+            return h(`div.${APPID}-theme-modal-content`, [this._buildUIFromDefinition(this.uiDefinition)]);
+        }
 
-                                createPreview('assistant'),
-                            ]),
-                        ]),
-                        h('fieldset', [
-                            h('legend', 'User'),
-                            createTextField('Name:', 'user-name', 'The name displayed for the user.', 'name'),
-                            createTextField('Icon:', 'user-icon', "URL, Data URI, or <svg> for the user's icon.", 'icon'),
-                            createTextField('Standing image:', 'user-standingImageUrl', "URL or Data URI for the character's standing image.", 'image'),
-                            h('fieldset', [
-                                h('legend', 'Bubble Settings'),
-                                createColorField('Background color:', 'user-bubbleBackgroundColor', 'Background color of the message bubble.'),
-                                createColorField('Text color:', 'user-textColor', 'Color of the text inside the bubble.'),
-                                createTextField('Font:', 'user-font', 'Font family for the text.\nFont names with spaces must be quoted (e.g., "Times New Roman").'),
-                                createPaddingSliders('user'),
-                                h(`div.${APPID}-compound-slider-container`, [
-                                    createSliderField(`${APPID}-slider-subgroup`, 'Radius:', 'user-bubbleBorderRadius', -1, 50, 1, 'Corner roundness of the bubble (e.g., 10px).\nSet to the far left for (auto).', false, 0),
-                                    createSliderField(`${APPID}-slider-subgroup`, 'max Width:', 'user-bubbleMaxWidth', 29, 100, 1, 'Maximum width of the bubble.\nSet to the far left for (auto).', true, 30),
-                                ]),
-                                h(`hr.${APPID}-theme-separator`),
-                                createPreview('user'),
-                            ]),
-                        ]),
-                        h('fieldset', [
-                            h('legend', 'Background'),
-                            createColorField('Background color:', 'window-backgroundColor', 'Main background color of the chat window.'),
-                            createTextField('Background image:', 'window-backgroundImageUrl', 'URL or Data URI for the main background image.', 'image'),
-                            h(`div.${APPID}-compound-form-field-container`, [
-                                createSelectField('Size:', 'window-backgroundSize', ['auto', 'cover', 'contain'], 'How the background image is sized.'),
-                                createSelectField(
-                                    'Position:',
-                                    'window-backgroundPosition',
-                                    ['top left', 'top center', 'top right', 'center left', 'center center', 'center right', 'bottom left', 'bottom center', 'bottom right'],
-                                    'Position of the background image.'
-                                ),
-                            ]),
-                            h(`div.${APPID}-compound-form-field-container`, [createSelectField('Repeat:', 'window-backgroundRepeat', ['no-repeat', 'repeat'], 'How the background image is repeated.')]),
-                        ]),
-                        h('fieldset', [
-                            h('legend', 'Input area'),
-                            createColorField('Background color:', 'inputArea-backgroundColor', 'Background color of the text input area.'),
-                            createColorField('Text color:', 'inputArea-textColor', 'Color of the text you type.'),
-                            h(`hr.${APPID}-theme-separator`),
-                            h(`div.${APPID}-preview-container`, [h('label', 'Preview:'), h(`div.${APPID}-preview-bubble-wrapper`, [h(`div.${APPID}-preview-input-area`, { 'data-preview-for': 'inputArea' }, [h('span', 'Sample input text')])])]),
-                        ]),
-                    ]),
-                ]),
-            ]);
+        _buildUIFromDefinition(definitions) {
+            return buildUIFromSchema(definitions);
+        }
+
+        _traverseUIDefinition(definitions, callback) {
+            if (!definitions) return;
+            for (const def of definitions) {
+                if (def.id) {
+                    callback(def);
+                }
+                if (def.children) {
+                    this._traverseUIDefinition(def.children, callback);
+                }
+            }
         }
 
         _updateAllPreviews() {
-            this._updatePreview('user');
-            this._updatePreview('assistant');
-            this._updateInputAreaPreview();
+            this._updatePreviewFor('user');
+            this._updatePreviewFor('assistant');
+            this._updatePreviewFor('inputArea');
+            this._updatePreviewFor('window');
         }
 
-        async _updatePreview(actor) {
-            if (!this.modal) return;
-            const config = await this.callbacks.getCurrentConfig();
+        /**
+         * @private
+         * @param {'user' | 'assistant' | 'inputArea' | 'window'} target The UI section to update the preview for.
+         */
+        _updatePreviewFor(target) {
+            if (!this.modal || !this.domCache) return;
+            const config = this.state.config;
             if (!config) return;
 
-            const isEditingDefaultSet = this.activeThemeKey === 'defaultSet';
-            const defaultActorSet = config.defaultSet[actor] || {};
-            // When editing the defaultSet, the fallback should be empty, not the set's own old values.
-            const fallbackActorSet = isEditingDefaultSet ? {} : defaultActorSet;
+            const isActor = target === 'user' || target === 'assistant';
+            const configPath = isActor ? target : target;
+
+            const isEditingDefaultSet = this.state.activeThemeKey === 'defaultSet';
+            const defaultSet = config.defaultSet[configPath] || {};
+            const fallbackSet = isEditingDefaultSet ? {} : defaultSet;
 
             requestAnimationFrame(() => {
-                const previewBubble = this.modal.element.querySelector(`[data-preview-for="${actor}"]`);
-                if (!previewBubble) return;
+                const previewElement = this.domCache.previews[target];
+                if (!previewElement) return;
 
-                const form = this.modal.element;
-                const getVal = (id) => form.querySelector(`#${APPID}-form-${id}`)?.value.trim() || null;
+                const definitions = ThemeModalComponent._PREVIEW_STYLE_DEFINITIONS.filter((def) => def.target === (isActor ? 'actor' : target));
 
-                // Apply fallback logic (current theme -> defaultSet -> hardcoded default) to all properties.
-                previewBubble.style.color = getVal(`${actor}-textColor`) ?? fallbackActorSet.textColor ?? '';
-                previewBubble.style.fontFamily = getVal(`${actor}-font`) ?? fallbackActorSet.font ?? '';
-                previewBubble.style.backgroundColor = getVal(`${actor}-bubbleBackgroundColor`) ?? fallbackActorSet.bubbleBackgroundColor ?? '#888';
-
-                // Padding
-                const paddingTBSlider = form.querySelector(`#${APPID}-form-${actor}-bubblePadding-tb`);
-                const paddingLRSlider = form.querySelector(`#${APPID}-form-${actor}-bubblePadding-lr`);
-                let tbVal = paddingTBSlider && paddingTBSlider.value < 0 ? null : paddingTBSlider?.value;
-                let lrVal = paddingLRSlider && paddingLRSlider.value < 0 ? null : paddingLRSlider?.value;
-
-                const defaultSetValue = fallbackActorSet.bubblePadding;
-                if (tbVal === null && lrVal === null && defaultSetValue === null) {
-                    previewBubble.style.padding = ''; // No value in current theme or defaultSet.
-                } else {
-                    const defaultPaddingParts = (defaultSetValue || '6px 10px').split(' ');
-                    const defaultTB = parseInt(defaultPaddingParts[0], 10);
-                    const defaultLR = parseInt(defaultPaddingParts[1] || defaultPaddingParts[0], 10);
-                    const finalTB = tbVal !== null ? tbVal : defaultTB;
-                    const finalLR = lrVal !== null ? lrVal : defaultLR;
-                    previewBubble.style.padding = `${finalTB}px ${finalLR}px`;
-                }
-
-                // Radius
-                const radiusSlider = form.querySelector(`#${APPID}-form-${actor}-bubbleBorderRadius-slider`);
-                if (radiusSlider) {
-                    const radiusVal = parseInt(radiusSlider.value, 10);
-                    const nullThreshold = parseInt(radiusSlider.dataset.nullThreshold, 10);
-                    const currentRadius = !isNaN(nullThreshold) && radiusVal < nullThreshold ? null : `${radiusVal}px`;
-                    previewBubble.style.borderRadius = currentRadius ?? fallbackActorSet.bubbleBorderRadius ?? '';
-                }
-
-                // Max Width
-                const widthSlider = form.querySelector(`#${APPID}-form-${actor}-bubbleMaxWidth-slider`);
-                if (widthSlider) {
-                    const widthVal = parseInt(widthSlider.value, 10);
-                    const nullThreshold = parseInt(widthSlider.dataset.nullThreshold, 10);
-                    const currentWidth = !isNaN(nullThreshold) && widthVal < nullThreshold ? null : `${widthVal}%`;
-                    const finalWidth = currentWidth ?? fallbackActorSet.bubbleMaxWidth ?? (actor === 'user' ? '50%' : '90%');
-                    previewBubble.style.width = finalWidth;
-                    previewBubble.style.maxWidth = finalWidth;
+                for (const def of definitions) {
+                    if (def.handler) {
+                        this[def.handler](target, previewElement, fallbackSet);
+                    } else {
+                        const configKey = `${configPath}.${def.configKeySuffix}`;
+                        const inputElement = this.domCache.inputs[configKey];
+                        const currentValue = inputElement ? inputElement.value.trim() || null : null;
+                        const finalValue = currentValue ?? fallbackSet[def.fallbackKey] ?? '';
+                        previewElement.style[def.property] = finalValue;
+                    }
                 }
             });
         }
 
-        async _updateInputAreaPreview() {
-            if (!this.modal) return;
-            const config = await this.callbacks.getCurrentConfig();
-            if (!config) return;
+        /**
+         * @private
+         * @param {'user' | 'assistant'} actor
+         * @param {HTMLElement} previewElement
+         * @param {object} fallbackSet
+         */
+        _updatePaddingPreview(actor, previewElement, fallbackSet) {
+            const paddingTBSlider = this.domCache.paddingSliders[actor].tb;
+            const paddingLRSlider = this.domCache.paddingSliders[actor].lr;
+            const tbVal = paddingTBSlider && paddingTBSlider.value < 0 ? null : paddingTBSlider?.value;
+            const lrVal = paddingLRSlider && paddingLRSlider.value < 0 ? null : paddingLRSlider?.value;
 
-            const isEditingDefaultSet = this.activeThemeKey === 'defaultSet';
-            const defaultInputSet = config.defaultSet.inputArea || {};
-            // When editing the defaultSet, the fallback should be empty, not the set's own old values.
-            const fallbackInputSet = isEditingDefaultSet ? {} : defaultInputSet;
+            const defaultPaddingValue = fallbackSet.bubblePadding;
+            if (tbVal === null && lrVal === null && defaultPaddingValue === null) {
+                previewElement.style.padding = '';
+            } else {
+                const defaultPaddingParts = (defaultPaddingValue || '6px 10px').split(' ');
+                const defaultTB = parseInt(defaultPaddingParts[0], 10);
+                const defaultLR = parseInt(defaultPaddingParts[1] || defaultPaddingParts[0], 10);
+                const finalTB = tbVal !== null ? tbVal : defaultTB;
+                const finalLR = lrVal !== null ? lrVal : defaultLR;
+                previewElement.style.padding = `${finalTB}px ${finalLR}px`;
+            }
+        }
 
-            requestAnimationFrame(() => {
-                const preview = this.modal.element.querySelector('[data-preview-for="inputArea"]');
-                if (!preview) return;
+        /**
+         * @private
+         * @param {'user' | 'assistant'} actor
+         * @param {HTMLElement} previewElement
+         * @param {object} fallbackSet
+         */
+        _updateRadiusPreview(actor, previewElement, fallbackSet) {
+            const radiusSlider = this.domCache.sliders[`${actor}.bubbleBorderRadius`];
+            if (radiusSlider) {
+                const radiusVal = parseInt(radiusSlider.value, 10);
+                const nullThreshold = parseInt(radiusSlider.dataset.nullThreshold, 10);
+                const currentRadius = !isNaN(nullThreshold) && radiusVal < nullThreshold ? null : `${radiusVal}px`;
+                previewElement.style.borderRadius = currentRadius ?? fallbackSet.bubbleBorderRadius ?? '';
+            }
+        }
 
-                const form = this.modal.element;
-                const getVal = (id) => form.querySelector(`#${APPID}-form-${id}`)?.value.trim() || null;
-
-                // Apply fallback logic (current theme -> defaultSet -> hardcoded default).
-                preview.style.backgroundColor = getVal('inputArea-backgroundColor') ?? fallbackInputSet.backgroundColor ?? '#888';
-                preview.style.color = getVal('inputArea-textColor') ?? fallbackInputSet.textColor ?? '';
-            });
+        /**
+         * @private
+         * @param {'user' | 'assistant'} actor
+         * @param {HTMLElement} previewElement
+         * @param {object} fallbackSet
+         */
+        _updateMaxWidthPreview(actor, previewElement, fallbackSet) {
+            const widthSlider = this.domCache.sliders[`${actor}.bubbleMaxWidth`];
+            if (widthSlider) {
+                const widthVal = parseInt(widthSlider.value, 10);
+                const nullThreshold = parseInt(widthSlider.dataset.nullThreshold, 10);
+                const currentWidth = !isNaN(nullThreshold) && widthVal < nullThreshold ? null : `${widthVal}%`;
+                const finalWidth = currentWidth ?? fallbackSet.bubbleMaxWidth ?? (actor === 'user' ? '50%' : '90%');
+                previewElement.style.width = finalWidth;
+                previewElement.style.maxWidth = finalWidth;
+            }
         }
 
         _setFieldError(fieldName, message) {
@@ -7398,40 +9718,25 @@
             });
         }
 
-        _enterDeleteConfirmationMode() {
-            if (!this.modal || this.renameState.isActive) return;
-            this.pendingDeletionKey = this.activeThemeKey;
-            if (!this.pendingDeletionKey) return;
-            this._refreshModalState();
-        }
-
-        _exitDeleteConfirmationMode(resetKey = true) {
-            if (resetKey) {
-                this.pendingDeletionKey = null;
-            }
-            if (this.modal) {
-                this._refreshModalState();
-            }
-        }
-
         /**
          * Determines the resize options for an image based on the input field's ID.
          * @param {string} targetId The ID of the target input field.
+         * @param {object} config The current configuration object to retrieve settings like icon_size.
          * @returns {object} The options object for imageToOptimizedDataUrl.
          */
-        _getImageOptions(targetId) {
+        _getImageOptions(targetId, config) {
             if (targetId.includes('backgroundImageUrl')) {
                 return { maxWidth: 1920, quality: 0.85 };
             }
             if (targetId.includes('standingImageUrl')) {
                 return { maxHeight: 1080, quality: 0.85 };
             }
-            // For icons, no resizing is applied, but still convert to WebP for size reduction.
+            // For icons, resize to the currently configured icon size.
             if (targetId.includes('icon')) {
-                return { quality: 0.85 };
+                const iconSize = config?.options?.icon_size ?? CONSTANTS.ICON_SIZE;
+                return { maxWidth: iconSize, maxHeight: iconSize, quality: 0.85 };
             }
-            return { quality: 0.85 };
-            // Default
+            return { quality: 0.85 }; // Default
         }
 
         /**
@@ -7441,42 +9746,49 @@
         async _handleLocalFileSelect(button) {
             const targetId = button.dataset.targetId;
             const targetInput = document.getElementById(`${APPID}-form-${targetId}`);
-            if (!targetInput) return;
+            if (!(targetInput instanceof HTMLInputElement)) {
+                return;
+            }
 
             const fileInput = h('input', { type: 'file', accept: 'image/*' });
             fileInput.onchange = async (event) => {
-                const file = event.target.files[0];
+                const target = event.target;
+                if (!(target instanceof HTMLInputElement)) return;
+
+                const file = target.files?.[0];
                 if (!file) return;
 
                 const errorField = this.modal.element.querySelector(`[data-error-for="${targetId.replace(/\./g, '-')}"]`);
                 try {
                     // Clear any previous error and show a neutral "Processing..." message.
-                    if (errorField) {
+                    if (errorField instanceof HTMLElement) {
                         errorField.textContent = 'Processing...';
                         errorField.style.color = SITE_STYLES.JSON_MODAL.msg_success_text;
                     }
 
-                    const options = this._getImageOptions(targetId);
+                    const options = this._getImageOptions(targetId, this.state.config);
                     const dataUrl = await this.dataConverter.imageToOptimizedDataUrl(file, options);
                     targetInput.value = dataUrl;
                     targetInput.dispatchEvent(new Event('input', { bubbles: true }));
-                    // Trigger preview update
 
                     // Clear the "Processing..." message on success.
-                    if (errorField) {
+                    if (errorField instanceof HTMLElement) {
                         errorField.textContent = '';
                         errorField.style.color = ''; // Reset color to inherit from CSS
                     }
                 } catch (error) {
                     Logger.error('Image processing failed:', error);
                     // Show a proper error message with the error color on failure.
-                    if (errorField) {
+                    if (errorField instanceof HTMLElement) {
                         errorField.textContent = `Error: ${error.message}`;
                         errorField.style.color = SITE_STYLES.THEME_MODAL.error_text;
                     }
                 }
             };
-            fileInput.click();
+
+            if (fileInput instanceof HTMLElement) {
+                fileInput.click();
+            }
         }
 
         _setupEventListeners() {
@@ -7484,284 +9796,137 @@
             const modalElement = this.modal.element;
 
             // Listen for custom color picker events
-            modalElement.addEventListener('color-change', () => {
-                this.debouncedUpdatePreview();
-            });
+            modalElement.addEventListener('color-change', () => this.debouncedUpdatePreview());
+
             modalElement.addEventListener('click', (e) => {
                 const target = e.target.closest('button');
                 if (!target) return;
 
                 // Handle local file selection button
-                const fileBtn = target.closest(`.${APPID}-local-file-btn`);
-                if (fileBtn) {
-                    this._handleLocalFileSelect(fileBtn);
+                if (target.matches(`.${APPID}-local-file-btn`)) {
+                    this._handleLocalFileSelect(target);
                     return;
                 }
 
                 const actionMap = {
                     [`${APPID}-theme-new-btn`]: () => this._handleThemeNew(),
                     [`${APPID}-theme-copy-btn`]: () => this._handleThemeCopy(),
-                    [`${APPID}-theme-delete-btn`]: () => this._enterDeleteConfirmationMode(),
-                    [`${APPID}-theme-delete-confirm-btn`]: () => this._handleThemeDelete(),
-                    [`${APPID}-theme-delete-cancel-btn`]: () => this._exitDeleteConfirmationMode(),
+                    [`${APPID}-theme-delete-btn`]: () => this._handleDeleteClick(),
+                    [`${APPID}-theme-delete-confirm-btn`]: () => this._handleThemeDeleteConfirm(),
+                    [`${APPID}-theme-delete-cancel-btn`]: () => this._handleActionCancel(),
                     [`${APPID}-theme-up-btn`]: () => this._handleThemeMove(-1),
-
                     [`${APPID}-theme-down-btn`]: () => this._handleThemeMove(1),
-                    [`${APPID}-theme-rename-btn`]: () => this._enterRenameMode('theme'),
-                    [`${APPID}-theme-rename-ok-btn`]: () => this._handleRenameConfirm('theme'),
-                    [`${APPID}-theme-rename-cancel-btn`]: () => this._exitRenameMode(true),
+                    [`${APPID}-theme-rename-btn`]: () => this._handleRenameClick(),
+                    [`${APPID}-theme-rename-ok-btn`]: () => this._handleRenameConfirm(),
+                    [`${APPID}-theme-rename-cancel-btn`]: () => this._handleActionCancel(),
                 };
                 const action = actionMap[target.id];
                 if (action) action();
             });
-            modalElement.addEventListener('change', async (e) => {
+
+            modalElement.addEventListener('change', (e) => {
                 if (e.target.matches(`#${APPID}-theme-select`)) {
-                    // Add a guard clause to prevent infinite loops.
-                    if (this.activeThemeKey === e.target.value) return;
-                    this.activeThemeKey = e.target.value;
-                    await this._refreshModalState();
+                    this.state.activeThemeKey = e.target.value;
+                    this._populateFormWithThemeData();
+                    this._renderUI();
                 }
             });
+
             modalElement.addEventListener('input', (e) => {
                 const target = e.target;
-                const id = target.id || '';
 
                 // Trigger preview for text-based inputs
-                const isTextPreviewable = id.includes('textColor') || id.includes('font') || id.includes('bubbleBackgroundColor') || id.includes('inputArea-backgroundColor') || id.includes('inputArea-textColor');
-                if (isTextPreviewable) {
+                if (target.matches('input[type="text"], textarea, select')) {
                     this.debouncedUpdatePreview();
                 }
 
                 // Handle all range sliders consistently
                 if (target.matches('input[type="range"]')) {
                     this._updateSliderDisplay(target);
-                    // Always trigger a preview update when any slider is changed.
                     this.debouncedUpdatePreview();
                 }
             });
+
             modalElement.addEventListener('mouseover', (e) => {
                 if (e.target.matches('input[type="text"], textarea') && (e.target.offsetWidth < e.target.scrollWidth || e.target.offsetHeight < e.target.scrollHeight)) {
                     e.target.title = e.target.value;
                 }
             });
+
             modalElement.addEventListener('mouseout', (e) => {
-                if (e.target.matches('input[type="text"], textarea')) {
-                    e.target.title = '';
-                }
+                if (e.target.matches('input[type="text"], textarea')) e.target.title = '';
             });
+
             modalElement.addEventListener('keydown', (e) => {
                 if (e.target.matches(`#${APPID}-theme-rename-input`)) {
                     if (e.key === 'Enter') {
                         e.preventDefault();
-                        this._handleRenameConfirm('theme');
+                        this._handleRenameConfirm();
                     }
                     if (e.key === 'Escape') {
                         e.preventDefault();
-                        this._exitRenameMode(true);
+                        this._handleActionCancel();
                     }
                 }
             });
         }
 
         _updateSliderDisplay(slider) {
-            const displayId = slider.dataset.sliderFor || slider.id;
+            const displayId = slider.dataset.sliderFor;
+            if (!displayId) return;
+
             const display = this.modal.element.querySelector(`[data-slider-display-for="${displayId}"]`);
             if (!display) return;
 
-            const nullThreshold = parseInt(slider.dataset.nullThreshold, 10);
-            const currentValue = parseInt(slider.value, 10);
-            if (!isNaN(nullThreshold) && currentValue < nullThreshold) {
-                display.textContent = '-';
-            } else if (slider.dataset.isPercent === 'true') {
-                display.textContent = `${currentValue}%`;
-            } else {
-                display.textContent = `${currentValue}px`;
-            }
+            updateSliderDisplay(slider, display);
         }
 
-        async _populateFormWithThemeData(themeKey) {
-            if (!this.modal) return;
+        async _populateFormWithThemeData() {
+            if (!this.modal || !this.domCache) return;
+            const { activeThemeKey, config } = this.state;
             const modalElement = this.modal.element;
-            this.activeThemeKey = themeKey;
-
             const scrollableArea = modalElement.querySelector(`.${APPID}-theme-scrollable-area`);
             if (scrollableArea) scrollableArea.style.visibility = 'hidden';
 
             this._clearAllFieldErrors();
 
-            const config = await this.callbacks.getCurrentConfig();
-            if (!config) {
-                if (scrollableArea) scrollableArea.style.visibility = 'visible';
-                return;
-            }
-
-            const isDefault = themeKey === 'defaultSet';
-            const theme = isDefault ? config.defaultSet : config.themeSets.find((t) => t.metadata.id === themeKey);
+            const isDefault = activeThemeKey === 'defaultSet';
+            const theme = isDefault ? config.defaultSet : config.themeSets.find((t) => t.metadata.id === activeThemeKey);
             if (!theme) {
                 if (scrollableArea) scrollableArea.style.visibility = 'visible';
                 return;
             }
-            const setVal = (id, value) => {
-                const el = modalElement.querySelector(`#${APPID}-form-${id}`);
-                if (el) el.value = value ?? '';
-            };
-            const setSliderVal = (id, value) => {
-                const slider = modalElement.querySelector(`#${APPID}-form-${id}-slider`);
-                if (!slider) return;
-                const nullThreshold = parseInt(slider.dataset.nullThreshold, 10);
-                const numVal = parseInt(value, 10);
-                slider.value = value === null || isNaN(numVal) ? nullThreshold - 1 : numVal;
-                this._updateSliderDisplay(slider);
-            };
-            const setPaddingSliders = (actor, value) => {
-                const tbSlider = modalElement.querySelector(`#${APPID}-form-${actor}-bubblePadding-tb`);
-                const lrSlider = modalElement.querySelector(`#${APPID}-form-${actor}-bubblePadding-lr`);
-                if (!tbSlider || !lrSlider) return;
 
-                if (value === null) {
-                    tbSlider.value = -1;
-                    lrSlider.value = -1;
-                } else {
-                    const parts = String(value)
-                        .replace(/px/g, '')
-                        .trim()
-                        .split(/\s+/)
-                        .map((p) => parseInt(p, 10));
-                    if (parts.length === 1 && !isNaN(parts[0])) {
-                        tbSlider.value = lrSlider.value = parts[0];
-                    } else if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-                        tbSlider.value = parts[0];
-                        lrSlider.value = parts[1];
-                    } else {
-                        tbSlider.value = -1;
-                        lrSlider.value = -1; // Fallback to default
-                    }
-                }
-                this._updateSliderDisplay(tbSlider);
-                this._updateSliderDisplay(lrSlider);
-            };
-            // Populate metadata fields
-            if (!isDefault) {
-                setVal('metadata-name', theme.metadata.name);
-                setVal('metadata-matchPatterns', Array.isArray(theme.metadata.matchPatterns) ? theme.metadata.matchPatterns.join('\n') : '');
-            }
+            populateFormFromSchema(this.uiDefinition, modalElement, theme, this);
 
-            // Populate actor fields
-            ['user', 'assistant'].forEach((actor) => {
-                const actorConf = theme[actor] || {};
-                setVal(`${actor}-name`, actorConf.name);
-                setVal(`${actor}-icon`, actorConf.icon);
-                setVal(`${actor}-standingImageUrl`, actorConf.standingImageUrl);
-                setVal(`${actor}-textColor`, actorConf.textColor);
-                setVal(`${actor}-font`, actorConf.font);
-                setVal(`${actor}-bubbleBackgroundColor`, actorConf.bubbleBackgroundColor);
-                setPaddingSliders(actor, actorConf.bubblePadding);
-                setSliderVal(`${actor}-bubbleBorderRadius`, actorConf.bubbleBorderRadius);
-                setSliderVal(`${actor}-bubbleMaxWidth`, actorConf.bubbleMaxWidth);
+            // Show/hide fields specific to non-default themes
+            modalElement.querySelectorAll('[data-is-default-hidden]').forEach((el) => {
+                el.style.display = isDefault ? 'none' : '';
             });
-            // Populate window fields
-            const windowConf = theme.window || {};
-            setVal('window-backgroundColor', windowConf.backgroundColor);
-            setVal('window-backgroundImageUrl', windowConf.backgroundImageUrl);
-            setVal('window-backgroundSize', windowConf.backgroundSize);
-            setVal('window-backgroundPosition', windowConf.backgroundPosition);
-            setVal('window-backgroundRepeat', windowConf.backgroundRepeat);
-            // Populate input area fields
-            const inputConf = theme.inputArea || {};
-            setVal('inputArea-backgroundColor', inputConf.backgroundColor);
-            setVal('inputArea-textColor', inputConf.textColor);
 
-            // Update all color swatches based on the new text values
-            modalElement.querySelectorAll(`.${APPID}-color-swatch-value`).forEach((swatchValue) => {
-                const swatch = swatchValue.closest(`.${APPID}-color-swatch`);
-                const targetId = swatch.dataset.controlsColor;
-                const textInput = modalElement.querySelector(`#${APPID}-form-${targetId}`);
-
-                if (textInput) {
-                    swatchValue.style.backgroundColor = textInput.value || 'transparent';
-                }
-            });
-            const generalSettingsEl = modalElement.querySelector(`.${APPID}-theme-general-settings`);
-            const separatorEl = modalElement.querySelector(`.${APPID}-theme-separator`);
-
-            if (isDefault) {
-                generalSettingsEl.style.display = 'none';
-                separatorEl.style.display = 'none';
-            } else {
-                generalSettingsEl.style.display = 'grid';
-                separatorEl.style.display = 'block';
-            }
             this._updateAllPreviews();
-
-            if (scrollableArea) {
-                scrollableArea.style.visibility = 'visible';
-            }
+            if (scrollableArea) scrollableArea.style.visibility = 'visible';
         }
 
         _collectThemeDataFromForm() {
-            if (!this.modal) return null;
-            const modalElement = this.modal.element;
-            const getVal = (id) => modalElement.querySelector(`#${APPID}-form-${id}`)?.value.trim() || null;
-            const getSliderVal = (id) => {
-                const slider = modalElement.querySelector(`#${APPID}-form-${id}-slider`);
-                if (!slider) return null;
-                const value = parseInt(slider.value, 10);
-                const nullThreshold = parseInt(slider.dataset.nullThreshold, 10);
-                if (!isNaN(nullThreshold) && value < nullThreshold) {
-                    return null;
-                }
-                return slider.dataset.isPercent === 'true' ? `${value}%` : `${value}px`;
-            };
-            const getPaddingVal = (actor) => {
-                const tb = modalElement.querySelector(`#${APPID}-form-${actor}-bubblePadding-tb`);
-                const lr = modalElement.querySelector(`#${APPID}-form-${actor}-bubblePadding-lr`);
-                if (!tb || !lr) return null;
-                if (tb.value < 0 || lr.value < 0) return null;
-                return `${tb.value}px ${lr.value}px`;
-            };
-
-            // Collect metadata
+            if (!this.modal || !this.domCache) return null;
             const themeData = { metadata: {}, user: {}, assistant: {}, window: {}, inputArea: {} };
-            themeData.metadata.matchPatterns = modalElement
-                .querySelector(`#${APPID}-form-metadata-matchPatterns`)
-                .value.split('\n')
-                .map((p) => p.trim())
-                .filter((p) => p);
-            // Collect actor data
-            ['user', 'assistant'].forEach((actor) => {
-                themeData[actor].name = getVal(`${actor}-name`);
-                themeData[actor].icon = getVal(`${actor}-icon`);
-                themeData[actor].standingImageUrl = getVal(`${actor}-standingImageUrl`);
-                themeData[actor].textColor = getVal(`${actor}-textColor`);
-                themeData[actor].font = getVal(`${actor}-font`);
-                themeData[actor].bubbleBackgroundColor = getVal(`${actor}-bubbleBackgroundColor`);
-                themeData[actor].bubblePadding = getPaddingVal(actor);
-                themeData[actor].bubbleBorderRadius = getSliderVal(`${actor}-bubbleBorderRadius`);
-                themeData[actor].bubbleMaxWidth = getSliderVal(`${actor}-bubbleMaxWidth`);
-            });
-            // Collect window data
-            themeData.window.backgroundColor = getVal('window-backgroundColor');
-            themeData.window.backgroundImageUrl = getVal('window-backgroundImageUrl');
-            themeData.window.backgroundSize = getVal('window-backgroundSize');
-            themeData.window.backgroundPosition = getVal('window-backgroundPosition');
-            themeData.window.backgroundRepeat = getVal('window-backgroundRepeat');
-            // Collect input area data
-            themeData.inputArea.backgroundColor = getVal('inputArea-backgroundColor');
-            themeData.inputArea.textColor = getVal('inputArea-textColor');
+            const modalElement = this.modal.element;
+
+            collectDataFromSchema(this.uiDefinition, modalElement, themeData);
 
             return themeData;
         }
 
-        async _saveConfigAndHandleFeedback(newConfig, onSuccessCallback = null) {
+        async _saveConfigAndHandleFeedback(newConfig, onSuccessCallback) {
             if (!this.modal) return false;
             const footerMessage = this.modal.dom.footerMessage;
-            if (footerMessage) footerMessage.textContent = ''; // Clear previous messages
+            if (footerMessage) footerMessage.textContent = '';
 
             try {
                 await this.callbacks.onSave(newConfig);
-                if (onSuccessCallback) {
-                    await onSuccessCallback();
-                }
+                this.state.config = JSON.parse(JSON.stringify(newConfig)); // Update local state on success
+                if (onSuccessCallback) await onSuccessCallback();
                 return true;
             } catch (e) {
                 if (footerMessage) {
@@ -7773,77 +9938,41 @@
         }
 
         async _handleThemeAction(shouldClose) {
-            this._clearAllFieldErrors();
             // Clear the global footer message on a new action
-            if (this.modal?.dom?.footerMessage) {
-                this.modal.dom.footerMessage.textContent = '';
-            }
+            if (this.modal?.dom?.footerMessage) this.modal.dom.footerMessage.textContent = '';
 
-            const config = await this.callbacks.getCurrentConfig();
-            const newConfig = JSON.parse(JSON.stringify(config));
             const themeData = this._collectThemeDataFromForm();
             if (!themeData) return;
-            let isFormValid = true;
-            const validateField = (id, value, type, name) => {
-                const result = validateImageString(value, type);
-                if (!result.isValid) {
-                    this._setFieldError(id.replace(/\./g, '-'), `${name}: ${result.message}`);
-                    isFormValid = false;
-                }
-            };
 
-            validateField('user.icon', themeData.user.icon, 'icon', 'Icon');
-            validateField('assistant.icon', themeData.assistant.icon, 'icon', 'Icon');
-            validateField('user.standingImageUrl', themeData.user.standingImageUrl, 'image', 'Standing image');
-            validateField('assistant.standingImageUrl', themeData.assistant.standingImageUrl, 'image', 'Standing image');
-            validateField('window.backgroundImageUrl', themeData.window.backgroundImageUrl, 'image', 'Background image');
-            const isDefault = this.activeThemeKey === 'defaultSet';
-            if (!isDefault) {
-                for (const p of themeData.metadata.matchPatterns) {
-                    if (!/^\/.*\/[gimsuy]*$/.test(p)) {
-                        this._setFieldError('metadata-matchPatterns', `Invalid format: "${p}". Must be /pattern/flags.`);
-                        isFormValid = false;
-                    }
-                    try {
-                        const lastSlash = p.lastIndexOf('/');
-                        new RegExp(p.slice(1, lastSlash), p.slice(lastSlash + 1));
-                    } catch (e) {
-                        this._setFieldError('metadata-matchPatterns', `Invalid RegExp: "${p}". ${e.message}`);
-                        isFormValid = false;
-                    }
-                }
+            const validationResult = ConfigProcessor.validate(themeData, this.state.activeThemeKey === 'defaultSet');
+            if (!validationResult.isValid) {
+                validationResult.errors.forEach((err) => this._setFieldError(err.field, err.message));
+                return;
             }
 
-            if (!isFormValid) return;
-            if (isDefault) {
-                newConfig.defaultSet.user = themeData.user;
-                newConfig.defaultSet.assistant = themeData.assistant;
-                newConfig.defaultSet.window = themeData.window;
-                newConfig.defaultSet.inputArea = themeData.inputArea;
+            const newConfig = JSON.parse(JSON.stringify(this.state.config));
+            if (this.state.activeThemeKey === 'defaultSet') {
+                // Use deepMerge to apply changes to defaultSet
+                deepMerge(newConfig.defaultSet, themeData);
+                // metadata is not part of defaultSet, so clear it
+                delete newConfig.defaultSet.metadata;
             } else {
-                const index = newConfig.themeSets.findIndex((t) => t.metadata.id === this.activeThemeKey);
+                const index = newConfig.themeSets.findIndex((t) => t.metadata.id === this.state.activeThemeKey);
                 if (index !== -1) {
                     // Preserve existing metadata not edited in this form (like name and id)
                     const existingMetadata = newConfig.themeSets[index].metadata;
-                    newConfig.themeSets[index] = { ...themeData, metadata: existingMetadata };
-                    newConfig.themeSets[index].metadata.matchPatterns = themeData.metadata.matchPatterns;
+                    themeData.metadata = { ...existingMetadata, matchPatterns: themeData.metadata.matchPatterns };
+                    newConfig.themeSets[index] = themeData;
                 }
             }
 
-            const onSuccess = async () => {
-                if (shouldClose) {
-                    this.close();
-                } else {
-                    await this._refreshModalState();
-                }
-            };
+            const onSuccess = async () => (shouldClose ? this.close() : this._renderUI());
             await this._saveConfigAndHandleFeedback(newConfig, onSuccess);
         }
 
-        async _handleThemeNew() {
-            const config = await this.callbacks.getCurrentConfig();
+        _handleThemeNew() {
+            const { config } = this.state;
             const existingNames = new Set(config.themeSets.map((t) => t.metadata.name?.trim().toLowerCase()));
-            existingNames.add('default settings');
             const newName = proposeUniqueName('New Theme', existingNames);
             const newTheme = {
                 metadata: { id: generateUniqueId(), name: newName, matchPatterns: [] },
@@ -7855,162 +9984,130 @@
             const newConfig = JSON.parse(JSON.stringify(config));
             newConfig.themeSets.push(newTheme);
 
-            const onSuccess = async () => {
-                this.activeThemeKey = newTheme.metadata.id;
-                await this._refreshModalState();
-                this._enterRenameMode('theme');
+            const onSuccess = () => {
+                this.state.activeThemeKey = newTheme.metadata.id;
+                this.state.uiMode = 'RENAMING_THEME';
+                this._populateFormWithThemeData();
+                this._renderUI();
+                const input = this.modal.element.querySelector(`#${APPID}-theme-rename-input`);
+                if (input) {
+                    input.focus();
+                    input.select();
+                }
             };
-            await this._saveConfigAndHandleFeedback(newConfig, onSuccess);
+            this._saveConfigAndHandleFeedback(newConfig, onSuccess);
         }
 
-        async _handleThemeCopy() {
-            const config = await this.callbacks.getCurrentConfig();
-            const isDefault = this.activeThemeKey === 'defaultSet';
-            let themeToCopy;
-            if (isDefault) {
-                themeToCopy = { metadata: { name: 'Default' }, ...config.defaultSet };
-            } else {
-                themeToCopy = config.themeSets.find((t) => t.metadata.id === this.activeThemeKey);
-            }
+        _handleThemeCopy() {
+            const { config, activeThemeKey } = this.state;
+            const isDefault = activeThemeKey === 'defaultSet';
+            const themeToCopy = isDefault ? { metadata: { name: 'Default' }, ...config.defaultSet } : config.themeSets.find((t) => t.metadata.id === activeThemeKey);
             if (!themeToCopy) return;
 
-            const originalName = themeToCopy.metadata.name || 'Theme';
-            const baseName = `${originalName} Copy`;
+            const baseName = `${themeToCopy.metadata.name || 'Theme'} Copy`;
             const existingNames = new Set(config.themeSets.map((t) => t.metadata.name?.trim().toLowerCase()));
-            existingNames.add('default settings');
             const newName = proposeUniqueName(baseName, existingNames);
             const newTheme = JSON.parse(JSON.stringify(themeToCopy));
 
-            if (!newTheme.metadata) newTheme.metadata = {};
-            newTheme.metadata.id = generateUniqueId();
-            newTheme.metadata.name = newName;
-            if (isDefault) {
-                newTheme.metadata.matchPatterns = [];
-            }
+            newTheme.metadata = { ...newTheme.metadata, id: generateUniqueId(), name: newName };
+            if (isDefault) newTheme.metadata.matchPatterns = [];
 
             const newConfig = JSON.parse(JSON.stringify(config));
             newConfig.themeSets.push(newTheme);
 
-            const onSuccess = async () => {
-                this.activeThemeKey = newTheme.metadata.id;
-                await this._refreshModalState();
+            const onSuccess = () => {
+                this.state.activeThemeKey = newTheme.metadata.id;
+                this._populateFormWithThemeData();
+                this._renderUI();
             };
-            await this._saveConfigAndHandleFeedback(newConfig, onSuccess);
+            this._saveConfigAndHandleFeedback(newConfig, onSuccess);
         }
 
-        async _handleThemeDelete() {
-            const themeKey = this.pendingDeletionKey;
-            if (themeKey === 'defaultSet' || !themeKey) {
-                this._exitDeleteConfirmationMode();
-                return;
-            }
-
-            const config = await this.callbacks.getCurrentConfig();
-            const newConfig = JSON.parse(JSON.stringify(config));
-            newConfig.themeSets = newConfig.themeSets.filter((t) => t.metadata.id !== themeKey);
-
-            const onSuccess = async () => {
-                this.activeThemeKey = 'defaultSet';
-                this._exitDeleteConfirmationMode();
-                await this._refreshModalState();
-            };
-            await this._saveConfigAndHandleFeedback(newConfig, onSuccess);
-        }
-
-        async _handleThemeMove(direction) {
-            const themeKey = this.activeThemeKey;
-            if (themeKey === 'defaultSet') return;
-
-            const config = await this.callbacks.getCurrentConfig();
-            const currentIndex = config.themeSets.findIndex((t) => t.metadata.id === themeKey);
+        _handleThemeMove(direction) {
+            const { config, activeThemeKey } = this.state;
+            if (activeThemeKey === 'defaultSet') return;
+            const currentIndex = config.themeSets.findIndex((t) => t.metadata.id === activeThemeKey);
             if (currentIndex === -1) return;
-
             const newIndex = currentIndex + direction;
             if (newIndex < 0 || newIndex >= config.themeSets.length) return;
+
             const newConfig = JSON.parse(JSON.stringify(config));
             const item = newConfig.themeSets.splice(currentIndex, 1)[0];
             newConfig.themeSets.splice(newIndex, 0, item);
 
-            await this._saveConfigAndHandleFeedback(newConfig, () => this._refreshModalState());
+            this._saveConfigAndHandleFeedback(newConfig, () => this._renderUI());
         }
 
-        async _enterRenameMode(type) {
-            if (this.renameState.isActive) return;
-            this.renameState = {
-                type: type,
-                isActive: true,
-            };
-            await this._refreshModalState();
-
-            const input = this.modal.element.querySelector(`#${APPID}-${type}-rename-input`);
+        _handleRenameClick() {
+            this.state.uiMode = 'RENAMING_THEME';
+            this._renderUI();
+            const input = this.modal.element.querySelector(`#${APPID}-theme-rename-input`);
             if (input) {
                 input.focus();
                 input.select();
             }
         }
 
-        async _exitRenameMode(refresh = false) {
-            if (!this.renameState.isActive) return;
-            const type = this.renameState.type;
-            this.renameState = { type: null, isActive: false };
-
-            if (this.modal) {
-                const input = this.modal.element.querySelector(`#${APPID}-${type}-rename-input`);
-                if (input) input.classList.remove('is-invalid');
-
-                const footerMessage = this.modal.dom.footerMessage;
-                if (footerMessage) footerMessage.textContent = '';
-                if (refresh) await this._refreshModalState();
-            }
-        }
-
-        async _handleRenameConfirm(type) {
+        _handleRenameConfirm() {
+            const { config, activeThemeKey } = this.state;
             const footerMessage = this.modal?.dom?.footerMessage;
             if (footerMessage) footerMessage.textContent = '';
 
-            const input = this.modal.element.querySelector(`#${APPID}-${type}-rename-input`);
+            const input = this.modal.element.querySelector(`#${APPID}-theme-rename-input`);
             const newName = input.value.trim();
-            const config = await this.callbacks.getCurrentConfig();
-            const oldTheme = this.activeThemeKey === 'defaultSet' ? { metadata: { name: 'Default Settings' } } : config.themeSets.find((t) => t.metadata.id === this.activeThemeKey);
-            const oldName = oldTheme?.metadata?.name || '';
 
-            // Validation
             if (!newName) {
-                if (footerMessage) {
-                    footerMessage.textContent = `Theme name cannot be empty.`;
-                    footerMessage.style.color = this.callbacks.siteStyles.error_text;
-                }
-                input.classList.add('is-invalid');
+                if (footerMessage) footerMessage.textContent = 'Theme name cannot be empty.';
+                return;
+            }
+            const isNameTaken = config.themeSets.some((t) => t.metadata.id !== activeThemeKey && t.metadata.name?.toLowerCase() === newName.toLowerCase());
+            if (isNameTaken) {
+                if (footerMessage) footerMessage.textContent = `Name "${newName}" is already in use.`;
                 return;
             }
 
-            const existingKeys = config.themeSets.map((t) => t.metadata.name);
-            const isNameTaken = existingKeys.some((k) => k?.toLowerCase() === newName.toLowerCase());
-            const isNameReserved = newName.toLowerCase() === 'default settings';
-
-            if (newName.toLowerCase() !== oldName.toLowerCase() && (isNameTaken || isNameReserved)) {
-                if (footerMessage) {
-                    footerMessage.textContent = `Name "${newName}" is already in use or is reserved.`;
-                    footerMessage.style.color = this.callbacks.siteStyles.error_text;
-                }
-                input.classList.add('is-invalid');
-                return;
-            }
-
-            // Config Update
             const newConfig = JSON.parse(JSON.stringify(config));
-            const themeToUpdate = newConfig.themeSets.find((t) => t.metadata.id === this.activeThemeKey);
+            const themeToUpdate = newConfig.themeSets.find((t) => t.metadata.id === activeThemeKey);
             if (themeToUpdate) {
                 themeToUpdate.metadata.name = newName;
-            } else {
-                if (footerMessage) {
-                    footerMessage.textContent = `Error: Could not find theme to update.`;
-                    footerMessage.style.color = this.callbacks.siteStyles.error_text;
-                }
+                this._saveConfigAndHandleFeedback(newConfig, () => {
+                    this.state.uiMode = 'NORMAL';
+                    this._renderUI();
+                });
+            }
+        }
+
+        _handleDeleteClick() {
+            this.state.uiMode = 'CONFIRM_DELETE';
+            this.state.pendingDeletionKey = this.state.activeThemeKey;
+            this._renderUI();
+        }
+
+        _handleThemeDeleteConfirm() {
+            const { config, pendingDeletionKey } = this.state;
+            if (pendingDeletionKey === 'defaultSet' || !pendingDeletionKey) {
+                this._handleActionCancel();
                 return;
             }
+            const newConfig = JSON.parse(JSON.stringify(config));
+            newConfig.themeSets = newConfig.themeSets.filter((t) => t.metadata.id !== pendingDeletionKey);
+            this._saveConfigAndHandleFeedback(newConfig, () => {
+                this.state.activeThemeKey = 'defaultSet';
+                this.state.pendingDeletionKey = null;
+                this.state.uiMode = 'NORMAL';
+                this._populateFormWithThemeData();
+                this._renderUI();
+            });
+        }
 
-            await this._saveConfigAndHandleFeedback(newConfig, () => this._exitRenameMode(true));
+        _handleActionCancel() {
+            this.state.uiMode = 'NORMAL';
+            this.state.pendingDeletionKey = null;
+            this._renderUI();
+        }
+
+        getContextForReopen() {
+            return { type: 'theme', key: this.state.activeThemeKey };
         }
 
         _injectStyles() {
@@ -8247,6 +10344,9 @@
                   min-width: 4em;
                   text-align: right;
                 }
+                .${APPID}-slider-subgroup-control.is-default span {
+                  color: ${styles.label_text};
+                }
                 .${APPID}-compound-slider-container {
                   display: flex;
                   gap: 16px;
@@ -8307,6 +10407,16 @@
                   border: 1px solid ${styles.input_border};
                   transition: all 0.1s linear;
                 }
+                .${APPID}-preview-background {
+                  width: 100%;
+                  height: 100%;
+                  border-radius: 4px;
+                  transition: all 0.1s linear;
+                  border: 1px solid ${styles.input_border};
+                }
+                .${APPID}-compound-form-field-container .${APPID}-form-field > .${APPID}-preview-bubble-wrapper {
+                  flex-grow: 1;
+                }
                 .${APPID}-color-picker-popup {
                   background-color: ${styles.popup_bg};
                   border: 1px solid ${styles.popup_border};
@@ -8353,28 +10463,28 @@
             `;
             document.head.appendChild(style);
         }
-
-        getContextForReopen() {
-            return { type: 'theme', key: this.activeThemeKey };
-        }
     }
 
     class UIManager {
-        /** * @param {(config: AppConfig) => Promise<void>} onSaveCallback
+        /**
+         * @param {(config: AppConfig) => Promise<void>} onSaveCallback
          * @param {() => Promise<AppConfig>} getCurrentConfigCallback
          * @param {DataConverter} dataConverter
          * @param {() => void} onModalClose
          * @param {object} siteStyles
+         * @param getCurrentThemeSetCallback
          */
-        constructor(appInstance, onSaveCallback, getCurrentConfigCallback, dataConverter, onModalClose, siteStyles, getCurrentThemeSetCallback) {
-            this.app = appInstance; // Store reference to main controller
+        constructor(onSaveCallback, getCurrentConfigCallback, dataConverter, onModalClose, siteStyles, getCurrentThemeSetCallback) {
             this.onSave = onSaveCallback;
             this.getCurrentConfig = getCurrentConfigCallback;
             this.dataConverter = dataConverter;
             this.onModalClose = onModalClose;
             this.siteStyles = siteStyles;
             this.isModalOpen = false;
-            this.unsubscribers = [];
+            this.isWarningActive = false;
+            this.warningMessage = '';
+            this.subscriptions = [];
+            this.isStreaming = false;
             const modalCallbacks = {
                 onSave: (newConfig) => this.onSave(newConfig),
                 getCurrentConfig: () => this.getCurrentConfig(),
@@ -8388,6 +10498,7 @@
                 {
                     // Options
                     id: `${APPID}-settings-button`,
+                    textContent: '',
                     title: `Settings (${APPNAME})`,
                     zIndex: CONSTANTS.Z_INDICES.SETTINGS_BUTTON,
                     position: CONSTANTS.UI_DEFAULTS.SETTINGS_BUTTON_DEFAULT_POSITION,
@@ -8401,51 +10512,69 @@
                 getCurrentConfig: () => this.getCurrentConfig(),
                 getAnchorElement: () => this.settingsButton.element,
                 siteStyles: this.siteStyles.SETTINGS_PANEL,
-                onShow: () => this.displayConfigWarning(),
-                getCurrentThemeSet: getCurrentThemeSetCallback, // Pass callback directly
+                onShow: () => this.updateWarningBanners(),
+                getCurrentThemeSet: getCurrentThemeSetCallback, // Pass the callback directly
             });
             this.jsonModal = new JsonModalComponent({
                 ...modalCallbacks,
                 siteStyles: this.siteStyles.JSON_MODAL,
-                onModalOpen: () => this.displayConfigWarning(),
+                onModalOpen: () => this.updateWarningBanners(),
             });
             this.themeModal = new ThemeModalComponent({
                 ...modalCallbacks,
                 dataConverter: this.dataConverter,
                 siteStyles: this.siteStyles.THEME_MODAL,
-                onModalOpen: () => this.displayConfigWarning(),
+                onModalOpen: () => this.updateWarningBanners(),
             });
+        }
+
+        _subscribe(event, listener) {
+            const key = createEventKey(this, event);
+            EventBus.subscribe(event, listener, key);
+            this.subscriptions.push({ event, key });
         }
 
         init() {
             this.settingsButton.render();
+            this.settingsPanel.init();
             this.settingsPanel.render();
-            this.jsonModal.render();
             this.themeModal.render();
-            this.unsubscribers.push(
-                EventBus.subscribe(`${APPID}:reOpenModal`, ({ type, key }) => {
-                    if (type === 'json') {
-                        this.jsonModal.open(this.settingsButton.element);
-                    } else if (type === 'theme') {
-                        this.themeModal.open(key);
-                    }
-                })
-            );
-            this.unsubscribers.push(EventBus.subscribe(`${APPID}:uiReposition`, () => this.repositionSettingsButton()));
+            this._subscribe(EVENTS.REOPEN_MODAL, ({ type, key }) => {
+                if (type === 'json') {
+                    this.jsonModal.open(this.settingsButton.element);
+                } else if (type === 'theme') {
+                    this.themeModal.open(key);
+                }
+            });
+            this._subscribe(EVENTS.UI_REPOSITION, () => this._handleRepositionEvent());
+            this._subscribe(EVENTS.CONFIG_WARNING_UPDATE, ({ show, message }) => {
+                this.isWarningActive = show;
+                this.warningMessage = message;
+                this.updateWarningBanners();
+            });
+            this._subscribe(EVENTS.APP_SHUTDOWN, () => this.destroy());
+            this._subscribe(EVENTS.STREAMING_START, () => (this.isStreaming = true));
+            this._subscribe(EVENTS.STREAMING_END, () => (this.isStreaming = false));
+            this._subscribe(EVENTS.DEFERRED_LAYOUT_UPDATE, () => this._handleRepositionEvent());
         }
 
         destroy() {
-            this.unsubscribers.forEach((unsub) => unsub());
-            this.unsubscribers = [];
+            this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
+            this.subscriptions = [];
             this.settingsButton?.destroy();
             this.settingsPanel?.destroy();
             this.jsonModal?.close(); // Modals destroy themselves on close
             this.themeModal?.close();
         }
 
+        _handleRepositionEvent() {
+            if (this.isStreaming) return;
+            EventBus.queueUIWork(this.repositionSettingsButton.bind(this));
+        }
+
         repositionSettingsButton() {
             if (!this.settingsButton?.element) return;
-            PlatformAdapter.repositionSettingsButton(this.settingsButton);
+            PlatformAdapters.UIManager.repositionSettingsButton(this.settingsButton);
         }
 
         getActiveModal() {
@@ -8456,6 +10585,47 @@
                 return this.themeModal;
             }
             return null;
+        }
+
+        showConflictNotification(modalComponent, reloadCallback) {
+            if (!modalComponent?.modal) return;
+            this.clearConflictNotification(modalComponent); // Clear previous state first
+
+            const styles = modalComponent.callbacks.siteStyles;
+            const messageArea = modalComponent.modal.dom.footerMessage;
+
+            if (messageArea) {
+                const messageText = h('span', {
+                    textContent: 'Settings updated in another tab.',
+                    style: { display: 'flex', alignItems: 'center' },
+                });
+
+                const reloadBtn = h('button', {
+                    id: `${APPID}-conflict-reload-btn`,
+                    className: `${APPID}-modal-button`,
+                    textContent: 'Reload UI',
+                    title: 'Discard local changes and load the settings from the other tab.',
+                    style: {
+                        borderColor: styles.error_text || 'red',
+                        marginLeft: '12px',
+                    },
+                    onclick: reloadCallback,
+                });
+
+                messageArea.textContent = '';
+                messageArea.classList.add(`${APPID}-conflict-text`);
+                messageArea.style.color = styles.error_text || 'red';
+                messageArea.append(messageText, reloadBtn);
+            }
+        }
+
+        clearConflictNotification(modalComponent) {
+            if (!modalComponent?.modal) return;
+            const messageArea = modalComponent.modal.dom.footerMessage;
+            if (messageArea) {
+                messageArea.textContent = '';
+                messageArea.classList.remove(`${APPID}-conflict-text`);
+            }
         }
 
         setModalState(isOpen) {
@@ -8481,21 +10651,27 @@
                         whiteSpace: 'pre-wrap',
                     },
                 },
-                this.app.configWarningMessage
+                this.warningMessage
             );
         }
 
-        displayConfigWarning() {
+        updateWarningBanners() {
             const components = [this.settingsPanel, this.jsonModal, this.themeModal];
             // First, remove any existing banners from all components
             components.forEach((component) => {
-                const modalElement = component?.modal?.element || component?.element;
+                let modalElement = null;
+                if (component instanceof SettingsPanelComponent) {
+                    modalElement = component.element;
+                } else if (component instanceof JsonModalComponent || component instanceof ThemeModalComponent) {
+                    modalElement = component.modal?.element;
+                }
+
                 if (modalElement) {
                     modalElement.querySelector(`.${APPID}-config-warning-banner`)?.remove();
                 }
             });
 
-            if (this.app.isConfigSizeExceeded) {
+            if (this.isWarningActive) {
                 const newBanner = this._createWarningBanner();
                 // Add banner to any visible settings UI
                 if (this.settingsPanel?.isOpen()) {
@@ -8537,68 +10713,9 @@
                 // Already visible
                 if (existingStyle) return;
 
-                const userFrameSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none"><rect x="1" y="1" width="98" height="98" fill="rgb(231 76 60 / 0.1)" stroke="rgb(231 76 60 / 0.9)" stroke-width="2" /></svg>`;
-                const asstFrameSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none"><rect x="1" y="1" width="98" height="98" fill="rgb(52 152 219 / 0.1)" stroke="rgb(52 152 219 / 0.9)" stroke-width="2" /></svg>`;
-                const userFrameDataUri = svgToDataUrl(userFrameSvg);
-                const asstFrameDataUri = svgToDataUrl(asstFrameSvg);
-
                 const debugStyle = h('style', {
                     id: styleId,
-                    textContent: `
-                    /* --- DEBUG BORDERS --- */
-                    :root {
-                        --dbg-layout-color: rgb(26 188 156 / 0.8); /* Greenish */
-                        --dbg-user-color: rgb(231 76 60 / 0.8); /* Reddish */
-                        --dbg-asst-color: rgb(52 152 219 / 0.8); /* Blueish */
-                        --dbg-comp-color: rgb(22 160 133 / 0.8); /* Cyan */
-                        --dbg-zone-color: rgb(142 68 173 / 0.9); /* Purplish */
-                        --dbg-neutral-color: rgb(128 128 128 / 0.7); /* Gray */
-                    }
-
-                    /* Layout Containers */
-                    ${CONSTANTS.SELECTORS.SIDEBAR_WIDTH_TARGET} { outline: 2px solid var(--dbg-layout-color) !important; }
-                    ${CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH} { outline: 2px dashed var(--dbg-layout-color) !important; }
-                    ${CONSTANTS.SELECTORS.INPUT_AREA_BG_TARGET} { outline: 1px solid var(--dbg-layout-color) !important; }
-                    #${APPID}-nav-console { outline: 1px dotted var(--dbg-layout-color) !important; }
-
-                    /* Message Containers */
-                    ${CONSTANTS.SELECTORS.DEBUG_CONTAINER_TURN} { outline: 1px solid var(--dbg-neutral-color) !important; outline-offset: -1px; }
-                    ${CONSTANTS.SELECTORS.DEBUG_CONTAINER_USER} { outline: 2px solid var(--dbg-user-color) !important; outline-offset: -2px; }
-                    ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE} { outline: 1px dashed var(--dbg-user-color) !important; outline-offset: -4px; }
-                    ${CONSTANTS.SELECTORS.DEBUG_CONTAINER_ASSISTANT} { outline: 2px solid var(--dbg-asst-color) !important; outline-offset: -2px; }
-                    ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE} { outline: 1px dashed var(--dbg-asst-color) !important; outline-offset: -4px; }
-
-                    /* Components */
-                    ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} { outline: 1px solid var(--dbg-comp-color) !important; }
-                    ${CONSTANTS.SELECTORS.SIDE_AVATAR_ICON} { outline: 1px dotted var(--dbg-comp-color) !important; }
-                    ${CONSTANTS.SELECTORS.SIDE_AVATAR_NAME} { outline: 1px dotted var(--dbg-comp-color) !important; }
-
-                    /* Standing Image Debug Overrides */
-                    #${APPID}-standing-image-user {
-                        background-image: url("${userFrameDataUri}") !important;
-                        z-index: 15000 !important;
-                        opacity: 0.7 !important;
-                        min-width: 30px !important;
-                    }
-                    #${APPID}-standing-image-assistant {
-                        background-image: url("${asstFrameDataUri}") !important;
-                        z-index: 15000 !important;
-                        opacity: 0.7 !important;
-                        min-width: 30px !important;
-                    }
-
-                    /* Interactive Zones */
-                    model-response.${APPID}-collapsible::before {
-                        outline: 1px solid var(--dbg-zone-color) !important;
-                        content: 'HOVER AREA' !important;
-                        color: var(--dbg-zone-color);
-                        font-size: 10px;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                    }
-                    .${APPID}-bubble-nav-container { outline: 1px dashed var(--dbg-zone-color) !important; }
-                `,
+                    textContent: PlatformAdapters.Debug.getBordersCss(),
                 });
                 document.head.appendChild(debugStyle);
                 Logger.log('Borders ON');
@@ -8637,396 +10754,178 @@
     /**
      * @class Sentinel
      * @description Detects DOM node insertion using a shared, prefixed CSS animation trick.
+     * @property {Map<string, Array<(element: Element) => void>>} listeners
+     * @property {Set<string>} rules
+     * @property {HTMLElement | null} styleElement
      */
     class Sentinel {
         constructor(prefix = 'my-project') {
-            window.__global_sentinel_instances__ = window.__global_sentinel_instances__ || {};
-            if (window.__global_sentinel_instances__[prefix]) {
-                return window.__global_sentinel_instances__[prefix];
+            /** @type {any} */
+            const globalScope = window;
+            globalScope.__global_sentinel_instances__ = globalScope.__global_sentinel_instances__ || {};
+            if (globalScope.__global_sentinel_instances__[prefix]) {
+                return globalScope.__global_sentinel_instances__[prefix];
             }
 
             // Use a unique, prefixed animation name shared by all scripts in a project.
             this.animationName = `${prefix}-global-sentinel-animation`;
-            this.styleId = `${prefix}-sentinel-global-keyframes`;
-            this.ruleClassName = `${prefix}-sentinel-rule`;
+            this.styleId = `${prefix}-sentinel-global-rules`; // A single, unified style element
             this.listeners = new Map();
-            this._injectKeyframes();
+            this.rules = new Set(); // Tracks all active selectors
+            this.styleElement = null; // Holds the reference to the single style element
+
+            this._injectStyleElement();
             document.addEventListener('animationstart', this._handleAnimationStart.bind(this), true);
 
-            window.__global_sentinel_instances__[prefix] = this;
+            globalScope.__global_sentinel_instances__[prefix] = this;
         }
 
-        _injectKeyframes() {
-            // Ensure the keyframes are injected only once per project prefix.
-            if (document.getElementById(this.styleId)) return;
+        _injectStyleElement() {
+            // Ensure the style element is injected only once per project prefix.
+            this.styleElement = document.getElementById(this.styleId);
+            if (this.styleElement) return;
 
-            const style = h('style', {
+            const keyframes = `@keyframes ${this.animationName} { from { transform: none; } to { transform: none; } }`;
+            this.styleElement = h('style', {
                 id: this.styleId,
-                textContent: `@keyframes ${this.animationName} { from { transform: none; } to { transform: none; } }`,
+                textContent: keyframes,
             });
-            document.head.appendChild(style);
+            document.head.appendChild(this.styleElement);
         }
 
         _handleAnimationStart(event) {
             // Check if the animation is the one we're listening for.
             if (event.animationName !== this.animationName) return;
+
             const target = event.target;
-            if (!target) return;
+            if (!(target instanceof Element)) {
+                return;
+            }
+
             // Check if the target element matches any of this instance's selectors.
             for (const [selector, callbacks] of this.listeners.entries()) {
                 if (target.matches(selector)) {
-                    callbacks.forEach((cb) => cb(target));
+                    // Use a copy of the callbacks array in case a callback removes itself.
+                    [...callbacks].forEach((cb) => cb(target));
                 }
             }
         }
 
+        /**
+         * @param {string} selector
+         * @param {(element: Element) => void} callback
+         */
         on(selector, callback) {
             if (!this.listeners.has(selector)) {
                 this.listeners.set(selector, []);
-                // Each script still injects its own rule to target its specific element.
-                // All rules will point to the same, shared animation name.
-                const style = h('style', {
-                    className: this.ruleClassName,
-                    textContent: `${selector} { animation-duration: 0.001s; animation-name: ${this.animationName}; }`,
-                });
-                document.head.appendChild(style);
+                this.rules.add(selector);
+
+                // Regenerate and apply all rules to the single style element.
+                const keyframes = `@keyframes ${this.animationName} { from { transform: none; } to { transform: none; } }`;
+                const selectors = Array.from(this.rules).join(', ');
+                this.styleElement.textContent = `${keyframes}\n${selectors} { animation-duration: 0.001s; animation-name: ${this.animationName}; }`;
             }
             this.listeners.get(selector).push(callback);
         }
-    }
-
-    // =================================================================================
-    // SECTION: Auto Scroll Manager
-    // Description: Manages the auto-scrolling feature to load the entire chat history.
-    // =================================================================================
-
-    class AutoScrollManager {
-        static CONFIG = {
-            // The minimum number of messages required to trigger the auto-scroll feature.
-            MESSAGE_THRESHOLD: 20,
-            // The maximum time (in ms) to wait for the progress bar to appear after scrolling up.
-            APPEAR_TIMEOUT_MS: 2000,
-            // The maximum time (in ms) to wait for the progress bar to disappear after it has appeared.
-            DISAPPEAR_TIMEOUT_MS: 5000,
-            // The interval (in ms) at which to check for the presence or absence of the progress bar.
-            POLLING_INTERVAL_MS: 50,
-        };
 
         /**
-         * @param {ConfigManager} configManager
-         * @param {MessageCacheManager} messageCacheManager
+         * @param {string} selector
+         * @param {(element: Element) => void} callback
          */
-        constructor(configManager, messageCacheManager) {
-            this.configManager = configManager;
-            this.messageCacheManager = messageCacheManager;
-            this.scrollContainer = null;
-            this.isEnabled = false;
-            this.isScrolling = false;
-            this.unsubscribers = [];
-            this.toastShown = false;
-            // Selector for the loading bar, identified from user's research.
-            this.PROGRESS_BAR_SELECTOR = 'mat-progress-bar[role="progressbar"]';
-        }
+        off(selector, callback) {
+            const callbacks = this.listeners.get(selector);
+            if (!callbacks) return;
 
-        init() {
-            this.isEnabled = this.configManager.get().features.load_full_history_on_chat_load.enabled;
-            this.unsubscribers.push(EventBus.subscribe(`${APPID}:autoScrollRequest`, () => this.start()));
-            this.unsubscribers.push(EventBus.subscribe(`${APPID}:autoScrollCancelRequest`, () => this.stop()));
-        }
+            const newCallbacks = callbacks.filter((cb) => cb !== callback);
 
-        destroy() {
-            this.unsubscribers.forEach((unsub) => unsub());
-            this.unsubscribers = [];
-            this.stop();
-        }
-
-        enable() {
-            this.isEnabled = true;
-        }
-
-        disable() {
-            this.isEnabled = false;
-            this.stop();
-        }
-
-        async start() {
-            if (!this.isEnabled || this.isScrolling) return;
-
-            const container = await waitForElement('[data-test-id="chat-history-container"]');
-            if (!container) {
-                Logger.warn('AutoScrollManager: Could not find scroll container.');
-                return;
+            if (newCallbacks.length === callbacks.length) {
+                return; // Callback not found, do nothing.
             }
 
-            const initialMessageCount = container.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS).length;
-            if (initialMessageCount < AutoScrollManager.CONFIG.MESSAGE_THRESHOLD) {
-                Logger.log('AutoScrollManager: Fewer than 20 messages, no scroll needed.');
-                return;
-            }
+            if (newCallbacks.length === 0) {
+                this.listeners.delete(selector);
+                this.rules.delete(selector);
 
-            this.scrollContainer = container;
-            Logger.log('AutoScrollManager: Starting auto-scroll.');
-            this.isScrolling = true;
-            this.toastShown = false;
-
-            this.scrollContainer.addEventListener('wheel', () => this.stop(), { once: true });
-            this.scrollContainer.addEventListener('touchmove', () => this.stop(), { once: true });
-
-            // Start the recursive scrolling process.
-            this._scrollStep();
-        }
-
-        stop() {
-            if (!this.isScrolling) return;
-
-            Logger.log('AutoScrollManager: Stopping auto-scroll.');
-            this.isScrolling = false;
-            this.toastShown = false;
-            this.scrollContainer = null;
-            EventBus.publish(`${APPID}:autoScrollComplete`);
-        }
-
-        /**
-         * @private
-         * @description Asynchronously waits for an element to appear in the DOM.
-         * @param {string} selector - The CSS selector of the element.
-         * @param {number} timeoutMs - The maximum time to wait.
-         * @returns {Promise<HTMLElement|null>} The element or null if timed out.
-         */
-        _waitForElementToAppear(selector, timeoutMs) {
-            return new Promise((resolve) => {
-                const startTime = Date.now();
-                const interval = setInterval(() => {
-                    const element = document.querySelector(selector);
-                    if (element) {
-                        clearInterval(interval);
-                        resolve(element);
-                    } else if (Date.now() - startTime > timeoutMs) {
-                        clearInterval(interval);
-                        resolve(null);
-                    }
-                }, AutoScrollManager.CONFIG.POLLING_INTERVAL_MS);
-            });
-        }
-
-        /**
-         * @private
-         * @description Asynchronously waits for an element to disappear from the DOM.
-         * @param {string} selector - The CSS selector of the element.
-         * @param {number} timeoutMs - The maximum time to wait.
-         * @returns {Promise<boolean>} True if the element disappeared, false if timed out.
-         */
-        _waitForElementToDisappear(selector, timeoutMs) {
-            return new Promise((resolve) => {
-                const startTime = Date.now();
-                const interval = setInterval(() => {
-                    if (!document.querySelector(selector)) {
-                        clearInterval(interval);
-                        resolve(true);
-                    } else if (Date.now() - startTime > timeoutMs) {
-                        clearInterval(interval);
-                        resolve(false);
-                    }
-                }, AutoScrollManager.CONFIG.POLLING_INTERVAL_MS);
-            });
-        }
-
-        /**
-         * @private
-         * @description Performs a single scroll step and loops until the progress bar no longer appears.
-         */
-        async _scrollStep() {
-            if (!this.isScrolling || !this.scrollContainer) {
-                this.stop();
-                return;
-            }
-
-            // Scroll to the top to trigger loading.
-            this.scrollContainer.scrollTop = 0;
-
-            // Wait for the progress bar to appear.
-            const progressBar = await this._waitForElementToAppear(this.PROGRESS_BAR_SELECTOR, AutoScrollManager.CONFIG.APPEAR_TIMEOUT_MS);
-
-            // If the progress bar appears, it means loading has started.
-            if (progressBar) {
-                // Show the toast immediately upon detecting the progress bar.
-                if (!this.toastShown) {
-                    EventBus.publish(`${APPID}:autoScrollStart`);
-                    this.toastShown = true;
-                }
-
-                // Now, wait for the progress bar to disappear, which signals loading is complete.
-                await this._waitForElementToDisappear(this.PROGRESS_BAR_SELECTOR, AutoScrollManager.CONFIG.DISAPPEAR_TIMEOUT_MS);
-
-                // Loop to the next scroll step to check for more content.
-                this._scrollStep();
+                const keyframes = `@keyframes ${this.animationName} { from { transform: none; } to { transform: none; } }`;
+                const selectors = Array.from(this.rules).join(', ');
+                this.styleElement.textContent = `${keyframes}\n${selectors ? `${selectors} { animation-duration: 0.001s; animation-name: ${this.animationName}; }` : ''}`;
             } else {
-                // If the progress bar did not appear after scrolling, we have reached the end.
-                Logger.log('AutoScrollManager: Progress bar did not appear. Assuming scroll is complete.');
-                this.stop();
+                this.listeners.set(selector, newCallbacks);
             }
+        }
+
+        suspend() {
+            if (this.styleElement instanceof HTMLStyleElement) {
+                this.styleElement.disabled = true;
+            }
+            Logger.debug('[Sentinel] Suspended.');
+        }
+
+        resume() {
+            if (this.styleElement instanceof HTMLStyleElement) {
+                this.styleElement.disabled = false;
+            }
+            Logger.debug('[Sentinel] Resumed.');
         }
     }
 
-    // =================================================================================
-    // SECTION: Toast Manager
-    // Description: Manages the display of temporary toast notifications.
-    // =================================================================================
-
-    class ToastManager {
-        constructor() {
-            this.toastElement = null;
-            this.unsubscribers = [];
-        }
-
-        init() {
-            this._injectStyles();
-            this.unsubscribers.push(EventBus.subscribe(`${APPID}:autoScrollStart`, () => this.show('Auto-scrolling to load history...', true)));
-            this.unsubscribers.push(EventBus.subscribe(`${APPID}:autoScrollComplete`, () => this.hide()));
-        }
-
-        destroy() {
-            this.unsubscribers.forEach((unsub) => unsub());
-            this.unsubscribers = [];
-            this.hide();
-        }
-
-        _injectStyles() {
-            const styleId = `${APPID}-toast-style`;
-            if (document.getElementById(styleId)) return;
-
-            // Define custom warning styles for the toast
-            const warnStyles = {
-                bg: 'rgb(255 165 0 / 0.9)', // Orange background for warning
-                text: '#ffffff', // White text
-                border: '#ffa000', // Darker orange border
-                cancel_btn_bg: 'rgb(255 255 255 / 0.2)', // Semi-transparent white for button background
-                cancel_btn_text: '#ffffff', // White text for button
-            };
-
-            const style = h('style', {
-                id: styleId,
-                textContent: `
-                    .${APPID}-toast-container {
-                        position: fixed; /* Changed to fixed for viewport relative positioning */
-                        top: 30%; /* Position from the top */
-                        left: 50%; /* Center horizontally */
-                        transform: translate(-50%, -50%); /* Adjust for exact centering */
-                        z-index: 10002; /* Higher z-index */
-                        background-color: ${warnStyles.bg};
-                        color: ${warnStyles.text};
-                        padding: 15px 25px; /* Slightly more padding */
-                        border-radius: 12px; /* More rounded corners */
-                        border: 1px solid ${warnStyles.border};
-                        box-shadow: 0 6px 20px rgb(0 0 0 / 0.2); /* Stronger shadow */
-                        display: flex;
-                        align-items: center;
-                        gap: 15px; /* Increased gap */
-                        font-size: 1.1em; /* Larger font */
-                        font-weight: bold; /* Bold text */
-                        opacity: 0;
-                        transition: opacity 0.4s ease, transform 0.4s ease; /* Smoother transition */
-                        pointer-events: none;
-                        white-space: nowrap; /* Prevent text wrapping */
-                    }
-                    .${APPID}-toast-container.is-visible {
-                        opacity: 1;
-                        transform: translate(-50%, 0); /* Move into view from adjusted vertical position */
-                        pointer-events: auto;
-                    }
-                    .${APPID}-toast-cancel-btn {
-                        background: ${warnStyles.cancel_btn_bg};
-                        color: ${warnStyles.cancel_btn_text};
-                        border: none;
-                        padding: 8px 15px; /* Larger button padding */
-                        margin-left: 10px; /* Adjusted margin */
-                        cursor: pointer;
-                        font-weight: bold;
-                        border-radius: 6px; /* Rounded button */
-                        transition: background-color 0.2s ease;
-                    }
-                    .${APPID}-toast-cancel-btn:hover {
-                        background-color: rgb(255 255 255 / 0.3); /* Lighter hover background */
-                    }
-                `,
-            });
-            document.head.appendChild(style);
-        }
-
-        _renderToast(message, showCancelButton) {
-            const children = [h('span', message)];
-            if (showCancelButton) {
-                const cancelButton = h(
-                    'button',
-                    {
-                        className: `${APPID}-toast-cancel-btn`,
-                        title: 'Stop auto-scrolling',
-                        onclick: () => EventBus.publish(`${APPID}:autoScrollCancelRequest`),
-                    },
-                    'Cancel'
-                );
-                children.push(cancelButton);
-            }
-            return h(`div.${APPID}-toast-container`, children);
-        }
-
-        show(message, showCancelButton = false) {
-            // Remove existing toast if any
-            if (this.toastElement) {
-                this.hide();
-            }
-
-            this.toastElement = this._renderToast(message, showCancelButton);
-            document.body.appendChild(this.toastElement);
-
-            // Trigger the transition
-            setTimeout(() => {
-                this.toastElement?.classList.add('is-visible');
-            }, 10);
-        }
-
-        hide() {
-            if (!this.toastElement) return;
-
-            const el = this.toastElement;
-            el.classList.remove('is-visible');
-
-            // Remove from DOM after transition ends
-            setTimeout(() => {
-                el.remove();
-            }, 300);
-
-            this.toastElement = null;
-        }
-    }
-
+    /**
+     * @class ThemeAutomator
+     * @property {ConfigManager} configManager
+     * @property {ImageDataManager} imageDataManager
+     * @property {UIManager} uiManager
+     * @property {ObserverManager} observerManager
+     * @property {DebugManager} debugManager
+     * @property {MessageCacheManager} messageCacheManager
+     * @property {AvatarManager} avatarManager
+     * @property {StandingImageManager} standingImageManager
+     * @property {ThemeManager} themeManager
+     * @property {BubbleUIManager} bubbleUIManager
+     * @property {MessageLifecycleManager} messageLifecycleManager
+     * @property {FixedNavigationManager | null} fixedNavManager
+     * @property {MessageNumberManager} messageNumberManager
+     * @property {SyncManager} syncManager
+     * @property {any} autoScrollManager
+     * @property {any} toastManager
+     */
     class ThemeAutomator {
         constructor() {
             this.dataConverter = new DataConverter();
             this.configManager = new ConfigManager(this.dataConverter);
-            this.imageDataManager = new ImageDataManager();
+            this.imageDataManager = new ImageDataManager(this.dataConverter);
             this.uiManager = null;
-            // Pass the automator instance to the observer manager upon creation.
-            this.observerManager = new ObserverManager(this);
+            this.observerManager = null;
             this.debugManager = new DebugManager(this);
-
-            // Create the central message cache manager first
-            this.messageCacheManager = new MessageCacheManager();
-            this.avatarManager = new AvatarManager(this.configManager, this.messageCacheManager);
-            this.standingImageManager = new StandingImageManager(this.configManager, this.messageCacheManager);
-            this.themeManager = new ThemeManager(this.configManager, this.imageDataManager, this.standingImageManager);
-            this.bubbleUIManager = new BubbleUIManager(this.configManager, this.messageCacheManager);
+            this.messageCacheManager = null;
+            this.avatarManager = null;
+            this.standingImageManager = null;
+            this.themeManager = null;
+            this.bubbleUIManager = null;
+            this.messageLifecycleManager = null;
             this.fixedNavManager = null;
-            this.bulkCollapseManager = new BulkCollapseManager(this.configManager, this.messageCacheManager);
             this.messageNumberManager = null;
+            this.syncManager = null;
             this.autoScrollManager = null;
             this.toastManager = null;
-            this.syncManager = null;
             this.isConfigSizeExceeded = false;
             this.configWarningMessage = '';
+            this.isNavigating = true;
+            this.isInitialized = false;
+            this.isDestroying = false;
+            this.pendingRemoteConfig = null;
+            this.subscriptions = [];
+        }
+
+        _subscribe(event, listener) {
+            const key = createEventKey(this, event);
+            EventBus.subscribe(event, listener, key);
+            this.subscriptions.push({ event, key });
         }
 
         async init() {
+            if (this.isInitialized) return;
+            this.isDestroying = false; // Reset the destroy guard on re-initialization.
+
             await this.configManager.load();
 
             // Set logger level from config, which includes developer settings.
@@ -9034,66 +10933,148 @@
             Logger.setLevel(this.configManager.get().developer.logger_level);
             Logger.log(`Logger level is set to '${Logger.level}'.`);
 
-            this._ensureUniqueThemeIds(this.configManager.get());
+            const config = this.configManager.get();
+            config.themeSets = this._ensureUniqueThemeIds(config.themeSets);
 
+            // Create managers that other managers depend on
+            this.themeManager = new ThemeManager(this.configManager, this.imageDataManager);
+            this.messageCacheManager = new MessageCacheManager();
+            this.syncManager = new SyncManager();
+
+            // Initialize platform-specific managers, as other managers may depend on them
+            PlatformAdapters.ThemeAutomator.initializePlatformManagers(this);
+
+            // Create the rest of the managers, injecting their dependencies
+            this.observerManager = new ObserverManager();
             this.uiManager = new UIManager(
-                this, // Pass the app instance
                 (newConfig) => this.handleSave(newConfig),
                 () => Promise.resolve(this.configManager.get()),
                 this.dataConverter,
-                () => this.syncManager.onModalClose(),
+                () => this.applyPendingUpdateOnModalClose(),
                 SITE_STYLES,
                 () => this.themeManager.getThemeSet() // Pass the callback directly
             );
-            // Initialize the cache manager after config is loaded
-            this.messageCacheManager.init();
-            this.avatarManager.init();
-            this.standingImageManager.init();
-            this.bubbleUIManager.init();
-            this.uiManager.init();
-            if (this.configManager.get().features.fixed_nav_console.enabled) {
-                // Inject the cache manager
-                this.fixedNavManager = new FixedNavigationManager(this.messageCacheManager);
-                await this.fixedNavManager.init();
-                // Provide the nav manager instance to the bulk collapse manager
-                this.bulkCollapseManager.setFixedNavManager(this.fixedNavManager);
+            this.avatarManager = new AvatarManager(this.configManager, this.messageCacheManager);
+            this.standingImageManager = new StandingImageManager(this.configManager, this.messageCacheManager);
+            this.bubbleUIManager = new BubbleUIManager(this.configManager, this.messageCacheManager);
+            this.messageLifecycleManager = new MessageLifecycleManager(this.messageCacheManager);
+            if (config.features.fixed_nav_console.enabled) {
+                this.fixedNavManager = new FixedNavigationManager({
+                    messageCacheManager: this.messageCacheManager,
+                    configManager: this.configManager,
+                    autoScrollManager: this.autoScrollManager,
+                    messageLifecycleManager: this.messageLifecycleManager,
+                });
             }
-            this.bulkCollapseManager.init();
             this.messageNumberManager = new MessageNumberManager(this.configManager, this.messageCacheManager);
-            this.messageNumberManager.init();
-            this.autoScrollManager = new AutoScrollManager(this.configManager, this.messageCacheManager);
-            this.autoScrollManager.init();
-            this.toastManager = new ToastManager();
-            this.toastManager.init();
 
+            // Initialize all created managers
+            const allManagers = [
+                this.themeManager,
+                this.messageCacheManager,
+                this.avatarManager,
+                this.standingImageManager,
+                this.bubbleUIManager,
+                this.messageLifecycleManager,
+                this.uiManager,
+                this.messageNumberManager,
+                this.observerManager,
+                this.syncManager,
+                this.autoScrollManager,
+                this.toastManager,
+            ];
+            allManagers.filter(Boolean).forEach((manager) => manager.init());
+
+            if (this.fixedNavManager) {
+                await this.fixedNavManager.init();
+            }
+
+            // Set initialized flag and start the main observers
+            this.isInitialized = true;
             this.observerManager.start();
-            this.themeManager.updateTheme();
-            this.syncManager = new SyncManager(this);
-            this.syncManager.init();
 
-            // Reset caches and counters on navigation.
-            EventBus.subscribe(`${APPID}:navigation`, () => {
+            // Subscribe to app-wide events
+            this._subscribe(EVENTS.APP_SHUTDOWN, () => this.destroy());
+            this._subscribe(EVENTS.NAVIGATION_START, () => (this.isNavigating = true));
+            this._subscribe(EVENTS.NAVIGATION_END, () => (this.isNavigating = false));
+            this._subscribe(EVENTS.NAVIGATION, () => {
                 PerfMonitor.reset();
                 this.observerManager.processedTurnNodes.clear();
             });
-            EventBus.subscribe(`${APPID}:configSizeExceeded`, ({ message }) => {
+            this._subscribe(EVENTS.CONFIG_SIZE_EXCEEDED, ({ message }) => {
                 this.isConfigSizeExceeded = true;
                 this.configWarningMessage = message;
-                this.uiManager.displayConfigWarning();
+                EventBus.publish(EVENTS.CONFIG_WARNING_UPDATE, { show: true, message });
             });
-            EventBus.subscribe(`${APPID}:configSaveSuccess`, () => {
+            this._subscribe(EVENTS.CONFIG_SAVE_SUCCESS, () => {
                 this.isConfigSizeExceeded = false;
                 this.configWarningMessage = '';
-                this.uiManager.displayConfigWarning();
+                EventBus.publish(EVENTS.CONFIG_WARNING_UPDATE, { show: false, message: '' });
             });
-
-            // Listen for message completions to initiate turn observation.
-            EventBus.subscribe(`${APPID}:messageComplete`, (messageElement) => {
-                const turnNode = messageElement.closest(CONSTANTS.SELECTORS.DEBUG_CONTAINER_TURN);
+            this._subscribe(EVENTS.MESSAGE_COMPLETE, (messageElement) => {
+                const turnNode = messageElement.closest(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER);
                 if (turnNode) {
                     this.observerManager.observeTurnForCompletion(turnNode);
                 }
             });
+            this._subscribe(EVENTS.SUSPEND_OBSERVERS, () => sentinel.suspend());
+            this._subscribe(EVENTS.RESUME_OBSERVERS_AND_REFRESH, () => sentinel.resume());
+            this._subscribe(EVENTS.REMOTE_CONFIG_CHANGED, ({ newValue }) => this._handleRemoteConfigChange(newValue));
+        }
+
+        destroy() {
+            if (!this.isInitialized || this.isDestroying) return;
+            this.isDestroying = true;
+
+            // This method is now a cleanup handler triggered by the APP_SHUTDOWN event.
+            // It should NOT re-publish the event that called it.
+
+            // Explicitly destroy managers that don't self-destroy via event bus subscription.
+            this.themeManager?.destroy();
+
+            // Unsubscribe from all events this controller listens to.
+            this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
+            this.subscriptions = [];
+
+            Logger.log('ThemeAutomator destroyed.');
+
+            this.isInitialized = false;
+            isInitialized = false; // Reset the global guard
+        }
+
+        _handleRemoteConfigChange(newValue) {
+            try {
+                const newConfig = JSON.parse(newValue);
+                const activeModal = this.uiManager.getActiveModal?.();
+
+                if (activeModal) {
+                    Logger.log('ThemeAutomator: A modal is open. Storing remote update and showing conflict notification.');
+                    this.pendingRemoteConfig = newConfig;
+                    const reloadCallback = () => {
+                        const reopenContext = activeModal.getContextForReopen?.();
+                        activeModal.close();
+                        // applyPendingUpdateOnModalClose will handle applying the pending update.
+                        // Request to reopen the modal after a short delay to ensure sync completion.
+                        setTimeout(() => {
+                            EventBus.publish(EVENTS.REOPEN_MODAL, reopenContext);
+                        }, CONSTANTS.TIMING.TIMEOUTS.MODAL_REOPEN_DELAY);
+                    };
+                    this.uiManager.showConflictNotification(activeModal, reloadCallback);
+                } else {
+                    Logger.log('ThemeAutomator: No modal open. Applying silent remote update.');
+                    this.applyUpdate(newConfig);
+                }
+            } catch (e) {
+                Logger.error('ThemeAutomator: Failed to handle remote config change:', e);
+            }
+        }
+
+        applyPendingUpdateOnModalClose() {
+            if (this.pendingRemoteConfig) {
+                Logger.log('ThemeAutomator: Modal closed with a pending update. Applying it now.');
+                this.applyUpdate(this.pendingRemoteConfig);
+                this.pendingRemoteConfig = null;
+            }
         }
 
         // Method required by the SyncManager's interface for silent updates
@@ -9107,97 +11088,34 @@
             }
         }
 
-        // Method required by the SyncManager's interface
-        getAppId() {
-            return APPID;
-        }
-
-        // Getter required by the SyncManager's interface
-        get configKey() {
-            return CONSTANTS.CONFIG_KEY;
-        }
-
         _processConfig(newConfig) {
             const currentConfig = this.configManager.get();
             const themeChanged = JSON.stringify(currentConfig.themeSets) !== JSON.stringify(newConfig.themeSets) || JSON.stringify(currentConfig.defaultSet) !== JSON.stringify(newConfig.defaultSet);
             // Create a complete config object by merging the incoming data with defaults.
-            const completeConfig = deepMerge(JSON.parse(JSON.stringify(DEFAULT_THEME_CONFIG)), newConfig);
-            // Ensure all theme IDs are unique before proceeding to validation and saving.
-            this._ensureUniqueThemeIds(completeConfig);
-            // Validate the configuration object before processing.
-            this.configManager.validateThemeMatchPatterns(completeConfig);
+            let completeConfig = deepMerge(JSON.parse(JSON.stringify(DEFAULT_THEME_CONFIG)), newConfig);
 
-            // Sanitize global options
-            if (completeConfig && completeConfig.options) {
-                // Sanitize icon_size
-                if (!CONSTANTS.ICON_SIZE_VALUES.includes(completeConfig.options.icon_size)) {
-                    completeConfig.options.icon_size = CONSTANTS.ICON_SIZE;
-                }
+            // Ensure all theme IDs are unique before proceeding.
+            completeConfig.themeSets = this._ensureUniqueThemeIds(completeConfig.themeSets);
 
-                // Sanitize chat_content_max_width
-                let width = completeConfig.options.chat_content_max_width;
-                const widthConfig = CONSTANTS.SLIDER_CONFIGS.CHAT_WIDTH;
-                const defaultValue = widthConfig.DEFAULT;
-                let sanitized = false;
-                if (width === null) {
-                    sanitized = true;
-                } else if (typeof width === 'string' && width.endsWith('vw')) {
-                    const numVal = parseInt(width, 10);
-                    if (!isNaN(numVal) && numVal >= widthConfig.NULL_THRESHOLD && numVal <= widthConfig.MAX) {
-                        sanitized = true;
-                    }
-                }
+            // Sanitize and validate the entire configuration using the central processor.
+            completeConfig = ConfigProcessor.process(completeConfig);
 
-                if (!sanitized) {
-                    completeConfig.options.chat_content_max_width = defaultValue;
-                }
-            }
-
-            // Sanitize all theme sets to ensure slider values are valid
-            if (Array.isArray(completeConfig.themeSets)) {
-                completeConfig.themeSets.forEach((theme) => {
-                    const validate = (value, type) => {
-                        const result = validateImageString(value, type);
-                        if (!result.isValid) throw new Error(`Theme "${theme.metadata.name}": ${result.message}`);
-                    };
-                    validate(theme.user.icon, 'icon');
-                    validate(theme.user.standingImageUrl, 'image');
-                    validate(theme.assistant.icon, 'icon');
-                    validate(theme.assistant.standingImageUrl, 'image');
-                    validate(theme.window.backgroundImageUrl, 'image');
-
-                    ['user', 'assistant'].forEach((actor) => {
-                        if (!theme[actor]) theme[actor] = {};
-                        const actorConf = theme[actor];
-                        const defaultActorConf = DEFAULT_THEME_CONFIG.defaultSet[actor];
-
-                        for (const key in THEME_VALIDATION_RULES) {
-                            if (Object.prototype.hasOwnProperty.call(actorConf, key)) {
-                                const rule = THEME_VALIDATION_RULES[key];
-                                actorConf[key] = this._sanitizeProperty(actorConf[key], rule, defaultActorConf[key]);
-                            }
-                        }
-                    });
-                });
-            }
             return { completeConfig, themeChanged };
         }
 
         async _applyUiUpdates(completeConfig, themeChanged) {
             this.avatarManager.updateIconSizeCss();
             this.bubbleUIManager.updateAll();
-            this.bulkCollapseManager.updateVisibility();
             this.messageNumberManager.updateAllMessageNumbers();
 
-            // Repopulate the settings panel form if it is currently open
-            if (this.uiManager.settingsPanel?.isOpen()) {
-                await this.uiManager.settingsPanel.populateForm();
-            }
+            // Publish an event to notify components of the configuration update.
+            // The settings panel will listen for this to repopulate itself if it's open.
+            EventBus.publish(EVENTS.CONFIG_UPDATED, completeConfig);
 
             // Only trigger a full theme update if theme-related data has changed.
             if (themeChanged) {
                 this.themeManager.cachedThemeSet = null;
-                this.themeManager.updateTheme();
+                this.themeManager.updateTheme(themeChanged);
             } else {
                 // Otherwise, just apply the layout-specific changes.
                 this.themeManager.applyChatContentMaxWidth();
@@ -9205,31 +11123,44 @@
 
             const navConsoleEnabled = completeConfig.features.fixed_nav_console.enabled;
             if (navConsoleEnabled && !this.fixedNavManager) {
-                this.fixedNavManager = new FixedNavigationManager(this.messageCacheManager);
+                this.fixedNavManager = new FixedNavigationManager(
+                    {
+                        messageCacheManager: this.messageCacheManager,
+                        configManager: this.configManager,
+                        autoScrollManager: this.autoScrollManager,
+                        messageLifecycleManager: this.messageLifecycleManager,
+                    },
+                    { isReEnabling: true }
+                );
                 await this.fixedNavManager.init();
                 // Explicitly notify the new instance with the current cache state
                 this.messageCacheManager.notify();
-                // Provide the new instance to the bulk collapse manager
-                this.bulkCollapseManager.setFixedNavManager(this.fixedNavManager);
             } else if (!navConsoleEnabled && this.fixedNavManager) {
                 this.fixedNavManager.destroy();
                 this.fixedNavManager = null;
-                // Clear the instance from the bulk collapse manager
-                this.bulkCollapseManager.setFixedNavManager(null);
+            } else if (this.fixedNavManager) {
+                // If the manager already exists, tell it to re-render with the new config.
+                this.fixedNavManager.updateUI();
             }
-
-            // Enable or disable the auto-scroll manager based on the new config.
-            if (completeConfig.features.load_full_history_on_chat_load.enabled) {
-                this.autoScrollManager?.enable();
-            } else {
-                this.autoScrollManager?.disable();
-            }
+            PlatformAdapters.ThemeAutomator.applyPlatformSpecificUiUpdates(this, completeConfig);
         }
 
         /** @param {AppConfig} newConfig */
         async handleSave(newConfig) {
             try {
-                const { completeConfig, themeChanged } = this._processConfig(newConfig);
+                const oldIconSize = this.configManager.get().options.icon_size;
+
+                const processResult = this._processConfig(newConfig);
+                const completeConfig = processResult.completeConfig;
+                let themeChanged = processResult.themeChanged;
+
+                // If the icon size has changed, we must treat it as a theme content change
+                // to force reprocessing of image URLs with the new dimensions.
+                const newIconSize = completeConfig.options.icon_size;
+                if (oldIconSize !== newIconSize) {
+                    themeChanged = true;
+                }
+
                 await this.configManager.save(completeConfig);
 
                 // Apply the new logger level immediately and provide feedback.
@@ -9237,7 +11168,13 @@
                 // Use console.warn to ensure the message is visible regardless of the new level.
                 console.warn(LOG_PREFIX, `Logger level is '${Logger.level}'.`);
 
-                this.syncManager.onSave(); // Notify SyncManager of the successful save
+                // A local save overwrites any pending remote changes.
+                this.pendingRemoteConfig = null;
+                const activeModal = this.uiManager.getActiveModal?.();
+                if (activeModal) {
+                    this.uiManager.clearConflictNotification(activeModal);
+                }
+
                 await this._applyUiUpdates(completeConfig, themeChanged);
             } catch (e) {
                 Logger.error('Configuration save failed:', e.message);
@@ -9247,45 +11184,28 @@
 
         /**
          * Ensures all themes have a unique themeId, assigning one if missing or duplicated.
-         * This method operates directly on the provided config object.
-         * @param {AppConfig} config The configuration object to sanitize.
+         * This method operates immutably by returning a new array.
+         * @param {ThemeSet[]} themeSets The array of theme sets to sanitize.
+         * @returns {ThemeSet[]} A new, sanitized array of theme sets.
          * @private
          */
-        _ensureUniqueThemeIds(config) {
-            if (!config || !Array.isArray(config.themeSets)) return;
+        _ensureUniqueThemeIds(themeSets) {
+            if (!Array.isArray(themeSets)) return [];
             const seenIds = new Set();
-            config.themeSets.forEach((theme) => {
-                const id = theme.metadata?.id;
+            // Use map to create a new array with unique IDs
+            return themeSets.map((originalTheme) => {
+                // Deep copy to avoid mutating the original theme object in the array
+                const theme = JSON.parse(JSON.stringify(originalTheme));
+                if (!theme.metadata) {
+                    theme.metadata = { id: '', name: 'Unnamed Theme', matchPatterns: [] };
+                }
+                const id = theme.metadata.id;
                 if (typeof id !== 'string' || id.trim() === '' || seenIds.has(id)) {
-                    if (!theme.metadata) theme.metadata = {};
                     theme.metadata.id = generateUniqueId();
                 }
                 seenIds.add(theme.metadata.id);
+                return theme;
             });
-        }
-
-        /**
-         * @private
-         * @param {string |* null} value The value to sanitize.
-         * @param {object} rule The validation rule from THEME_VALIDATION_RULES.
-         * @param {string |* null} defaultValue The fallback value.
-         * @returns {string | null} The sanitized value.
-         */
-        _sanitizeProperty(value, rule, defaultValue) {
-            if (rule.nullable && value === null) {
-                return value;
-            }
-
-            if (typeof value !== 'string' || !value.endsWith(rule.unit)) {
-                return defaultValue;
-            }
-
-            const numVal = parseInt(value, 10);
-            if (isNaN(numVal) || numVal < rule.min || numVal > rule.max) {
-                return defaultValue;
-            }
-
-            return value; // The original value is valid
         }
 
         /**
@@ -9324,16 +11244,47 @@
             if (allOK) {
                 Logger.log('🎉 All essential selectors are currently valid!');
             } else {
-                Logger.warn('⚠ One or more essential selectors are NOT found or invalid. The script might not function correctly.');
+                Logger.warn('⚠️ One or more essential selectors are NOT found or invalid. The script might not function correctly.');
             }
             console.groupEnd();
             return allOK;
         }
     }
 
-    // ---- Script Entry Point ----
+    // =================================================================================
+    // SECTION: Entry Point
+    // =================================================================================
+
+    // Exit if already executed
+    if (ExecutionGuard.hasExecuted()) return;
+    // Set executed flag if not executed yet
+    ExecutionGuard.setExecuted();
+
+    // Main controller for the entire application.
     const automator = new ThemeAutomator();
+    // Singleton instance for observing DOM node insertions.
     const sentinel = new Sentinel(OWNERID);
+
+    // This immediate hook is crucial for preventing race conditions. It sets the navigating
+    // flag as soon as a URL change is initiated, ensuring that the Sentinel's message
+    // processor is paused *before* new DOM elements begin to render.
+    (() => {
+        let lastHref = location.href;
+        const handler = () => {
+            if (location.href !== lastHref) {
+                automator.isNavigating = true;
+                lastHref = location.href;
+            }
+        };
+        for (const m of ['pushState', 'replaceState']) {
+            const orig = history[m];
+            history[m] = function (...args) {
+                orig.apply(this, args);
+                handler();
+            };
+        }
+        window.addEventListener('popstate', handler);
+    })();
 
     // Use the text input area as a reliable signal that the UI is fully interactive.
     const ANCHOR_SELECTOR = CONSTANTS.SELECTORS.INPUT_TEXT_FIELD_TARGET;
@@ -9343,38 +11294,32 @@
     sentinel.on(ANCHOR_SELECTOR, () => {
         // Run the full initialization only once.
         if (isInitialized) return;
+
+        // Guard: Even if the anchor is found, abort if the current page is on the exclusion list.
+        // This prevents re-initialization on excluded pages that might contain the anchor element (e.g., /library?tab=images).
+        if (PlatformAdapters.General.isExcludedPage()) {
+            Logger.log('Anchor element detected, but the page is on the exclusion list. Initialization aborted.');
+            return;
+        }
+
         isInitialized = true;
 
         Logger.log('Anchor element detected. Initializing the script...');
-        automator.init().then(() => {
-            PlatformAdapter.applyFixes(automator);
-        });
+        automator.init();
     });
 
     /**
      * Processes a message element once its inner bubble is fully rendered and attached to the DOM.
-     * @param {HTMLElement} bubbleElement The bubble element detected by the Sentinel.
+     * This function now acts as a simple relay, publishing a generic event.
+     * @param {HTMLElement} contentElement The content element (text bubble, image, etc.) detected by the Sentinel.
      */
-    const processReadyMessage = (bubbleElement) => {
+    const processReadyMessage = (contentElement) => {
         if (!isInitialized) return;
-
-        // Find the parent message container that holds the role attribute
-        const messageElement = bubbleElement.closest(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
-
-        // Process only if found and not already processed to prevent redundant executions
-        if (messageElement && !messageElement.dataset.guxProcessed) {
-            messageElement.dataset.guxProcessed = 'true';
-
-            // Publish events for other managers to act on this fully rendered element
-            EventBus.publish(`${APPID}:avatarInject`, messageElement);
-            EventBus.publish(`${APPID}:messageComplete`, messageElement);
-        }
+        EventBus.publish(EVENTS.RAW_MESSAGE_ADDED, contentElement);
     };
 
-    // Listen for the moment the inner bubbles themselves are added to the DOM.
-    // This is the most reliable signal that a message is ready for modification.
-    sentinel.on(CONSTANTS.SELECTORS.RAW_USER_BUBBLE, processReadyMessage);
-    sentinel.on(CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE, processReadyMessage);
+    // Use the Platform Adapter to set up platform-specific Sentinel listeners.
+    PlatformAdapters.General.initializeSentinel(processReadyMessage);
 
     // ---- Debugging ----
     // Description: Exposes a debug object to the console.
@@ -9402,10 +11347,8 @@
             Logger.warn('debugManager.help not found, fallback help() defined.');
         }
 
-        if (typeof exportFunction === 'function') {
-            exportFunction(debugApi, unsafeWindow, { defineAs: `${APPID}Debug` });
-        } else if (typeof unsafeWindow !== 'undefined') {
-            unsafeWindow[`${APPID}Debug`] = debugApi;
+        if (typeof unsafeWindow !== 'undefined') {
+            /** @type {any} */ (unsafeWindow)[`${APPID}Debug`] = debugApi;
         }
 
         Logger.log(`Debug tools are available. Use \`${APPID}Debug.help()\` in the console for a list of commands.`);
