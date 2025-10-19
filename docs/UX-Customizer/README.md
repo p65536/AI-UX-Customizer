@@ -75,6 +75,18 @@ The scripts have been created for each site. Please install the required script.
 
 ![Advanced Navigation](./images/navigation.webp)
 
+### 9. Differences between the navigation consoles of GPTUX and GGGUX
+
+##### GPTUX (for ChatGPT)
+  - The left end button is the "Rescan DOM for messages" function  
+  Normally, there is no need to use this because DOM scanning is performed automatically when loading chat. Use this if the message count is not being obtained correctly for messages that contain images.
+![Navigation Console of GPTUX](./images/navi_console_chatgpt.webp)
+
+##### GGGUX (for Gemini)
+  - The left end button is the "Load full chat history (Auto scroll)" function  
+  This button is designed to allow you to manually auto-scroll specific chats while normally disabling the `Load full history on chat load` function.
+![Navigation Console of GGGUX](./images/navi_console_gemini.webp)
+
 ---
 
 ## How to Use
@@ -143,7 +155,6 @@ MIT License
 
 ## Known Issues
 
-  * [ChatGPT] Changing the chat width setting also changes the message input field's width (struggling to adjust this due to page structure).
   * No consideration for UI when using Canvas features.
 
 ## Future Plans

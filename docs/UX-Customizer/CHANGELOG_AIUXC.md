@@ -1,23 +1,53 @@
 # Changelog
 
-> **About this changelog**  
-> This changelog applies to both **ChatGPT UX Customizer (GPTUX)** and **Gemini UX Customizer (GGGUX)**.  
+> **About this changelog**
+> This changelog applies to both **ChatGPT UX Customizer (GPTUX)** and **Gemini UX Customizer (GGGUX)**.
 > Most changes are shared between the two scripts. If a change applies only to one, it will be explicitly marked with a `[GPTUX]` or `[GGGUX]` prefix.
+
+## [1.6.0] - 2025-10-19
+- **Features**
+  - **General**: Added a guard to automatically disable the script on unintended pages (e.g., `/gpts` or `/library` on ChatGPT) to prevent unexpected issues.
+  - **Navigation**: Added a "Bulk Collapse/Expand" button to the **right end** of the navigation console to collapse or expand all messages at once (moved from the right of the input area).
+  - **Navigation**: [GGGUX] Added an "Auto-Scroll" button to the **left end** of the navigation console to load the entire chat history. This button is designed to allow you to manually auto-scroll specific chats while normally disabling the `Load full history on chat load` function.
+  - **UX**: [GGGUX] The auto-scroll process can now be canceled by pressing the `ESC` key.
+  - **Navigation**: [GPTUX] Added a function to detect image-only messages and assign message numbers.
+  - **Navigation**: [GPTUX] As a fallback for the above feature, a manual "Rescan DOM" button has been added to the **left end** of the navigation console. Normally, there is no need to use it.
+- **Improvements**
+  - **Performance**:
+    - To enhance UI responsiveness while the AI is generating long responses, most UI processing is now paused during streaming. As a result, elements like the navigation console counters and the message jump list will update only after the response is fully complete. This change significantly reduces lag and stuttering.
+    - Dynamically optimize icon image qualities to improve loading performance in chats with a large number of messages.
+    - Removed the JavaScript-based message height calculation, now handling it with CSS only to significantly reduce rendering overhead.
+  - **Navigation**:
+    - Improved scroll navigation to target individual messages, enabling precise movement to content like images within a turn.
+    - Image-only messages are now displayed as `(Image)` in the jump list for better clarity.
+  - **UI/UX**:
+    - The tooltip for the "Bulk Collapse/Expand" button now dynamically updates to show the next action (e.g., "Collapse all").
+    - Changed the default value display for sliders in the settings panel from "Default" to "Auto".
+- **Fixes**
+  - **UI**: [GPTUX] Fixed an issue where the "message collapse/expand button" was not displayed on Chromium-based browsers.
+  - **Theming**: [GPTUX] Fixed an issue where the input area background color specified in a theme was not applied correctly.
+  - **Layout**: [GPTUX] Fixed an issue where changing the chat width would incorrectly affect the input area width.
+- **Internal**
+  - **Architecture**: Major refactoring to improve performance and maintainability.
+    - Introduced a new rendering pipeline that separates DOM reads and writes (`withLayoutCycle`) and batches UI updates into `requestAnimationFrame` to prevent layout thrashing.
+    - Overhauled the observation logic for better efficiency and reliability.
+    - Refactored the settings panel management to an object-driven architecture based on a declarative UI schema. This change simplifies the addition of new settings, improves maintainability, and ensures more robust synchronization between the UI and the configuration data.
+  - **Config**: Removed the legacy configuration compression feature, standardizing on a human-readable JSON format for storage.
 
 ## [1.5.5] - 2025-09-26
 - **Fixes**
-  - **Message Navigation:**  
-    - [GPTUX] Due to yet another page structure change in **ChatGPT** (less than a day after the previous fix), message navigation required another adjustment.  
-      - Updated the scroll container selector once more to match the latest DOM structure.  
+  - **Message Navigation:**
+    - [GPTUX] Due to yet another page structure change in **ChatGPT** (less than a day after the previous fix), message navigation required another adjustment.
+      - Updated the scroll container selector once more to match the latest DOM structure.
 - **Debugging**
   - Added debug logging to make it easier to detect early when the scroll container selector changes. 
 
 ## [1.5.4] - 2025-09-25
 - **Fixes**
-  - **Message Navigation:**  
-    - [GPTUX] Fixed broken message navigation caused by recent page structure changes in ChatGPT.  
-      - Updated the scroll container selector to the new DOM structure.  
-    - Adjusted the target element in `scrollToElement()` to ensure correct scrolling.  
+  - **Message Navigation:**
+    - [GPTUX] Fixed broken message navigation caused by recent page structure changes in ChatGPT.
+      - Updated the scroll container selector to the new DOM structure.
+    - Adjusted the target element in `scrollToElement()` to ensure correct scrolling.
 
 ## [1.5.3] - 2025-09-13 (private)
 - **Fix**
@@ -50,19 +80,19 @@
 ## [1.4.0] - 2025-09-05
 - **[GPTUX] Refactoring**
   - Minor refactoring.
-  - Version alignment with `GGGUX`.  
+  - Version alignment with `GGGUX`.
 - **[GGGUX] New feature: Auto-load full chat history**
-  - Added a new feature that automatically loads the entire chat history when opening a chat, eliminating the need to manually scroll up multiple times.  
-  - Enabled by default; can be toggled in **Settings Panel → "Load full history on chat load"**.  
-  - Provides user feedback with a toast notification (including a *Cancel* button) during loading.  
-  - Uses Gemini’s native progress bar to robustly load all messages.  
+  - Added a new feature that automatically loads the entire chat history when opening a chat, eliminating the need to manually scroll up multiple times.
+  - Enabled by default; can be toggled in **Settings Panel → "Load full history on chat load"**.
+  - Provides user feedback with a toast notification (including a *Cancel* button) during loading.
+  - Uses Gemini’s native progress bar to robustly load all messages.
   - Activates only for chats with more than 20 messages, and scrolls back to the latest message once loading is complete for a seamless experience.
   - If the auto-load chat history feature terminates too early, edit the script directly and increase the following value to `3000`: Inside `class AutoScrollManager`, change `APPEAR_TIMEOUT_MS: 2000,`
 
 ## [1.3.8] - 2025-09-03
 - **UI manager refactoring for stability & performance**
-  - Fixed an issue where the **"Toggle All"** button could incorrectly appear on empty chats after navigation. The visibility state is now managed via the message cache for consistency.  
-  - Improved performance by refactoring **AvatarManager** and **StandingImageManager** to use the centralized `MessageCacheManager` instead of redundant DOM queries.  
+  - Fixed an issue where the **"Toggle All"** button could incorrectly appear on empty chats after navigation. The visibility state is now managed via the message cache for consistency.
+  - Improved performance by refactoring **AvatarManager** and **StandingImageManager** to use the centralized `MessageCacheManager` instead of redundant DOM queries.
   - Enhanced code clarity by renaming `ObserverManager._processTurnSingle` to `observeTurnForCompletion` and updating JSDoc documentation.
 
 ## [1.3.7] - 2025-08-31

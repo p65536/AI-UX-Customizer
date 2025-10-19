@@ -76,6 +76,18 @@
 
 ![高度なナビゲーション機能](./images/navigation.webp)
 
+### 9. ナビゲーションコンソールの差異
+
+##### GPTUX (for ChatGPT)
+  - 左端のボタンは「メッセージのDOMを再読み込み」機能  
+  通常、チャットを読み込む際に DOM スキャンが自動的に実行されるため、これを使用する必要はありません。画像を含むメッセージで、メッセージ数の取得が正しくないことがあったら使用してください。  
+![Navigation Console of GPTUX](./images/navi_console_chatgpt.webp)
+
+##### GGGUX (for Gemini)
+  - 左端のボタンは「チャット履歴を全て読み込み」機能  
+  普段は`Load full history on chat load`機能を無効にしておき、特定チャットで手動で自動スクロールを実行することを想定して設置したボタンです。  
+![Navigation Console of GGGUX](./images/navi_console_gemini.webp)
+
 ---
 
 ## 使い方
@@ -144,7 +156,6 @@ MIT License
 
 ## 既知の問題
 
-  * [ChatGPT] チャット幅設定を変更すると、メッセージ入力欄の幅も連動して変更される（ページ構造上、うまく調整できずに苦戦中）
   * Canvas機能利用時のUIを何も考慮していない。
 
 ## 今後の予定
