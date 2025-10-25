@@ -4,6 +4,12 @@
 > This changelog applies to both **ChatGPT UX Customizer (GPTUX)** and **Gemini UX Customizer (GGGUX)**.
 > Most changes are shared between the two scripts. If a change applies only to one, it will be explicitly marked with a `[GPTUX]` or `[GGGUX]` prefix.
 
+## [1.6.1] - 2025-10-25
+- **Improvements**
+  - **Performance**: [GPTUX/GGGUX] Optimized the creation of frequently repeated UI elements (avatars, bubble navigation buttons, message numbers) by using `cloneNode` instead of creating them from scratch each time. This reduces rendering overhead, especially in long conversations.
+- **Internal**
+  - **Refactoring**: [GPTUX/GGGUX] Refactored the theme editor's live preview update logic for better performance and maintainability. Previews now update granularly only for the relevant section, and the underlying event handling code has been centralized.
+
 ## [1.6.0] - 2025-10-19
 - **Features**
   - **General**: Added a guard to automatically disable the script on unintended pages (e.g., `/gpts` or `/library` on ChatGPT) to prevent unexpected issues.

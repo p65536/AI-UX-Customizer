@@ -19,6 +19,9 @@
 
 ## 最近の更新
 
+### 2025/10/25
+- `ChatGPT UX Customizer`/`Gemini UX Customizer`を更新（v1.6.0 -> v1.6.1）
+
 ### 2025/10/19
 - `ChatGPT UX Customizer`/`Gemini UX Customizer`を更新（v1.5.5 -> v1.6.0）  
     > このリリースでは、コードベースの大規模なリファクタリングを行っています。  
@@ -53,8 +56,8 @@
 
 | 対象 | GitHub | Greasy Fork | バージョン | 最終更新日 | 変更履歴 |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **ChatGPT** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/UX-Customizer/ChatGPT-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/543703-chatgpt-ux-customizer) | 1.6.0 | 2025/10/19 | [参照](./docs/UX-Customizer/CHANGELOG_AIUXC_ja.md) |
-| **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/UX-Customizer/Gemini-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/543704-gemini-ux-customizer) | 1.6.0 | 2025/10/19 | [参照](./docs/UX-Customizer/CHANGELOG_AIUXC_ja.md) |
+| **ChatGPT** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/UX-Customizer/ChatGPT-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/543703-chatgpt-ux-customizer) | 1.6.1 | 2025/10/25 | [参照](./docs/UX-Customizer/CHANGELOG_AIUXC_ja.md) |
+| **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/UX-Customizer/Gemini-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/543704-gemini-ux-customizer) | 1.6.1 | 2025/10/25 | [参照](./docs/UX-Customizer/CHANGELOG_AIUXC_ja.md) |
 
 **[UX Customizer の詳細はこちら](./docs/UX-Customizer/README_ja.md)**
 
