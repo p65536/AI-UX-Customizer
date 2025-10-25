@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.6.0
+// @version      1.6.1
 // @license      MIT
 // @description  Fully customize the chat UI. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=gemini.google.com
@@ -5007,6 +5007,9 @@
                     this.queueForInjection(element);
                 }
             };
+
+            // Create an avatar template once to be cloned later for performance.
+            this.avatarTemplate = h(`div${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER}`, [h(`span${CONSTANTS.SELECTORS.SIDE_AVATAR_ICON}`), h(`div${CONSTANTS.SELECTORS.SIDE_AVATAR_NAME}`)]);
         }
 
         _subscribe(event, listener) {
@@ -5086,7 +5089,7 @@
                     const role = PlatformAdapters.General.getMessageRole(msgElem);
                     if (!role) return;
 
-                    const container = h(`div${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER}`, [h(`span${CONSTANTS.SELECTORS.SIDE_AVATAR_ICON}`), h(`div${CONSTANTS.SELECTORS.SIDE_AVATAR_NAME}`)]);
+                    const container = this.avatarTemplate.cloneNode(true);
                     if (container instanceof HTMLElement) {
                         PlatformAdapters.Avatar.addAvatarToMessage(msgElem, container);
 
@@ -5275,6 +5278,14 @@
             this.featureElementsCache = new Map();
             this.subscriptions = [];
 
+            // Create templates for UI features to be cloned for performance.
+            this.featureTemplates = {
+                collapsibleButton: h(`button.${APPID}-collapsible-toggle-btn`, { type: 'button', title: 'Toggle message' }, [this._createIcon('collapse')]),
+                sequentialNavPrevButton: h(`button.${APPID}-bubble-nav-btn.${APPID}-nav-prev`, { type: 'button', title: 'Scroll to previous message', dataset: { originalTitle: 'Scroll to previous message' } }, [this._createIcon('prev')]),
+                sequentialNavNextButton: h(`button.${APPID}-bubble-nav-btn.${APPID}-nav-next`, { type: 'button', title: 'Scroll to next message', dataset: { originalTitle: 'Scroll to next message' } }, [this._createIcon('next')]),
+                scrollToTopButton: h(`button.${APPID}-bubble-nav-btn.${APPID}-nav-top`, { type: 'button', title: 'Scroll to top of this message' }, [this._createIcon('top')]),
+            };
+
             /**
              * @private
              * @type {Array<object>}
@@ -5286,18 +5297,12 @@
                     isEnabled: (config) => config.features.collapsible_button.enabled,
                     getInfo: (msgElem) => PlatformAdapters.BubbleUI.getCollapsibleInfo(msgElem),
                     render: (info, msgElem, manager) => {
-                        const button = h(
-                            `button.${APPID}-collapsible-toggle-btn`,
-                            {
-                                type: 'button',
-                                title: 'Toggle message',
-                                onclick: (e) => {
-                                    e.stopPropagation();
-                                    info.msgWrapper.classList.toggle(`${APPID}-bubble-collapsed`);
-                                },
-                            },
-                            [this._createIcon('collapse')]
-                        );
+                        const button = manager.featureTemplates.collapsibleButton.cloneNode(true);
+                        if (!(button instanceof HTMLElement)) return null;
+                        button.onclick = (e) => {
+                            e.stopPropagation();
+                            info.msgWrapper.classList.toggle(`${APPID}-bubble-collapsed`);
+                        };
                         info.positioningParent.appendChild(button);
                         return button;
                     },
@@ -5336,14 +5341,12 @@
                                 EventBus.publish(EVENTS.NAV_HIGHLIGHT_MESSAGE, targetMsg);
                             }
                         };
-                        const prevBtn = h(
-                            `button.${APPID}-bubble-nav-btn.${APPID}-nav-prev`,
-                            { type: 'button', title: 'Scroll to previous message', dataset: { originalTitle: 'Scroll to previous message' }, onclick: createClickHandler(-1) },
-                            [manager._createIcon('prev')]
-                        );
-                        const nextBtn = h(`button.${APPID}-bubble-nav-btn.${APPID}-nav-next`, { type: 'button', title: 'Scroll to next message', dataset: { originalTitle: 'Scroll to next message' }, onclick: createClickHandler(1) }, [
-                            manager._createIcon('next'),
-                        ]);
+                        const prevBtn = manager.featureTemplates.sequentialNavPrevButton.cloneNode(true);
+                        const nextBtn = manager.featureTemplates.sequentialNavNextButton.cloneNode(true);
+                        if (!(prevBtn instanceof HTMLElement) || !(nextBtn instanceof HTMLElement)) return null;
+
+                        prevBtn.onclick = createClickHandler(-1);
+                        nextBtn.onclick = createClickHandler(1);
                         return h(`div.${APPID}-nav-group-top`, [prevBtn, nextBtn]);
                     },
                     update: (element, info, isEnabled) => {
@@ -5358,18 +5361,13 @@
                     isEnabled: (config) => config.features.scroll_to_top_button.enabled,
                     getInfo: (msgElem) => PlatformAdapters.BubbleUI.getScrollToTopInfo(msgElem),
                     render: (info, msgElem, manager) => {
-                        const topBtn = h(
-                            `button.${APPID}-bubble-nav-btn.${APPID}-nav-top`,
-                            {
-                                type: 'button',
-                                title: 'Scroll to top of this message',
-                                onclick: (e) => {
-                                    e.stopPropagation();
-                                    scrollToElement(msgElem, { offset: CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV });
-                                },
-                            },
-                            [manager._createIcon('top')]
-                        );
+                        const topBtn = manager.featureTemplates.scrollToTopButton.cloneNode(true);
+                        if (!(topBtn instanceof HTMLElement)) return null;
+
+                        topBtn.onclick = (e) => {
+                            e.stopPropagation();
+                            scrollToElement(msgElem, { offset: CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV });
+                        };
                         return h(`div.${APPID}-nav-group-bottom`, [topBtn]);
                     },
                     update: (element, info, isEnabled) => {
@@ -7382,6 +7380,7 @@
             this.messageCacheManager = messageCacheManager;
             this.numberSpanCache = new Map();
             this.subscriptions = [];
+            this.numberSpanTemplate = h(`span.${APPID}-message-number`);
         }
 
         _subscribe(event, listener) {
@@ -7493,9 +7492,12 @@
                         const role = PlatformAdapters.General.getMessageRole(message);
                         if (role) {
                             const roleClass = role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER ? `${APPID}-message-number-user` : `${APPID}-message-number-assistant`;
-                            const numberSpan = h(`span.${APPID}-message-number.${roleClass}`);
-                            anchor.appendChild(numberSpan);
-                            this.numberSpanCache.set(message, numberSpan);
+                            const numberSpan = this.numberSpanTemplate.cloneNode(true);
+                            if (numberSpan instanceof Element) {
+                                numberSpan.classList.add(roleClass);
+                                anchor.appendChild(numberSpan);
+                                this.numberSpanCache.set(message, numberSpan);
+                            }
                         }
                     },
                     CONSTANTS.BATCH_PROCESSING_SIZE,
@@ -9213,7 +9215,10 @@
             this.modal = null;
             this.colorPickerManager = null;
             this.dataConverter = callbacks.dataConverter;
-            this.debouncedUpdatePreview = debounce(this._updateAllPreviews.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.THEME_PREVIEW);
+            this.debouncedUpdateUserPreview = debounce(() => this._updatePreviewFor('user'), CONSTANTS.TIMING.DEBOUNCE_DELAYS.THEME_PREVIEW);
+            this.debouncedUpdateAssistantPreview = debounce(() => this._updatePreviewFor('assistant'), CONSTANTS.TIMING.DEBOUNCE_DELAYS.THEME_PREVIEW);
+            this.debouncedUpdateInputAreaPreview = debounce(() => this._updatePreviewFor('inputArea'), CONSTANTS.TIMING.DEBOUNCE_DELAYS.THEME_PREVIEW);
+            this.debouncedUpdateWindowPreview = debounce(() => this._updatePreviewFor('window'), CONSTANTS.TIMING.DEBOUNCE_DELAYS.THEME_PREVIEW);
 
             // Centralized state management
             this.state = {
@@ -9791,12 +9796,40 @@
             }
         }
 
+        /**
+         * @private
+         * @param {string} elementId The ID of the form element that triggered the update.
+         */
+        _dispatchPreviewUpdate(elementId) {
+            if (!elementId) return;
+
+            // Dispatch to the correct debounced preview updater based on the input's ID
+            if (elementId.includes('-user-')) {
+                this.debouncedUpdateUserPreview();
+            } else if (elementId.includes('-assistant-')) {
+                this.debouncedUpdateAssistantPreview();
+            } else if (elementId.includes('-inputArea-')) {
+                this.debouncedUpdateInputAreaPreview();
+            } else if (elementId.includes('-window-')) {
+                this.debouncedUpdateWindowPreview();
+            }
+        }
+
         _setupEventListeners() {
             if (!this.modal) return;
             const modalElement = this.modal.element;
 
             // Listen for custom color picker events
-            modalElement.addEventListener('color-change', () => this.debouncedUpdatePreview());
+            modalElement.addEventListener('color-change', (e) => {
+                // The event bubbles, but the target is the picker's root.
+                // We must get the context from the ColorPickerPopupManager, which knows which input is active.
+                if (!this.colorPickerManager || !this.colorPickerManager.activePicker) return;
+
+                const textInput = this.colorPickerManager.activePicker.textInput;
+                if (!textInput || !textInput.id) return;
+
+                this._dispatchPreviewUpdate(textInput.id);
+            });
 
             modalElement.addEventListener('click', (e) => {
                 const target = e.target.closest('button');
@@ -9834,17 +9867,14 @@
 
             modalElement.addEventListener('input', (e) => {
                 const target = e.target;
+                if (!(target instanceof HTMLElement) || !target.id) return;
 
-                // Trigger preview for text-based inputs
-                if (target.matches('input[type="text"], textarea, select')) {
-                    this.debouncedUpdatePreview();
-                }
-
-                // Handle all range sliders consistently
+                // Handle slider display update for range inputs
                 if (target.matches('input[type="range"]')) {
                     this._updateSliderDisplay(target);
-                    this.debouncedUpdatePreview();
                 }
+
+                this._dispatchPreviewUpdate(target.id);
             });
 
             modalElement.addEventListener('mouseover', (e) => {
