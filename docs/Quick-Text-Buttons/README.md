@@ -1,7 +1,5 @@
 # Quick-Text-Buttons
 
-[日本語のREADMEはこちら。](./README_ja.md)
-
 **For downloads and changelogs, please see the [main README](../../README.md)**
 
 ---

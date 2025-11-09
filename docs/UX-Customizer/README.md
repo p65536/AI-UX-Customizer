@@ -1,7 +1,5 @@
 # UX Customizer (for ChatGPT/Gemini)
 
-[日本語のREADMEはこちら。](./README_ja.md)
-
 **For downloads and changelogs, please see the [main README](../../README.md)**
 
 ---
@@ -38,6 +36,7 @@ The scripts have been created for each site. Please install the required script.
 * Export/import settings (in JSON format)
 * **Includes sample settings, making it easy to get started.**
 * **[GGGUX only] Auto-load full chat history**: Automatically loads the entire chat history when opening a conversation, eliminating the need to manually scroll up multiple times.  
+* **[GPTUX only] Layout Scan (Firefox Only)**: Automatically performs a layout scan on chat load to mitigate scroll position jumps caused by late-loading messages or images.
 
 ---
 
@@ -78,8 +77,8 @@ The scripts have been created for each site. Please install the required script.
 ### 9. Differences between the navigation consoles of GPTUX and GGGUX
 
 ##### GPTUX (for ChatGPT)
-  - The left end button is the "Rescan DOM for messages" function  
-  Normally, there is no need to use this because DOM scanning is performed automatically when loading chat. Use this if the message count is not being obtained correctly for messages that contain images.
+  - **[Firefox only]** The left end button (visible only on Firefox) is the "Run layout scan and rescan DOM" function.  
+  This is primarily used to mitigate a Firefox-specific bug where the scroll position jumps when images or messages load late. Use this button if you experience that issue, or if message counts appear incorrect.
 ![Navigation Console of GPTUX](./images/navi_console_chatgpt.webp)
 
 ##### GGGUX (for Gemini)

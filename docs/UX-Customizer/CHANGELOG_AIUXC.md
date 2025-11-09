@@ -4,6 +4,16 @@
 > This changelog applies to both **ChatGPT UX Customizer (GPTUX)** and **Gemini UX Customizer (GGGUX)**.
 > Most changes are shared between the two scripts. If a change applies only to one, it will be explicitly marked with a `[GPTUX]` or `[GGGUX]` prefix.
 
+## [1.7.0] - 2025-11-10
+- **New Features**
+  - **[GPTUX]** Added a **Layout Scan** feature specifically for **Firefox** users to mitigate scroll position jumps caused by late-loading messages or images. This includes a new "Scan layout on chat load" toggle in the settings panel and a manual trigger button in the navigation console.
+- **Fixes**
+  - **[GPTUX]** Fixed an issue where the navigation console would not reposition correctly when the text input area was resized.
+  - **[GGGUX]** Fixed a bug where the "Load full history" auto-scroll feature did not trigger correctly on chat load.
+- **Refactoring**
+  - Refactored the internal `Logger` to be class-based and added a new `badge()` method for greatly improved console log readability during debugging.
+  - Other internal code refactorings.
+
 ## [1.6.1] - 2025-10-25
 - **Improvements**
   - **Performance**: [GPTUX/GGGUX] Optimized the creation of frequently repeated UI elements (avatars, bubble navigation buttons, message numbers) by using `cloneNode` instead of creating them from scratch each time. This reduces rendering overhead, especially in long conversations.

@@ -8,7 +8,8 @@
 ![platform](https://img.shields.io/badge/platform-ChatGPT-lightgrey)
 ![platform](https://img.shields.io/badge/platform-Gemini-lightgrey)
 
-[日本語のREADMEはこちら。](./README_ja.md)
+英語を読みたくない日本人へ：  
+必要なら翻訳サイトを使ってください。日本語のページを更新するのが面倒になったので英語だけにします。済まぬ。
 
 ## About This Project
 
@@ -18,6 +19,9 @@ Each script is developed independently and can be installed separately.
 ---
 
 ## Recent Updates
+
+### 2025/11/10
+- Updated `ChatGPT UX Customizer`/`Gemini UX Customizer` (v1.6.1 -> v1.7.0)
 
 ### 2025/10/25
 - Updated `ChatGPT UX Customizer`/`Gemini UX Customizer` (v1.6.0 -> v1.6.1)
@@ -36,18 +40,6 @@ Each script is developed independently and can be installed separately.
 
 ---
 
-## Planned Updates
-
-> An improvement is planned for themes that use avatar icons.  
-> When a conversation contains several hundred messages, performance degradation occursCurrently, when a conversation contains several hundred messages, a noticeable performance degradation occurs, **especially when opening or closing the Canvas panel**.  
-> The root cause has been identified and improvements confirmed in a local build.  
-> Since additional refactoring is also underway, the release will take a little more time.  
-> The update is expected to be published within October.  
-
--> This issue has been fixed in v.1.6.0.
-
----
-
 ## Scripts in This Project
 
 ### 1. ChatGPT UX Customizer / Gemini UX Customizer
@@ -56,8 +48,8 @@ A script that adds powerful theme and navigation features. For each chat, you ca
 
 | Platform | GitHub | Greasy Fork | Version | Last Updated | Changelog |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **ChatGPT** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/UX-Customizer/ChatGPT-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/543703-chatgpt-ux-customizer) | 1.6.1 | 2025/10/25 | [View](./docs/UX-Customizer/CHANGELOG_AIUXC.md) |
-| **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/UX-Customizer/Gemini-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/543704-gemini-ux-customizer) | 1.6.1 | 2025/10/25 | [View](./docs/UX-Customizer/CHANGELOG_AIUXC.md) |
+| **ChatGPT** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/UX-Customizer/ChatGPT-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/543703-chatgpt-ux-customizer) | 1.7.0 | 2025/11/10 | [View](./docs/UX-Customizer/CHANGELOG_AIUXC.md) |
+| **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/UX-Customizer/Gemini-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/543704-gemini-ux-customizer) | 1.7.0 | 2025/11/10 | [View](./docs/UX-Customizer/CHANGELOG_AIUXC.md) |
 
 **[View Detailed Features & Manual for UX Customizer](./docs/UX-Customizer/README.md)**
 

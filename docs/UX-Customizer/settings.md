@@ -21,7 +21,8 @@
 | **Icon size** | Changes the size of the user and assistant avatar icons displayed on the left and right sides of the screen. |
 | **Chat content max width** | Adjusts the maximum display width for the entire conversation. Setting it to the far left will use the platform's default width. |
 | **Prevent image/avatar overlap** | When ON, the display area will automatically adjust so that standing images do not overlap avatar icons. |
-| **[Gemini only]**<br>**Load full history on chat load** | **[Gemini only]**<br>Automatically loads the entire chat history when opening a chat. |
+| **[GPTUX only]**<br>**Scan layout on chat load** | **[ChatGPT only] (Firefox only)**<br>Automatically scans the chat layout when opening a chat.<br>When using Firefox, scrolling may feel rubbery due to delayed layout calculations. Enabling this option runs an automatic "layout scan" on chat load to pre-calculate element heights and reduce the issue.<br>It can also be triggered manually via the "Layout Scan" button (the left end button on navigation console). |
+| **[GGGUX only]**<br>**Load full history on chat load** | **[Gemini only]**<br>Automatically loads the entire chat history when opening a chat.<br>It can also be triggered manually via the "Load full chat history" button (the left end button on navigation console). |
 | **Collapsible button** | Adds a button to each message to collapse long messages. |
 | **Sequential nav buttons** | Adds buttons to each message to jump to the next/previous message by the same speaker (user/assistant). |
 | **Scroll to top button** | Adds a button to each message to scroll to the top of that message. |
