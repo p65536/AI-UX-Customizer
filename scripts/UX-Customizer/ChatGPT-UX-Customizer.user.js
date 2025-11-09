@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.6.1
+// @version      1.7.0
 // @license      MIT
 // @description  Fully customize the chat UI. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://chatgpt.com/favicon.ico
@@ -32,101 +32,148 @@
     const LOG_PREFIX = `[${APPID.toUpperCase()}]`;
 
     // =================================================================================
+    // SECTION: Style Definitions
+    // =================================================================================
+
+    // Style definitions for styled Logger.badge()
+    const LOG_STYLES = {
+        BASE: 'color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold;',
+        INFO: 'background: #007bff;',
+        LOG: 'background: #28a745;',
+        WARN: 'background: #ffc107; color: black;',
+        ERROR: 'background: #dc3545;',
+    };
+
+    // =================================================================================
     // SECTION: Logging Utility
     // Description: Centralized logging interface for consistent log output across modules.
     //              Handles log level control, message formatting, and console API wrapping.
     // =================================================================================
 
-    const Logger = {
+    class Logger {
         /** @property {object} levels - Defines the numerical hierarchy of log levels. */
-        levels: {
+        static levels = {
             error: 0,
             warn: 1,
             info: 2,
             log: 3,
             debug: 4,
-        },
+        };
         /** @property {string} level - The current active log level. */
-        level: 'log', // Default level
+        static level = 'log'; // Default level
+
         /**
          * Sets the current log level.
          * @param {string} level The new log level. Must be one of 'error', 'warn', 'info', 'log', 'debug'.
          */
-        setLevel(level) {
+        static setLevel(level) {
             if (Object.prototype.hasOwnProperty.call(this.levels, level)) {
                 this.level = level;
             } else {
-                console.warn(LOG_PREFIX, `Invalid log level "${level}". Valid levels are: ${Object.keys(this.levels).join(', ')}. Level not changed.`);
+                Logger.badge('INVALID LEVEL', LOG_STYLES.WARN, 'warn', `Invalid log level "${level}". Valid levels are: ${Object.keys(this.levels).join(', ')}. Level not changed.`);
             }
-        },
+        }
+
         /** @param {...any} args The messages or objects to log. */
-        error(...args) {
+        static error(...args) {
             if (this.levels[this.level] >= this.levels.error) {
                 console.error(LOG_PREFIX, ...args);
             }
-        },
+        }
+
         /** @param {...any} args The messages or objects to log. */
-        warn(...args) {
+        static warn(...args) {
             if (this.levels[this.level] >= this.levels.warn) {
                 console.warn(LOG_PREFIX, ...args);
             }
-        },
+        }
+
         /** @param {...any} args The messages or objects to log. */
-        info(...args) {
+        static info(...args) {
             if (this.levels[this.level] >= this.levels.info) {
                 console.info(LOG_PREFIX, ...args);
             }
-        },
+        }
+
         /** @param {...any} args The messages or objects to log. */
-        log(...args) {
+        static log(...args) {
             if (this.levels[this.level] >= this.levels.log) {
                 console.log(LOG_PREFIX, ...args);
             }
-        },
+        }
+
         /**
          * Logs messages for debugging. Only active in 'debug' level.
          * @param {...any} args The messages or objects to log.
          */
-        debug(...args) {
+        static debug(...args) {
             if (this.levels[this.level] >= this.levels.debug) {
                 // Use console.debug for better filtering in browser dev tools.
                 console.debug(LOG_PREFIX, ...args);
             }
-        },
+        }
+
         /**
          * Starts a timer for performance measurement. Only active in 'debug' level.
          * @param {string} label The label for the timer.
          */
-        time(label) {
+        static time(label) {
             if (this.levels[this.level] >= this.levels.debug) {
                 console.time(`${LOG_PREFIX} ${label}`);
             }
-        },
+        }
+
         /**
          * Ends a timer and logs the elapsed time. Only active in 'debug' level.
          * @param {string} label The label for the timer, must match the one used in time().
          */
-        timeEnd(label) {
+        static timeEnd(label) {
             if (this.levels[this.level] >= this.levels.debug) {
                 console.timeEnd(`${LOG_PREFIX} ${label}`);
             }
-        },
+        }
+
         /**
          * @param {...any} args The title for the log group.
          * @returns {void}
          */
-        group: (...args) => console.group(LOG_PREFIX, ...args),
+        static group = (...args) => console.group(LOG_PREFIX, ...args);
         /**
          * @param {...any} args The title for the collapsed log group.
          * @returns {void}
          */
-        groupCollapsed: (...args) => console.groupCollapsed(LOG_PREFIX, ...args),
+        static groupCollapsed = (...args) => console.groupCollapsed(LOG_PREFIX, ...args);
         /**
          * Closes the current log group.
          * @returns {void}
          */
-        groupEnd: () => console.groupEnd(),
-    };
+        static groupEnd = () => console.groupEnd();
+
+        /**
+         * Logs a message with a styled badge for better visibility.
+         * @param {string} badgeText - The text inside the badge.
+         * @param {string} badgeStyle - The background-color style (from LOG_STYLES).
+         * @param {'log'|'warn'|'error'|'info'|'debug'} level - The console log level.
+         * @param {...any} args - Additional messages to log after the badge.
+         */
+        static badge(badgeText, badgeStyle, level, ...args) {
+            if (this.levels[this.level] < this.levels[level]) {
+                return; // Respect the current log level
+            }
+
+            const style = `${LOG_STYLES.BASE} ${badgeStyle}`;
+            const consoleMethod = console[level] || console.log;
+
+            consoleMethod(
+                `%c${LOG_PREFIX}%c %c${badgeText}%c`,
+                'font-weight: bold;', // Style for the prefix
+                'color: inherit;', // Reset for space
+                style, // Style for the badge
+                'color: inherit;', // Reset for the rest of the message
+                ...args
+            );
+        }
+    }
 
     /**
      * @description A lightweight performance monitor to track event frequency.
@@ -155,7 +202,7 @@
             if (now - this._events[key].startTime >= delay) {
                 const callsPerSecond = (this._events[key].count / ((now - this._events[key].startTime) / 1000)).toFixed(2);
                 // Use Logger.debug to ensure the output is prefixed and controlled.
-                Logger.debug(`[PerfMonitor] ${key}: ${this._events[key].count} calls in ${now - this._events[key].startTime}ms (${callsPerSecond} calls/sec)`);
+                Logger.badge('PerfMonitor', LOG_STYLES.DEBUG, 'debug', `${key}: ${this._events[key].count} calls in ${now - this._events[key].startTime}ms (${callsPerSecond} calls/sec)`);
                 delete this._events[key];
             }
         },
@@ -294,11 +341,9 @@
             MESSAGE_WRAPPER: 'chat-wrapper',
 
             // --- Message containers ---
-            CONVERSATION_CONTAINER: 'article[data-testid^="conversation-turn-"]',
+            CONVERSATION_UNIT: 'article[data-testid^="conversation-turn-"]',
             MESSAGE_CONTAINER_PARENT: 'div:has(> article[data-testid^="conversation-turn-"])',
             MESSAGE_ROOT_NODE: 'article[data-testid^="conversation-turn-"]',
-            TURN_MESSAGES_CONTAINER: '.group\\/turn-messages',
-            TURN_CONTAINER_ASSISTANT: '.agent-turn',
 
             // --- Selectors for messages ---
             USER_MESSAGE: 'div[data-message-author-role="user"]',
@@ -317,6 +362,7 @@
             // --- Input area ---
             INPUT_AREA_BG_TARGET: 'form[data-type="unified-composer"] div[style*="border-radius"]',
             INPUT_TEXT_FIELD_TARGET: 'div.ProseMirror#prompt-textarea',
+            INPUT_RESIZE_TARGET: 'form[data-type="unified-composer"] div[style*="border-radius"]',
 
             // --- Avatar area ---
             AVATAR_USER: '.chat-wrapper[data-message-author-role="user"]',
@@ -352,7 +398,6 @@
 
             // --- Turn Completion Selector ---
             TURN_COMPLETE_SELECTOR: 'div.flex.justify-start:has(button[data-testid="copy-turn-action-button"])',
-            MESSAGE_ACTIONS_TOOLBAR: 'div[class*="group-hover/turn-messages"]',
 
             // --- Debug Selectors ---
             DEBUG_CONTAINER_TURN: 'article[data-testid^="conversation-turn-"]',
@@ -939,6 +984,9 @@
             fixed_nav_console: {
                 enabled: true,
             },
+            load_full_history_on_chat_load: {
+                enabled: true,
+            },
         },
         developer: {
             logger_level: 'log', // 'error', 'warn', 'info', 'log', 'debug'
@@ -1127,7 +1175,7 @@
 
                     // If it has neither text nor an image inside it, check the turn context.
                     if (!hasText && !hasImage) {
-                        const turnContainer = messageElement.closest(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER);
+                        const turnContainer = messageElement.closest(CONSTANTS.SELECTORS.CONVERSATION_UNIT);
                         // If the turn contains an image elsewhere, this empty message is likely a ghost artifact. Filter it out.
                         if (turnContainer && turnContainer.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE)) {
                             return false; // Exclude this ghost message
@@ -1197,7 +1245,7 @@
              * @returns {number} The number of new items found and processed.
              */
             performInitialScan(lifecycleManager) {
-                Logger.debug('Performing initial scan for unprocessed image messages.');
+                Logger.badge('SCAN', LOG_STYLES.DEBUG, 'debug', 'Performing initial scan for unprocessed image messages.');
                 // This selector specifically targets DALL-E generated images which are the primary source of this issue.
                 const imageSelector = CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE;
                 const unprocessedImages = document.querySelectorAll(`${imageSelector}:not([data-${APPID}ContentProcessed="true"])`);
@@ -1355,7 +1403,7 @@
 
                 // 2. If no text, it might be an image-only message element.
                 const role = PlatformAdapters.General.getMessageRole(messageElement);
-                const turnContainer = messageElement.closest(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER);
+                const turnContainer = messageElement.closest(CONSTANTS.SELECTORS.CONVERSATION_UNIT);
 
                 if (role === 'user') {
                     // Find the image within this specific user message element
@@ -1425,7 +1473,350 @@
              * @param {ThemeAutomator} automatorInstance - The main controller instance.
              */
             initializePlatformManagers(automatorInstance) {
-                // No platform-specific managers to initialize for ChatGPT.
+                // =================================================================================
+                // SECTION: Auto Scroll Manager
+                // Description: Manages the "layout scan" (simulated PageUp scroll)
+                //              to force layout calculation and prevent scroll anchoring issues.
+                // =================================================================================
+                class AutoScrollManager {
+                    static CONFIG = {
+                        // The minimum number of messages required to trigger the auto-scroll feature.
+                        MESSAGE_THRESHOLD: 5, // Lower threshold for GPTUX as it's for layout scanning
+                        // Delay between simulated PageUp scrolls (in ms)
+                        SCAN_INTERVAL_MS: 30,
+                    };
+
+                    /**
+                     * @param {ConfigManager} configManager
+                     * @param {MessageCacheManager} messageCacheManager
+                     * @param {MessageLifecycleManager} messageLifecycleManager
+                     */
+                    constructor(configManager, messageCacheManager, messageLifecycleManager) {
+                        this.configManager = configManager;
+                        this.messageCacheManager = messageCacheManager;
+                        this.messageLifecycleManager = messageLifecycleManager;
+                        this.scrollContainer = null;
+                        this.isEnabled = false;
+                        this.isScrolling = false;
+                        this.isInitialScrollCheckDone = false;
+                        this.scanLoopId = null; // Use for setTimeout loop
+                        this.boundStop = null;
+                        this.subscriptions = [];
+                        this.isLayoutScanComplete = false;
+                    }
+
+                    _subscribe(event, listener) {
+                        const key = createEventKey(this, event);
+                        EventBus.subscribe(event, listener, key);
+                        this.subscriptions.push({ event, key });
+                    }
+
+                    init() {
+                        this.isEnabled = this.configManager.get().features.load_full_history_on_chat_load.enabled;
+                        this._subscribe(EVENTS.AUTO_SCROLL_REQUEST, () => this.start());
+                        this._subscribe(EVENTS.AUTO_SCROLL_CANCEL_REQUEST, () => this.stop());
+                        this._subscribe(EVENTS.CACHE_UPDATED, () => this._onCacheUpdated());
+                        this._subscribe(EVENTS.NAVIGATION, () => this._onNavigation());
+                        this._subscribe(EVENTS.APP_SHUTDOWN, () => this.destroy());
+                    }
+
+                    destroy() {
+                        this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
+                        this.subscriptions = [];
+                        this.stop();
+                    }
+
+                    enable() {
+                        this.isEnabled = true;
+                    }
+
+                    disable() {
+                        this.isEnabled = false;
+                        this.stop();
+                    }
+
+                    async start() {
+                        if (!isFirefox()) return;
+                        if (this.isScrolling || this.isLayoutScanComplete) return;
+
+                        const scrollContainerEl = document.querySelector(CONSTANTS.SELECTORS.SCROLL_CONTAINER);
+                        if (!(scrollContainerEl instanceof HTMLElement)) {
+                            Logger.badge('AUTOSCROLL WARN', LOG_STYLES.WARN, 'warn', 'Could not find scroll container.');
+                            return;
+                        }
+                        this.scrollContainer = scrollContainerEl;
+
+                        this.isScrolling = true;
+                        Logger.log('AutoScrollManager: Starting layout scan.');
+                        EventBus.publish(EVENTS.AUTO_SCROLL_START);
+                        EventBus.publish(EVENTS.SUSPEND_OBSERVERS);
+
+                        // Hide the container to prevent visual flickering
+                        this.scrollContainer.style.transition = 'none';
+                        this.scrollContainer.style.opacity = '0';
+
+                        this.boundStop = () => this.stop();
+                        this.scrollContainer.addEventListener('wheel', this.boundStop, { passive: true, once: true });
+                        this.scrollContainer.addEventListener('touchmove', this.boundStop, { passive: true, once: true });
+
+                        const originalScrollTop = this.scrollContainer.scrollTop;
+
+                        // Force scroll to the bottom to ensure the scan starts from the end.
+                        this.scrollContainer.scrollTop = this.scrollContainer.scrollHeight;
+
+                        const scanPageUp = () => {
+                            if (!this.isScrolling || !this.scrollContainer) return; // Stop if cancelled
+
+                            const currentTop = this.scrollContainer.scrollTop;
+                            if (currentTop <= 0) {
+                                // Reached the top, restore and stop
+                                this.scrollContainer.scrollTop = originalScrollTop; // Restore original position
+                                this.isLayoutScanComplete = true; // Set completion flag
+                                this.stop();
+                                return;
+                            }
+
+                            // Scroll up by one page (client height)
+                            this.scrollContainer.scrollTop = Math.max(0, currentTop - this.scrollContainer.clientHeight);
+
+                            // Continue loop after interval
+                            this.scanLoopId = setTimeout(scanPageUp, AutoScrollManager.CONFIG.SCAN_INTERVAL_MS);
+                        };
+
+                        // Start the loop
+                        // Add a minimal delay to ensure scrollTop change is registered before scan starts
+                        this.scanLoopId = setTimeout(scanPageUp, CONSTANTS.TIMING.DEBOUNCE_DELAYS.LAYOUT_RECALCULATION);
+                    }
+
+                    stop(isNavigation = false) {
+                        if (!this.isScrolling && !this.scanLoopId) return; // Prevent multiple stops
+
+                        Logger.log('AutoScrollManager: Stopping layout scan.');
+                        this.isScrolling = false;
+
+                        if (this.scanLoopId) {
+                            clearTimeout(this.scanLoopId);
+                            this.scanLoopId = null;
+                        }
+
+                        // Restore visibility
+                        if (this.scrollContainer) {
+                            this.scrollContainer.style.opacity = '1';
+                            this.scrollContainer.style.transition = '';
+                        }
+                        this.scrollContainer = null;
+
+                        // Cleanup listeners
+                        if (this.boundStop) {
+                            this.scrollContainer?.removeEventListener('wheel', this.boundStop);
+                            this.scrollContainer?.removeEventListener('touchmove', this.boundStop);
+                            this.boundStop = null;
+                        }
+
+                        EventBus.publish(EVENTS.AUTO_SCROLL_COMPLETE);
+
+                        // On navigation, ObserverManager handles observer resumption.
+                        // All other post-scan logic (DOM rescan, cache update) is now handled
+                        // by the listener that *requested* the scan.
+                        if (!isNavigation) {
+                            EventBus.publish(EVENTS.RESUME_OBSERVERS_AND_REFRESH);
+                        }
+                    }
+
+                    /**
+                     * @private
+                     * @description Defines the logic to run *after* a scan completes.
+                     */
+                    _onScanComplete() {
+                        // Run the manual scan to create any missing message wrappers
+                        if (this.messageLifecycleManager) {
+                            this.messageLifecycleManager.scanForUnprocessedMessages();
+                        }
+                        // Immediately request a cache update to reflect the scan
+                        EventBus.publish(EVENTS.CACHE_UPDATE_REQUEST);
+                    }
+
+                    /**
+                     * @private
+                     * @description Handles the CACHE_UPDATED event to perform the initial scroll check.
+                     */
+                    _onCacheUpdated() {
+                        if (!isFirefox()) return;
+                        if (!this.isEnabled || this.isInitialScrollCheckDone || this.isScrolling) {
+                            return;
+                        }
+                        this.isInitialScrollCheckDone = true;
+
+                        const messageCount = this.messageCacheManager.getTotalMessages().length;
+                        if (messageCount >= AutoScrollManager.CONFIG.MESSAGE_THRESHOLD) {
+                            Logger.log(`AutoScrollManager: ${messageCount} messages found. Triggering layout scan.`);
+
+                            // Register the post-scan logic to run *once* on completion
+                            const uniqueKey = `AutoScrollManager.onCacheUpdated.${Date.now()}`;
+                            EventBus.once(EVENTS.AUTO_SCROLL_COMPLETE, () => this._onScanComplete(), uniqueKey);
+                            // Start the scan
+                            EventBus.publish(EVENTS.AUTO_SCROLL_REQUEST);
+                        } else {
+                            Logger.log(`AutoScrollManager: ${messageCount} messages found. No scan needed.`);
+                        }
+                    }
+
+                    /**
+                     * @private
+                     * @description Handles the NAVIGATION event to reset the manager's state.
+                     */
+                    _onNavigation() {
+                        if (this.isScrolling) {
+                            // Stop scroll without triggering a UI refresh, as a new page is loading.
+                            this.stop(true);
+                        }
+                        this.isInitialScrollCheckDone = false;
+                        this.isLayoutScanComplete = false;
+                    }
+                }
+                automatorInstance.autoScrollManager = new AutoScrollManager(automatorInstance.configManager, automatorInstance.messageCacheManager, automatorInstance.messageLifecycleManager);
+
+                // =================================================================================
+                // SECTION: Toast Manager
+                // Description: Manages the display of temporary toast notifications.
+                // =================================================================================
+
+                class ToastManager {
+                    constructor() {
+                        this.toastElement = null;
+                        this.subscriptions = [];
+                    }
+
+                    _subscribe(event, listener) {
+                        const key = createEventKey(this, event);
+                        EventBus.subscribe(event, listener, key);
+                        this.subscriptions.push({ event, key });
+                    }
+
+                    init() {
+                        this._injectStyles();
+                        // Listen for layout scan events
+                        this._subscribe(EVENTS.AUTO_SCROLL_START, () => this.show('Scanning layout to prevent scroll issues...', true));
+                        this._subscribe(EVENTS.AUTO_SCROLL_COMPLETE, () => this.hide());
+                        this._subscribe(EVENTS.APP_SHUTDOWN, () => this.destroy());
+                    }
+
+                    destroy() {
+                        this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
+                        this.subscriptions = [];
+                        this.hide();
+                    }
+
+                    _injectStyles() {
+                        const styleId = `${APPID}-toast-style`;
+                        if (document.getElementById(styleId)) return;
+
+                        // Define custom warning styles for the toast
+                        const warnStyles = {
+                            bg: 'rgb(255 165 0 / 0.9)', // Orange background for warning
+                            text: '#ffffff', // White text
+                            border: '#ffa000', // Darker orange border
+                            cancel_btn_bg: 'rgb(255 255 255 / 0.2)', // Semi-transparent white for button background
+                            cancel_btn_text: '#ffffff', // White text for button
+                        };
+
+                        const style = h('style', {
+                            id: styleId,
+                            textContent: `
+                                .${APPID}-toast-container {
+                                    position: fixed; /* Changed to fixed for viewport relative positioning */
+                                    top: 30%; /* Position from the top */
+                                    left: 50%; /* Center horizontally */
+                                    transform: translate(-50%, -50%); /* Adjust for exact centering */
+                                    z-index: 10002; /* Higher z-index */
+                                    background-color: ${warnStyles.bg};
+                                    color: ${warnStyles.text};
+                                    padding: 15px 25px; /* Slightly more padding */
+                                    border-radius: 12px; /* More rounded corners */
+                                    border: 1px solid ${warnStyles.border};
+                                    box-shadow: 0 6px 20px rgb(0 0 0 / 0.2); /* Stronger shadow */
+                                    display: flex;
+                                    align-items: center;
+                                    gap: 15px; /* Increased gap */
+                                    font-size: 1.1em; /* Larger font */
+                                    font-weight: bold; /* Bold text */
+                                    opacity: 0;
+                                    transition: opacity 0.4s ease, transform 0.4s ease; /* Smoother transition */
+                                    pointer-events: none;
+                                    white-space: nowrap; /* Prevent text wrapping */
+                                }
+                                .${APPID}-toast-container.is-visible {
+                                    opacity: 1;
+                                    transform: translate(-50%, 0); /* Move into view from adjusted vertical position */
+                                    pointer-events: auto;
+                                }
+                                .${APPID}-toast-cancel-btn {
+                                    background: ${warnStyles.cancel_btn_bg};
+                                    color: ${warnStyles.cancel_btn_text};
+                                    border: none;
+                                    padding: 8px 15px; /* Larger button padding */
+                                    margin-left: 10px; /* Adjusted margin */
+                                    cursor: pointer;
+                                    font-weight: bold;
+                                    border-radius: 6px; /* Rounded button */
+                                    transition: background-color 0.2s ease;
+                                }
+                                .${APPID}-toast-cancel-btn:hover {
+                                    background-color: rgb(255 255 255 / 0.3); /* Lighter hover background */
+                                }
+                            `,
+                        });
+                        document.head.appendChild(style);
+                    }
+
+                    _renderToast(message, showCancelButton) {
+                        const children = [h('span', message)];
+                        if (showCancelButton) {
+                            const cancelButton = h(
+                                'button',
+                                {
+                                    className: `${APPID}-toast-cancel-btn`,
+                                    title: 'Stop layout scan',
+                                    onclick: () => EventBus.publish(EVENTS.AUTO_SCROLL_CANCEL_REQUEST),
+                                },
+                                'Cancel'
+                            );
+                            children.push(cancelButton);
+                        }
+                        return h(`div.${APPID}-toast-container`, children);
+                    }
+
+                    show(message, showCancelButton = false) {
+                        // Remove existing toast if any
+                        if (this.toastElement) {
+                            this.hide();
+                        }
+
+                        this.toastElement = this._renderToast(message, showCancelButton);
+                        document.body.appendChild(this.toastElement);
+
+                        // Trigger the transition
+                        setTimeout(() => {
+                            this.toastElement?.classList.add('is-visible');
+                        }, 10);
+                    }
+
+                    hide() {
+                        if (!this.toastElement) return;
+
+                        const el = this.toastElement;
+                        el.classList.remove('is-visible');
+
+                        // Remove from DOM after transition ends
+                        setTimeout(() => {
+                            el.remove();
+                        }, 300);
+
+                        this.toastElement = null;
+                    }
+                }
+
+                automatorInstance.toastManager = new ToastManager();
             },
 
             /**
@@ -1434,7 +1825,12 @@
              * @param {object} newConfig - The newly applied configuration object.
              */
             applyPlatformSpecificUiUpdates(automatorInstance, newConfig) {
-                // No platform-specific UI updates for ChatGPT.
+                // Enable or disable the auto-scroll manager based on the new config.
+                if (newConfig.features.load_full_history_on_chat_load.enabled) {
+                    automatorInstance.autoScrollManager?.enable();
+                } else {
+                    automatorInstance.autoScrollManager?.disable();
+                }
             },
         },
 
@@ -1447,8 +1843,17 @@
              * @returns {object[]} An array of definition objects.
              */
             getPlatformSpecificFeatureToggles() {
-                // No platform-specific features for ChatGPT.
-                return [];
+                if (!isFirefox()) {
+                    return [];
+                }
+                return [
+                    {
+                        id: 'load-history-enabled',
+                        configKey: 'features.load_full_history_on_chat_load.enabled',
+                        label: 'Scan layout on chat load',
+                        title: 'When enabled, automatically scans the layout of all messages when a chat is opened. This prevents layout shifts from images loading later.',
+                    },
+                ];
             },
         },
 
@@ -1541,7 +1946,7 @@
 
                 // The message element is the wrapper for avatar injection.
                 const msgWrapper = msgElem;
-                const turnContainer = msgElem.closest(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER);
+                const turnContainer = msgElem.closest(CONSTANTS.SELECTORS.CONVERSATION_UNIT);
                 if (!turnContainer) return;
 
                 const processedClass = `${APPID}-avatar-processed`;
@@ -1573,7 +1978,7 @@
                     return;
                 }
 
-                const chatContent = await waitForElement(CONSTANTS.SELECTORS.STANDING_IMAGE_ANCHOR);
+                const chatContent = await waitForElement(CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH);
                 if (!chatContent) {
                     return;
                 }
@@ -1770,7 +2175,7 @@
                             // --- Panel just appeared ---
                             const canvasPanel = canvasTrigger.closest(CONSTANTS.SELECTORS.CANVAS_RESIZE_TARGET);
                             if (!(canvasPanel instanceof HTMLElement)) return;
-                            Logger.debug('[Stateful Observer] Panel appeared.');
+                            Logger.badge('PANEL STATE', LOG_STYLES.DEBUG, 'debug', 'Panel appeared.');
 
                             const observerContainer = (await waitForElement(CONSTANTS.SELECTORS.MAIN_APP_CONTAINER))?.parentElement?.parentElement;
                             if (!observerContainer) return;
@@ -1786,7 +2191,7 @@
                             disappearanceObserver.observe(observerContainer, { childList: true, subtree: false });
                         } else {
                             // --- Panel just disappeared ---
-                            Logger.debug('[Stateful Observer] Panel disappeared.');
+                            Logger.badge('PANEL STATE', LOG_STYLES.DEBUG, 'debug', 'Panel disappeared.');
                             disappearanceObserver?.disconnect();
                             disappearanceObserver = null;
                             if (observedCanvasPanel) {
@@ -1827,7 +2232,7 @@
             startGlobalTitleObserver(dependencies) {
                 const targetElement = document.querySelector(CONSTANTS.SELECTORS.TITLE_OBSERVER_TARGET);
                 if (!targetElement) {
-                    Logger.warn('Title element not found for observation.');
+                    Logger.badge('OBSERVER INIT', LOG_STYLES.WARN, 'warn', 'Title element not found for observation.');
                     return null;
                 }
 
@@ -1963,7 +2368,7 @@
             applyAdditionalHighlight(messageElement) {
                 const role = PlatformAdapters.General.getMessageRole(messageElement);
                 if (role === 'assistant') {
-                    const turnContainer = messageElement.closest(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER);
+                    const turnContainer = messageElement.closest(CONSTANTS.SELECTORS.CONVERSATION_UNIT);
                     const hasImage = turnContainer && turnContainer.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE);
                     const textContent = messageElement.querySelector(CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT);
                     const hasText = textContent && textContent.textContent.trim() !== '';
@@ -1983,16 +2388,66 @@
              * if no platform-specific buttons are needed for the current platform.
              */
             getPlatformSpecificButtons(fixedNavManagerInstance) {
-                const rescanBtn = h(
-                    `button#${APPID}-rescan-btn.${APPID}-nav-btn`,
+                if (!isFirefox()) {
+                    return [];
+                }
+                const autoscrollBtn = h(
+                    `button#${APPID}-autoscroll-btn.${APPID}-nav-btn`,
                     {
-                        title: 'Rescan DOM for messages',
-                        onclick: () => fixedNavManagerInstance.messageLifecycleManager?.scanForUnprocessedMessages(),
+                        title: 'Run layout scan and rescan DOM',
+                        dataset: { originalTitle: 'Run layout scan and rescan DOM' },
+                        onclick: () => {
+                            // 1. Subscribe once to the completion event
+                            const uniqueKey = `FixedNav.autoscrollCompleteHandler.${Date.now()}`;
+                            EventBus.once(
+                                EVENTS.AUTO_SCROLL_COMPLETE,
+                                () => {
+                                    // 2. Perform the "DOM Rescan" logic *after* scan is complete.
+                                    if (fixedNavManagerInstance.messageLifecycleManager) {
+                                        fixedNavManagerInstance.messageLifecycleManager.scanForUnprocessedMessages();
+                                    }
+                                    EventBus.publish(EVENTS.CACHE_UPDATE_REQUEST);
+                                },
+                                uniqueKey
+                            );
+
+                            // 3. Start the scan.
+                            EventBus.publish(EVENTS.AUTO_SCROLL_REQUEST);
+                        },
                     },
-                    [createIconFromDef(SITE_STYLES.ICONS.refresh)]
+                    [createIconFromDef(SITE_STYLES.ICONS.scrollToTop)] // Use 'scrollToTop' icon
                 );
 
-                return [rescanBtn, h(`div.${APPID}-nav-separator`)];
+                return [autoscrollBtn, h(`div.${APPID}-nav-separator`)];
+            },
+
+            /**
+             * @description Updates the state (disabled, title) of platform-specific buttons in the navigation console.
+             * @param {HTMLButtonElement} autoscrollBtn The platform-specific button element.
+             * @param {boolean} isAutoScrolling The shared `isAutoScrolling` state from FixedNavigationManager.
+             * @param {object | null} autoScrollManager The platform-specific AutoScrollManager instance.
+             */
+            updatePlatformSpecificButtonState(autoscrollBtn, isAutoScrolling, autoScrollManager) {
+                if (!isFirefox()) {
+                    autoscrollBtn.disabled = true;
+                    autoscrollBtn.title = 'Layout scan is not required on your browser.';
+                    autoscrollBtn.style.opacity = '0.5';
+                    return;
+                }
+
+                const isScanComplete = autoScrollManager?.isLayoutScanComplete;
+                const isDisabled = isAutoScrolling || isScanComplete;
+
+                autoscrollBtn.disabled = isDisabled;
+                autoscrollBtn.style.opacity = '1';
+
+                if (isScanComplete) {
+                    autoscrollBtn.title = 'Layout scan complete';
+                } else if (isAutoScrolling) {
+                    autoscrollBtn.title = 'Scanning layout...';
+                } else {
+                    autoscrollBtn.title = autoscrollBtn.dataset.originalTitle;
+                }
             },
         },
     };
@@ -2273,7 +2728,7 @@
                         listener(...args);
                     } catch (e) {
                         // Enhance error logging with the specific subscriber key
-                        Logger.error(`EventBus error in listener "${key}" for event "${event}":`, e);
+                        Logger.badge('LISTENER ERROR', LOG_STYLES.ERROR, 'error', `Listener "${key}" failed for event "${event}":`, e);
                     }
                 });
 
@@ -2284,7 +2739,7 @@
                     try {
                         listener(...args);
                     } catch (e) {
-                        Logger.error(`EventBus error in listener for event "${event}":`, e);
+                        Logger.badge('LISTENER ERROR', LOG_STYLES.ERROR, 'error', `Listener failed for event "${event}":`, e);
                     }
                 });
             }
@@ -2316,7 +2771,7 @@
                 try {
                     work();
                 } catch (e) {
-                    Logger.error('EventBus error in queued UI work:', e);
+                    Logger.badge('UI QUEUE ERROR', LOG_STYLES.ERROR, 'error', 'Error in queued UI work:', e);
                 }
             }
             this.isUiWorkScheduled = false;
@@ -2532,11 +2987,11 @@
                         el.setAttribute(key, url);
                     } else {
                         el.setAttribute(key, '#');
-                        Logger.warn(`Blocked potentially unsafe protocol "${parsedUrl.protocol}" in attribute "${key}":`, url);
+                        Logger.badge('UNSAFE URL', LOG_STYLES.WARN, 'warn', `Blocked potentially unsafe protocol "${parsedUrl.protocol}" in attribute "${key}":`, url);
                     }
                 } catch {
                     el.setAttribute(key, '#');
-                    Logger.warn(`Blocked invalid or relative URL in attribute "${key}":`, url);
+                    Logger.badge('INVALID URL', LOG_STYLES.WARN, 'warn', `Blocked invalid or relative URL in attribute "${key}":`, url);
                 }
             }
             // 2. Direct property assignments.
@@ -2569,8 +3024,8 @@
 
         const fragment = document.createDocumentFragment();
         /**
-         *
-         * @param child
+         * Appends a child node or text to the document fragment.
+         * @param {HChild} child - The child to append.
          */
         function append(child) {
             if (child === null || child === false || typeof child === 'undefined') return;
@@ -2771,7 +3226,7 @@
 
             timer = setTimeout(() => {
                 cleanup();
-                Logger.warn(`Timed out after ${timeout}ms waiting for element "${selector}"`);
+                Logger.badge('WAIT TIMEOUT', LOG_STYLES.WARN, 'warn', `Timed out after ${timeout}ms waiting for element "${selector}"`);
                 resolve(null);
             }, timeout);
 
@@ -2943,7 +3398,7 @@
         const scrollContainer = scrollContainerSelector ? document.querySelector(scrollContainerSelector) : null;
 
         if (scrollContainer) {
-            Logger.debug('[scrollToElement] Using scroll container method.');
+            Logger.badge('SCROLL', LOG_STYLES.DEBUG, 'debug', 'Using scroll container method.');
             // Find the actual bubble element to be used as the scroll target
             const bubbleSelector = `${CONSTANTS.SELECTORS.RAW_USER_BUBBLE}, ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE}`;
             const scrollTargetElement = element.querySelector(bubbleSelector) || element;
@@ -2957,11 +3412,11 @@
 
         // Fallback for standard window scrolling (like Gemini).
         if (offset === 0) {
-            Logger.debug('[scrollToElement] (Scroll container not found): Using simple scrollIntoView() (no offset).');
+            Logger.badge('SCROLL', LOG_STYLES.DEBUG, 'debug', '(Scroll container not found): Using simple scrollIntoView() (no offset).');
             // Use the simplest method for non-offset scrolls.
             element.scrollIntoView({ behavior, block: 'start' });
         } else {
-            Logger.debug('[scrollToElement] (Scroll container not found): Using virtual anchor method (with offset).');
+            Logger.badge('SCROLL', LOG_STYLES.DEBUG, 'debug', '(Scroll container not found): Using virtual anchor method (with offset).');
             // Use the "virtual anchor" method for offset scrolls where direct manipulation is not possible.
             const target = element;
             const originalPosition = window.getComputedStyle(target).position;
@@ -3265,7 +3720,7 @@
             try {
                 measuredData = measure();
             } catch (e) {
-                Logger.error('withLayoutCycle: Error during measure phase:', e);
+                Logger.badge('LAYOUT ERROR', LOG_STYLES.ERROR, 'error', 'Error during measure phase:', e);
                 reject(e);
                 return;
             }
@@ -3276,7 +3731,7 @@
                     mutate(measuredData);
                     resolve();
                 } catch (e) {
-                    Logger.error('withLayoutCycle: Error during mutate phase:', e);
+                    Logger.badge('LAYOUT ERROR', LOG_STYLES.ERROR, 'error', 'Error during mutate phase:', e);
                     reject(e);
                 }
             });
@@ -3541,7 +3996,7 @@
                 try {
                     userConfig = JSON.parse(raw);
                 } catch (e) {
-                    Logger.error('Failed to parse configuration. Resetting to default settings.', e);
+                    Logger.badge('LOAD FAILED', LOG_STYLES.ERROR, 'error', 'Failed to parse configuration. Resetting to default settings.', e);
                     userConfig = null;
                 }
             }
@@ -3750,7 +4205,7 @@
          */
         _makeSpaceForNewItem(newItemSize) {
             if (newItemSize > CONSTANTS.CACHE_SIZE_LIMIT_BYTES) {
-                Logger.warn(`Item size (${newItemSize}) exceeds cache limit (${CONSTANTS.CACHE_SIZE_LIMIT_BYTES}). Cannot be cached.`);
+                Logger.badge('CACHE LIMIT', LOG_STYLES.WARN, 'warn', `Item size (${newItemSize}) exceeds cache limit (${CONSTANTS.CACHE_SIZE_LIMIT_BYTES}). Cannot be cached.`);
                 return;
             }
             while (this.currentCacheSize + newItemSize > CONSTANTS.CACHE_SIZE_LIMIT_BYTES && this.cache.size > 0) {
@@ -3813,23 +4268,23 @@
                                 this.currentCacheSize += size;
                                 resolve(dataUrl);
                             } catch (e) {
-                                Logger.error(`Data conversion error for URL: ${url}`, e);
+                                Logger.badge('CONVERSION FAILED', LOG_STYLES.ERROR, 'error', `Data conversion error for URL: ${url}`, e);
                                 this.failedUrls.add(cacheKey);
                                 resolve(null);
                             }
                         } else {
-                            Logger.error(`Failed to fetch image. Status: ${response.status}, URL: ${url}`);
+                            Logger.badge('FETCH FAILED', LOG_STYLES.ERROR, 'error', `HTTP Error: ${response.status}, URL: ${url}`);
                             this.failedUrls.add(cacheKey);
                             resolve(null);
                         }
                     },
                     onerror: (error) => {
-                        Logger.error(`GM_xmlhttpRequest error for URL: ${url}`, error);
+                        Logger.badge('FETCH FAILED', LOG_STYLES.ERROR, 'error', `GM_xmlhttpRequest error for URL: ${url}`, error);
                         this.failedUrls.add(cacheKey);
                         resolve(null);
                     },
                     ontimeout: () => {
-                        Logger.error(`GM_xmlhttpRequest timeout for URL: ${url}`);
+                        Logger.badge('FETCH FAILED', LOG_STYLES.ERROR, 'error', `GM_xmlhttpRequest timeout for URL: ${url}`);
                         this.failedUrls.add(cacheKey);
                         resolve(null);
                     },
@@ -3878,7 +4333,7 @@
             Logger.time('MessageCacheManager._rebuildCache');
             // Guard clause: If no conversation turns are on the page (e.g., on the homepage),
             // clear the cache if it's not already empty and exit early to prevent unnecessary queries.
-            if (!document.querySelector(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER)) {
+            if (!document.querySelector(CONSTANTS.SELECTORS.CONVERSATION_UNIT)) {
                 if (this.totalMessages.length > 0) {
                     this.clear();
                 }
@@ -4146,7 +4601,7 @@
          * @param {boolean} [force] - If true, forces the theme to be reapplied even if no changes are detected.
          */
         updateTheme(force = false) {
-            Logger.debug('Theme update triggered.');
+            Logger.badge('THEME CHECK', LOG_STYLES.DEBUG, 'debug', 'Update triggered.');
             const currentLiveURL = location.href;
             const currentTitle = this.getChatTitleAndCache();
             const urlChanged = currentLiveURL !== this.lastURL;
@@ -4160,7 +4615,7 @@
             // If the adapter returns null, it signals that the theme update should be deferred.
             // This is used to wait for a final page title after navigating from an excluded page.
             if (currentThemeSet === null) {
-                Logger.debug('Theme update deferred by platform adapter.');
+                Logger.badge('THEME CHECK', LOG_STYLES.DEBUG, 'debug', 'Theme update deferred by platform adapter.');
                 return;
             }
 
@@ -4494,7 +4949,7 @@
                         // Wait for the main app container, which is always present on chat pages.
                         const appContainer = await waitForElement(CONSTANTS.SELECTORS.MAIN_APP_CONTAINER);
                         if (!appContainer) {
-                            Logger.warn('ObserverManager: Main app container not found after URL change.');
+                            Logger.badge('OBSERVER INIT', LOG_STYLES.WARN, 'warn', 'Main app container not found after URL change.');
                             return;
                         }
 
@@ -4582,7 +5037,7 @@
                 observedInputArea = inputArea;
             };
 
-            const selector = CONSTANTS.SELECTORS.FIXED_NAV_INPUT_AREA_TARGET;
+            const selector = CONSTANTS.SELECTORS.INPUT_RESIZE_TARGET;
             sentinel.on(selector, setupObserver);
 
             // Initial check in case the element is already present on load
@@ -4654,7 +5109,7 @@
             const hasDeletion = mutations.some((mutation) => Array.from(mutation.removedNodes).some((node) => node instanceof Element && node.matches(CONSTANTS.SELECTORS.MESSAGE_ROOT_NODE)));
 
             if (hasDeletion) {
-                Logger.debug('_handleMainMutations (UPDATE: Message was deleted)');
+                Logger.badge('MUTATION', LOG_STYLES.DEBUG, 'debug', 'Message deletion detected.');
                 // A deletion occurred, so a full cache rebuild is necessary.
                 this.debouncedCacheUpdate();
             }
@@ -4686,7 +5141,7 @@
                 // This branch handles streaming turns using the efficient Sentinel observer.
                 const sentinelCallback = (completionElement) => {
                     // Ensure the completion element belongs to the turn we are observing.
-                    const completedTurnNode = completionElement.closest(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER);
+                    const completedTurnNode = completionElement.closest(CONSTANTS.SELECTORS.CONVERSATION_UNIT);
                     if (completedTurnNode !== turnNode) return;
 
                     // Self-remove the listener to prevent memory leaks and redundant calls.
@@ -4792,7 +5247,7 @@
             if (attempts >= MAX_ATTEMPTS) {
                 // Log the failure only once to avoid spamming the console.
                 if (!msgElem.dataset.avatarInjectFailed) {
-                    Logger.warn(`Avatar injection for an element failed after ${MAX_ATTEMPTS} attempts. Halting retries for this element:`, msgElem);
+                    Logger.badge('AVATAR RETRY FAILED', LOG_STYLES.WARN, 'warn', `Avatar injection failed after ${MAX_ATTEMPTS} attempts. Halting retries for this element:`, msgElem);
                     msgElem.dataset.avatarInjectFailed = 'true';
                 }
                 return; // Stop trying
@@ -4815,7 +5270,7 @@
             if (this._injectionQueue.length === 0) {
                 return;
             }
-            Logger.debug(`Processing avatar injection queue with ${this._injectionQueue.length} items.`);
+            Logger.badge('AVATAR QUEUE', LOG_STYLES.DEBUG, 'debug', `Processing ${this._injectionQueue.length} items.`);
 
             const messagesToProcess = [...this._injectionQueue];
             this._injectionQueue = [];
@@ -5325,7 +5780,7 @@
 
             const positioningParent = PlatformAdapters.BubbleUI.getNavPositioningParent(messageElement);
             if (!positioningParent) {
-                Logger.warn('Navigation button container could not be attached. Positioning parent not found for:', messageElement);
+                Logger.badge('UI WARN', LOG_STYLES.WARN, 'warn', 'Navigation button container could not be attached. Positioning parent not found for:', messageElement);
                 return null;
             }
 
@@ -6171,6 +6626,19 @@
             }
 
             const totalMessages = this.messageCacheManager.getTotalMessages();
+            const newTotal = totalMessages.length;
+            const oldTotal = this.state.previousTotalMessages;
+
+            // Check if new messages were added (e.g., from layout scan) and if we were at the end.
+            if (newTotal > oldTotal && this.state.currentIndices.total === oldTotal - 1) {
+                // We were at the old last message, and new messages appeared.
+                // Re-select the new last message. This will update indices and call _renderUI().
+                this.selectLastMessage();
+                // Update previousTotalMessages here to prevent logic blocks below from running incorrectly
+                this.state.previousTotalMessages = newTotal;
+                // Exit, as selectLastMessage() already handled the UI update.
+                return;
+            }
 
             // Validate the currently highlighted message.
             if (this.state.highlightedMessage && !totalMessages.includes(this.state.highlightedMessage)) {
@@ -6245,7 +6713,7 @@
             if (this.autoScrollManager) {
                 const autoscrollBtn = this.navConsole.querySelector(`#${APPID}-autoscroll-btn`);
                 if (autoscrollBtn instanceof HTMLButtonElement) {
-                    autoscrollBtn.disabled = this.state.isAutoScrolling;
+                    PlatformAdapters.FixedNav.updatePlatformSpecificButtonState(autoscrollBtn, this.state.isAutoScrolling, this.autoScrollManager);
                 }
             }
 
@@ -9519,7 +9987,7 @@
                         errorField.style.color = ''; // Reset color to inherit from CSS
                     }
                 } catch (error) {
-                    Logger.error('Image processing failed:', error);
+                    Logger.badge('IMAGE PROC FAILED', LOG_STYLES.ERROR, 'error', 'Image processing failed:', error);
                     // Show a proper error message with the error color on failure.
                     if (errorField instanceof HTMLElement) {
                         errorField.textContent = `Error: ${error.message}`;
@@ -10625,14 +11093,14 @@
             if (this.styleElement instanceof HTMLStyleElement) {
                 this.styleElement.disabled = true;
             }
-            Logger.debug('[Sentinel] Suspended.');
+            Logger.badge('SENTINEL', LOG_STYLES.DEBUG, 'debug', 'Suspended.');
         }
 
         resume() {
             if (this.styleElement instanceof HTMLStyleElement) {
                 this.styleElement.disabled = false;
             }
-            Logger.debug('[Sentinel] Resumed.');
+            Logger.badge('SENTINEL', LOG_STYLES.DEBUG, 'debug', 'Resumed.');
         }
     }
 
@@ -10708,9 +11176,6 @@
             this.messageCacheManager = new MessageCacheManager();
             this.syncManager = new SyncManager();
 
-            // Initialize platform-specific managers, as other managers may depend on them
-            PlatformAdapters.ThemeAutomator.initializePlatformManagers(this);
-
             // Create the rest of the managers, injecting their dependencies
             this.observerManager = new ObserverManager();
             this.uiManager = new UIManager(
@@ -10725,6 +11190,10 @@
             this.standingImageManager = new StandingImageManager(this.configManager, this.messageCacheManager);
             this.bubbleUIManager = new BubbleUIManager(this.configManager, this.messageCacheManager);
             this.messageLifecycleManager = new MessageLifecycleManager(this.messageCacheManager);
+
+            // Initialize platform-specific managers, which depend on core managers (like messageLifecycleManager)
+            PlatformAdapters.ThemeAutomator.initializePlatformManagers(this);
+
             if (config.features.fixed_nav_console.enabled) {
                 this.fixedNavManager = new FixedNavigationManager({
                     messageCacheManager: this.messageCacheManager,
@@ -10779,7 +11248,7 @@
                 EventBus.publish(EVENTS.CONFIG_WARNING_UPDATE, { show: false, message: '' });
             });
             this._subscribe(EVENTS.MESSAGE_COMPLETE, (messageElement) => {
-                const turnNode = messageElement.closest(CONSTANTS.SELECTORS.CONVERSATION_CONTAINER);
+                const turnNode = messageElement.closest(CONSTANTS.SELECTORS.CONVERSATION_UNIT);
                 if (turnNode) {
                     this.observerManager.observeTurnForCompletion(turnNode);
                 }
@@ -10815,7 +11284,7 @@
                 const activeModal = this.uiManager.getActiveModal?.();
 
                 if (activeModal) {
-                    Logger.log('ThemeAutomator: A modal is open. Storing remote update and showing conflict notification.');
+                    Logger.badge('SYNC', LOG_STYLES.DEBUG, 'debug', 'Modal open. Storing remote update & showing conflict.');
                     this.pendingRemoteConfig = newConfig;
                     const reloadCallback = () => {
                         const reopenContext = activeModal.getContextForReopen?.();
@@ -10828,17 +11297,17 @@
                     };
                     this.uiManager.showConflictNotification(activeModal, reloadCallback);
                 } else {
-                    Logger.log('ThemeAutomator: No modal open. Applying silent remote update.');
+                    Logger.badge('SYNC', LOG_STYLES.DEBUG, 'debug', 'No modal open. Applying silent remote update.');
                     this.applyUpdate(newConfig);
                 }
             } catch (e) {
-                Logger.error('ThemeAutomator: Failed to handle remote config change:', e);
+                Logger.badge('SYNC FAILED', LOG_STYLES.ERROR, 'error', 'Failed to handle remote config change:', e);
             }
         }
 
         applyPendingUpdateOnModalClose() {
             if (this.pendingRemoteConfig) {
-                Logger.log('ThemeAutomator: Modal closed with a pending update. Applying it now.');
+                Logger.badge('SYNC', LOG_STYLES.DEBUG, 'debug', 'Modal closed with pending update. Applying now.');
                 this.applyUpdate(this.pendingRemoteConfig);
                 this.pendingRemoteConfig = null;
             }
@@ -10944,7 +11413,7 @@
 
                 await this._applyUiUpdates(completeConfig, themeChanged);
             } catch (e) {
-                Logger.error('Configuration save failed:', e.message);
+                Logger.badge('SAVE FAILED', LOG_STYLES.ERROR, 'error', 'Configuration save failed:', e.message);
                 throw e; // Re-throw the error for the UI layer to catch
             }
         }
@@ -10998,20 +11467,20 @@
                 try {
                     const el = document.querySelector(selector);
                     if (el) {
-                        Logger.log(`✅ [OK] "${selector}"\n     description: ${desc}\n     element found:`, el);
+                        Logger.badge('SELECTOR OK', LOG_STYLES.LOG, 'log', `"${selector}"\n     description: ${desc}\n     element found:`, el);
                     } else {
-                        Logger.warn(`❌ [NG] "${selector}"\n     description: ${desc}\n     element NOT found.`);
+                        Logger.badge('SELECTOR NG', LOG_STYLES.WARN, 'warn', `"${selector}"\n     description: ${desc}\n     element NOT found.`);
                         allOK = false;
                     }
                 } catch (e) {
-                    Logger.error(`💥 [ERROR] Invalid selector "${selector}"\n     description: ${desc}\n     error:`, e.message);
+                    Logger.badge('SELECTOR INVALID', LOG_STYLES.ERROR, 'error', `Invalid selector "${selector}"\n     description: ${desc}\n     error:`, e.message);
                     allOK = false;
                 }
             }
             if (allOK) {
-                Logger.log('🎉 All essential selectors are currently valid!');
+                Logger.badge('SELECTOR CHECK', LOG_STYLES.LOG, 'log', 'All essential selectors are currently valid!');
             } else {
-                Logger.warn('⚠️ One or more essential selectors are NOT found or invalid. The script might not function correctly.');
+                Logger.badge('SELECTOR CHECK', LOG_STYLES.WARN, 'warn', 'One or more essential selectors are NOT found or invalid. The script might not function correctly.');
             }
             console.groupEnd();
             return allOK;
@@ -11065,13 +11534,13 @@
         // Guard: Even if the anchor is found, abort if the current page is on the exclusion list.
         // This prevents re-initialization on excluded pages that might contain the anchor element (e.g., /library?tab=images).
         if (PlatformAdapters.General.isExcludedPage()) {
-            Logger.log('Anchor element detected, but the page is on the exclusion list. Initialization aborted.');
+            Logger.badge('INIT ABORT', LOG_STYLES.WARN, 'log', 'Anchor element detected, but the page is on the exclusion list. Initialization aborted.');
             return;
         }
 
         isInitialized = true;
 
-        Logger.log('Anchor element detected. Initializing the script...');
+        Logger.badge('INIT', LOG_STYLES.LOG, 'log', 'Anchor element detected. Initializing...');
         automator.init();
     });
 
@@ -11118,8 +11587,8 @@
             /** @type {any} */ (unsafeWindow)[`${APPID}Debug`] = debugApi;
         }
 
-        Logger.log(`Debug tools are available. Use \`${APPID}Debug.help()\` in the console for a list of commands.`);
+        Logger.badge('DEBUG READY', LOG_STYLES.INFO, 'log', `Debug tools available. Use \`${APPID}Debug.help()\` for commands.`);
     } catch (e) {
-        Logger.error('Could not expose debug object to console.', e);
+        Logger.badge('DEBUG INIT FAILED', LOG_STYLES.ERROR, 'error', 'Could not expose debug object to console.', e);
     }
 })();
