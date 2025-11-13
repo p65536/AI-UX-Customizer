@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.7.0
+// @version      1.7.1
 // @license      MIT
 // @description  Fully customize the chat UI. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://chatgpt.com/favicon.ico
@@ -42,6 +42,7 @@
         LOG: 'background: #28a745;',
         WARN: 'background: #ffc107; color: black;',
         ERROR: 'background: #dc3545;',
+        DEBUG: 'background: #6c757d;',
     };
 
     // =================================================================================
@@ -9294,6 +9295,8 @@
             if (!(textarea && msgDiv instanceof HTMLElement)) {
                 return;
             }
+            // Clear previous error messages before attempting to save.
+            msgDiv.textContent = '';
 
             try {
                 const obj = JSON.parse(textarea.value);
@@ -10173,6 +10176,8 @@
         }
 
         async _handleThemeAction(shouldClose) {
+            // Clear all previous field errors before validating again.
+            this._clearAllFieldErrors();
             // Clear the global footer message on a new action
             if (this.modal?.dom?.footerMessage) this.modal.dom.footerMessage.textContent = '';
 
