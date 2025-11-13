@@ -4,6 +4,11 @@
 > This changelog applies to both **ChatGPT UX Customizer (GPTUX)** and **Gemini UX Customizer (GGGUX)**.
 > Most changes are shared between the two scripts. If a change applies only to one, it will be explicitly marked with a `[GPTUX]` or `[GGGUX]` prefix.
 
+## [1.7.2] - 2025-11-13
+- **Bug Fixes**
+  - Fixed an issue where URL hash changes (e.g., `#settings`) were incorrectly detected as a full page navigation.
+  - **[GPTUX]** This resolves a bug where the layout scan would repeatedly trigger when opening, closing, or navigating within the native ChatGPT settings modal, and fixes the associated UI sluggishness.
+
 ## [1.7.1] - 2025-11-13
 - **Bug Fixes**
   - Fixed an issue in the **JSON Modal** and **Theme Modal** where validation error messages would persist even after correcting the invalid data and resubmitting.
