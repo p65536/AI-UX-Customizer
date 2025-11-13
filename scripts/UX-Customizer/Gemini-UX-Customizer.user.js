@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.7.1
+// @version      1.7.2
 // @license      MIT
 // @description  Fully customize the chat UI. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=gemini.google.com
@@ -4800,11 +4800,12 @@
             // The handler is now defined only once and bound to the instance for stable reference.
             if (!this.boundURLChangeHandler) {
                 // Initialize with null to ensure the handler logic runs on the first call after any init.
-                let lastHref = null;
+                let lastPath = null;
 
                 this.boundURLChangeHandler = async () => {
-                    if (location.href !== lastHref) {
-                        lastHref = location.href;
+                    const currentPath = location.pathname + location.search;
+                    if (currentPath !== lastPath) {
+                        lastPath = currentPath;
                         EventBus.publish(EVENTS.NAVIGATION_START);
 
                         // Check if the new URL is an excluded page
