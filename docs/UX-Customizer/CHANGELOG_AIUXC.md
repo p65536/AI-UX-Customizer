@@ -4,6 +4,10 @@
 > This changelog applies to both **ChatGPT UX Customizer (GPTUX)** and **Gemini UX Customizer (GGGUX)**.
 > Most changes are shared between the two scripts. If a change applies only to one, it will be explicitly marked with a `[GPTUX]` or `[GGGUX]` prefix.
 
+## [1.7.1] - 2025-11-13
+- **Bug Fixes**
+  - Fixed an issue in the **JSON Modal** and **Theme Modal** where validation error messages would persist even after correcting the invalid data and resubmitting.
+
 ## [1.7.0] - 2025-11-10
 - **New Features**
   - **[GPTUX]** Added a **Layout Scan** feature specifically for **Firefox** users to mitigate scroll position jumps caused by late-loading messages or images. This includes a new "Scan layout on chat load" toggle in the settings panel and a manual trigger button in the navigation console.
