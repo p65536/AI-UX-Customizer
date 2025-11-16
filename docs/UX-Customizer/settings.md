@@ -1,8 +1,12 @@
 # AI UX Customizer Settings Screen
 
-## Settings Screen
+## Settings Panel
 
-### 1. Click the Settings button in the upper right corner to open the Settings Panel
+Access global options and feature toggles from one panel.  
+For creating and editing specific visual themes (colors, backgrounds, standing images), use the **Theme Editor** (Theme settings), accessible via the "Edit Themes..." button in this panel.
+
+
+### 1. You can access the Settings Panel by clicking the "Settings" button (gear icon) added to the screen.
 
 ![Settings button](./images/settings_button.webp)
 
@@ -23,12 +27,15 @@
 | **Prevent image/avatar overlap** | When ON, the display area will automatically adjust so that standing images do not overlap avatar icons. |
 | **[GPTUX only]**<br>**Scan layout on chat load** | **[ChatGPT only] (Firefox only)**<br>Automatically scans the chat layout when opening a chat.<br>When using Firefox, scrolling may feel rubbery due to delayed layout calculations. Enabling this option runs an automatic "layout scan" on chat load to pre-calculate element heights and reduce the issue.<br>It can also be triggered manually via the "Layout Scan" button (the left end button on navigation console). |
 | **[GGGUX only]**<br>**Load full history on chat load** | **[Gemini only]**<br>Automatically loads the entire chat history when opening a chat.<br>It can also be triggered manually via the "Load full chat history" button (the left end button on navigation console). |
+| **[GPTUX only]**<br>**Show timestamp** | **[ChatGPT only]**<br>Displays the creation time for each message.<br>(This feature is not available for Gemini as it is technically difficult to retrieve timestamps.) |
 | **Collapsible button** | Adds a button to each message to collapse long messages. |
 | **Sequential nav buttons** | Adds buttons to each message to jump to the next/previous message by the same speaker (user/assistant). |
 | **Scroll to top button** | Adds a button to each message to scroll to the top of that message. |
 | **Navigation console** | Displays an operation panel above the text input field for quick navigation between messages. |
 
 ### 3. Theme Settings Screen Items
+
+A GUI editor allows for intuitive customization of all visual elements, including colors, fonts, backgrounds, and standing images.
 
 ![Theme Editor](./images/theme_settings.webp)
 

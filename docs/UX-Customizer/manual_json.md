@@ -38,7 +38,10 @@ The following is a sample to illustrate the JSON structure. **Ready-to-use sampl
     },
     "load_full_history_on_chat_load": {
       "enabled": true
-    }
+    },
+    "timestamp": {
+      "enabled": true,
+    },
 },
   "themeSets": [
     {
@@ -167,12 +170,17 @@ Configure ON/OFF and thresholds for convenient UI improvement features.
 | `scroll_to_top_button` | Displays a button to scroll to the top of a message (or turn) at the bottom of each message bubble.  | `{ "enabled": true }` | `true`/`false`<br>Displays on the bottom-left for assistant and bottom-right for user.  |
 | `fixed_nav_console` | Displays an integrated navigation console at the top of the message input field.  | `{ "enabled": true }` | `true`/`false`<br>Displays a console bar consolidating navigation-related features for efficient message movement.  |
 | `load_full_history_on_chat_load` | `GPTUX` (Firefox only)<br>Enables "layout scan and rescan DOM" on chat load.<br>`GGGUX`<br>Enables auto-load full chat history on chat load.  | `{ "enabled": true }` | `true`/`false`<br>`GPTUX`<br>Automatically scans the chat layout when opening a chat (Firefox only. See notes below.).<br>`GGGUX`<br>Automatically loads the entire chat history when opening a chat.  |
+| `timestamp` | `GPTUX` **[ChatGPT only]**<br>Displays the creation time for each message. | `{ "enabled": true }` | `true`/`false`<br>`GPTUX` (ChatGPT) only.<br>This feature is not available for Gemini as it is technically difficult to retrieve timestamps. |
 
 ##### Notes about `load_full_history_on_chat_load` (ChatGPT / Firefox-only Option):
 When using Firefox, you may experience a "rubber-banding" or scroll-bouncing effect while scrolling. This is likely caused by layout shifts, where the height of off-screen elements (suspected to be the avatar icons) is calculated late, causing the entire page to reflow.  
 Setting this option to `true` will automatically run a "layout scan" (which simulates scrolling through the entire chat) when a conversation is loaded. This process forces the browser to calculate and finalize the height of all elements, mitigating this scrolling issue.  
 If this option is set to `false`, you can still run this function manually at any time by pressing the "Layout Scan" button on the far left of the navigation console.  
 
+##### Notes about `timestamp` (ChatGPT-only Feature):
+This feature displays the precise creation time for each message.  
+This is made possible by intercepting the `/backend-api/conversation/` API request on ChatGPT, which contains historical timestamp data. This interception requires the script to run at `document-start`.  
+This feature is **not implemented for Gemini** because Gemini uses a different data loading mechanism, and a similar API endpoint providing historical timestamps is not available for interception.
 
 -----
 

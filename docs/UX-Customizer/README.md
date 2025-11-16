@@ -13,30 +13,35 @@ It also includes convenient UI enhancements such as **message collapsing**, **a 
 Currently, it supports the following AI services.  
 The scripts have been created for each site. Please install the required script.
 
- - **ChatGPT**: **`ChatGPT UX Customizer`** `(GPTUX)`**
- - **Gemini**: **`Gemini UX Customizer`** `(GGGUX)`**
+ - **ChatGPT**: **`ChatGPT UX Customizer`** `(GPTUX)`
+ - **Gemini**: **`Gemini UX Customizer`** `(GGGUX)`
 
 ---
 
 ## Key Features
 
-* **Intuitive theme editing via GUI**
-* Automatically switch themes (color schemes, names, icons, backgrounds, etc.) for specified projects/custom GPTs/chat titles
-* **Display "standing images"** for both user and assistant separately on the left and right sides
-* **Collapsible messages** (to display long texts compactly)
-* **Advanced message navigation** (jump to next/previous/top of message)
-* **Integrated navigation console** (displays a consolidated UI for navigation features above the message input field)
-* **Message Jump List with Search**: Instantly jump to any message from a list. You can filter messages by text or regular expressions.
-* Bulk message collapsing
-* Set a maximum width for the entire chat content
-* Flexibly specify theme application targets by name or **regular expressions**
-* Customize display names, icons, and text colors for user and assistant
-* Specify user/assistant icons using SVG, PNG, JPEG, Base64 data, external URLs, etc.
-* **Specify local files for images used in themes** (automatically converted to Base64 data)
-* Export/import settings (in JSON format)
-* **Includes sample settings, making it easy to get started.**
-* **[GGGUX only] Auto-load full chat history**: Automatically loads the entire chat history when opening a conversation, eliminating the need to manually scroll up multiple times.  
-* **[GPTUX only] Layout Scan (Firefox Only)**: Automatically performs a layout scan on chat load to mitigate scroll position jumps caused by late-loading messages or images.
+- **Powerful Theme Customization**
+  - **Automatic Theme Switching**: Automatically apply different themes (colors, names, icons, backgrounds) based on chat titles, Custom GPTs, or project names using **regular expressions**.
+  - **Intuitive Theme Editor**: Edit all theme settings via a user-friendly GUI.
+  - **Display "Standing Images"**: Show unique character images for both the user and assistant on the left and right sides of the chat.
+  - **Full Actor Customization**: Change display names, avatar icons, and text colors for both user and assistant.
+  - **Flexible Image Support**: Use SVG code, PNG/JPEG URLs, or even **local files*- (which are automatically converted to Base64) for icons and backgrounds.  
+    > (Using local files is intended for temporary previews. Overuse can easily exceed the configuration size limit; using URLs is recommended for permanent themes.)
+  - **Chat Width Control**: Set a custom maximum width for the chat content area.
+
+- **Advanced Navigation & Readability**
+  - **[ChatGPT only] Message Timestamps**: Displays the creation time for each message. It fetches historical timestamps from the API and records new ones in real-time.  
+    > (This is not available for Gemini as it's technically difficult to retrieve timestamps.)
+  - **Integrated Navigation Console**: A compact UI above the input field with message counters and quick navigation buttons.
+  - **Message Jump List with Search**: Instantly jump to any message in the conversation from a list. You can filter messages by plain text or regular expressions.
+  - **Per-Message Navigation**: Adds buttons to each message to jump to the next/previous message by the same speaker (user/assistant) or scroll to the top of the current message.
+  - **Collapsible Messages**: Adds a button to collapse long messages, and includes a "Bulk Collapse/Expand" button in the navigation console.
+
+- **Utility & Platform-Specific**
+  - **Export/Import Settings**: Easily back up and share your complete configuration as a JSON file.
+  - **[Gemini only] Auto-Load Full Chat History**: Automatically loads the entire chat history when opening a conversation, eliminating the need to manually scroll up.
+  - **[ChatGPT only] Layout Scan (Firefox Only)**: Automatically performs a layout scan on chat load to mitigate scroll position jumps caused by late-loading messages or images.
+  - **Sample Settings Included**: Get started quickly with pre-built examples.
 
 ---
 
@@ -90,10 +95,10 @@ The scripts have been created for each site. Please install the required script.
 
 ## How to Use
 
-* Click the **gear icon** in the upper right corner to **open the Settings Panel**.
-* From the Settings Panel, you can change various options or **open the Theme Editor (GUI) to create and edit themes**.
-* In the navigation console above the input field, **click on the "Assistant:", "Total:", or "User:" labels** to open the message **Jump List**.
-* If needed, use the "JSON" button to export your current settings or import sample settings.
+- Click the **gear icon** in the upper right corner to **open the Settings Panel**.
+- From the Settings Panel, you can change various options or **open the Theme Editor (GUI) to create and edit themes**.
+- In the navigation console above the input field, **click on the "Assistant:", "Total:", or "User:" labels** to open the message **Jump List**.
+- If needed, use the "JSON" button to export your current settings or import sample settings.
 
 ---
 
@@ -106,9 +111,9 @@ After applying the settings, the `defaultSet` configuration from the sample sett
 
 Next, to check the theme application for a specific project/custom GPT/chat, try the following:
 
-* Start a chat name with `[Theme1]` -> The theme for `[Theme1]` will be applied.
-* Start a chat name with `[Theme2]` -> The theme for `[Theme2]` will be applied.
-* Start a chat name with `[Game]` -> The theme for `[Game]` will be applied.
+- Start a chat name with `[Theme1]` -> The theme for `[Theme1]` will be applied.
+- Start a chat name with `[Theme2]` -> The theme for `[Theme2]` will be applied.
+- Start a chat name with `[Game]` -> The theme for `[Game]` will be applied.
 
 The samples include one default theme and three specific themes.
 Try modifying these settings to your liking. The GUI theme editor makes it easy to make changes.
@@ -117,26 +122,55 @@ Try modifying these settings to your liking. The GUI theme editor makes it easy 
 
 ## Settings Details
 
--   [Settings Screen](./settings.md)
--   [Configuration Properties](./manual_json.md)
+- [Settings Screen](./settings.md)
+- [Configuration Properties](./manual_json.md)
 
 ---
 
 ## Recommended Usage & Customization
 
-  * Enhance the feeling of a personal assistant by setting custom icons and names.
-  * Visually distinguish what you are working on by changing text colors and icons for each project.
-  * Set up character profiles for multiple work projects or TRPG sessions.
-  * Express your personality with custom icons or SVGs from Google Fonts.
-  * Flexibly match theme application targets with regular expressions.
+- **Create Immersive Characters**:  
+Build detailed profiles for creative writing or TRPG sessions. Combine **custom names, icons, and standing images*- to bring your characters to life.
+- **Visually Separate Your Work**:  
+Assign unique themes (colors, icons, backgrounds) for different projects, clients, or subjects (e.g., 'Project A', 'Code Review', 'Personal') to reduce mental friction when context-switching.
+- **Quickly Review Long Chats**:  
+Use the **Navigation Console*- and **Jump List*- (with text/regex search) to instantly find key information or review the flow of long, complex conversations.
+- **Personalize Your Workspace**:  
+Set a custom **background image*- (like your company logo, project art, or a relaxing landscape) to make your environment feel more focused and personal.
+- **Label Your Chats**:  
+Use simple icons from sources like Google Fonts (Material Symbols) to create a clear visual language for different types of chats (e.g., a "bug" icon for debugging, a "book" icon for research).
+
+---
 
 ## Notes & Limitations
 
-  * **You can specify local images for image fields in theme settings, but please do not overuse this feature.** It can lead to bloated configuration JSON and degraded performance. Whenever possible, specify online resources. The main purpose of this feature is to easily check how your local images appear when applied to a theme. While it can also be used for images you prefer not to host online, please limit its use to around 3-5 themes.
-  * This script uses the special permission `GM_xmlhttpRequest` to load external resources (such as background and standing images) without being restricted by a website's Content Security Policy (CSP). When loading images from external sites, a dialog requesting access permission for the content will appear, so please approve it for use.
-  * **If the AI service's UI or page structure undergoes major changes, the script may stop working.**
-  * It has been tested on Firefox. It has also been confirmed to work on Chrome-based browsers, but less extensively.
-  * Only the latest version of each script is provided. Past versions can be referenced from Git history. This repository does not use release or tag features.
+- **Local Image Feature & Storage Limits:**
+  - The feature to select local files (for icons, standing images, etc.) is intended primarily for **temporary previews** to see how an image looks.
+  - It works by converting the image into Base64 (text) and saving it *directly* into your settings file.
+  - **Warning:** Use this feature sparingly. Base64-encoded images are very large and can easily cause your settings file to exceed the browser's storage limit (approx. 5MB), leading to errors and poor performance.
+  - **Recommendation:** For any theme you plan to keep, please **host the images online** (e.g., on Imgur, GitHub, or a personal server) and use the URL instead.
+
+- **External Image Permissions (`GM_xmlhttpRequest`):**
+  - To load images from external URLs (e.g., `https://i.imgur.com/...`), the script requires the `GM_xmlhttpRequest` permission.
+  - The *first time* you add an image from a new domain, your userscript manager (Tampermonkey/Violentmonkey) will prompt you to grant access to that specific domain. You must **approve this** for the images to load.
+
+- **Site Updates:**
+  - This script is tightly coupled to the website's UI structure. If ChatGPT or Gemini releases a major UI update, the script **will likely break** and require an update to function correctly.
+
+- **Browser Support:**
+  - The script is primarily developed and tested on **Firefox** with **Tampermonkey**.
+  - It is also confirmed to work on Chrome-based browsers, but testing on these platforms is less extensive.
+
+- **Versioning:**
+  - This repository only provides the latest version of the script. Past versions are not tracked via GitHub Releases or tags; please refer to the Git commit history if needed.
+
+---
+
+## Tested Environment
+
+- This script is designed for **desktop browsers** and does not support mobile environments.
+- This script is primarily developed and tested on **Firefox** with **Tampermonkey**.
+- It is also confirmed to work on Chromium-based browsers, but testing on these platforms is less extensive.
 
 -----
 
@@ -150,22 +184,3 @@ MIT License
 
   * [p65536](https://github.com/p65536)
 
------
-
-## Known Issues
-
-  * No consideration for UI when using Canvas features.
-
-## Future Plans
-
-### High Priority (Items the author wants to implement)
-
-  * Additional UI adjustments when using Canvas (e.g., how the navigation console is displayed)
-  
-### Low Priority (Items under consideration but not deemed necessary at present)
-
-  * Cloud-based settings synchronization (local management via export/import is sufficient).
-  * Theme application to the sidebar.
-  * Font changes for the input area.
-  * On/off switch for theme application to the toolbar area (the top area with project name, chat title, account icon, etc.) (Initially, the toolbar was excluded from theme application, but it stood out more than expected, so it's now fully applied).
-  * Applying themes to Canvas

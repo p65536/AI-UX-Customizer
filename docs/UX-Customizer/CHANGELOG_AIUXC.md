@@ -4,6 +4,18 @@
 > This changelog applies to both **ChatGPT UX Customizer (GPTUX)** and **Gemini UX Customizer (GGGUX)**.
 > Most changes are shared between the two scripts. If a change applies only to one, it will be explicitly marked with a `[GPTUX]` or `[GGGUX]` prefix.
 
+## [1.8.0] - 2025-11-16
+- **New Features**
+  - **[GPTUX]** Added a new **Message Timestamp** feature to display the creation time for each message (enabled by default). This feature intercepts API requests to load historical timestamps and records new ones in real-time.
+  - **[GPTUX]** A "Show timestamp" toggle has been added to the settings panel to control this feature.
+- **Core Changes**
+  - Changed the script execution timing (`@run-at`) from `document-idle` to `document-start`. This is a foundational change required for API interception for Timestamps.
+  - Hardened core lifecycle logic (`Sentinel`, `ObserverManager`) to ensure robust operation when running at `document-start`, particularly improving how page navigation completion is detected.
+  - Improved observer performance and isolation by refactoring panel/toolbar observers (like the one for the settings button) to use their own dedicated `Sentinel` instances. This allows for cleaner setup and teardown.
+  - Updated the main `Sentinel` prefix to `OWNERID + APPID` to ensure no conflicts between other scripts.
+- **Fixes & Improvements**
+  - **[GPTUX]** Implemented dynamic repositioning for the settings button. It will now automatically move to the left to avoid overlapping with the ChatGPT header toolbar (e.g., when the 'Share' button appears).
+
 ## [1.7.2] - 2025-11-13
 - **Bug Fixes**
   - Fixed an issue where URL hash changes (e.g., `#settings`) were incorrectly detected as a full page navigation.

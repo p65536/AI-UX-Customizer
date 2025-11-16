@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.3.0] - 2025-11-16
+- **New Features & UI Improvements**
+  - **[ChatGPT]** Improved button positioning logic. The buttons will now detect and avoid colliding with other UI elements (like native buttons or other UserScripts).
+- **Fixes**
+  - Fixed a major bug where the script would fail to re-initialize or position buttons correctly when using SPA navigation (e.g., switching chats or navigating from /gpts to a chat) without a full page reload.
+- **Core Changes & Refactoring**
+  - Rebuilt the Settings Panel using a new declarative UI schema. This internal refactor improves maintainability and makes future options easier to add.
+  - Modernized core utilities (Logger, EventBus, Sentinel) for better performance, debugging, and stability.
+  - Improved config merging to correctly preserve nested user settings (like `options` and `developer` settings) instead of being overwritten by defaults.
+  - Introduced new internal utilities (`withLayoutCycle`, `runWhenIdle`) to optimize layout performance and task scheduling.
+
 ## [1.2.0] - 2025-09-25
 - **Performance & Stability**
   - Reworked the internal event handling system to be more efficient. This reduces the script's resource usage and improves responsiveness.
