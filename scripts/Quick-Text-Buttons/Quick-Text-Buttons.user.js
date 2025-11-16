@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Quick-Text-Buttons
 // @namespace    https://github.com/p65536
-// @version      1.2.0
+// @version      1.3.0
 // @license      MIT
 // @description  Adds customizable buttons to paste predefined text into the input field on ChatGPT/Gemini.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/qtb.ico
@@ -28,63 +28,149 @@
     const LOG_PREFIX = `[${APPID.toUpperCase()}]`;
 
     // =================================================================================
+    // SECTION: Style Definitions
+    // =================================================================================
+
+    // Style definitions for styled Logger.badge()
+    const LOG_STYLES = {
+        BASE: 'color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold;',
+        INFO: 'background: #007bff;',
+        LOG: 'background: #28a745;',
+        WARN: 'background: #ffc107; color: black;',
+        ERROR: 'background: #dc3545;',
+        DEBUG: 'background: #6c757d;',
+    };
+
+    // =================================================================================
     // SECTION: Logging Utility
     // Description: Centralized logging interface for consistent log output across modules.
     //              Handles log level control, message formatting, and console API wrapping.
     // =================================================================================
 
-    const Logger = {
+    class Logger {
         /** @property {object} levels - Defines the numerical hierarchy of log levels. */
-        levels: {
+        static levels = {
             error: 0,
             warn: 1,
             info: 2,
             log: 3,
-        },
+            debug: 4,
+        };
         /** @property {string} level - The current active log level. */
-        level: 'log', // Default level
+        static level = 'log'; // Default level
+
         /**
          * Sets the current log level.
-         * @param {string} level The new log level. Must be one of 'error', 'warn', 'info', 'log'.
+         * @param {string} level The new log level. Must be one of 'error', 'warn', 'info', 'log', 'debug'.
          */
-        setLevel(level) {
+        static setLevel(level) {
             if (Object.prototype.hasOwnProperty.call(this.levels, level)) {
                 this.level = level;
             } else {
-                console.warn(LOG_PREFIX, `Invalid log level "${level}". Valid levels are: ${Object.keys(this.levels).join(', ')}. Level not changed.`);
+                Logger.badge('INVALID LEVEL', LOG_STYLES.WARN, 'warn', `Invalid log level "${level}". Valid levels are: ${Object.keys(this.levels).join(', ')}. Level not changed.`);
             }
-        },
+        }
+
         /** @param {...any} args The messages or objects to log. */
-        error(...args) {
+        static error(...args) {
             if (this.levels[this.level] >= this.levels.error) {
                 console.error(LOG_PREFIX, ...args);
             }
-        },
+        }
+
         /** @param {...any} args The messages or objects to log. */
-        warn(...args) {
+        static warn(...args) {
             if (this.levels[this.level] >= this.levels.warn) {
                 console.warn(LOG_PREFIX, ...args);
             }
-        },
+        }
+
         /** @param {...any} args The messages or objects to log. */
-        info(...args) {
+        static info(...args) {
             if (this.levels[this.level] >= this.levels.info) {
                 console.info(LOG_PREFIX, ...args);
             }
-        },
+        }
+
         /** @param {...any} args The messages or objects to log. */
-        log(...args) {
+        static log(...args) {
             if (this.levels[this.level] >= this.levels.log) {
                 console.log(LOG_PREFIX, ...args);
             }
-        },
-        /** @param {...any} args The title for the log group. */
-        group: (...args) => console.group(LOG_PREFIX, ...args),
-        /** @param {...any} args The title for the collapsed log group. */
-        groupCollapsed: (...args) => console.groupCollapsed(LOG_PREFIX, ...args),
-        /** Closes the current log group. */
-        groupEnd: () => console.groupEnd(),
-    };
+        }
+
+        /**
+         * Logs messages for debugging. Only active in 'debug' level.
+         * @param {...any} args The messages or objects to log.
+         */
+        static debug(...args) {
+            if (this.levels[this.level] >= this.levels.debug) {
+                // Use console.debug for better filtering in browser dev tools.
+                console.debug(LOG_PREFIX, ...args);
+            }
+        }
+
+        /**
+         * Starts a timer for performance measurement. Only active in 'debug' level.
+         * @param {string} label The label for the timer.
+         */
+        static time(label) {
+            if (this.levels[this.level] >= this.levels.debug) {
+                console.time(`${LOG_PREFIX} ${label}`);
+            }
+        }
+
+        /**
+         * Ends a timer and logs the elapsed time. Only active in 'debug' level.
+         * @param {string} label The label for the timer, must match the one used in time().
+         */
+        static timeEnd(label) {
+            if (this.levels[this.level] >= this.levels.debug) {
+                console.timeEnd(`${LOG_PREFIX} ${label}`);
+            }
+        }
+
+        /**
+         * @param {...any} args The title for the log group.
+         * @returns {void}
+         */
+        static group = (...args) => console.group(LOG_PREFIX, ...args);
+        /**
+         * @param {...any} args The title for the collapsed log group.
+         * @returns {void}
+         */
+        static groupCollapsed = (...args) => console.groupCollapsed(LOG_PREFIX, ...args);
+        /**
+         * Closes the current log group.
+         * @returns {void}
+         */
+        static groupEnd = () => console.groupEnd();
+
+        /**
+         * Logs a message with a styled badge for better visibility.
+         * @param {string} badgeText - The text inside the badge.
+         * @param {string} badgeStyle - The background-color style (from LOG_STYLES).
+         * @param {'log'|'warn'|'error'|'info'|'debug'} level - The console log level.
+         * @param {...any} args - Additional messages to log after the badge.
+         */
+        static badge(badgeText, badgeStyle, level, ...args) {
+            if (this.levels[this.level] < this.levels[level]) {
+                return; // Respect the current log level
+            }
+
+            const style = `${LOG_STYLES.BASE} ${badgeStyle}`;
+            const consoleMethod = console[level] || console.log;
+
+            consoleMethod(
+                `%c${LOG_PREFIX}%c %c${badgeText}%c`,
+                'font-weight: bold;', // Style for the prefix
+                'color: inherit;', // Reset for space
+                style, // Style for the badge
+                'color: inherit;', // Reset for the rest of the message
+                ...args
+            );
+        }
+    }
 
     // =================================================================================
     // SECTION: Execution Guard
@@ -115,6 +201,391 @@
     }
 
     // =================================================================================
+    // SECTION: Configuration and Constants
+    // Description: Defines default settings, global constants, and CSS selectors.
+    // =================================================================================
+
+    const CONSTANTS = {
+        CONFIG_KEY: `${APPID}_config`,
+        CONFIG_SIZE_LIMIT_BYTES: 5033164, // 4.8MB
+        ID_PREFIX: `${APPID}-id-`,
+        TEXT_LIST_WIDTH: 500,
+        HIDE_DELAY_MS: 250,
+        MODAL: {
+            WIDTH: 440,
+            PADDING: 16,
+            RADIUS: 8,
+            BTN_RADIUS: 5,
+            BTN_FONT_SIZE: 13,
+            BTN_PADDING: '5px 16px',
+            TITLE_MARGIN_BOTTOM: 8,
+            BTN_GROUP_GAP: 8,
+            TEXTAREA_HEIGHT: 200,
+        },
+        TIMING: {
+            DEBOUNCE_DELAYS: {
+                UI_UPDATE: 50,
+            },
+            TIMEOUTS: {
+                // Delay to wait for panel transition animations (e.g., Canvas, File Panel) to complete
+                PANEL_TRANSITION_DURATION: 350,
+                // Fallback delay for requestIdleCallback
+                IDLE_EXECUTION_FALLBACK: 50,
+            },
+        },
+        UI_DEFAULTS: {
+            SETTINGS_BUTTON_POSITION: { top: '10px', right: '360px' },
+            INSERT_BUTTON_POSITION: { top: '10px', right: '400px' },
+            RECALC_DEBOUNCE_MS: 150,
+            // Offset for Canvas mode = (GPTUX Canvas Offset 96px) + (QTB Btn Width 32px) + (Gap 8px) = 136px
+            GPT_CANVAS_OFFSET_PX: 136,
+            GPT_BUTTON_GAP_PX: 8,
+            // Offset for Header mode = (GPTUX Header Offset 36px) + (QTB Btn Width 32px) + (Gap 8px) = 76px
+            SETTINGS_BUTTON_HEADER_OFFSET_PX: 76,
+            // Reference position (right px) for UI collision detection. (e.g., compatible with GPTUX's 320px)
+            COLLISION_REFERENCE_RIGHT_PX: 320,
+        },
+        OBSERVED_ELEMENT_TYPES: {
+            BODY: 'body',
+            INPUT_AREA: 'inputArea',
+            SIDE_PANEL: 'sidePanel',
+        },
+        SELECTORS: {
+            chatgpt: {
+                MAIN_APP_CONTAINER: 'main#main',
+                ANCHOR_ELEMENT: 'div.ProseMirror#prompt-textarea',
+                CANVAS_CONTAINER: 'section.popover button',
+                CANVAS_RESIZE_TARGET: 'section.popover',
+                HEADER_ACTIONS_CONTAINER: '#conversation-header-actions',
+                PAGE_HEADER: '#page-header',
+            },
+            gemini: {
+                MAIN_APP_CONTAINER: 'bard-sidenav-content',
+                ANCHOR_ELEMENT: 'rich-textarea .ql-editor',
+                CANVAS_CONTAINANER: 'immersive-panel',
+                CANVAS_RESIZE_TARGET: null,
+                HEADER_ACTIONS_CONTAINER: null,
+                PAGE_HEADER: null,
+            },
+        },
+    };
+
+    const EVENTS = {
+        CONFIG_SIZE_EXCEEDED: `${APPID}:configSizeExceeded`,
+        CONFIG_SAVE_SUCCESS: `${APPID}:configSaveSuccess`,
+        REOPEN_MODAL: `${APPID}:reOpenModal`,
+        CANVAS_STATE_CHANGED: `${APPID}:canvasStateChanged`,
+        CANVAS_RESIZED: `${APPID}:canvasResized`,
+        CONFIG_UPDATED: `${APPID}:configUpdated`,
+        UI_REPOSITION: `${APPID}:uiReposition`,
+    };
+
+    // ---- Site-specific Style Variables ----
+    const SITE_STYLES = {
+        chatgpt: {
+            SETTINGS_BUTTON: {
+                background: 'var(--interactive-bg-secondary-default)',
+                borderColor: 'var(--interactive-border-secondary-default)',
+                backgroundHover: 'var(--interactive-bg-secondary-hover)',
+                borderRadius: 'var(--radius-md, 4px)',
+                iconDef: {
+                    tag: 'svg',
+                    props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
+                    children: [
+                        {
+                            tag: 'path',
+                            props: {
+                                d: 'M270-80q-45 0-77.5-30.5T160-186v-558q0-38 23.5-68t61.5-38l395-78v640l-379 76q-9 2-15 9.5t-6 16.5q0 11 9 18.5t21 7.5h450v-640h80v720H270Zm90-233 200-39v-478l-200 39v478Zm-80 16v-478l-15 3q-11 2-18 9.5t-7 18.5v457q5-2 10.5-3.5T261-293l19-4Zm-40-472v482-482Z',
+                            },
+                        },
+                    ],
+                },
+            },
+            INSERT_BUTTON: {
+                background: 'var(--interactive-bg-secondary-default)',
+                borderColor: 'var(--interactive-border-secondary-default)',
+                backgroundHover: 'var(--interactive-bg-secondary-hover)',
+                borderRadius: 'var(--radius-md, 4px)',
+                iconDef: {
+                    tag: 'svg',
+                    props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 0 24 24', width: '24px', fill: 'currentColor' },
+                    children: [
+                        { tag: 'path', props: { d: 'M0 0h24v24H0V0z', fill: 'none' } },
+                        {
+                            tag: 'path',
+                            props: {
+                                d: 'M14.06 9.02l.92.92L5.92 19H5v-.92l9.06-9.06M17.66 3c-.25 0-.51.1-.7.29l-1.83 1.83 3.75 3.75 1.83-1.83c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.2-.2-.45-.29-.71-.29zm-3.6 3.19L3 17.25V21h3.75L17.81 9.94l-3.75-3.75z',
+                            },
+                        },
+                    ],
+                },
+            },
+            SETTINGS_PANEL: {
+                bg: 'var(--sidebar-surface-primary)',
+                text_primary: 'var(--text-primary)',
+                text_secondary: 'var(--text-secondary)',
+                border_medium: 'var(--border-medium)',
+                border_default: 'var(--border-default)',
+                border_light: 'var(--border-light)',
+                accent_color: 'var(--text-accent)',
+                input_bg: 'var(--bg-primary)',
+                input_text: 'var(--text-primary)',
+                input_border: 'var(--border-default)',
+                toggle_bg_off: 'var(--bg-primary)',
+                toggle_bg_on: 'var(--text-accent)',
+                toggle_knob: 'var(--text-primary)',
+            },
+            JSON_MODAL: {
+                bg: 'var(--main-surface-primary)',
+                text: 'var(--text-primary)',
+                border: 'var(--border-default)',
+                btn_bg: 'var(--interactive-bg-tertiary-default)',
+                btn_hover_bg: 'var(--interactive-bg-secondary-hover)',
+                btn_text: 'var(--text-primary)',
+                btn_border: 'var(--border-default)',
+                textarea_bg: 'var(--bg-primary)',
+                textarea_text: 'var(--text-primary)',
+                textarea_border: 'var(--border-default)',
+                msg_error_text: 'var(--text-danger)',
+                msg_success_text: 'var(--text-accent)',
+            },
+            THEME_MODAL: {
+                modal_bg: 'var(--main-surface-primary)',
+                modal_text: 'var(--text-primary)',
+                modal_border: 'var(--border-default)',
+                btn_bg: 'var(--interactive-bg-tertiary-default)',
+                btn_hover_bg: 'var(--interactive-bg-secondary-hover)',
+                btn_text: 'var(--text-primary)',
+                btn_border: 'var(--border-default)',
+                error_text: 'var(--text-danger)',
+                delete_confirm_label_text: 'var(--text-danger)',
+                delete_confirm_btn_text: 'var(--interactive-label-danger-secondary-default)',
+                delete_confirm_btn_bg: 'var(--interactive-bg-danger-secondary-default)',
+                delete_confirm_btn_hover_text: 'var(--interactive-label-danger-secondary-hover)',
+                delete_confirm_btn_hover_bg: 'var(--interactive-bg-danger-secondary-hover)',
+                fieldset_border: 'var(--border-medium)',
+                legend_text: 'var(--text-secondary)',
+                label_text: 'var(--text-secondary)',
+                input_bg: 'var(--bg-primary)',
+                input_text: 'var(--text-primary)',
+                input_border: 'var(--border-default)',
+                slider_display_text: 'var(--text-secondary)',
+                popup_bg: 'var(--main-surface-primary)',
+                popup_border: 'var(--border-default)',
+                dnd_indicator_color: 'var(--text-accent)',
+                upIconDef: {
+                    tag: 'svg',
+                    props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
+                    children: [{ tag: 'path', props: { d: 'M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z' } }],
+                },
+                downIconDef: {
+                    tag: 'svg',
+                    props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
+                    children: [{ tag: 'path', props: { d: 'M480-344 240-584l56-56 184 184 184-184 56 56-240 240Z' } }],
+                },
+                deleteIconDef: {
+                    tag: 'svg',
+                    props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
+                    children: [{ tag: 'path', props: { d: 'm256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z' } }],
+                },
+            },
+            TEXT_LIST: {
+                bg: 'var(--main-surface-primary)',
+                text: 'var(--text-primary)',
+                border: 'var(--border-light)',
+                shadow: 'var(--drop-shadow-md, 0 3px 3px #0000001f)',
+                separator_bg: 'var(--border-default)',
+                tab_bg: 'var(--interactive-bg-tertiary-default)',
+                tab_text: 'var(--text-primary)',
+                tab_border: 'var(--border-light)',
+                tab_hover_bg: 'var(--interactive-bg-secondary-hover)',
+                tab_active_bg: 'var(--interactive-bg-secondary-hover)',
+                tab_active_border: 'var(--border-default)',
+                tab_active_outline: 'var(--border-default)',
+                option_bg: 'var(--interactive-bg-tertiary-default)',
+                option_text: 'var(--text-primary)',
+                option_border: 'var(--border-default)',
+                option_hover_bg: 'var(--interactive-bg-secondary-hover)',
+                option_hover_border: 'var(--border-default)',
+                option_hover_outline: 'var(--border-default)',
+            },
+        },
+        gemini: {
+            SETTINGS_BUTTON: {
+                background: 'var(--gem-sys-color--surface-container-high)',
+                borderColor: 'var(--gem-sys-color--outline)',
+                backgroundHover: 'var(--gem-sys-color--surface-container-higher)',
+                borderRadius: 'var(--radius-md, 4px)',
+                iconDef: {
+                    tag: 'svg',
+                    props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
+                    children: [
+                        {
+                            tag: 'path',
+                            props: {
+                                d: 'M270-80q-45 0-77.5-30.5T160-186v-558q0-38 23.5-68t61.5-38l395-78v640l-379 76q-9 2-15 9.5t-6 16.5q0 11 9 18.5t21 7.5h450v-640h80v720H270Zm90-233 200-39v-478l-200 39v478Zm-80 16v-478l-15 3q-11 2-18 9.5t-7 18.5v457q5-2 10.5-3.5T261-293l19-4Zm-40-472v482-482Z',
+                            },
+                        },
+                    ],
+                },
+            },
+            INSERT_BUTTON: {
+                background: 'var(--gem-sys-color--surface-container-high)',
+                borderColor: 'var(--gem-sys-color--outline)',
+                backgroundHover: 'var(--gem-sys-color--surface-container-higher)',
+                borderRadius: 'var(--radius-md, 4px)',
+                iconDef: {
+                    tag: 'svg',
+                    props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 0 24 24', width: '24px', fill: 'currentColor' },
+                    children: [
+                        { tag: 'path', props: { d: 'M0 0h24v24H0V0z', fill: 'none' } },
+                        {
+                            tag: 'path',
+                            props: {
+                                d: 'M14.06 9.02l.92.92L5.92 19H5v-.92l9.06-9.06M17.66 3c-.25 0-.51.1-.7.29l-1.83 1.83 3.75 3.75 1.83-1.83c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.2-.2-.45-.29-.71-.29zm-3.6 3.19L3 17.25V21h3.75L17.81 9.94l-3.75-3.75z',
+                            },
+                        },
+                    ],
+                },
+            },
+            SETTINGS_PANEL: {
+                bg: 'var(--gem-sys-color--surface-container-highest)',
+                text_primary: 'var(--gem-sys-color--on-surface)',
+                text_secondary: 'var(--gem-sys-color--on-surface-variant)',
+                border_medium: 'var(--gem-sys-color--outline)',
+                border_default: 'var(--gem-sys-color--outline)',
+                border_light: 'var(--gem-sys-color--outline)',
+                accent_color: 'var(--gem-sys-color--primary)',
+                input_bg: 'var(--gem-sys-color--surface-container-low)',
+                input_text: 'var(--gem-sys-color--on-surface)',
+                input_border: 'var(--gem-sys-color--outline)',
+                toggle_bg_off: 'var(--gem-sys-color--surface-container)',
+                toggle_bg_on: 'var(--gem-sys-color--primary)',
+                toggle_knob: 'var(--gem-sys-color--on-primary-container)',
+            },
+            JSON_MODAL: {
+                bg: 'var(--gem-sys-color--surface-container-highest)',
+                text: 'var(--gem-sys-color--on-surface)',
+                border: 'var(--gem-sys-color--outline)',
+                btn_bg: 'var(--gem-sys-color--surface-container-high)',
+                btn_hover_bg: 'var(--gem-sys-color--surface-container-higher)',
+                btn_text: 'var(--gem-sys-color--on-surface-variant)',
+                btn_border: 'var(--gem-sys-color--outline)',
+                textarea_bg: 'var(--gem-sys-color--surface-container-low)',
+                textarea_text: 'var(--gem-sys-color--on-surface)',
+                textarea_border: 'var(--gem-sys-color--outline)',
+                msg_error_text: 'var(--gem-sys-color--error)',
+                msg_success_text: 'var(--gem-sys-color--primary)',
+            },
+            THEME_MODAL: {
+                modal_bg: 'var(--gem-sys-color--surface-container-highest)',
+                modal_text: 'var(--gem-sys-color--on-surface)',
+                modal_border: 'var(--gem-sys-color--outline)',
+                btn_bg: 'var(--gem-sys-color--surface-container-high)',
+                btn_hover_bg: 'var(--gem-sys-color--surface-container-higher)',
+                btn_text: 'var(--gem-sys-color--on-surface-variant)',
+                btn_border: 'var(--gem-sys-color--outline)',
+                error_text: 'var(--gem-sys-color--error)',
+                delete_confirm_label_text: 'var(--gem-sys-color--error)',
+                delete_confirm_btn_text: 'var(--gem-sys-color--on-error-container)',
+                delete_confirm_btn_bg: 'var(--gem-sys-color--error-container)',
+                delete_confirm_btn_hover_text: 'var(--gem-sys-color--on-error-container)',
+                delete_confirm_btn_hover_bg: 'var(--gem-sys-color--error-container)',
+                fieldset_border: 'var(--gem-sys-color--outline)',
+                legend_text: 'var(--gem-sys-color--on-surface-variant)',
+                label_text: 'var(--gem-sys-color--on-surface-variant)',
+                input_bg: 'var(--gem-sys-color--surface-container-low)',
+                input_text: 'var(--gem-sys-color--on-surface)',
+                input_border: 'var(--gem-sys-color--outline)',
+                slider_display_text: 'var(--gem-sys-color--on-surface-variant)',
+                popup_bg: 'var(--gem-sys-color--surface-container-highest)',
+                popup_border: 'var(--gem-sys-color--outline)',
+                dnd_indicator_color: 'var(--gem-sys-color--primary)',
+                upIconDef: {
+                    tag: 'svg',
+                    props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
+                    children: [{ tag: 'path', props: { d: 'M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z' } }],
+                },
+                downIconDef: {
+                    tag: 'svg',
+                    props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
+                    children: [{ tag: 'path', props: { d: 'M480-344 240-584l56-56 184 184 184-184 56 56-240 240Z' } }],
+                },
+                deleteIconDef: {
+                    tag: 'svg',
+                    props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
+                    children: [{ tag: 'path', props: { d: 'm256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z' } }],
+                },
+            },
+            TEXT_LIST: {
+                bg: 'var(--gem-sys-color--surface-container-high)',
+                text: 'var(--gem-sys-color--on-surface)',
+                border: 'var(--gem-sys-color--outline)',
+                shadow: '0 4px 12px rgba(0,0,0,0.25)',
+                separator_bg: 'var(--gem-sys-color--outline-variant)',
+                tab_bg: 'var(--gem-sys-color--surface-container)',
+                tab_text: 'var(--gem-sys-color--on-surface-variant)',
+                tab_border: 'var(--gem-sys-color--outline)',
+                tab_hover_bg: 'var(--gem-sys-color--surface-container-higher)',
+                tab_active_bg: 'var(--gem-sys-color--surface-container-higher)',
+                tab_active_border: 'var(--gem-sys-color--primary)',
+                tab_active_outline: 'var(--gem-sys-color--primary)',
+                option_bg: 'var(--gem-sys-color--surface-container)',
+                option_text: 'var(--gem-sys-color--on-surface-variant)',
+                option_border: 'var(--gem-sys-color--outline)',
+                option_hover_bg: 'var(--gem-sys-color--surface-container-higher)',
+                option_hover_border: 'var(--gem-sys-color--outline)',
+                option_hover_outline: 'var(--gem-sys-color--primary)',
+            },
+        },
+    };
+
+    const DEFAULT_CONFIG = {
+        options: {
+            insert_before_newline: false,
+            insert_after_newline: false,
+            insertion_position: 'cursor', // 'cursor', 'start', 'end'
+            activeProfileName: 'Default',
+        },
+        developer: {
+            logger_level: 'log', // 'error', 'warn', 'info', 'log', 'debug'
+        },
+        texts: {
+            Default: {
+                Test: [
+                    '[TEST MESSAGE] You can ignore this message.',
+                    'Tell me something interesting.',
+                    'Based on all of our previous conversations, generate an image of me as you imagine. Make it super-realistic. Please feel free to fill in any missing information with your own imagination. Do not ask follow-up questions; generate the image immediately.',
+                    'Based on all of our previous conversations, generate an image of my ideal partner (opposite sex) as you imagine. Make it super-realistic. Please feel free to fill in any missing information with your own imagination. Do not ask follow-up questions; generate the image immediately.',
+                    'Based on all of our previous conversations, generate an image of a person who is the exact opposite of my ideal partner. Make it super-realistic. Please feel free to fill in any missing information with your own imagination. Do not ask follow-up questions; generate the image immediately.',
+                ],
+                Images: [
+                    'For each generated image, include an "image number" (e.g., Image 1, Image 2, ...), a title, and an image description.\n\n',
+                    'Refer to the body shape and illustration style in the attached images, and draw the same person. Pay special attention to maintaining character consistency.\n\n',
+                    'Feel free to illustrate a scene from everyday life. You can choose the composition or situation. If you are depicting consecutive scenes (a story), make sure to keep everything consistent (e.g., do not change clothing for no reason).\n\n',
+                ],
+                Coding: [
+                    '### Code Editing Rules (Apply to the entire chat)\nStrictly follow these rules for all code suggestions, changes, optimizations, and Canvas reflection:\n1. **Do not modify any part of the code that is not being edited.**\n   * This includes blank lines, comments, variable names, order, etc. **Strictly keep all unmodified parts as is.**\n2. **Always leave concise, meaningful comments.**\n   * Limit comments to content that aids understanding or future maintenance. Do not include formal or duplicate notes.\n3. **When proposing or changing code, clearly state the intent and scope.**\n   * Example: "Improve performance of this function," "Simplify this conditional branch," etc.\n4. **Apply the above rules even for Canvas reflection.**\n   * Do not reformat, remove, or reorder content on the GPT side.\n5. **Preserve the overall style of the code (indentation, newlines, etc.).**\n   * Only edited parts should stand out clearly as differences.\n\n',
+                    'Optimize the following script according to modern design guidelines.\nWhile maintaining its purpose and function, improve the structure, readability, and extensibility.\nIf there are improvements, clearly indicate them in the code comments and compare Before→After.\n\n```\n```\n\n',
+                ],
+                Summary: [
+                    'STEP 1: For this chat log, do not summarize, but clearly show the structure of the content. Please output in the following format:\n\n- 🔹 List of topics (each topic heading and its starting point)\n- 🧷 List of technical terms / keywords / commands / proper nouns\n- 📌 Key statements marking turning points in the discussion (quotes allowed)\n\n[NOTE]\nThe goal is not to summarize, but to "enumerate and organize the topics."\nGive priority to extracting important elements while maintaining context.\n',
+                    'STEP 2: For this chat log, enumerate the content as it is, without summarizing or restructuring.\n\nSample output format:\n1. [Start] Consulted about PowerShell script character encoding error\n2. [Proposal] Suggested UTF-8 with BOM save\n3. [Clarification] Clarified misunderstanding about Shift-JIS (e.g., cp932)\n4. [Conclusion] Decided on UTF-8-only approach with PowerShell\n\n[NOTE]\nMaintain the original order of topics. The goal is not to summarize, but to list "what was discussed" and "what conclusions were drawn."',
+                    "STEP 3: Provide a mid-level summary for each topic in this chat log.\nCompression ratio can be low. Do not omit topics, and keep granularity somewhat fine.\n\nSample output format:\n## Chat title (or date)\n\n### Topic 1: About XXXXX\n- Overview:\n- Main discussion points:\n- Tentative conclusion or direction:\n\n### Topic 2: About YYYYY\n- ...\n\n[NOTE]\nIt's okay to be verbose. Ensure important details are not omitted so that a human can organize them later.",
+                    'STEP 4: For each topic in this chat log, add the following indicators:\n\n- [Importance]: High / Medium / Low\n- [Reference recommended]: Yes / No (Is it worth reusing/repurposing?)\n- [Reference keywords]: About 3 search keywords\n\nThe purpose is to provide criteria for organizing or deleting this record in the future.',
+                ],
+                Memory: [
+                    '[Memory list output] Please display all currently stored model set context (memory list) for me.\nSeparate by category, output concisely and accurately.',
+                    '[Add to memory] Please add the following content to the model set context:\n\n[Category] (e.g., PowerShell)\n[Content]\n- Always unify the log output folder for PowerShell scripts to a "logs" subfolder.\n- Internal comments in scripts should be written in Japanese.\n\nPlease consistently refer to this information as context and policy in future conversations.',
+                    '[Edit memory] Please edit the following memory content:\n\n[Target category] PowerShell\n[Current text to be edited] The default encoding for PowerShell scripts is "UTF-8 with BOM."\n[New text] The default encoding for PowerShell scripts is "UTF-8 without BOM."\n\nBe sure to discard the old information and replace it with the new information.',
+                    '[Delete memory] Please completely delete the following memory content:\n\n[Target category] Image generation (Haruna)\n[Text to be deleted]\n- Always include an image number and situation description (caption) when generating images.\n\nEnsure that this information is completely removed and will not affect future conversations.',
+                    'Summarize everything you have learned about our conversation and commit it to the memory update.',
+                ],
+            },
+        },
+    };
+
+    // =================================================================================
     // SECTION: Platform-Specific Adapter
     // Description: Centralizes all platform-specific logic, such as selectors and
     //              DOM manipulation strategies.
@@ -127,19 +598,13 @@
                 if (host.includes('chatgpt.com')) {
                     return {
                         platformId: 'chatgpt',
-                        selectors: {
-                            ANCHOR_ELEMENT: 'div.ProseMirror#prompt-textarea',
-                            CANVAS_CONTAINER: 'section.popover header h2',
-                        },
+                        selectors: CONSTANTS.SELECTORS.chatgpt,
                     };
                 }
                 if (host.includes('gemini.google.com')) {
                     return {
                         platformId: 'gemini',
-                        selectors: {
-                            ANCHOR_ELEMENT: 'rich-textarea .ql-editor',
-                            CANVAS_CONTAINER: 'immersive-panel',
-                        },
+                        selectors: CONSTANTS.SELECTORS.gemini,
                     };
                 }
                 return null;
@@ -183,33 +648,91 @@
                     const { settingsBtn, insertBtn } = uiManager.components;
                     if (!settingsBtn?.element || !insertBtn?.element) return;
 
-                    const canvasTitle = document.querySelector(platform.selectors.CANVAS_CONTAINER);
+                    withLayoutCycle({
+                        measure: () => {
+                            // --- Read Phase ---
+                            const canvasPanel = document.querySelector(platform.selectors.CANVAS_CONTAINER)?.closest(platform.selectors.CANVAS_RESIZE_TARGET);
+                            const headerActionsEl = document.querySelector(platform.selectors.HEADER_ACTIONS_CONTAINER);
+                            const settingsBtnWidth = settingsBtn.element.offsetWidth; // Read width
 
-                    if (canvasTitle) {
-                        const canvasPanel = canvasTitle.closest('section.popover');
-                        if (canvasPanel) {
-                            const canvasRect = canvasPanel.getBoundingClientRect();
-                            const offset = CONSTANTS.POSITIONING.GPT_CANVAS_OFFSET_PX;
-                            const gap = CONSTANTS.POSITIONING.GPT_BUTTON_GAP_PX;
+                            let canvasRect = null;
+                            let anchorLeftEdge = null;
 
-                            // Position Settings Button to the left of the canvas
-                            settingsBtn.element.style.right = '';
-                            settingsBtn.element.style.left = `${canvasRect.left - offset}px`;
+                            if (canvasPanel) {
+                                canvasRect = canvasPanel.getBoundingClientRect();
+                            } else if (headerActionsEl) {
+                                // Find the first visible direct child element to use as an anchor
+                                const leftmostVisibleChild = headerActionsEl.querySelector(':scope > *:not([hidden])');
+                                const anchorEl = leftmostVisibleChild || headerActionsEl; // Fallback to the container itself
+                                anchorLeftEdge = anchorEl.getBoundingClientRect().left;
+                            }
 
-                            // Position Insert Button to the left of the Settings Button
-                            const settingsBtnWidth = settingsBtn.element.offsetWidth;
-                            insertBtn.element.style.right = '';
-                            insertBtn.element.style.left = `${canvasRect.left - offset - settingsBtnWidth - gap}px`;
-                            return;
-                        }
-                    }
+                            return { canvasRect, headerActionsEl, anchorLeftEdge, settingsBtnWidth };
+                        },
+                        mutate: (measured) => {
+                            // --- Calculate & Write Phase ---
+                            if (!measured) {
+                                return;
+                            }
 
-                    // --- Fallback / Revert to default position ---
-                    settingsBtn.element.style.left = '';
-                    settingsBtn.element.style.right = settingsBtn.options.position.right;
+                            const { canvasRect, headerActionsEl, anchorLeftEdge, settingsBtnWidth } = measured;
+                            let styleProps = null;
 
-                    insertBtn.element.style.left = '';
-                    insertBtn.element.style.right = insertBtn.options.position.right;
+                            if (canvasRect) {
+                                // 1. Canvas Mode
+                                const offset = CONSTANTS.UI_DEFAULTS.GPT_CANVAS_OFFSET_PX;
+                                const gap = CONSTANTS.UI_DEFAULTS.GPT_BUTTON_GAP_PX;
+                                const settingsLeft = canvasRect.left - offset;
+                                const insertLeft = settingsLeft - settingsBtnWidth - gap;
+
+                                styleProps = {
+                                    settings: { property: 'left', value: `${settingsLeft}px` },
+                                    insert: { property: 'left', value: `${insertLeft}px` },
+                                };
+                            } else if (headerActionsEl && anchorLeftEdge !== null) {
+                                // 2. Standard Mode - Check for collision
+                                const referenceButtonRightPx = CONSTANTS.UI_DEFAULTS.COLLISION_REFERENCE_RIGHT_PX; // Use 320px reference
+                                const collisionMargin = 8; // Use 8px margin (same as GPTUX)
+                                const buttonDefaultRightEdge = window.innerWidth - referenceButtonRightPx;
+                                const isColliding = buttonDefaultRightEdge + collisionMargin > anchorLeftEdge;
+
+                                if (isColliding) {
+                                    // 2a. Collision detected
+                                    const offset = CONSTANTS.UI_DEFAULTS.SETTINGS_BUTTON_HEADER_OFFSET_PX;
+                                    const gap = CONSTANTS.UI_DEFAULTS.GPT_BUTTON_GAP_PX;
+                                    const settingsLeft = anchorLeftEdge - offset;
+                                    const insertLeft = settingsLeft - settingsBtnWidth - gap;
+
+                                    styleProps = {
+                                        settings: { property: 'left', value: `${settingsLeft}px` },
+                                        insert: { property: 'left', value: `${insertLeft}px` },
+                                    };
+                                }
+                            }
+
+                            // 3. Default/Fallback (if styleProps is still null)
+                            if (!styleProps) {
+                                styleProps = {
+                                    settings: { property: 'right', value: CONSTANTS.UI_DEFAULTS.SETTINGS_BUTTON_POSITION.right },
+                                    insert: { property: 'right', value: CONSTANTS.UI_DEFAULTS.INSERT_BUTTON_POSITION.right },
+                                };
+                            }
+
+                            // --- Write Phase ---
+                            const applyStyle = (element, style) => {
+                                if (style.property === 'left') {
+                                    element.style.right = '';
+                                    element.style.left = style.value;
+                                } else {
+                                    element.style.left = '';
+                                    element.style.right = style.value;
+                                }
+                            };
+
+                            applyStyle(settingsBtn.element, styleProps.settings);
+                            applyStyle(insertBtn.element, styleProps.insert);
+                        },
+                    });
                 }
             },
         },
@@ -220,47 +743,222 @@
              * @returns {Function[]} An array of functions to be called by ObserverManager.
              */
             getInitializers() {
-                return [this.startCanvasObserver];
+                return [this.startCanvasObserver, this.startHeaderActionsObserver];
+            },
+
+            async startHeaderActionsObserver(dependencies) {
+                const platform = PlatformAdapters.General.getPlatformDetails();
+                // Only run this observer for ChatGPT
+                if (!platform || platform.platformId !== 'chatgpt' || !platform.selectors.HEADER_ACTIONS_CONTAINER) {
+                    return () => {};
+                }
+
+                let disappearanceObserver = null;
+                let internalChangeObserver = null;
+                let lastKnownState = false; // false = absent, true = present
+                let isStateUpdating = false; // Lock to prevent race conditions
+
+                const headerActionsSelector = platform.selectors.HEADER_ACTIONS_CONTAINER;
+                const pageHeaderSelector = platform.selectors.PAGE_HEADER;
+
+                // This is the single source of truth for updating the UI based on panel visibility.
+                const updateHeaderActionsState = async (headerActionsElement) => {
+                    if (isStateUpdating) {
+                        return;
+                    }
+                    isStateUpdating = true;
+
+                    try {
+                        // If an element is passed, it just appeared. If not, we're checking its state.
+                        const headerActions = headerActionsElement || document.querySelector(headerActionsSelector);
+                        const isNowVisible = !!headerActions;
+
+                        // Do nothing if the state hasn't changed.
+                        if (isNowVisible === lastKnownState) {
+                            isStateUpdating = false;
+                            return;
+                        }
+
+                        lastKnownState = isNowVisible;
+
+                        // Disconnect any previous observers
+                        disappearanceObserver?.disconnect();
+                        internalChangeObserver?.disconnect();
+                        disappearanceObserver = null;
+                        internalChangeObserver = null;
+
+                        if (isNowVisible) {
+                            // --- Container just appeared ---
+                            const pageHeader = await waitForElement(pageHeaderSelector, {}, panelSentinel);
+                            if (!pageHeader) {
+                                isStateUpdating = false;
+                                return;
+                            }
+
+                            // 1. Observer for Disappearance: Watch the parent for child removal.
+                            disappearanceObserver = new MutationObserver(() => {
+                                // Re-check state if the parent container's children change.
+                                // We only care if the element we are watching still exists.
+                                if (!document.querySelector(headerActionsSelector)) {
+                                    // Call directly, without debounce
+                                    updateHeaderActionsState(null);
+                                }
+                            });
+                            // Watch only for direct children changes in the header.
+                            disappearanceObserver.observe(pageHeader, { childList: true, subtree: false });
+
+                            // 2. Observer for Internal Changes: Watch the element itself for resizing.
+                            internalChangeObserver = new MutationObserver(() => {
+                                EventBus.publish(EVENTS.UI_REPOSITION);
+                            });
+                            // Watch for any change that might affect its width.
+                            internalChangeObserver.observe(headerActions, {
+                                attributes: true,
+                                childList: true,
+                                subtree: true,
+                                attributeFilter: ['style', 'class', 'hidden'],
+                            });
+                        } else {
+                            // --- Container disappeared ---
+                        }
+
+                        // Publish events after state change (for both appearance and disappearance).
+                        EventBus.publish(EVENTS.UI_REPOSITION);
+                    } finally {
+                        isStateUpdating = false;
+                    }
+                };
+
+                // Create the debounced version of the update function
+                const debouncedUpdate = debounce(updateHeaderActionsState, CONSTANTS.TIMING.DEBOUNCE_DELAYS.UI_UPDATE);
+
+                // Use Sentinel to efficiently detect when the container might have been added.
+                const sentinelCallback = (element) => {
+                    // Call the debounced function
+                    debouncedUpdate(element);
+                };
+                panelSentinel.on(headerActionsSelector, sentinelCallback);
+
+                // Perform an initial check in case the container is already present on load.
+                sentinelCallback(null);
+
+                // Return the cleanup function for all resources created by this observer.
+                return () => {
+                    panelSentinel.off(headerActionsSelector, sentinelCallback);
+                    disappearanceObserver?.disconnect();
+                    internalChangeObserver?.disconnect();
+                };
             },
 
             /**
              * @private
-             * @description Starts an observer for ChatGPT's Canvas panel resizing.
+             * @description Starts a stateful observer for the Canvas panel (GPT specific) using Sentinel and a targeted MutationObserver.
              * This method is called by ObserverManager, with the manager instance bound to `this`.
+             * @param {{observeElement: function(HTMLElement, string): void, unobserveElement: function(HTMLElement): void}} dependencies The required methods from ObserverManager.
+             * @returns {Promise<() => void>} A promise resolving with a cleanup function.
              */
-            startCanvasObserver() {
+            async startCanvasObserver({ observeElement, unobserveElement }) {
                 const platform = PlatformAdapters.General.getPlatformDetails();
-                if (!platform || platform.platformId !== 'chatgpt') return;
+                // Only run this observer for ChatGPT
+                if (!platform || platform.platformId !== 'chatgpt') {
+                    // Return a no-op cleanup function for other platforms
+                    return () => {};
+                }
 
-                let canvasResizeObserver = null;
-                let lastCanvasState = false;
+                let disappearanceObserver = null;
+                let isPanelVisible = false;
+                let isStateUpdating = false; // Lock to prevent race conditions
+                let observedCanvasPanel = null; // Store the currently observed panel
+                let repositionTimeoutId = null; // For transition delay
 
-                const checkCanvasState = () => {
-                    const canvasPanel = document.querySelector(platform.selectors.CANVAS_CONTAINER)?.closest('section.popover');
-                    const isCanvasActive = !!canvasPanel;
+                // Single source of truth for UI updates based on panel visibility
+                const updatePanelState = async () => {
+                    if (isStateUpdating) return; // Prevent concurrent executions
+                    isStateUpdating = true;
 
-                    if (isCanvasActive === lastCanvasState) return;
-                    lastCanvasState = isCanvasActive;
+                    try {
+                        const canvasTrigger = document.querySelector(platform.selectors.CANVAS_CONTAINER);
+                        const isNowVisible = !!canvasTrigger;
 
-                    // Disconnect any previous observer to prevent memory leaks
-                    canvasResizeObserver?.disconnect();
-                    canvasResizeObserver = null;
+                        if (isNowVisible === isPanelVisible) {
+                            // State hasn't changed, do nothing.
+                            isStateUpdating = false; // Release lock before returning
+                            return;
+                        }
 
-                    if (isCanvasActive) {
-                        // Canvas appeared, attach resize observer specifically to the canvas panel
-                        canvasResizeObserver = new ResizeObserver(this.debouncedCanvasResized);
-                        canvasResizeObserver.observe(canvasPanel);
+                        isPanelVisible = isNowVisible;
+                        clearTimeout(repositionTimeoutId); // Clear any pending reposition
+
+                        if (isNowVisible) {
+                            // --- Panel appeared ---
+                            const canvasPanel = canvasTrigger.closest(platform.selectors.CANVAS_RESIZE_TARGET); // Specific to GPT's structure
+                            if (!(canvasPanel instanceof HTMLElement)) {
+                                isStateUpdating = false; // Release lock
+                                return;
+                            }
+                            Logger.debug('[Canvas Observer] Panel appeared.');
+                            observedCanvasPanel = canvasPanel; // Store reference
+
+                            // Use the ObserverManager's ResizeObserver
+                            observeElement(observedCanvasPanel, CONSTANTS.OBSERVED_ELEMENT_TYPES.SIDE_PANEL);
+
+                            // Setup MutationObserver to detect disappearance (removal from DOM)
+                            const observerContainer = (await waitForElement(platform.selectors.MAIN_APP_CONTAINER, {}, panelSentinel))?.parentElement?.parentElement;
+                            if (observerContainer) {
+                                disappearanceObserver = new MutationObserver(() => {
+                                    // Re-check state if the parent container's children change.
+                                    // Use querySelector to confirm disappearance, as mutation records can be unreliable.
+                                    if (!document.querySelector(platform.selectors.CANVAS_CONTAINER)) {
+                                        updatePanelState();
+                                    }
+                                });
+                                disappearanceObserver.observe(observerContainer, { childList: true, subtree: false }); // GPTUX logic
+                            } else {
+                                Logger.warn('[Canvas Observer] Could not find suitable parent container to observe for panel disappearance.');
+                                isStateUpdating = false; // Release lock
+                                return;
+                            }
+                        } else {
+                            // --- Panel disappeared ---
+                            Logger.debug('[Canvas Observer] Panel disappeared.');
+                            disappearanceObserver?.disconnect();
+                            disappearanceObserver = null;
+                            if (observedCanvasPanel) {
+                                // Use the ObserverManager's unobserve method
+                                unobserveElement(observedCanvasPanel);
+                                observedCanvasPanel = null; // Clear reference
+                            }
+                        }
+
+                        // Always publish state change after appearance/disappearance, after transition
+                        repositionTimeoutId = setTimeout(() => {
+                            EventBus.publish(EVENTS.UI_REPOSITION);
+                        }, CONSTANTS.TIMING.TIMEOUTS.PANEL_TRANSITION_DURATION);
+                    } finally {
+                        isStateUpdating = false; // Release the lock
                     }
-                    // Always trigger a state change event when the canvas appears or disappears
-                    this.debouncedCanvasStateChanged();
                 };
 
-                const debouncedStateCheck = debounce(checkCanvasState, CONSTANTS.POSITIONING.RECALC_DEBOUNCE_MS);
-                const canvasDetectionObserver = new MutationObserver(debouncedStateCheck);
-                canvasDetectionObserver.observe(document.body, { childList: true, subtree: true });
+                // Use Sentinel to efficiently detect when the canvas might have been added.
+                const sentinelCallback = () => {
+                    // Use debounce to handle rapid additions/removals during UI updates
+                    debounce(updatePanelState, CONSTANTS.TIMING.DEBOUNCE_DELAYS.UI_UPDATE)();
+                };
+                panelSentinel.on(platform.selectors.CANVAS_CONTAINER, sentinelCallback);
 
-                // Initial check on load
-                checkCanvasState();
+                // Perform an initial check in case the canvas is already present on load.
+                sentinelCallback();
+
+                // Return the cleanup function.
+                return () => {
+                    panelSentinel.off(platform.selectors.CANVAS_CONTAINER, sentinelCallback);
+                    disappearanceObserver?.disconnect();
+                    clearTimeout(repositionTimeoutId);
+                    if (observedCanvasPanel) {
+                        unobserveElement(observedCanvasPanel);
+                    }
+                    Logger.debug('[Canvas Observer] Cleaned up.');
+                };
             },
         },
     };
@@ -501,391 +1199,61 @@
     }
 
     // =================================================================================
-    // SECTION: Configuration and Constants
-    // Description: Defines default settings, global constants, and CSS selectors.
-    // =================================================================================
-
-    const CONSTANTS = {
-        CONFIG_KEY: `${APPID}_config`,
-        CONFIG_SIZE_LIMIT_BYTES: 5033164, // 4.8MB
-        ID_PREFIX: `${APPID}-id-`,
-        TEXT_LIST_WIDTH: 500,
-        HIDE_DELAY_MS: 250,
-        MODAL: {
-            WIDTH: 440,
-            PADDING: 16,
-            RADIUS: 8,
-            BTN_RADIUS: 5,
-            BTN_FONT_SIZE: 13,
-            BTN_PADDING: '5px 16px',
-            TITLE_MARGIN_BOTTOM: 8,
-            BTN_GROUP_GAP: 8,
-            TEXTAREA_HEIGHT: 200,
-        },
-        POSITIONING: {
-            RECALC_DEBOUNCE_MS: 150,
-            GPT_CANVAS_OFFSET_PX: 136,
-            GPT_BUTTON_GAP_PX: 8,
-        },
-        UI_DEFAULTS: {
-            SETTINGS_BUTTON_POSITION: { top: '10px', right: '360px' },
-            INSERT_BUTTON_POSITION: { top: '10px', right: '400px' },
-        },
-    };
-
-    // ---- Site-specific Style Variables ----
-    const SITE_STYLES = {
-        chatgpt: {
-            SETTINGS_BUTTON: {
-                background: 'var(--interactive-bg-secondary-default)',
-                borderColor: 'var(--interactive-border-secondary-default)',
-                backgroundHover: 'var(--interactive-bg-secondary-hover)',
-                borderRadius: 'var(--radius-md, 4px)',
-                iconDef: {
-                    tag: 'svg',
-                    props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
-                    children: [
-                        {
-                            tag: 'path',
-                            props: {
-                                d: 'M270-80q-45 0-77.5-30.5T160-186v-558q0-38 23.5-68t61.5-38l395-78v640l-379 76q-9 2-15 9.5t-6 16.5q0 11 9 18.5t21 7.5h450v-640h80v720H270Zm90-233 200-39v-478l-200 39v478Zm-80 16v-478l-15 3q-11 2-18 9.5t-7 18.5v457q5-2 10.5-3.5T261-293l19-4Zm-40-472v482-482Z',
-                            },
-                        },
-                    ],
-                },
-            },
-            INSERT_BUTTON: {
-                background: 'var(--interactive-bg-secondary-default)',
-                borderColor: 'var(--interactive-border-secondary-default)',
-                backgroundHover: 'var(--interactive-bg-secondary-hover)',
-                borderRadius: 'var(--radius-md, 4px)',
-                iconDef: {
-                    tag: 'svg',
-                    props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 0 24 24', width: '24px', fill: 'currentColor' },
-                    children: [
-                        { tag: 'path', props: { d: 'M0 0h24v24H0V0z', fill: 'none' } },
-                        {
-                            tag: 'path',
-                            props: { d: 'M14.06 9.02l.92.92L5.92 19H5v-.92l9.06-9.06M17.66 3c-.25 0-.51.1-.7.29l-1.83 1.83 3.75 3.75 1.83-1.83c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.2-.2-.45-.29-.71-.29zm-3.6 3.19L3 17.25V21h3.75L17.81 9.94l-3.75-3.75z' },
-                        },
-                    ],
-                },
-            },
-            SETTINGS_PANEL: {
-                bg: 'var(--sidebar-surface-primary)',
-                text_primary: 'var(--text-primary)',
-                text_secondary: 'var(--text-secondary)',
-                border_medium: 'var(--border-medium)',
-                border_default: 'var(--border-default)',
-                border_light: 'var(--border-light)',
-                accent_color: 'var(--text-accent)',
-                input_bg: 'var(--bg-primary)',
-                input_text: 'var(--text-primary)',
-                input_border: 'var(--border-default)',
-                toggle_bg_off: 'var(--bg-primary)',
-                toggle_bg_on: 'var(--text-accent)',
-                toggle_knob: 'var(--text-primary)',
-            },
-            JSON_MODAL: {
-                bg: 'var(--main-surface-primary)',
-                text: 'var(--text-primary)',
-                border: 'var(--border-default)',
-                btn_bg: 'var(--interactive-bg-tertiary-default)',
-                btn_hover_bg: 'var(--interactive-bg-secondary-hover)',
-                btn_text: 'var(--text-primary)',
-                btn_border: 'var(--border-default)',
-                textarea_bg: 'var(--bg-primary)',
-                textarea_text: 'var(--text-primary)',
-                textarea_border: 'var(--border-default)',
-                msg_error_text: 'var(--text-danger)',
-                msg_success_text: 'var(--text-accent)',
-            },
-            THEME_MODAL: {
-                modal_bg: 'var(--main-surface-primary)',
-                modal_text: 'var(--text-primary)',
-                modal_border: 'var(--border-default)',
-                btn_bg: 'var(--interactive-bg-tertiary-default)',
-                btn_hover_bg: 'var(--interactive-bg-secondary-hover)',
-                btn_text: 'var(--text-primary)',
-                btn_border: 'var(--border-default)',
-                error_text: 'var(--text-danger)',
-                delete_confirm_label_text: 'var(--text-danger)',
-                delete_confirm_btn_text: 'var(--interactive-label-danger-secondary-default)',
-                delete_confirm_btn_bg: 'var(--interactive-bg-danger-secondary-default)',
-                delete_confirm_btn_hover_text: 'var(--interactive-label-danger-secondary-hover)',
-                delete_confirm_btn_hover_bg: 'var(--interactive-bg-danger-secondary-hover)',
-                fieldset_border: 'var(--border-medium)',
-                legend_text: 'var(--text-secondary)',
-                label_text: 'var(--text-secondary)',
-                input_bg: 'var(--bg-primary)',
-                input_text: 'var(--text-primary)',
-                input_border: 'var(--border-default)',
-                slider_display_text: 'var(--text-secondary)',
-                popup_bg: 'var(--main-surface-primary)',
-                popup_border: 'var(--border-default)',
-                dnd_indicator_color: 'var(--text-accent)',
-                upIconDef: {
-                    tag: 'svg',
-                    props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
-                    children: [{ tag: 'path', props: { d: 'M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z' } }],
-                },
-                downIconDef: {
-                    tag: 'svg',
-                    props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
-                    children: [{ tag: 'path', props: { d: 'M480-344 240-584l56-56 184 184 184-184 56 56-240 240Z' } }],
-                },
-                deleteIconDef: {
-                    tag: 'svg',
-                    props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
-                    children: [{ tag: 'path', props: { d: 'm256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z' } }],
-                },
-            },
-            TEXT_LIST: {
-                bg: 'var(--main-surface-primary)',
-                text: 'var(--text-primary)',
-                border: 'var(--border-light)',
-                shadow: 'var(--drop-shadow-md, 0 3px 3px #0000001f)',
-                separator_bg: 'var(--border-default)',
-                tab_bg: 'var(--interactive-bg-tertiary-default)',
-                tab_text: 'var(--text-primary)',
-                tab_border: 'var(--border-light)',
-                tab_hover_bg: 'var(--interactive-bg-secondary-hover)',
-                tab_active_bg: 'var(--interactive-bg-secondary-hover)',
-                tab_active_border: 'var(--border-default)',
-                tab_active_outline: 'var(--border-default)',
-                option_bg: 'var(--interactive-bg-tertiary-default)',
-                option_text: 'var(--text-primary)',
-                option_border: 'var(--border-default)',
-                option_hover_bg: 'var(--interactive-bg-secondary-hover)',
-                option_hover_border: 'var(--border-default)',
-                option_hover_outline: 'var(--border-default)',
-            },
-        },
-        gemini: {
-            SETTINGS_BUTTON: {
-                background: 'var(--gem-sys-color--surface-container-high)',
-                borderColor: 'var(--gem-sys-color--outline)',
-                backgroundHover: 'var(--gem-sys-color--surface-container-higher)',
-                borderRadius: 'var(--radius-md, 4px)',
-                iconDef: {
-                    tag: 'svg',
-                    props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
-                    children: [
-                        {
-                            tag: 'path',
-                            props: {
-                                d: 'M270-80q-45 0-77.5-30.5T160-186v-558q0-38 23.5-68t61.5-38l395-78v640l-379 76q-9 2-15 9.5t-6 16.5q0 11 9 18.5t21 7.5h450v-640h80v720H270Zm90-233 200-39v-478l-200 39v478Zm-80 16v-478l-15 3q-11 2-18 9.5t-7 18.5v457q5-2 10.5-3.5T261-293l19-4Zm-40-472v482-482Z',
-                            },
-                        },
-                    ],
-                },
-            },
-            INSERT_BUTTON: {
-                background: 'var(--gem-sys-color--surface-container-high)',
-                borderColor: 'var(--gem-sys-color--outline)',
-                backgroundHover: 'var(--gem-sys-color--surface-container-higher)',
-                borderRadius: 'var(--radius-md, 4px)',
-                iconDef: {
-                    tag: 'svg',
-                    props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 0 24 24', width: '24px', fill: 'currentColor' },
-                    children: [
-                        { tag: 'path', props: { d: 'M0 0h24v24H0V0z', fill: 'none' } },
-                        {
-                            tag: 'path',
-                            props: { d: 'M14.06 9.02l.92.92L5.92 19H5v-.92l9.06-9.06M17.66 3c-.25 0-.51.1-.7.29l-1.83 1.83 3.75 3.75 1.83-1.83c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.2-.2-.45-.29-.71-.29zm-3.6 3.19L3 17.25V21h3.75L17.81 9.94l-3.75-3.75z' },
-                        },
-                    ],
-                },
-            },
-            SETTINGS_PANEL: {
-                bg: 'var(--gem-sys-color--surface-container-highest)',
-                text_primary: 'var(--gem-sys-color--on-surface)',
-                text_secondary: 'var(--gem-sys-color--on-surface-variant)',
-                border_medium: 'var(--gem-sys-color--outline)',
-                border_default: 'var(--gem-sys-color--outline)',
-                border_light: 'var(--gem-sys-color--outline)',
-                accent_color: 'var(--gem-sys-color--primary)',
-                input_bg: 'var(--gem-sys-color--surface-container-low)',
-                input_text: 'var(--gem-sys-color--on-surface)',
-                input_border: 'var(--gem-sys-color--outline)',
-                toggle_bg_off: 'var(--gem-sys-color--surface-container)',
-                toggle_bg_on: 'var(--gem-sys-color--primary)',
-                toggle_knob: 'var(--gem-sys-color--on-primary-container)',
-            },
-            JSON_MODAL: {
-                bg: 'var(--gem-sys-color--surface-container-highest)',
-                text: 'var(--gem-sys-color--on-surface)',
-                border: 'var(--gem-sys-color--outline)',
-                btn_bg: 'var(--gem-sys-color--surface-container-high)',
-                btn_hover_bg: 'var(--gem-sys-color--surface-container-higher)',
-                btn_text: 'var(--gem-sys-color--on-surface-variant)',
-                btn_border: 'var(--gem-sys-color--outline)',
-                textarea_bg: 'var(--gem-sys-color--surface-container-low)',
-                textarea_text: 'var(--gem-sys-color--on-surface)',
-                textarea_border: 'var(--gem-sys-color--outline)',
-                msg_error_text: 'var(--gem-sys-color--error)',
-                msg_success_text: 'var(--gem-sys-color--primary)',
-            },
-            THEME_MODAL: {
-                modal_bg: 'var(--gem-sys-color--surface-container-highest)',
-                modal_text: 'var(--gem-sys-color--on-surface)',
-                modal_border: 'var(--gem-sys-color--outline)',
-                btn_bg: 'var(--gem-sys-color--surface-container-high)',
-                btn_hover_bg: 'var(--gem-sys-color--surface-container-higher)',
-                btn_text: 'var(--gem-sys-color--on-surface-variant)',
-                btn_border: 'var(--gem-sys-color--outline)',
-                error_text: 'var(--gem-sys-color--error)',
-                delete_confirm_label_text: 'var(--gem-sys-color--error)',
-                delete_confirm_btn_text: 'var(--gem-sys-color--on-error-container)',
-                delete_confirm_btn_bg: 'var(--gem-sys-color--error-container)',
-                delete_confirm_btn_hover_text: 'var(--gem-sys-color--on-error-container)',
-                delete_confirm_btn_hover_bg: 'var(--gem-sys-color--error-container)',
-                fieldset_border: 'var(--gem-sys-color--outline)',
-                legend_text: 'var(--gem-sys-color--on-surface-variant)',
-                label_text: 'var(--gem-sys-color--on-surface-variant)',
-                input_bg: 'var(--gem-sys-color--surface-container-low)',
-                input_text: 'var(--gem-sys-color--on-surface)',
-                input_border: 'var(--gem-sys-color--outline)',
-                slider_display_text: 'var(--gem-sys-color--on-surface-variant)',
-                popup_bg: 'var(--gem-sys-color--surface-container-highest)',
-                popup_border: 'var(--gem-sys-color--outline)',
-                dnd_indicator_color: 'var(--gem-sys-color--primary)',
-                upIconDef: {
-                    tag: 'svg',
-                    props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
-                    children: [{ tag: 'path', props: { d: 'M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z' } }],
-                },
-                downIconDef: {
-                    tag: 'svg',
-                    props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
-                    children: [{ tag: 'path', props: { d: 'M480-344 240-584l56-56 184 184 184-184 56 56-240 240Z' } }],
-                },
-                deleteIconDef: {
-                    tag: 'svg',
-                    props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
-                    children: [{ tag: 'path', props: { d: 'm256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z' } }],
-                },
-            },
-            TEXT_LIST: {
-                bg: 'var(--gem-sys-color--surface-container-high)',
-                text: 'var(--gem-sys-color--on-surface)',
-                border: 'var(--gem-sys-color--outline)',
-                shadow: '0 4px 12px rgba(0,0,0,0.25)',
-                separator_bg: 'var(--gem-sys-color--outline-variant)',
-                tab_bg: 'var(--gem-sys-color--surface-container)',
-                tab_text: 'var(--gem-sys-color--on-surface-variant)',
-                tab_border: 'var(--gem-sys-color--outline)',
-                tab_hover_bg: 'var(--gem-sys-color--surface-container-higher)',
-                tab_active_bg: 'var(--gem-sys-color--surface-container-higher)',
-                tab_active_border: 'var(--gem-sys-color--primary)',
-                tab_active_outline: 'var(--gem-sys-color--primary)',
-                option_bg: 'var(--gem-sys-color--surface-container)',
-                option_text: 'var(--gem-sys-color--on-surface-variant)',
-                option_border: 'var(--gem-sys-color--outline)',
-                option_hover_bg: 'var(--gem-sys-color--surface-container-higher)',
-                option_hover_border: 'var(--gem-sys-color--outline)',
-                option_hover_outline: 'var(--gem-sys-color--primary)',
-            },
-        },
-    };
-
-    const DEFAULT_CONFIG = {
-        options: {
-            insert_before_newline: false,
-            insert_after_newline: false,
-            insertion_position: 'cursor', // 'cursor', 'start', 'end'
-            activeProfileName: 'Default',
-        },
-        texts: {
-            Default: {
-                Test: [
-                    '[TEST MESSAGE] You can ignore this message.',
-                    'Tell me something interesting.',
-                    'Based on all of our previous conversations, generate an image of me as you imagine. Make it super-realistic. Please feel free to fill in any missing information with your own imagination. Do not ask follow-up questions; generate the image immediately.',
-                    'Based on all of our previous conversations, generate an image of my ideal partner (opposite sex) as you imagine. Make it super-realistic. Please feel free to fill in any missing information with your own imagination. Do not ask follow-up questions; generate the image immediately.',
-                    'Based on all of our previous conversations, generate an image of a person who is the exact opposite of my ideal partner. Make it super-realistic. Please feel free to fill in any missing information with your own imagination. Do not ask follow-up questions; generate the image immediately.',
-                ],
-                Images: [
-                    'For each generated image, include an "image number" (e.g., Image 1, Image 2, ...), a title, and an image description.\n\n',
-                    'Refer to the body shape and illustration style in the attached images, and draw the same person. Pay special attention to maintaining character consistency.\n\n',
-                    'Feel free to illustrate a scene from everyday life. You can choose the composition or situation. If you are depicting consecutive scenes (a story), make sure to keep everything consistent (e.g., do not change clothing for no reason).\n\n',
-                ],
-                Coding: [
-                    '### Code Editing Rules (Apply to the entire chat)\nStrictly follow these rules for all code suggestions, changes, optimizations, and Canvas reflection:\n1. **Do not modify any part of the code that is not being edited.**\n   * This includes blank lines, comments, variable names, order, etc. **Strictly keep all unmodified parts as is.**\n2. **Always leave concise, meaningful comments.**\n   * Limit comments to content that aids understanding or future maintenance. Do not include formal or duplicate notes.\n3. **When proposing or changing code, clearly state the intent and scope.**\n   * Example: "Improve performance of this function," "Simplify this conditional branch," etc.\n4. **Apply the above rules even for Canvas reflection.**\n   * Do not reformat, remove, or reorder content on the GPT side.\n5. **Preserve the overall style of the code (indentation, newlines, etc.).**\n   * Only edited parts should stand out clearly as differences.\n\n',
-                    'Optimize the following script according to modern design guidelines.\nWhile maintaining its purpose and function, improve the structure, readability, and extensibility.\nIf there are improvements, clearly indicate them in the code comments and compare Before→After.\n\n```\n```\n\n',
-                ],
-                Summary: [
-                    'STEP 1: For this chat log, do not summarize, but clearly show the structure of the content. Please output in the following format:\n\n- 🔹 List of topics (each topic heading and its starting point)\n- 🧷 List of technical terms / keywords / commands / proper nouns\n- 📌 Key statements marking turning points in the discussion (quotes allowed)\n\n[NOTE]\nThe goal is not to summarize, but to "enumerate and organize the topics."\nGive priority to extracting important elements while maintaining context.\n',
-                    'STEP 2: For this chat log, enumerate the content as it is, without summarizing or restructuring.\n\nSample output format:\n1. [Start] Consulted about PowerShell script character encoding error\n2. [Proposal] Suggested UTF-8 with BOM save\n3. [Clarification] Clarified misunderstanding about Shift-JIS (e.g., cp932)\n4. [Conclusion] Decided on UTF-8-only approach with PowerShell\n\n[NOTE]\nMaintain the original order of topics. The goal is not to summarize, but to list "what was discussed" and "what conclusions were drawn."',
-                    "STEP 3: Provide a mid-level summary for each topic in this chat log.\nCompression ratio can be low. Do not omit topics, and keep granularity somewhat fine.\n\nSample output format:\n## Chat title (or date)\n\n### Topic 1: About XXXXX\n- Overview:\n- Main discussion points:\n- Tentative conclusion or direction:\n\n### Topic 2: About YYYYY\n- ...\n\n[NOTE]\nIt's okay to be verbose. Ensure important details are not omitted so that a human can organize them later.",
-                    'STEP 4: For each topic in this chat log, add the following indicators:\n\n- [Importance]: High / Medium / Low\n- [Reference recommended]: Yes / No (Is it worth reusing/repurposing?)\n- [Reference keywords]: About 3 search keywords\n\nThe purpose is to provide criteria for organizing or deleting this record in the future.',
-                ],
-                Memory: [
-                    '[Memory list output] Please display all currently stored model set context (memory list) for me.\nSeparate by category, output concisely and accurately.',
-                    '[Add to memory] Please add the following content to the model set context:\n\n[Category] (e.g., PowerShell)\n[Content]\n- Always unify the log output folder for PowerShell scripts to a "logs" subfolder.\n- Internal comments in scripts should be written in Japanese.\n\nPlease consistently refer to this information as context and policy in future conversations.',
-                    '[Edit memory] Please edit the following memory content:\n\n[Target category] PowerShell\n[Current text to be edited] The default encoding for PowerShell scripts is "UTF-8 with BOM."\n[New text] The default encoding for PowerShell scripts is "UTF-8 without BOM."\n\nBe sure to discard the old information and replace it with the new information.',
-                    '[Delete memory] Please completely delete the following memory content:\n\n[Target category] Image generation (Haruna)\n[Text to be deleted]\n- Always include an image number and situation description (caption) when generating images.\n\nEnsure that this information is completely removed and will not affect future conversations.',
-                    'Summarize everything you have learned about our conversation and commit it to the memory update.',
-                ],
-            },
-        },
-    };
-
-    // =================================================================================
     // SECTION: Event-Driven Architecture (Pub/Sub)
     // Description: A event bus for decoupled communication between classes.
     // =================================================================================
 
     const EventBus = {
         events: {},
+        _logAggregation: {},
+        _aggregatedEvents: new Set(),
+        _aggregationDelay: 500, // ms
+
         /**
-         * Subscribes a listener to an event. Prevents duplicate subscriptions.
+         * Subscribes a listener to an event using a unique key.
+         * If a subscription with the same event and key already exists, it will be overwritten.
          * @param {string} event The event name.
          * @param {Function} listener The callback function.
-         * @returns {Function} An unsubscribe function.
+         * @param {string} key A unique key for this subscription (e.g., 'ClassName.methodName').
          */
-        subscribe(event, listener) {
+        subscribe(event, listener, key) {
+            if (!key) {
+                Logger.error('EventBus.subscribe requires a unique key.');
+                return;
+            }
             if (!this.events[event]) {
-                this.events[event] = [];
+                this.events[event] = new Map();
             }
-            // Prevent adding the same listener multiple times.
-            if (!this.events[event].includes(listener)) {
-                this.events[event].push(listener);
-            }
-
-            // Return an unsubscribe function for easy cleanup.
-            const unsubscribe = () => {
-                this.unsubscribe(event, listener);
-            };
-            return unsubscribe;
+            this.events[event].set(key, listener);
         },
         /**
          * Subscribes a listener that will be automatically unsubscribed after one execution.
          * @param {string} event The event name.
          * @param {Function} listener The callback function.
-         * @returns {Function} An unsubscribe function.
+         * @param {string} key A unique key for this subscription.
          */
-        once(event, listener) {
-            const unsubscribe = this.subscribe(event, (...args) => {
-                unsubscribe();
-                listener(...args);
-            });
-            return unsubscribe;
-        },
-        /**
-         * Unsubscribes a listener from an event.
-         * Cleans up the event array if it becomes empty.
-         * @param {string} event The event name.
-         * @param {Function} listener The callback function to remove.
-         */
-        unsubscribe(event, listener) {
-            if (!this.events[event]) {
+        once(event, listener, key) {
+            if (!key) {
+                Logger.error('EventBus.once requires a unique key.');
                 return;
             }
-            this.events[event] = this.events[event].filter((l) => l !== listener);
-
-            // If the event has no more listeners, remove the event property to save memory.
-            if (this.events[event].length === 0) {
+            const onceListener = (...args) => {
+                this.unsubscribe(event, key);
+                listener(...args);
+            };
+            this.subscribe(event, onceListener, key);
+        },
+        /**
+         * Unsubscribes a listener from an event using its unique key.
+         * @param {string} event The event name.
+         * @param {string} key The unique key used during subscription.
+         */
+        unsubscribe(event, key) {
+            if (!this.events[event] || !key) {
+                return;
+            }
+            this.events[event].delete(key);
+            if (this.events[event].size === 0) {
                 delete this.events[event];
             }
         },
@@ -898,14 +1266,35 @@
             if (!this.events[event]) {
                 return;
             }
-            // Iterate over a copy of the array in case a listener unsubscribes itself (e.g., 'once').
-            [...this.events[event]].forEach((listener) => {
-                try {
-                    listener(...args);
-                } catch (e) {
-                    Logger.error(`EventBus error in listener for event "${event}":`, e);
-                }
-            });
+
+            // Simplified logging for QTB (no aggregation needed yet)
+            if (Logger.levels[Logger.level] >= Logger.levels.debug) {
+                const subscriberKeys = [...this.events[event].keys()];
+                console.groupCollapsed(LOG_PREFIX, `Event Published: ${event}`);
+                if (args.length > 0) console.log('  - Payload:', ...args);
+                else console.log('  - Payload: (No data)');
+                if (subscriberKeys.length > 0) console.log('  - Subscribers:\n' + subscriberKeys.map((key) => `    > ${key}`).join('\n'));
+                else console.log('  - Subscribers: (None)');
+
+                this.events[event].forEach((listener, key) => {
+                    try {
+                        Logger.debug(`-> Executing: ${key}`);
+                        listener(...args);
+                    } catch (e) {
+                        Logger.error(`EventBus error in listener "${key}" for event "${event}":`, e);
+                    }
+                });
+                console.groupEnd();
+            } else {
+                // Iterate over a copy of the values in case a listener unsubscribes itself.
+                [...this.events[event].values()].forEach((listener) => {
+                    try {
+                        listener(...args);
+                    } catch (e) {
+                        Logger.error(`EventBus error in listener for event "${event}":`, e);
+                    }
+                });
+            }
         },
     };
 
@@ -914,15 +1303,31 @@
     // =================================================================================
 
     /**
+     * Schedules a function to run when the browser is idle.
+     * @param {(deadline: IdleDeadline) => void} callback The function to execute.
+     * @param {number} [timeout] The maximum delay in milliseconds.
+     */
+    function runWhenIdle(callback, timeout = 2000) {
+        if ('requestIdleCallback' in window) {
+            window.requestIdleCallback(callback, { timeout });
+        } else {
+            setTimeout(callback, CONSTANTS.TIMING.TIMEOUTS.IDLE_EXECUTION_FALLBACK);
+        }
+    }
+
+    /**
      * @param {Function} func
      * @param {number} delay
-     * @returns {Function}
+     * @returns {(...args: any[]) => void}
      */
     function debounce(func, delay) {
         let timeout;
         return function (...args) {
             clearTimeout(timeout);
-            timeout = setTimeout(() => func.apply(this, args), delay);
+            timeout = setTimeout(() => {
+                // After the debounce delay, schedule the actual execution for when the browser is idle.
+                runWhenIdle(() => func.apply(this, args));
+            }, delay);
         };
     }
 
@@ -988,11 +1393,50 @@
     }
 
     /**
+     * @description A utility to prevent layout thrashing by separating DOM reads (measure)
+     * from DOM writes (mutate). The mutate function is executed in the next animation frame.
+     * @param {{
+     * measure: () => T,
+     * mutate: (data: T) => void
+     * }} param0 - An object containing the measure and mutate functions.
+     * @returns {Promise<void>} A promise that resolves after the mutate function has completed.
+     * @template T
+     */
+    function withLayoutCycle({ measure, mutate }) {
+        return new Promise((resolve, reject) => {
+            let measuredData;
+
+            // Phase 1: Synchronously read all required layout properties from the DOM.
+            try {
+                measuredData = measure();
+            } catch (e) {
+                Logger.badge('LAYOUT ERROR', LOG_STYLES.ERROR, 'error', 'Error during measure phase:', e);
+                reject(e);
+                return;
+            }
+
+            // Phase 2: Schedule the DOM mutations to run in the next animation frame.
+            requestAnimationFrame(() => {
+                try {
+                    mutate(measuredData);
+                    resolve();
+                } catch (e) {
+                    Logger.badge('LAYOUT ERROR', LOG_STYLES.ERROR, 'error', 'Error during mutate phase:', e);
+                    reject(e);
+                }
+            });
+        });
+    }
+
+    /**
+     * @typedef {Node|string|number|boolean|null|undefined} HChild
+     */
+    /**
      * Creates a DOM element using a hyperscript-style syntax.
      * @param {string} tag - Tag name with optional ID/class (e.g., "div#app.container", "my-element").
-     * @param {Object|Array|string|Node} [propsOrChildren] - Attributes object or children.
-     * @param {Array|string|Node} [children] - Children (if props are specified).
-     * @returns {HTMLElement|SVGElement} - The created DOM element.
+     * @param {object | HChild | HChild[]} [propsOrChildren] - Attributes object or children.
+     * @param {HChild | HChild[]} [children] - Children (if props are specified).
+     * @returns {HTMLElement|SVGElement} The created DOM element.
      */
     function h(tag, propsOrChildren, children) {
         const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -1004,7 +1448,12 @@
         const el = isSVG ? document.createElementNS(SVG_NS, tagName) : document.createElement(tagName);
 
         if (id) el.id = id.slice(1);
-        if (classList) el.className = classList.replace(/\./g, ' ').trim();
+        if (classList) {
+            const classes = classList.replace(/\./g, ' ').trim();
+            if (classes) {
+                el.classList.add(...classes.split(/\s+/));
+            }
+        }
 
         let props = {};
         let childrenArray;
@@ -1018,7 +1467,7 @@
         // --- Start of Attribute/Property Handling ---
         const directProperties = new Set(['value', 'checked', 'selected', 'readOnly', 'disabled', 'multiple', 'textContent']);
         const urlAttributes = new Set(['href', 'src', 'action', 'formaction']);
-        const safeUrlRegex = /^\s*(?:(?:https?|mailto|tel|ftp|blob):|[^a-z0-9+.-]*[#/])/i;
+        const safeProtocols = new Set(['https:', 'http:', 'mailto:', 'tel:', 'blob:', 'data:']);
 
         for (const [key, value] of Object.entries(props)) {
             // 0. Handle `ref` callback (highest priority after props parsing).
@@ -1028,11 +1477,17 @@
             // 1. Security check for URL attributes.
             else if (urlAttributes.has(key)) {
                 const url = String(value);
-                if (safeUrlRegex.test(url)) {
-                    el.setAttribute(key, url);
-                } else {
+                try {
+                    const parsedUrl = new URL(url); // Throws if not an absolute URL.
+                    if (safeProtocols.has(parsedUrl.protocol)) {
+                        el.setAttribute(key, url);
+                    } else {
+                        el.setAttribute(key, '#');
+                        Logger.badge('UNSAFE URL', LOG_STYLES.WARN, 'warn', `Blocked potentially unsafe protocol "${parsedUrl.protocol}" in attribute "${key}":`, url);
+                    }
+                } catch {
                     el.setAttribute(key, '#');
-                    Logger.warn(`Blocked potentially unsafe URL in attribute "${key}":`, url);
+                    Logger.badge('INVALID URL', LOG_STYLES.WARN, 'warn', `Blocked invalid or relative URL in attribute "${key}":`, url);
                 }
             }
             // 2. Direct property assignments.
@@ -1049,26 +1504,29 @@
             } else if (key.startsWith('on') && typeof value === 'function') {
                 el.addEventListener(key.slice(2).toLowerCase(), value);
             } else if (key === 'className') {
-                if (isSVG) {
-                    el.setAttribute('class', value);
-                } else {
-                    el.className = value;
+                const classes = String(value).trim();
+                if (classes) {
+                    el.classList.add(...classes.split(/\s+/));
                 }
             } else if (key.startsWith('aria-')) {
-                el.setAttribute(key, value);
+                el.setAttribute(key, String(value));
             }
             // 4. Default attribute handling.
-            else if (value !== false && value != null) {
-                el.setAttribute(key, value === true ? '' : value);
+            else if (value !== false && value !== null) {
+                el.setAttribute(key, value === true ? '' : String(value));
             }
         }
         // --- End of Attribute/Property Handling ---
 
         const fragment = document.createDocumentFragment();
+        /**
+         * Appends a child node or text to the document fragment.
+         * @param {HChild} child - The child to append.
+         */
         function append(child) {
-            if (child == null || child === false) return;
+            if (child === null || child === false || typeof child === 'undefined') return;
             if (typeof child === 'string' || typeof child === 'number') {
-                fragment.appendChild(document.createTextNode(child));
+                fragment.appendChild(document.createTextNode(String(child)));
             } else if (Array.isArray(child)) {
                 child.forEach(append);
             } else if (child instanceof Node) {
@@ -1093,6 +1551,279 @@
         if (!def) return null;
         const children = def.children ? def.children.map((child) => createIconFromDef(child)) : [];
         return h(def.tag, def.props, children);
+    }
+
+    /**
+     * Waits for a specific HTMLElement to appear in the DOM using a high-performance, Sentinel-based approach.
+     * It specifically checks for `instanceof HTMLElement` and will not resolve for other element types (e.g., SVGElement), even if they match the selector.
+     * @param {string} selector The CSS selector for the element.
+     * @param {object} [options]
+     * @param {number} [options.timeout] The maximum time to wait in milliseconds.
+     * @param {Document | HTMLElement} [options.context] The element to search within.
+     * @param {Sentinel} [sentinelInstance] The Sentinel instance to use (defaults to global `sentinel`).
+     * @returns {Promise<HTMLElement | null>} A promise that resolves with the HTMLElement or null if timed out.
+     */
+    function waitForElement(selector, { timeout = 10000, context = document } = {}, sentinelInstance = sentinel) {
+        // First, check if the element already exists.
+        const existingEl = context.querySelector(selector);
+        if (existingEl instanceof HTMLElement) {
+            return Promise.resolve(existingEl);
+        }
+
+        // If not, use Sentinel wrapped in a Promise.
+        return new Promise((resolve) => {
+            let timer = null;
+            let sentinelCallback = null;
+
+            const cleanup = () => {
+                if (timer) clearTimeout(timer);
+                if (sentinelCallback) sentinelInstance.off(selector, sentinelCallback);
+            };
+
+            timer = setTimeout(() => {
+                cleanup();
+                Logger.badge('WAIT TIMEOUT', LOG_STYLES.WARN, 'warn', `Timed out after ${timeout}ms waiting for element "${selector}"`);
+                resolve(null);
+            }, timeout);
+
+            sentinelCallback = (element) => {
+                // Ensure the found element is an HTMLElement and is within the specified context.
+                if (element instanceof HTMLElement && context.contains(element)) {
+                    cleanup();
+                    resolve(element);
+                }
+            };
+
+            sentinelInstance.on(selector, sentinelCallback);
+        });
+    }
+
+    /**
+     * @description A dispatch table object that maps UI schema types to their respective rendering functions.
+     */
+    const UI_SCHEMA_RENDERERS = {
+        _renderContainer(def) {
+            let className = def.className;
+            if (!className) {
+                const classMap = {
+                    'container-row': `${APPID}-submenu-row`,
+                    'container-stacked-row': `${APPID}-submenu-row-stacked`,
+                };
+                className = classMap[def.type] || '';
+            }
+            const element = h(`div`, { className });
+            if (def.children) {
+                element.appendChild(buildUIFromSchema(def.children));
+            }
+            return element;
+        },
+        fieldset(def) {
+            const element = h(`fieldset.${APPID}-submenu-fieldset`, [h('legend', def.legend)]);
+            if (def.children) {
+                element.appendChild(buildUIFromSchema(def.children));
+            }
+            return element;
+        },
+        'submenu-separator': (def) => h(`div.${APPID}-submenu-separator`),
+        select(def) {
+            return h('select', { id: def.id, title: def.title });
+        },
+        slider(def) {
+            return h(`div.${APPID}-slider-wrapper`, [
+                h('input', {
+                    type: 'range',
+                    id: def.id,
+                    min: def.min,
+                    max: def.max,
+                    step: def.step,
+                    dataset: def.dataset,
+                }),
+                h(`span`, { id: def.displayId }),
+            ]);
+        },
+        button(def) {
+            return h(
+                `button#${def.id}.${APPID}-modal-button`,
+                {
+                    style: { width: '100%' },
+                    title: def.title,
+                },
+                def.text
+            );
+        },
+        label: (def) => h('label', { htmlFor: def.for, title: def.title }, def.text),
+        toggle(def) {
+            return h(`label.${APPID}-toggle-switch`, { title: def.title }, [h('input', { type: 'checkbox', id: def.id }), h(`span.${APPID}-toggle-slider`)]);
+        },
+    };
+
+    // Assign aliases for container types
+    ['container', 'container-row', 'container-stacked-row'].forEach((type) => {
+        UI_SCHEMA_RENDERERS[type] = UI_SCHEMA_RENDERERS._renderContainer;
+    });
+
+    /**
+     * @description Recursively builds a DOM fragment from a declarative schema object.
+     * @param {Array<object>} definitions - An array of objects, each defining a UI element.
+     * @returns {DocumentFragment} A document fragment containing the constructed DOM elements.
+     */
+    function buildUIFromSchema(definitions) {
+        const fragment = document.createDocumentFragment();
+        if (!definitions) return fragment;
+
+        for (const def of definitions) {
+            const renderer = UI_SCHEMA_RENDERERS[def.type];
+            if (renderer) {
+                const element = renderer(def);
+                if (element) {
+                    fragment.appendChild(element);
+                }
+            } else if (typeof def === 'string') {
+                fragment.appendChild(document.createTextNode(def));
+            }
+        }
+        return fragment;
+    }
+
+    /**
+     * A helper function to safely retrieve a nested property from an object using a dot-notation string.
+     * @param {object} obj The object to query.
+     * @param {string} path The dot-separated path to the property.
+     * @returns {any} The value of the property, or undefined if not found.
+     */
+    function getPropertyByPath(obj, path) {
+        if (!obj || typeof path !== 'string') {
+            return undefined;
+        }
+        return path.split('.').reduce((o, k) => (o && o[k] !== undefined ? o[k] : undefined), obj);
+    }
+
+    /**
+     * Sets a nested property on an object using a dot-notation path.
+     * @param {object} obj The object to modify.
+     * @param {string} path The dot-separated path to the property.
+     * @param {any} value The value to set.
+     */
+    function setPropertyByPath(obj, path, value) {
+        const keys = path.split('.');
+        let current = obj;
+        for (let i = 0; i < keys.length - 1; i++) {
+            const key = keys[i];
+            if (!isObject(current[key])) {
+                current[key] = {};
+            }
+            current = current[key];
+        }
+        current[keys[keys.length - 1]] = value;
+    }
+
+    /**
+     * @description A utility function to update the text display of a slider component.
+     * @param {HTMLInputElement} slider The slider input element.
+     * @param {HTMLElement} display The element where the slider's value is displayed.
+     * @param {Record<string, string>} displayMap A map of slider values to display text.
+     */
+    function updateSliderDisplay(slider, display, displayMap) {
+        if (!slider || !display || !displayMap) return;
+        const value = slider.value;
+        display.textContent = displayMap[value] || '';
+        slider.dataset.value = value;
+    }
+
+    /**
+     * @description A dispatch table defining how to get/set values for different form field types.
+     */
+    const FORM_FIELD_HANDLERS = {
+        select: {
+            getValue: (el) => el.value || null,
+            setValue: (el, value) => {
+                el.value = value ?? '';
+            },
+        },
+        slider: {
+            getValue: (slider) => {
+                const valueMap = slider.dataset.valueMap ? JSON.parse(slider.dataset.valueMap) : null;
+                return valueMap ? valueMap[slider.value] || 'cursor' : slider.value;
+            },
+            setValue: (slider, value, { componentInstance }) => {
+                const positionMap = slider.dataset.positionMap ? JSON.parse(slider.dataset.positionMap) : null;
+                slider.value = positionMap && value ? positionMap[value] : '1';
+                componentInstance._updateSliderAppearance(slider);
+            },
+        },
+        toggle: {
+            getValue: (el) => el.checked,
+            setValue: (el, value) => {
+                el.checked = !!value;
+            },
+        },
+    };
+
+    /**
+     * Populates a form with data from a configuration object based on a UI schema.
+     * @param {Array<object>} definitions The UI schema definitions.
+     * @param {HTMLElement} rootElement The root element of the form to populate.
+     * @param {object} config The configuration object containing the data.
+     * @param {object} componentInstance The component instance, passed to the handler for context.
+     */
+    function populateFormFromSchema(definitions, rootElement, config, componentInstance) {
+        for (const def of definitions) {
+            const { configKey, id } = def;
+            const handler = FORM_FIELD_HANDLERS[def.type];
+
+            if (handler && configKey && id) {
+                const element = rootElement.querySelector(`#${id}`);
+                if (element) {
+                    const value = getPropertyByPath(config, configKey);
+                    handler.setValue(element, value, { componentInstance });
+                }
+            }
+            if (def.children) {
+                populateFormFromSchema(def.children, rootElement, config, componentInstance);
+            }
+        }
+    }
+
+    /**
+     * Collects data from a form into a configuration object based on a UI schema.
+     * @param {Array<object>} definitions The UI schema definitions.
+     * @param {HTMLElement} rootElement The root element of the form.
+     * @param {object} configObject The configuration object to populate with data.
+     */
+    function collectDataFromSchema(definitions, rootElement, configObject) {
+        for (const def of definitions) {
+            const { configKey, id } = def;
+            const handler = FORM_FIELD_HANDLERS[def.type];
+
+            if (handler && configKey && id) {
+                const element = rootElement.querySelector(`#${id}`);
+                if (element) {
+                    const value = handler.getValue(element);
+                    setPropertyByPath(configObject, configKey, value);
+                }
+            }
+            if (def.children) {
+                collectDataFromSchema(def.children, rootElement, configObject);
+            }
+        }
+    }
+
+    /**
+     * Creates a unique, consistent event subscription key for EventBus.
+     * @param {object} context The `this` context of the subscribing class instance.
+     * @param {string} eventName The full event name from the EVENTS constant (e.g., 'EVENTS.NAVIGATION').
+     * @returns {string} A key in the format 'ClassName.purpose'.
+     */
+    function createEventKey(context, eventName) {
+        // Extract a meaningful 'purpose' from the event name
+        const parts = eventName.split(':');
+        const purpose = parts.length > 1 ? parts.slice(1).join('_') : parts[0]; // Use underscores if there are multiple parts after the first colon
+
+        if (!context || !context.constructor || !context.constructor.name) {
+            // Fallback for contexts where constructor name might not be available
+            return `UnknownContext.${purpose}`;
+        }
+        return `${context.constructor.name}.${purpose}`;
     }
 
     // =================================================================================
@@ -1179,6 +1910,18 @@
                 configKey: CONSTANTS.CONFIG_KEY,
                 defaultConfig: DEFAULT_CONFIG,
             });
+            this.subscriptions = [];
+        }
+
+        _subscribe(event, listener) {
+            const key = createEventKey(this, event);
+            EventBus.subscribe(event, listener.bind(this), key);
+            this.subscriptions.push({ event, key });
+        }
+
+        destroy() {
+            this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
+            this.subscriptions = [];
         }
 
         /**
@@ -1215,33 +1958,50 @@
                 const limitInMB = (CONSTANTS.CONFIG_SIZE_LIMIT_BYTES / 1024 / 1024).toFixed(1);
                 const errorMsg = `Configuration size (${sizeInMB} MB) exceeds the ${limitInMB} MB limit.\nChanges are not saved.`;
 
-                EventBus.publish(`${APPID}:configSizeExceeded`, { message: errorMsg });
+                EventBus.publish(EVENTS.CONFIG_SIZE_EXCEEDED, { message: errorMsg });
                 throw new Error(errorMsg);
             }
 
             this.config = completeConfig;
             await GM_setValue(this.CONFIG_KEY, jsonString);
-            EventBus.publish(`${APPID}:configSaveSuccess`);
+            EventBus.publish(EVENTS.CONFIG_SAVE_SUCCESS);
         }
 
         /**
          * Merges a user configuration with defaults and sanitizes the data structure.
+         * Handles the 'texts' object specifically to prevent unwanted merging of default profiles.
          * @private
          * @param {object | null} userConfig The user configuration object, which may be partial or null.
          * @returns {object} A complete and sanitized configuration object.
          */
         _processAndSanitize(userConfig) {
+            // Start with a deep copy of the defaults.
             const completeConfig = JSON.parse(JSON.stringify(this.DEFAULT_CONFIG));
 
-            if (userConfig) {
+            if (isObject(userConfig)) {
+                // 1. Handle 'texts' separately: Overwrite if present in userConfig, otherwise keep default.
                 if (isObject(userConfig.texts)) {
-                    completeConfig.texts = userConfig.texts;
+                    completeConfig.texts = JSON.parse(JSON.stringify(userConfig.texts)); // Use deep copy to prevent mutation issues
                 }
-                if (isObject(userConfig.options)) {
-                    completeConfig.options = { ...completeConfig.options, ...userConfig.options };
+
+                // 2. Merge other top-level keys (options, developer, etc.) from userConfig into completeConfig.
+                // We iterate over userConfig keys and merge if the key is not 'texts'.
+                for (const key in userConfig) {
+                    if (key !== 'texts' && Object.prototype.hasOwnProperty.call(userConfig, key)) {
+                        if (isObject(userConfig[key]) && isObject(completeConfig[key])) {
+                            // Deep merge if both are objects
+                            deepMerge(completeConfig[key], userConfig[key]);
+                        } else if (typeof userConfig[key] !== 'undefined') {
+                            // Otherwise, overwrite or set the value from userConfig
+                            completeConfig[key] = userConfig[key];
+                        }
+                    }
                 }
             }
 
+            // --- Apply specific sanitization AFTER the selective merge ---
+
+            // Sanitize the 'texts' object structure.
             const sanitizeTextsObject = (texts) => {
                 if (!isObject(texts)) return {};
                 for (const profileName in texts) {
@@ -1276,16 +2036,35 @@
 
             completeConfig.texts = sanitizeTextsObject(completeConfig.texts);
 
+            // Ensure there's at least one profile.
             if (!completeConfig.texts || Object.keys(completeConfig.texts).length === 0) {
+                // If sanitization resulted in no profiles, restore ONLY the default texts,
+                // keeping other merged settings (options, developer).
                 completeConfig.texts = JSON.parse(JSON.stringify(this.DEFAULT_CONFIG.texts));
-                Logger.warn('Configuration resulted in no profiles. Restoring default texts to prevent errors.');
+                Logger.warn('Configuration resulted in no profiles after sanitization. Restoring default texts structure.');
             }
 
+            // Validate activeProfileName.
             const profileKeys = Object.keys(completeConfig.texts);
-            const activeProfileName = completeConfig.options.activeProfileName;
-            if (!Object.prototype.hasOwnProperty.call(completeConfig.texts, activeProfileName)) {
-                Logger.log(`Active profile "${activeProfileName}" not found. Setting the first available profile as active.`);
-                completeConfig.options.activeProfileName = profileKeys[0];
+            const activeProfileName = completeConfig.options?.activeProfileName; // Ensure options exist
+            if (!completeConfig.options || !Object.prototype.hasOwnProperty.call(completeConfig.texts, activeProfileName)) {
+                Logger.log(`Active profile "${activeProfileName || 'undefined'}" not found or options missing. Setting the first available profile as active.`);
+                // Ensure options object exists before assigning to it
+                if (!completeConfig.options) {
+                    completeConfig.options = {};
+                }
+                completeConfig.options.activeProfileName = profileKeys.length > 0 ? profileKeys[0] : null; // Handle case where no profiles exist
+            }
+
+            // Ensure logger_level is valid after merging
+            const validLevels = Object.keys(Logger.levels);
+            if (!completeConfig.developer || !validLevels.includes(completeConfig.developer.logger_level)) {
+                Logger.warn(`Invalid or missing logger_level found. Resetting to default '${DEFAULT_CONFIG.developer.logger_level}'.`);
+                // Ensure developer object exists
+                if (!completeConfig.developer) {
+                    completeConfig.developer = {};
+                }
+                completeConfig.developer.logger_level = DEFAULT_CONFIG.developer.logger_level;
             }
 
             return completeConfig;
@@ -1508,7 +2287,7 @@
                     const modalWidth = modalBox.offsetWidth || parseInt(this.options.width, 10);
 
                     let left = btnRect.left;
-                    let top = btnRect.bottom + 4;
+                    const top = btnRect.bottom + 4;
 
                     if (left + modalWidth > window.innerWidth - margin) {
                         left = window.innerWidth - modalWidth - margin;
@@ -1668,9 +2447,26 @@
     class SettingsPanelBase extends UIComponentBase {
         constructor(callbacks) {
             super(callbacks);
+            this.subscriptions = [];
             this.debouncedSave = debounce(this._handleDebouncedSave.bind(this), 300);
             this._handleDocumentClick = this._handleDocumentClick.bind(this);
             this._handleDocumentKeydown = this._handleDocumentKeydown.bind(this);
+        }
+
+        _subscribe(event, listener) {
+            const key = createEventKey(this, event);
+            EventBus.subscribe(event, listener.bind(this), key);
+            this.subscriptions.push({ event, key });
+        }
+
+        init() {
+            // no-op for now
+        }
+
+        destroy() {
+            super.destroy(); // Call UIComponentBase's destroy
+            this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
+            this.subscriptions = [];
         }
 
         /**
@@ -1680,6 +2476,19 @@
         async _handleDebouncedSave() {
             const newConfig = await this._collectDataFromForm();
             this.callbacks.onSave?.(newConfig);
+        }
+
+        /**
+         * @private
+         * Handles the CONFIG_UPDATED event to refresh the form if the panel is open.
+         * @param {object} newConfig The updated configuration object from the event payload.
+         */
+        async _handleConfigUpdate(newConfig) {
+            if (this.isOpen()) {
+                Logger.log('Settings panel is open, refreshing form due to config update.');
+                // Pass the received config directly to populateForm
+                await this.populateForm(newConfig);
+            }
         }
 
         render() {
@@ -1775,102 +2584,167 @@
     }
 
     class SettingsPanelComponent extends SettingsPanelBase {
-        _createPanelContent() {
-            const createToggle = (id, title) => {
-                return h(`label.${APPID}-toggle-switch`, { title }, [h('input', { type: 'checkbox', id: id }), h(`span.${APPID}-toggle-slider`)]);
-            };
-            return h('div', [
-                h(`fieldset.${APPID}-submenu-fieldset`, [
-                    h('legend', 'Profile'),
-                    h(`select#${APPID}-profile-select`, {
-                        title: 'Select the active profile.',
-                    }),
-                ]),
-                h(`div.${APPID}-submenu-top-row`, [
-                    h(`fieldset.${APPID}-submenu-fieldset`, [
-                        h('legend', 'Texts'),
-                        h(
-                            `button#${APPID}-submenu-edit-texts-btn.${APPID}-modal-button`,
-                            {
-                                style: { width: '100%' },
-                                title: 'Open the text editor.',
-                            },
-                            'Edit Texts...'
-                        ),
-                    ]),
-                    h(`fieldset.${APPID}-submenu-fieldset`, [
-                        h('legend', 'JSON'),
-                        h(
-                            `button#${APPID}-submenu-json-btn.${APPID}-modal-button`,
-                            {
-                                style: { width: '100%' },
-                                title: 'Opens the advanced settings modal to directly edit, import, or export the entire configuration in JSON format.',
-                            },
-                            'JSON...'
-                        ),
-                    ]),
-                ]),
-                h(`fieldset.${APPID}-submenu-fieldset`, [
-                    h('legend', 'Options'),
-                    h(`div.${APPID}-submenu-row`, [h('label', { htmlFor: `${APPID}-opt-insert-before-newline` }, 'Insert newline before text'), createToggle(`${APPID}-opt-insert-before-newline`, 'Adds a newline character before the inserted text.')]),
-                    h(`div.${APPID}-submenu-row`, [h('label', { htmlFor: `${APPID}-opt-insert-after-newline` }, 'Insert newline after text'), createToggle(`${APPID}-opt-insert-after-newline`, 'Adds a newline character after the inserted text.')]),
-                    h(`div.${APPID}-submenu-separator`),
-                    h(`div.${APPID}-submenu-row-stacked`, [
-                        h('label', { htmlFor: `${APPID}-insertion-pos-slider`, title: 'Determines where the text is inserted in the input field.' }, 'Insertion position'),
-                        h(`div.${APPID}-slider-wrapper`, [
-                            h('input', {
-                                type: 'range',
-                                id: `${APPID}-insertion-pos-slider`,
-                                min: '0',
-                                max: '2',
-                                step: '1',
-                            }),
-                            h(`span#${APPID}-slider-value-display`),
-                        ]),
-                    ]),
-                    h(`div.${APPID}-settings-note`, `Note: Option behavior may depend on the input field’s state (focus and existing content). For consistent results, click an insert button while the input field is focused.`),
-                ]),
-            ]);
+        _getPanelSchema() {
+            return [
+                {
+                    type: 'fieldset',
+                    legend: 'Profile',
+                    children: [
+                        {
+                            type: 'select',
+                            id: `${APPID}-profile-select`,
+                            // configKey is handled manually in populate/collect methods for this element
+                            title: 'Select the active profile.',
+                        },
+                    ],
+                },
+                {
+                    type: 'container',
+                    className: `${APPID}-submenu-top-row`,
+                    children: [
+                        {
+                            type: 'fieldset',
+                            legend: 'Texts',
+                            children: [
+                                {
+                                    type: 'button',
+                                    id: `${APPID}-submenu-edit-texts-btn`,
+                                    text: 'Edit Texts...',
+                                    title: 'Open the text editor.',
+                                },
+                            ],
+                        },
+                        {
+                            type: 'fieldset',
+                            legend: 'JSON',
+                            children: [
+                                {
+                                    type: 'button',
+                                    id: `${APPID}-submenu-json-btn`,
+                                    text: 'JSON...',
+                                    title: 'Opens the advanced settings modal to directly edit, import, or export the entire configuration in JSON format.',
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    type: 'fieldset',
+                    legend: 'Options',
+                    children: [
+                        {
+                            type: 'container-row',
+                            children: [
+                                { type: 'label', for: `${APPID}-opt-insert-before-newline`, text: 'Insert newline before text' },
+                                {
+                                    type: 'toggle',
+                                    id: `${APPID}-opt-insert-before-newline`,
+                                    configKey: 'options.insert_before_newline',
+                                    title: 'Adds a newline character before the inserted text.',
+                                },
+                            ],
+                        },
+                        {
+                            type: 'container-row',
+                            children: [
+                                { type: 'label', for: `${APPID}-opt-insert-after-newline`, text: 'Insert newline after text' },
+                                {
+                                    type: 'toggle',
+                                    id: `${APPID}-opt-insert-after-newline`,
+                                    configKey: 'options.insert_after_newline',
+                                    title: 'Adds a newline character after the inserted text.',
+                                },
+                            ],
+                        },
+                        { type: 'submenu-separator' },
+                        {
+                            type: 'container-stacked-row',
+                            children: [
+                                {
+                                    type: 'label',
+                                    for: `${APPID}-insertion-pos-slider`,
+                                    title: 'Determines where the text is inserted in the input field.',
+                                    text: 'Insertion position',
+                                },
+                                {
+                                    type: 'slider',
+                                    id: `${APPID}-insertion-pos-slider`,
+                                    configKey: 'options.insertion_position',
+                                    min: '0',
+                                    max: '2',
+                                    step: '1',
+                                    displayId: `${APPID}-slider-value-display`,
+                                    dataset: {
+                                        positionMap: JSON.stringify({ start: '0', cursor: '1', end: '2' }),
+                                        valueMap: JSON.stringify({ 0: 'start', 1: 'cursor', 2: 'end' }),
+                                    },
+                                },
+                            ],
+                        },
+                        {
+                            type: 'container',
+                            className: `${APPID}-settings-note`,
+                            children: ['Note: Option behavior may depend on the input field’s state (focus and existing content). For consistent results, click an insert button while the input field is focused.'],
+                        },
+                    ],
+                },
+            ];
         }
 
-        async populateForm() {
-            const config = await this.callbacks.getCurrentConfig();
-            if (!config || !config.options) return;
+        _createPanelContent() {
+            const schema = this._getPanelSchema();
+            return buildUIFromSchema(schema);
+        }
 
+        /**
+         * Populates the settings form with configuration data.
+         * Uses the provided config object if available, otherwise fetches the current config.
+         * @param {object} [config] - Optional. The configuration object to use for population.
+         */
+        async populateForm(config) {
+            // Use the provided config if available, otherwise fetch the current one
+            const currentConfig = config || (await this.callbacks.getCurrentConfig());
+            if (!currentConfig || !currentConfig.options) return;
+
+            // --- Manually handle dynamic select options ---
             const profileSelect = this.element.querySelector(`#${APPID}-profile-select`);
-            profileSelect.textContent = '';
-            const profileNames = Object.keys(config.texts);
+            profileSelect.textContent = ''; // Clear existing options
+            const profileNames = Object.keys(currentConfig.texts);
             profileNames.forEach((name) => {
                 const option = h('option', { value: name }, name);
                 profileSelect.appendChild(option);
             });
-            profileSelect.value = config.options.activeProfileName || profileNames[0] || '';
+            // Ensure the selected value exists, fallback if necessary
+            const activeProfileName = currentConfig.options.activeProfileName;
+            if (profileNames.includes(activeProfileName)) {
+                profileSelect.value = activeProfileName;
+            } else if (profileNames.length > 0) {
+                profileSelect.value = profileNames[0];
+                // Optionally log or notify about the fallback
+                Logger.warn(`Active profile "${activeProfileName}" not found, falling back to "${profileNames[0]}".`);
+            } else {
+                profileSelect.value = ''; // No profiles available
+            }
+            // --- End manual handling ---
 
-            this.element.querySelector(`#${APPID}-opt-insert-before-newline`).checked = config.options.insert_before_newline;
-            this.element.querySelector(`#${APPID}-opt-insert-after-newline`).checked = config.options.insert_after_newline;
-            const positionMap = { start: '0', cursor: '1', end: '2' };
-            const positionValue = config.options.insertion_position || 'cursor';
-            const sliderValue = positionMap[positionValue];
-
-            const slider = this.element.querySelector(`#${APPID}-insertion-pos-slider`);
-            slider.value = sliderValue;
-            this._updateSliderAppearance(slider);
+            const schema = this._getPanelSchema();
+            // Pass the determined config to the schema populator
+            populateFormFromSchema(schema, this.element, currentConfig, this);
         }
 
         async _collectDataFromForm() {
             const currentConfig = await this.callbacks.getCurrentConfig();
             const newConfig = JSON.parse(JSON.stringify(currentConfig));
-
             if (!newConfig.options) newConfig.options = {};
 
+            // --- Manually handle dynamic select options ---
             const profileSelect = this.element.querySelector(`#${APPID}-profile-select`);
             newConfig.options.activeProfileName = profileSelect.value;
+            // --- End manual handling ---
 
-            newConfig.options.insert_before_newline = this.element.querySelector(`#${APPID}-opt-insert-before-newline`).checked;
-            newConfig.options.insert_after_newline = this.element.querySelector(`#${APPID}-opt-insert-after-newline`).checked;
-            const valueMap = { 0: 'start', 1: 'cursor', 2: 'end' };
-            const slider = this.element.querySelector(`#${APPID}-insertion-pos-slider`);
-            newConfig.options.insertion_position = valueMap[slider.value] || 'cursor';
+            const schema = this._getPanelSchema();
+            collectDataFromSchema(schema, this.element, newConfig);
+
             return newConfig;
         }
 
@@ -1896,9 +2770,7 @@
         _updateSliderAppearance(slider) {
             const display = this.element.querySelector(`#${APPID}-slider-value-display`);
             const displayMap = { 0: 'Start', 1: 'Cursor', 2: 'End' };
-            const value = slider.value;
-            display.textContent = displayMap[value];
-            slider.dataset.value = value;
+            updateSliderDisplay(slider, display, displayMap);
         }
 
         _injectStyles() {
@@ -2074,6 +2946,7 @@
     class TextEditorModalComponent extends UIComponentBase {
         constructor(callbacks) {
             super(callbacks);
+            this.subscriptions = [];
             this.activeProfileKey = null;
             this.activeCategoryKey = null;
             this.pendingDeletion = null;
@@ -2083,6 +2956,18 @@
                 type: null,
                 isActive: false,
             };
+        }
+
+        _subscribe(event, listener) {
+            const key = createEventKey(this, event);
+            EventBus.subscribe(event, listener.bind(this), key);
+            this.subscriptions.push({ event, key });
+        }
+
+        destroy() {
+            super.destroy();
+            this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
+            this.subscriptions = [];
         }
 
         render() {
@@ -2284,7 +3169,10 @@
                             h(`button#${APPID}-${type}-copy-btn.${APPID}-modal-button`, 'Copy'),
                             h(`button#${APPID}-${type}-delete-btn.${APPID}-modal-button`, 'Delete'),
                         ]),
-                        h(`div.${APPID}-rename-actions`, { style: { display: 'none' } }, [h(`button#${APPID}-${type}-rename-ok-btn.${APPID}-modal-button`, 'OK'), h(`button#${APPID}-${type}-rename-cancel-btn.${APPID}-modal-button`, 'Cancel')]),
+                        h(`div.${APPID}-rename-actions`, { style: { display: 'none' } }, [
+                            h(`button#${APPID}-${type}-rename-ok-btn.${APPID}-modal-button`, 'OK'),
+                            h(`button#${APPID}-${type}-rename-cancel-btn.${APPID}-modal-button`, 'Cancel'),
+                        ]),
                         h(`div.${APPID}-delete-confirm-group`, { style: { display: 'none' } }, [
                             h(`span.${APPID}-delete-confirm-label`, 'Are you sure?'),
                             h(`button#${APPID}-${type}-delete-confirm-btn.${APPID}-modal-button.${APPID}-delete-confirm-btn-yes`, 'Confirm'),
@@ -2857,7 +3745,7 @@
             // --- Config Update (only for text areas) ---
             const { texts } = formData;
             const config = await this.callbacks.getCurrentConfig();
-            let newConfig = JSON.parse(JSON.stringify(config));
+            const newConfig = JSON.parse(JSON.stringify(config));
 
             // Check if the active profile and category still exist
             if (newConfig.texts[this.activeProfileKey] && Object.prototype.hasOwnProperty.call(newConfig.texts[this.activeProfileKey], this.activeCategoryKey)) {
@@ -3192,8 +4080,20 @@
      */
     class JsonModalComponent {
         constructor(callbacks) {
+            this.subscriptions = [];
             this.callbacks = callbacks;
-            this.modal = null; // To hold the CustomModal instance
+            this.modal = null;
+        }
+
+        _subscribe(event, listener) {
+            const key = createEventKey(this, event);
+            EventBus.subscribe(event, listener.bind(this), key);
+            this.subscriptions.push({ event, key });
+        }
+
+        destroy() {
+            this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
+            this.subscriptions = [];
         }
 
         render() {
@@ -3458,6 +4358,7 @@
     class TextListComponent extends UIComponentBase {
         constructor(callbacks, options) {
             super(callbacks);
+            this.subscriptions = [];
             this.options = options;
             this.id = this.options.id;
             this.styleId = `${this.id}-style`;
@@ -3465,6 +4366,18 @@
                 tabsContainer: null,
                 optionsContainer: null,
             };
+        }
+
+        _subscribe(event, listener) {
+            const key = createEventKey(this, event);
+            EventBus.subscribe(event, listener.bind(this), key);
+            this.subscriptions.push({ event, key });
+        }
+
+        destroy() {
+            super.destroy();
+            this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
+            this.subscriptions = [];
         }
 
         render() {
@@ -3571,6 +4484,7 @@
          * @param {object} siteStyles
          */
         constructor(config, onSave, platformDetails, siteStyles, onModalClose) {
+            this.subscriptions = [];
             this.config = config;
             this.onSave = onSave;
             this.platformDetails = platformDetails;
@@ -3583,7 +4497,6 @@
 
             this.hideTimeoutId = null;
             this.isModalOpen = false;
-            this.unsubscribers = [];
             this.components = {
                 settingsBtn: null,
                 settingsPanel: null,
@@ -3592,6 +4505,9 @@
                 textEditorModal: null,
                 jsonModal: null,
             };
+            // Debounce the repositioning logic
+            this.debouncedReposition = debounce(() => this.repositionAllButtons(), CONSTANTS.UI_DEFAULTS.RECALC_DEBOUNCE_MS);
+
             const modalCallbacks = {
                 onSave: (newConfig) => this.onSave(newConfig),
                 getCurrentConfig: () => this.config,
@@ -3658,29 +4574,32 @@
             });
         }
 
+        _subscribe(event, listener) {
+            const key = createEventKey(this, event);
+            EventBus.subscribe(event, listener.bind(this), key);
+            this.subscriptions.push({ event, key });
+        }
+
         init() {
             this._renderComponents();
             this.renderContent();
-            this.unsubscribers.push(
-                EventBus.subscribe(`${APPID}:reOpenModal`, ({ type, key }) => {
-                    if (type === 'json') {
-                        this.components.jsonModal.open(this.components.settingsBtn.element);
-                    } else if (type === 'textEditor') {
-                        this.components.textEditorModal.open(key);
-                    }
-                })
-            );
-            // Add event listener for dynamic UI changes
-            this.unsubscribers.push(EventBus.subscribe(`${APPID}:canvasStateChanged`, () => this.repositionAllButtons()));
-            this.unsubscribers.push(EventBus.subscribe(`${APPID}:canvasResized`, () => this.repositionAllButtons()));
+            this._subscribe(EVENTS.REOPEN_MODAL, ({ type, key }) => {
+                if (type === 'json') {
+                    this.components.jsonModal.open(this.components.settingsBtn.element);
+                } else if (type === 'textEditor') {
+                    // Assuming open method takes key for textEditor
+                    this.components.textEditorModal.open(this.components.settingsBtn.element, key);
+                }
+            });
+            this._subscribe(EVENTS.UI_REPOSITION, this.debouncedReposition);
         }
 
         destroy() {
-            this.unsubscribers.forEach((unsub) => unsub());
-            this.unsubscribers = [];
             for (const key in this.components) {
                 this.components[key]?.destroy();
             }
+            this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
+            this.subscriptions = [];
         }
 
         repositionAllButtons() {
@@ -3810,8 +4729,15 @@
 
     class SyncManager {
         constructor(appInstance) {
+            this.subscriptions = [];
             this.app = appInstance;
             this.pendingRemoteConfig = null;
+        }
+
+        _subscribe(event, listener) {
+            const key = createEventKey(this, event);
+            EventBus.subscribe(event, listener.bind(this), key);
+            this.subscriptions.push({ event, key });
         }
 
         init() {
@@ -3820,6 +4746,11 @@
                     await this._handleRemoteChange(newValue);
                 }
             });
+        }
+
+        destroy() {
+            this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
+            this.subscriptions = [];
         }
 
         onModalClose() {
@@ -3886,7 +4817,7 @@
                         // onModalClose will handle applying the pending update.
                         // Request to reopen the modal after a short delay to ensure sync completion.
                         setTimeout(() => {
-                            EventBus.publish(`${APPID}:reOpenModal`, reopenContext);
+                            EventBus.publish(EVENTS.REOPEN_MODAL, reopenContext);
                         }, 100);
                     },
                 });
@@ -3912,10 +4843,26 @@
     // =================================================================================
 
     class ObserverManager {
-        constructor(app) {
-            this.app = app; // Reference to the main app
-            this.debouncedCanvasStateChanged = debounce(this._publishCanvasStateChanged.bind(this), CONSTANTS.POSITIONING.RECALC_DEBOUNCE_MS);
-            this.debouncedCanvasResized = debounce(this._publishCanvasResized.bind(this), CONSTANTS.POSITIONING.RECALC_DEBOUNCE_MS);
+        constructor() {
+            this.subscriptions = [];
+            this.layoutResizeObserver = new ResizeObserver(this._handleResize.bind(this));
+            this.observedElements = new Map();
+            this.activePageObservers = []; // To store cleanup functions
+
+            // --- Navigation Handling ---
+            this.urlObserverInitialized = false;
+            this.originalHistoryMethods = { pushState: null, replaceState: null };
+            this.boundURLChangeHandler = null;
+            this.lastPath = null;
+            // --- End Navigation Handling ---
+        }
+
+        init() {}
+
+        _subscribe(event, listener) {
+            const key = createEventKey(this, event);
+            EventBus.subscribe(event, listener.bind(this), key);
+            this.subscriptions.push({ event, key });
         }
 
         /**
@@ -3923,20 +4870,140 @@
          * from the PlatformAdapter.
          */
         start() {
-            // Get the list of platform-specific observer initializers and run them.
-            const initializers = PlatformAdapters.Observer.getInitializers();
-            for (const init of initializers) {
-                // Call each initializer with the ObserverManager instance as `this`.
-                init.call(this);
+            // Centralized ResizeObserver for layout changes
+            this.observeElement(document.body, CONSTANTS.OBSERVED_ELEMENT_TYPES.BODY);
+
+            // Call the URL change observer to set up all page-specific listeners.
+            this.startURLChangeHandler();
+        }
+
+        destroy() {
+            this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
+            this.subscriptions = [];
+
+            this.layoutResizeObserver?.disconnect();
+            this.activePageObservers.forEach((cleanup) => cleanup());
+            this.activePageObservers = [];
+
+            // Restore original history methods and remove listeners if they were initialized.
+            if (this.urlObserverInitialized) {
+                if (this.originalHistoryMethods.pushState) {
+                    history.pushState = this.originalHistoryMethods.pushState;
+                    this.originalHistoryMethods.pushState = null;
+                }
+                if (this.originalHistoryMethods.replaceState) {
+                    history.replaceState = this.originalHistoryMethods.replaceState;
+                    this.originalHistoryMethods.replaceState = null;
+                }
+                if (this.boundURLChangeHandler) {
+                    window.removeEventListener('popstate', this.boundURLChangeHandler);
+                }
+                this.urlObserverInitialized = false;
+                this.boundURLChangeHandler = null;
             }
         }
 
-        _publishCanvasStateChanged() {
-            EventBus.publish(`${APPID}:canvasStateChanged`);
+        /**
+         * @private
+         * @description Sets up the monitoring for URL changes, which acts as the main entry point for initializing page-specific observers.
+         */
+        startURLChangeHandler() {
+            // The handler is now defined only once and bound to the instance for stable reference.
+            if (!this.boundURLChangeHandler) {
+                // Define the "raw" handler function that contains the navigation logic.
+                const rawURLChangeHandler = async () => {
+                    const currentPath = location.pathname + location.search;
+
+                    if (currentPath === this.lastPath) {
+                        Logger.debug('URL change detected, but path is the same as last processed. Ignoring.');
+                        return;
+                    }
+
+                    try {
+                        this.lastPath = currentPath;
+                        EventBus.publish(EVENTS.NAVIGATION_START);
+
+                        // Clean up all resources from the previous page.
+                        this.activePageObservers.forEach((cleanup) => cleanup());
+                        this.activePageObservers = [];
+
+                        EventBus.publish(EVENTS.NAVIGATION);
+
+                        // --- Start all page-specific observers from here ---
+                        const observerStarters = PlatformAdapters.Observer.getInitializers();
+                        for (const startObserver of observerStarters) {
+                            // Ensure the context of 'this' is the ObserverManager instance
+                            const cleanup = await startObserver.call(this, {
+                                observeElement: this.observeElement.bind(this),
+                                unobserveElement: this.unobserveElement.bind(this),
+                            });
+                            if (typeof cleanup === 'function') {
+                                this.activePageObservers.push(cleanup);
+                            }
+                        }
+                    } catch (e) {
+                        Logger.badge('NAV_HANDLER_ERROR', LOG_STYLES.ERROR, 'error', 'Error during navigation handling:', e);
+                    }
+                };
+
+                // Create the debounced version of the handler.
+                // This prevents race conditions during rapid URL changes on initialization.
+                this.boundURLChangeHandler = debounce(rawURLChangeHandler, CONSTANTS.TIMING.TIMEOUTS.IDLE_EXECUTION_FALLBACK); // Use a short delay for QTB
+            }
+
+            // Hook into history changes only once per lifecycle, managed by the destroy method.
+            if (!this.urlObserverInitialized) {
+                this.urlObserverInitialized = true;
+
+                // Capture the ObserverManager instance for use in the wrapper function.
+                const observerManagerInstance = this;
+
+                for (const m of ['pushState', 'replaceState']) {
+                    const orig = history[m];
+                    this.originalHistoryMethods[m] = orig; // Store original for restoration
+
+                    history[m] = function (...args) {
+                        // Call original method with the correct context (`this` = `history`).
+                        const result = orig.apply(this, args);
+
+                        // Call our handler using the captured instance.
+                        if (observerManagerInstance.boundURLChangeHandler) {
+                            observerManagerInstance.boundURLChangeHandler();
+                        }
+                        return result;
+                    };
+                }
+                window.addEventListener('popstate', this.boundURLChangeHandler);
+            }
+
+            // Manually call the handler on initialization to process the initial page load/navigation.
+            if (this.boundURLChangeHandler) {
+                this.boundURLChangeHandler();
+            }
         }
 
-        _publishCanvasResized() {
-            EventBus.publish(`${APPID}:canvasResized`);
+        _handleResize(entries) {
+            for (const entry of entries) {
+                const type = this.observedElements.get(entry.target);
+                switch (type) {
+                    // NOTE: QTB only cares about SIDE_PANEL (Canvas) for repositioning.
+                    case CONSTANTS.OBSERVED_ELEMENT_TYPES.SIDE_PANEL:
+                        EventBus.publish(EVENTS.UI_REPOSITION);
+                        break;
+                }
+            }
+        }
+
+        observeElement(element, type) {
+            if (!element || this.observedElements.has(element)) return;
+            this.observedElements.set(element, type);
+            this.layoutResizeObserver.observe(element);
+        }
+
+        unobserveElement(element) {
+            if (!element || !this.observedElements.has(element)) return;
+            this.layoutResizeObserver.unobserve(element);
+            this.observedElements.delete(element);
         }
     }
 
@@ -3947,61 +5014,119 @@
     /**
      * @class Sentinel
      * @description Detects DOM node insertion using a shared, prefixed CSS animation trick.
+     * @property {Map<string, Array<(element: Element) => void>>} listeners
+     * @property {Set<string>} rules
+     * @property {HTMLElement | null} styleElement
      */
     class Sentinel {
         constructor(prefix = 'my-project') {
-            window.__global_sentinel_instances__ = window.__global_sentinel_instances__ || {};
-            if (window.__global_sentinel_instances__[prefix]) {
-                return window.__global_sentinel_instances__[prefix];
+            /** @type {any} */
+            const globalScope = window;
+            globalScope.__global_sentinel_instances__ = globalScope.__global_sentinel_instances__ || {};
+            if (globalScope.__global_sentinel_instances__[prefix]) {
+                return globalScope.__global_sentinel_instances__[prefix];
             }
 
             // Use a unique, prefixed animation name shared by all scripts in a project.
             this.animationName = `${prefix}-global-sentinel-animation`;
-            this.styleId = `${prefix}-sentinel-global-keyframes`;
-            this.ruleClassName = `${prefix}-sentinel-rule`;
+            this.styleId = `${prefix}-sentinel-global-rules`; // A single, unified style element
             this.listeners = new Map();
-            this._injectKeyframes();
+            this.rules = new Set(); // Tracks all active selectors
+            this.styleElement = null; // Holds the reference to the single style element
+
+            this._injectStyleElement();
             document.addEventListener('animationstart', this._handleAnimationStart.bind(this), true);
 
-            window.__global_sentinel_instances__[prefix] = this;
+            globalScope.__global_sentinel_instances__[prefix] = this;
         }
 
-        _injectKeyframes() {
-            // Ensure the keyframes are injected only once per project prefix.
-            if (document.getElementById(this.styleId)) return;
+        _injectStyleElement() {
+            // Ensure the style element is injected only once per project prefix.
+            this.styleElement = document.getElementById(this.styleId);
+            if (this.styleElement) return;
 
-            const style = h('style', {
+            const keyframes = `@keyframes ${this.animationName} { from { transform: none; } to { transform: none; } }`;
+            this.styleElement = h('style', {
                 id: this.styleId,
-                textContent: `@keyframes ${this.animationName} { from { transform: none; } to { transform: none; } }`,
+                textContent: keyframes,
             });
-            document.head.appendChild(style);
+            // Use (document.head || document.documentElement) to ensure injection works even at document-start, when document.head might be null.
+            (document.head || document.documentElement).appendChild(this.styleElement);
         }
 
         _handleAnimationStart(event) {
             // Check if the animation is the one we're listening for.
             if (event.animationName !== this.animationName) return;
+
             const target = event.target;
-            if (!target) return;
+            if (!(target instanceof Element)) {
+                return;
+            }
+
             // Check if the target element matches any of this instance's selectors.
             for (const [selector, callbacks] of this.listeners.entries()) {
                 if (target.matches(selector)) {
-                    callbacks.forEach((cb) => cb(target));
+                    // Use a copy of the callbacks array in case a callback removes itself.
+                    [...callbacks].forEach((cb) => cb(target));
                 }
             }
         }
 
+        /**
+         * @param {string} selector
+         * @param {(element: Element) => void} callback
+         */
         on(selector, callback) {
             if (!this.listeners.has(selector)) {
                 this.listeners.set(selector, []);
-                // Each script still injects its own rule to target its specific element.
-                // All rules will point to the same, shared animation name.
-                const style = h('style', {
-                    className: this.ruleClassName,
-                    textContent: `${selector} { animation-duration: 0.001s; animation-name: ${this.animationName}; }`,
-                });
-                document.head.appendChild(style);
+                this.rules.add(selector);
+
+                // Regenerate and apply all rules to the single style element.
+                const keyframes = `@keyframes ${this.animationName} { from { transform: none; } to { transform: none; } }`;
+                const selectors = Array.from(this.rules).join(', ');
+                this.styleElement.textContent = `${keyframes}\n${selectors} { animation-duration: 0.001s; animation-name: ${this.animationName}; }`;
             }
             this.listeners.get(selector).push(callback);
+        }
+
+        /**
+         * @param {string} selector
+         * @param {(element: Element) => void} callback
+         */
+        off(selector, callback) {
+            const callbacks = this.listeners.get(selector);
+            if (!callbacks) return;
+
+            const newCallbacks = callbacks.filter((cb) => cb !== callback);
+
+            if (newCallbacks.length === callbacks.length) {
+                return; // Callback not found, do nothing.
+            }
+
+            if (newCallbacks.length === 0) {
+                this.listeners.delete(selector);
+                this.rules.delete(selector);
+
+                const keyframes = `@keyframes ${this.animationName} { from { transform: none; } to { transform: none; } }`;
+                const selectors = Array.from(this.rules).join(', ');
+                this.styleElement.textContent = `${keyframes}\n${selectors ? `${selectors} { animation-duration: 0.001s; animation-name: ${this.animationName}; }` : ''}`;
+            } else {
+                this.listeners.set(selector, newCallbacks);
+            }
+        }
+
+        suspend() {
+            if (this.styleElement instanceof HTMLStyleElement) {
+                this.styleElement.disabled = true;
+            }
+            Logger.badge('SENTINEL', LOG_STYLES.DEBUG, 'debug', 'Suspended.');
+        }
+
+        resume() {
+            if (this.styleElement instanceof HTMLStyleElement) {
+                this.styleElement.disabled = false;
+            }
+            Logger.badge('SENTINEL', LOG_STYLES.DEBUG, 'debug', 'Resumed.');
         }
     }
 
@@ -4009,13 +5134,20 @@
     // SECTION: Core Functions
     // =================================================================================
 
-    class QuickTextApp {
+    class AppController {
         constructor() {
+            this.subscriptions = [];
             this.configManager = null;
             this.uiManager = null;
             this.platformDetails = null;
             this.syncManager = null;
-            this.observerManager = new ObserverManager(this);
+            this.observerManager = new ObserverManager();
+        }
+
+        _subscribe(event, listener) {
+            const key = createEventKey(this, event);
+            EventBus.subscribe(event, listener.bind(this), key);
+            this.subscriptions.push({ event, key });
         }
 
         async init() {
@@ -4028,6 +5160,10 @@
             this.configManager = new ConfigManager();
             await this.configManager.load();
 
+            // Set logger level from config immediately after loading
+            Logger.setLevel(this.configManager.get().developer.logger_level);
+            Logger.log(`Logger level is set to '${Logger.level}'.`);
+
             this.syncManager = new SyncManager(this);
 
             const siteStyles = SITE_STYLES[this.platformDetails.platformId] || SITE_STYLES.chatgpt;
@@ -4039,10 +5175,23 @@
                 () => this.syncManager.onModalClose()
             );
             this.uiManager.init();
+            // Call init for the settings panel instance
+            if (this.uiManager.components.settingsPanel) {
+                this.uiManager.components.settingsPanel.init();
+            }
             this.syncManager.init();
 
-            // Start platform-specific observers for dynamic UI changes via the adapter
+            this.observerManager.init();
             this.observerManager.start();
+        }
+
+        destroy() {
+            this.uiManager?.destroy();
+            this.observerManager?.destroy();
+            this.configManager?.destroy();
+            this.syncManager?.destroy();
+            this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
+            this.subscriptions = [];
         }
 
         // Method required by the SyncManager's interface for silent updates
@@ -4072,40 +5221,32 @@
                 throw err; // Re-throw the error for the UI layer to catch
             }
         }
-
-        destroy() {
-            this.uiManager?.destroy();
-            // In the future, other managers can be destroyed here as well.
-        }
     }
 
     // =================================================================================
     // SECTION: Entry Point
     // =================================================================================
 
-    // ===============================================================
-    //  Execution Guard: Prevent the script from running multiple times
-    // ===============================================================
-    if (ExecutionGuard.hasExecuted()) {
-        // Exit if already executed
-        return;
-    } else {
-        // Set executed flag if not executed yet
-        ExecutionGuard.setExecuted();
-    }
-    // ===============================================================
+    // Exit if already executed
+    if (ExecutionGuard.hasExecuted()) return;
+    // Set executed flag if not executed yet
+    ExecutionGuard.setExecuted();
+
+    // Singleton instance for observing DOM node insertions.
+    const sentinel = new Sentinel(OWNERID + APPID);
+    // Singleton instance for observing panel/header DOM node insertions.
+    const panelSentinel = new Sentinel(OWNERID + 'PanelObserver');
 
     const platformDetails = PlatformAdapters.General.getPlatformDetails();
     if (platformDetails) {
-        const sentinel = new Sentinel(OWNERID);
         let isInitialized = false;
 
-        sentinel.on(platformDetails.selectors.ANCHOR_ELEMENT, () => {
+        sentinel.on(platformDetails.selectors.MAIN_APP_CONTAINER, () => {
             if (isInitialized) return;
             isInitialized = true;
 
             Logger.log('Anchor element detected. Initializing the script...');
-            const app = new QuickTextApp();
+            const app = new AppController();
             app.init();
         });
     }
