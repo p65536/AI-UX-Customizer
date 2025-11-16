@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.7.2
+// @version      1.8.0
 // @license      MIT
 // @description  Fully customize the chat UI. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=gemini.google.com
@@ -14,7 +14,7 @@
 // @grant        GM_xmlhttpRequest
 // @connect      raw.githubusercontent.com
 // @connect      *
-// @run-at       document-idle
+// @run-at       document-start
 // @noframes
 // ==/UserScript==
 
@@ -295,6 +295,8 @@
                 PANEL_TRANSITION_DURATION: 350,
                 // Fallback delay for requestIdleCallback
                 IDLE_EXECUTION_FALLBACK: 50,
+                // Grace period to confirm a 0-message page before firing NAVIGATION_END
+                ZERO_MESSAGE_GRACE_PERIOD: 2000,
             },
         },
         OBSERVED_ELEMENT_TYPES: {
@@ -562,6 +564,20 @@
          * @event DEFERRED_LAYOUT_UPDATE
          */
         DEFERRED_LAYOUT_UPDATE: `${APPID}:deferredLayoutUpdate`,
+        /**
+         * @description (GPTUX-only) Fired when historical timestamps are loaded from the API.
+         * @event TIMESTAMPS_LOADED
+         * @property {null} detail - No payload.
+         */
+        TIMESTAMPS_LOADED: `${APPID}:timestampsLoaded`,
+        /**
+         * @description Fired when a new timestamp for a realtime message is recorded.
+         * @event TIMESTAMP_ADDED
+         * @property {object} detail - Contains the message ID.
+         * @property {string} detail.messageId - The ID of the message.
+         * @property {Date} detail.timestamp - The timestamp (Date object) of when the message was processed.
+         */
+        TIMESTAMP_ADDED: `${APPID}:timestampAdded`,
 
         // System & Config
         /**
@@ -991,6 +1007,9 @@
                 enabled: true,
             },
             load_full_history_on_chat_load: {
+                enabled: true,
+            },
+            timestamp: {
                 enabled: true,
             },
         },
@@ -2154,7 +2173,7 @@
                         if (isNowVisible) {
                             // --- Panel just appeared ---
                             Logger.badge('PANEL STATE', LOG_STYLES.DEBUG, 'debug', 'Panel appeared:', panel.tagName);
-                            const chatWindow = await waitForElement(CONSTANTS.SELECTORS.CHAT_WINDOW);
+                            const chatWindow = await waitForElement(CONSTANTS.SELECTORS.CHAT_WINDOW, {}, panelSentinel);
                             if (!chatWindow) return;
 
                             // Setup a lightweight observer to detect when the panel is removed.
@@ -2181,14 +2200,14 @@
                 };
 
                 // Use Sentinel to efficiently detect when a panel might have been added.
-                sentinel.on(panelSelector, updatePanelState);
+                panelSentinel.on(panelSelector, updatePanelState);
 
                 // Perform an initial check in case a panel is already present on load.
                 updatePanelState();
 
                 // Return the cleanup function for all resources created by this observer.
                 return () => {
-                    sentinel.off(panelSelector, updatePanelState);
+                    panelSentinel.off(panelSelector, updatePanelState);
                     disappearanceObserver?.disconnect();
                 };
             },
@@ -2258,6 +2277,23 @@
                 // action buttons are present, regardless of whether a user message exists.
                 const assistantActions = turnNode.querySelector(CONSTANTS.SELECTORS.TURN_COMPLETE_SELECTOR);
                 return !!assistantActions;
+            },
+        },
+
+        // =================================================================================
+        // SECTION: Adapters for class TimestampManager
+        // =================================================================================
+        Timestamp: {
+            init() {
+                // No-op for this platform.
+            },
+
+            cleanup() {
+                // No-op for this platform.
+            },
+
+            hasTimestampLogic() {
+                return false;
             },
         },
 
@@ -2759,7 +2795,7 @@
     /**
      * @param {Function} func
      * @param {number} delay
-     * @returns {Function}
+     * @returns {(...args: any[]) => void}
      */
     function debounce(func, delay) {
         let timeout;
@@ -3094,9 +3130,10 @@
      * @param {object} [options]
      * @param {number} [options.timeout] The maximum time to wait in milliseconds.
      * @param {Document | HTMLElement} [options.context] The element to search within.
+     * @param {Sentinel} [sentinelInstance] The Sentinel instance to use (defaults to global `sentinel`).
      * @returns {Promise<HTMLElement | null>} A promise that resolves with the HTMLElement or null if timed out.
      */
-    function waitForElement(selector, { timeout = 10000, context = document } = {}) {
+    function waitForElement(selector, { timeout = 10000, context = document } = {}, sentinelInstance = sentinel) {
         // First, check if the element already exists.
         const existingEl = context.querySelector(selector);
         if (existingEl instanceof HTMLElement) {
@@ -3110,7 +3147,7 @@
 
             const cleanup = () => {
                 if (timer) clearTimeout(timer);
-                if (sentinelCallback) sentinel.off(selector, sentinelCallback);
+                if (sentinelCallback) sentinelInstance.off(selector, sentinelCallback);
             };
 
             timer = setTimeout(() => {
@@ -3127,7 +3164,7 @@
                 }
             };
 
-            sentinel.on(selector, sentinelCallback);
+            sentinelInstance.on(selector, sentinelCallback);
         });
     }
 
@@ -4681,7 +4718,7 @@
     // =================================================================================
 
     class ObserverManager {
-        constructor() {
+        constructor(messageCacheManager) {
             this.mainObserver = null;
             this.mainObserverContainer = null;
             this.layoutResizeObserver = new ResizeObserver(this._handleResize.bind(this));
@@ -4700,6 +4737,13 @@
 
             // The debounced visibility check
             this.debouncedVisibilityCheck = debounce(() => EventBus.queueUIWork(this.publishVisibilityRecheck.bind(this)), CONSTANTS.TIMING.DEBOUNCE_DELAYS.VISIBILITY_CHECK);
+
+            // Add reference to MessageCacheManager
+            this.messageCacheManager = messageCacheManager;
+            // Timer for 0-message page grace period
+            this.zeroMessageTimer = null;
+            // Bound listener for navigation-related cache updates
+            this.boundHandleCacheUpdateForNavigation = this._handleCacheUpdateForNavigation.bind(this);
         }
 
         _subscribe(event, listener) {
@@ -4771,6 +4815,9 @@
             this.activePageObservers.forEach((cleanup) => cleanup());
             this.activePageObservers = [];
 
+            // Clear any pending grace period timers
+            clearTimeout(this.zeroMessageTimer);
+
             this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
             this.subscriptions = [];
 
@@ -4794,6 +4841,38 @@
 
         /**
          * @private
+         * @description A stateful handler for CACHE_UPDATED events, specifically to manage the NAVIGATION_END lifecycle.
+         * It distinguishes between "history loading" (0 messages) and "history loaded" (N messages) or "new chat page" (0 messages confirmed after a grace period).
+         */
+        _handleCacheUpdateForNavigation() {
+            // Stop any pending 0-message confirmation timer.
+            clearTimeout(this.zeroMessageTimer);
+
+            if (this.messageCacheManager && this.messageCacheManager.getTotalMessages().length > 0) {
+                // --- Case A: Messages Found ---
+                // This is the "history loaded" state. Navigation is complete.
+                Logger.debug('Cache update has messages. Firing NAVIGATION_END.');
+                EventBus.publish(EVENTS.NAVIGATION_END);
+                // Unsubscribe self, as navigation is complete.
+                EventBus.unsubscribe(EVENTS.CACHE_UPDATED, createEventKey(this, EVENTS.CACHE_UPDATED));
+            } else {
+                // --- Case B: 0 Messages Found ---
+                // This could be a "true 0-message page" OR "history is still loading".
+                // Start a timer to give messages time to load.
+                Logger.debug(`Cache update has 0 messages. Starting ${CONSTANTS.TIMING.TIMEOUTS.ZERO_MESSAGE_GRACE_PERIOD}ms grace period...`);
+                this.zeroMessageTimer = setTimeout(() => {
+                    // If the timer finishes *without* being canceled by another cache update,
+                    // we are definitively on a 0-message page. Navigation is complete.
+                    Logger.debug('Grace period ended. Assuming 0-message page. Firing NAVIGATION_END.');
+                    EventBus.publish(EVENTS.NAVIGATION_END);
+                    // Unsubscribe self, as navigation is complete.
+                    EventBus.unsubscribe(EVENTS.CACHE_UPDATED, createEventKey(this, EVENTS.CACHE_UPDATED));
+                }, CONSTANTS.TIMING.TIMEOUTS.ZERO_MESSAGE_GRACE_PERIOD);
+            }
+        }
+
+        /**
+         * @private
          * @description Sets up the monitoring for URL changes, which acts as the main entry point for initializing page-specific observers.
          */
         startURLChangeObserver() {
@@ -4801,10 +4880,20 @@
             if (!this.boundURLChangeHandler) {
                 // Initialize with null to ensure the handler logic runs on the first call after any init.
                 let lastPath = null;
+                let sentinelCallbackForMainObserver = null;
 
-                this.boundURLChangeHandler = async () => {
+                // Define the "raw" handler function that contains the navigation logic.
+                const rawURLChangeHandler = async () => {
                     const currentPath = location.pathname + location.search;
-                    if (currentPath !== lastPath) {
+
+                    // Gate: If the URL is the same as the one we just processed, do nothing.
+                    // This prevents re-triggers if the debounced function fires after we've already handled a subsequent navigation.
+                    if (currentPath === lastPath) {
+                        Logger.debug('URL change detected, but path is the same as last processed. Ignoring.');
+                        return;
+                    }
+
+                    try {
                         lastPath = currentPath;
                         EventBus.publish(EVENTS.NAVIGATION_START);
 
@@ -4817,15 +4906,14 @@
 
                         // --- Default behavior for navigation between valid chat pages ---
 
-                        // Clean up all observers from the previous page before setting up new ones.
+                        // Clean up all resources from the previous page.
+                        clearTimeout(this.zeroMessageTimer); // Stop any pending 0-message timers
+                        if (sentinelCallbackForMainObserver) {
+                            sentinel.off(CONSTANTS.SELECTORS.MESSAGE_ROOT_NODE, sentinelCallbackForMainObserver);
+                            sentinelCallbackForMainObserver = null;
+                        }
                         this.activePageObservers.forEach((cleanup) => cleanup());
                         this.activePageObservers = [];
-
-                        // This one-time listener is the key to transitioning from "navigating" to "stable" state.
-                        this._subscribeOnce(EVENTS.CACHE_UPDATED, () => {
-                            EventBus.publish(EVENTS.NAVIGATION_END);
-                            Logger.debug('Initial cache updated. Sentinel is now active for real-time messages.');
-                        });
 
                         this.stopMainObserver();
                         // Clean up any lingering turn completion listeners from the previous page.
@@ -4835,6 +4923,42 @@
                         this.sentinelTurnListeners.clear();
 
                         EventBus.publish(EVENTS.NAVIGATION);
+
+                        // Subscribe to CACHE_UPDATED to manage the NAVIGATION_END lifecycle.
+                        const cacheEventKey = createEventKey(this, EVENTS.CACHE_UPDATED);
+                        EventBus.subscribe(EVENTS.CACHE_UPDATED, this.boundHandleCacheUpdateForNavigation, cacheEventKey);
+                        this.activePageObservers.push(() => EventBus.unsubscribe(EVENTS.CACHE_UPDATED, cacheEventKey));
+
+                        // Trigger an initial cache update immediately. This will start the navigation end detection.
+                        this.debouncedCacheUpdate();
+
+                        // Function to set up the main observer on the message container
+                        const setupMainObserver = (messageContainer) => {
+                            this.mainObserverContainer = messageContainer;
+                            this.startMainObserver(messageContainer);
+                        };
+
+                        // Use Sentinel to wait for the *first* message to be inserted.
+                        // This is time-independent and works for both fast and slow-loading chats.
+                        sentinelCallbackForMainObserver = (firstMessageElement) => {
+                            if (firstMessageElement?.parentElement) {
+                                Logger.debug('First message node detected. Setting up main observer.');
+                                setupMainObserver(firstMessageElement.parentElement);
+                                // Self-destruct: this listener is only needed once per navigation.
+                                sentinel.off(CONSTANTS.SELECTORS.MESSAGE_ROOT_NODE, sentinelCallbackForMainObserver);
+                                sentinelCallbackForMainObserver = null; // Mark as executed
+                                // Trigger a second cache update to scan the messages inside the container.
+                                this.debouncedCacheUpdate();
+                            }
+                        };
+                        sentinel.on(CONSTANTS.SELECTORS.MESSAGE_ROOT_NODE, sentinelCallbackForMainObserver);
+                        // Add to active observers for cleanup on next navigation
+                        this.activePageObservers.push(() => {
+                            if (sentinelCallbackForMainObserver) {
+                                sentinel.off(CONSTANTS.SELECTORS.MESSAGE_ROOT_NODE, sentinelCallbackForMainObserver);
+                                sentinelCallbackForMainObserver = null;
+                            }
+                        });
 
                         // Wait for the main app container, which is always present on chat pages.
                         const appContainer = await waitForElement(CONSTANTS.SELECTORS.MAIN_APP_CONTAINER);
@@ -4854,23 +4978,14 @@
                                 this.activePageObservers.push(cleanup);
                             }
                         }
-
-                        // Function to set up the main observer on the message container
-                        const setupMainObserver = (messageContainer) => {
-                            this.mainObserverContainer = messageContainer;
-                            this.startMainObserver(messageContainer);
-                        };
-
-                        // Wait for the new message container to appear, then set up the permanent observer.
-                        const newParentContainer = await waitForElement(CONSTANTS.SELECTORS.MESSAGE_CONTAINER_PARENT, { context: appContainer });
-                        if (newParentContainer) {
-                            setupMainObserver(newParentContainer);
-                        }
-
-                        // Trigger an initial cache update in case the DOM is already stable.
-                        this.debouncedCacheUpdate();
+                    } catch (e) {
+                        Logger.badge('NAV_HANDLER_ERROR', LOG_STYLES.ERROR, 'error', 'Error during navigation handling:', e);
                     }
                 };
+
+                // Create the debounced version of the handler.
+                // This prevents race conditions during rapid URL changes on initialization.
+                this.boundURLChangeHandler = debounce(rawURLChangeHandler, CONSTANTS.TIMING.TIMEOUTS.POST_NAVIGATION_DOM_SETTLE);
             }
 
             // Hook into history changes only once per lifecycle, managed by the destroy method.
@@ -6520,7 +6635,7 @@
             const oldTotal = this.state.previousTotalMessages;
 
             // Check if new messages were added (e.g., from layout scan) and if we were at the end.
-            if (newTotal > oldTotal && this.state.currentIndices.total === oldTotal - 1) {
+            if (newTotal > oldTotal && this.state.currentIndices.total === oldTotal - 1 && !this.state.isAutoScrolling) {
                 // We were at the old last message, and new messages appeared.
                 // Re-select the new last message. This will update indices and call _renderUI().
                 this.selectLastMessage();
@@ -7349,6 +7464,7 @@
             this.scanAttempts = 0;
             this.subscriptions = [];
             this.boundStopPollingScan = this.stopPollingScan.bind(this);
+            this.isNavigating = true;
         }
 
         _subscribe(event, listener) {
@@ -7362,6 +7478,10 @@
             this._subscribe(EVENTS.APP_SHUTDOWN, () => this.destroy());
             this._subscribe(EVENTS.NAVIGATION_END, () => {
                 PlatformAdapters.General.onNavigationEnd?.(this);
+                this.isNavigating = false;
+            });
+            this._subscribe(EVENTS.NAVIGATION_START, () => {
+                this.isNavigating = true;
             });
         }
 
@@ -7450,6 +7570,18 @@
 
             // If we have a valid message container, proceed.
             if (messageElement) {
+                // Publish the timestamp for this message as soon as it's identified.
+                // This is for real-time messages; historical ones are loaded via API.
+                // Find the correct messageId from the parent element
+                const messageIdHolder = messageElement.closest('[data-message-id]');
+                const messageId = messageIdHolder instanceof HTMLElement ? messageIdHolder.dataset.messageId : null;
+
+                // Only publish TIMESTAMP_ADDED (real-time/current time) if we are NOT in the initial page load/navigation phase.
+                // Historical timestamps will be loaded separately via TIMESTAMPS_LOADED event.
+                if (messageId && !this.isNavigating) {
+                    EventBus.publish(EVENTS.TIMESTAMP_ADDED, { messageId: messageId, timestamp: new Date() });
+                }
+
                 // Fire avatar injection event. The AvatarManager will handle the one-per-turn logic.
                 EventBus.publish(EVENTS.AVATAR_INJECT, messageElement);
 
@@ -7462,6 +7594,349 @@
                     EventBus.publish(EVENTS.MESSAGE_COMPLETE, messageElement);
                 }
             }
+        }
+    }
+
+    // =================================================================================
+    // SECTION: Timestamp Management
+    // Description: Manages message timestamps, handling both API-fetched historical
+    //              data and real-time message additions.
+    // =================================================================================
+
+    class TimestampManager {
+        /**
+         * @param {ConfigManager} configManager
+         * @param {MessageCacheManager} messageCacheManager
+         */
+        constructor(configManager, messageCacheManager) {
+            this.configManager = configManager;
+            this.messageCacheManager = messageCacheManager;
+            /** @type {Map<string, Date>} */
+            this.messageTimestamps = new Map();
+            /** @type {Map<HTMLElement, HTMLElement>} */
+            this.timestampDomCache = new Map();
+            this.subscriptions = [];
+            this.timestampContainerTemplate = h(`div.${APPID}-timestamp-container`);
+            this.timestampSpanTemplate = h(`span.${APPID}-timestamp`);
+            this.currentChatId = null;
+            this.isEnabled = false; // Add state tracking
+        }
+
+        _subscribe(event, listener) {
+            const key = createEventKey(this, event);
+            EventBus.subscribe(event, listener, key);
+            this.subscriptions.push({ event, key });
+        }
+
+        init() {
+            this.injectStyle();
+            // Subscribe to navigation events to clear the cache and load new data
+            // This must always run, even when disabled, to clear the cache on page change.
+            this._subscribe(EVENTS.NAVIGATION, () => this._handleNavigation());
+            // Subscribe to shutdown
+            this._subscribe(EVENTS.APP_SHUTDOWN, () => this.destroy());
+
+            // Subscribe to data events regardless of the feature toggle state.
+            this._subscribe(EVENTS.TIMESTAMP_ADDED, (data) => this._handleTimestampAdded(data));
+            this._subscribe(EVENTS.TIMESTAMPS_LOADED, (data) => this._loadHistoricalTimestamps(data));
+        }
+
+        /**
+         * Subscribes to events and performs an initial load and render.
+         * Called when the feature is enabled.
+         */
+        enable() {
+            Logger.badge('TIMESTAMPS', LOG_STYLES.DEBUG, 'debug', 'Enabling...');
+            this.isEnabled = true;
+
+            // Subscribe to cache updates (e.g., deletions)
+            this._subscribe(EVENTS.CACHE_UPDATED, () => this.updateAllTimestamps());
+
+            // Initial render
+            // This will render any data that was collected while the setting was OFF.
+            this.updateAllTimestamps();
+        }
+
+        /**
+         * Unsubscribes from events and clears DOM elements.
+         * Called when the feature is disabled.
+         * Does NOT clear the internal timestamp cache.
+         */
+        disable() {
+            Logger.badge('TIMESTAMPS', LOG_STYLES.DEBUG, 'debug', 'Disabling...');
+            this.isEnabled = false;
+
+            // Unsubscribe from events that trigger DOM updates
+            this._unsubscribe(EVENTS.CACHE_UPDATED);
+
+            // Clear all visible timestamps from the DOM
+            this._clearAllTimestampsDOM();
+        }
+
+        destroy() {
+            this.disable(); // Unsubscribe from active UI events
+
+            // Unsubscribe from all persistent listeners (data collection, navigation, shutdown)
+            this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
+            this.subscriptions = []; // Clear subscriptions array
+
+            this.messageTimestamps.clear(); // Clear internal cache
+            this._clearAllTimestampsDOM(); // Ensure DOM is clean
+            document.getElementById(`${APPID}-timestamp-style`)?.remove();
+        }
+
+        /**
+         * @private
+         * Clears caches on navigation and prepares for new data.
+         */
+        _handleNavigation() {
+            this.messageTimestamps.clear();
+            this._clearAllTimestampsDOM();
+            this.currentChatId = null;
+        }
+
+        /**
+         * @private
+         * @param {object} detail - The event detail object.
+         * @param {string} detail.chatId - The ID of the chat.
+         * @param {Map<string, Date>} detail.timestamps - The map of historical timestamps.
+         */
+        _loadHistoricalTimestamps({ chatId, timestamps }) {
+            // If the loaded data is for a different chat (e.g., race condition), clear cache.
+            if (chatId !== this.currentChatId) {
+                Logger.badge('TIMESTAMPS', LOG_STYLES.DEBUG, 'debug', `New chat detected (${chatId}). Clearing previous timestamp cache.`);
+                this.messageTimestamps.clear();
+                this.currentChatId = chatId;
+            }
+
+            if (timestamps && timestamps.size > 0) {
+                Logger.badge('TIMESTAMPS', LOG_STYLES.DEBUG, 'debug', `Loading ${timestamps.size} historical timestamps from adapter.`);
+                timestamps.forEach((date, id) => {
+                    // Overwrite any existing (likely real-time) timestamp with the historical one
+                    this.messageTimestamps.set(id, date);
+                });
+            }
+
+            // If enabled, trigger a DOM update now that historical data is loaded
+            if (this.isEnabled) {
+                this.updateAllTimestamps();
+            }
+        }
+
+        /**
+         * @private
+         * @param {object} detail - The event detail object.
+         * @param {string} detail.messageId - The ID of the message.
+         * @param {Date} detail.timestamp - The timestamp (Date object) of when the message was processed.
+         */
+        _handleTimestampAdded({ messageId, timestamp }) {
+            if (messageId && timestamp && !this.messageTimestamps.has(messageId)) {
+                Logger.badge('TIMESTAMPS', LOG_STYLES.DEBUG, 'debug', `Added real-time timestamp for ${messageId}.`);
+                this.messageTimestamps.set(messageId, timestamp);
+
+                // If enabled, trigger a DOM update for the new real-time timestamp
+                if (this.isEnabled) {
+                    this.updateAllTimestamps();
+                }
+            }
+        }
+
+        /**
+         * @param {string} messageId The ID of the message.
+         * @returns {Date | undefined} The Date object for the message, or undefined if not found.
+         */
+        getTimestamp(messageId) {
+            return this.messageTimestamps.get(messageId);
+        }
+
+        /**
+         * Injects the necessary CSS for positioning and styling the timestamps.
+         */
+        injectStyle() {
+            const styleId = `${APPID}-timestamp-style`;
+            if (document.getElementById(styleId)) return;
+
+            const style = h('style', {
+                id: styleId,
+                textContent: `
+                .${APPID}-timestamp-container {
+                    font-size: 10px;
+                    line-height: 1.2;
+                    padding: 0;
+                    margin: 0;                    
+                    color: rgb(255 255 255 / 0.7);
+                    border-radius: 4px;
+                    white-space: pre;
+                    display: flex;
+                    position: relative;
+                }
+                .${APPID}-timestamp-container.${APPID}-timestamp-assistant {
+                    justify-content: flex-start;
+                    margin-left: 0px;
+                }
+                .${APPID}-timestamp-container.${APPID}-timestamp-user {
+                    justify-content: flex-end;
+                    margin-right: 0px;
+                }
+                .${APPID}-timestamp {
+                    background-color: rgb(0 0 0 / 0.4);
+                    padding: 0px 4px;
+                    border-radius: 4px;
+                    pointer-events: none;
+                }
+                .${APPID}-timestamp-hidden {
+                    display: none !important;
+                }
+            `,
+            });
+            document.head.appendChild(style);
+        }
+
+        /**
+         * Removes all timestamp DOM elements from the page.
+         * @private
+         */
+        _clearAllTimestampsDOM() {
+            this.timestampDomCache.forEach((container) => {
+                container.remove();
+            });
+            this.timestampDomCache.clear();
+        }
+
+        _syncCache() {
+            // Synchronizes the DOM by removing any timestamp elements whose corresponding message is no longer in the cache.
+            // This prevents DOM leaks when messages are deleted.
+            const currentMessages = new Set(this.messageCacheManager.getTotalMessages());
+            for (const [messageElement, domElement] of this.timestampDomCache.entries()) {
+                if (!currentMessages.has(messageElement)) {
+                    domElement.remove(); // Remove the timestamp from the DOM
+                    this.timestampDomCache.delete(messageElement); // Remove from the cache
+                }
+            }
+        }
+
+        /**
+         * Updates the text content of all visible timestamps.
+         * Creates the timestamp element if it doesn't exist.
+         */
+        updateAllTimestamps() {
+            // 1. Sync cache and remove deleted DOM nodes
+            this._syncCache();
+
+            const config = this.configManager.get();
+            if (!config) return;
+
+            const allMessages = this.messageCacheManager.getTotalMessages();
+            const isTimestampEnabled = config.features.timestamp.enabled;
+
+            // 2. If the feature is disabled, ensure all DOM elements are removed and stop.
+            if (!isTimestampEnabled) {
+                this._clearAllTimestampsDOM(); // This removes all remaining DOM elements
+                return;
+            }
+
+            // 3. Run a single-pass batch operation to create/update all
+            processInBatches(
+                allMessages,
+                (message) => {
+                    // Pass the feature flag to the update function
+                    this._injectOrUpdateTimestamp(message, isTimestampEnabled);
+                },
+                CONSTANTS.BATCH_PROCESSING_SIZE
+            );
+        }
+
+        /**
+         * @private
+         * @description Ensures a single message element has the correct timestamp DOM and content.
+         * Creates, updates, and toggles visibility in one pass.
+         * @param {HTMLElement} messageElement The message element to process.
+         * @param {boolean} isTimestampEnabled The current state of the timestamp feature.
+         */
+        _injectOrUpdateTimestamp(messageElement, isTimestampEnabled) {
+            let timestampContainer = this.timestampDomCache.get(messageElement);
+
+            // 1. Create DOM element if it doesn't exist
+            if (!timestampContainer) {
+                const messageIdHolder = messageElement.closest('[data-message-id]');
+                const rootEle = messageIdHolder?.parentElement;
+                if (!rootEle || !messageIdHolder) return; // Cannot find insertion point
+
+                const role = PlatformAdapters.General.getMessageRole(messageElement);
+                if (!role) return; // Cannot determine role
+
+                const roleClass = role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER ? `${APPID}-timestamp-user` : `${APPID}-timestamp-assistant`;
+
+                const containerNode = this.timestampContainerTemplate.cloneNode(true);
+                const spanNode = this.timestampSpanTemplate.cloneNode(true);
+
+                if (containerNode instanceof HTMLElement && spanNode instanceof Element) {
+                    timestampContainer = containerNode; // Assign after type check
+                    timestampContainer.classList.add(roleClass);
+                    timestampContainer.appendChild(spanNode);
+                    rootEle.insertBefore(timestampContainer, messageIdHolder);
+                    this.timestampDomCache.set(messageElement, timestampContainer);
+                } else {
+                    return; // Failed to create element
+                }
+            }
+
+            // 2. Update content and visibility
+            const timestampSpan = timestampContainer.querySelector(`.${APPID}-timestamp`);
+            if (!(timestampSpan instanceof HTMLElement)) return;
+
+            let text = '';
+            if (isTimestampEnabled) {
+                const messageIdHolder = messageElement.closest('[data-message-id]');
+                const messageId = messageIdHolder instanceof HTMLElement ? messageIdHolder.dataset.messageId : null;
+                const timestamp = messageId ? this.getTimestamp(messageId) : undefined;
+                text = this._formatTimestamp(timestamp);
+            }
+
+            timestampSpan.textContent = text;
+            timestampContainer.classList.toggle(`${APPID}-timestamp-hidden`, !isTimestampEnabled || !text);
+        }
+
+        /**
+         * Formats a Date object into a fixed string format.
+         * @param {Date} date The Date object to format.
+         * @returns {string} The formatted timestamp string.
+         * @private
+         */
+        _formatTimestamp(date) {
+            if (!(date instanceof Date) || isNaN(date.getTime())) {
+                return ''; // Return empty string if date is invalid
+            }
+            const yyyy = date.getFullYear();
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const dd = String(date.getDate()).padStart(2, '0');
+            const hh = String(date.getHours()).padStart(2, '0');
+            const ii = String(date.getMinutes()).padStart(2, '0');
+            const ss = String(date.getSeconds()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd} ${hh}:${ii}:${ss}`;
+        }
+
+        /**
+         * Helper to unsubscribe from an event.
+         * @param {string} event The event name.
+         * @private
+         */
+        _unsubscribe(event) {
+            const keyPrefix = `${this.constructor.name}.`;
+            const keysToRemove = [];
+
+            // Find all keys for this instance and event
+            for (const { event: subEvent, key } of this.subscriptions) {
+                if (subEvent === event && key.startsWith(keyPrefix)) {
+                    keysToRemove.push(key);
+                }
+            }
+
+            // Unsubscribe and remove from internal tracking
+            keysToRemove.forEach((key) => {
+                EventBus.unsubscribe(event, key);
+                this.subscriptions = this.subscriptions.filter((sub) => sub.key !== key);
+            });
         }
     }
 
@@ -10614,6 +11089,10 @@
             this.warningMessage = '';
             this.subscriptions = [];
             this.isStreaming = false;
+
+            // Debounce the repositioning logic
+            this.debouncedReposition = debounce(() => this._handleRepositionEvent(), CONSTANTS.TIMING.DEBOUNCE_DELAYS.UI_REPOSITION);
+
             const modalCallbacks = {
                 onSave: (newConfig) => this.onSave(newConfig),
                 getCurrentConfig: () => this.getCurrentConfig(),
@@ -10675,7 +11154,7 @@
                     this.themeModal.open(key);
                 }
             });
-            this._subscribe(EVENTS.UI_REPOSITION, () => this._handleRepositionEvent());
+            this._subscribe(EVENTS.UI_REPOSITION, this.debouncedReposition);
             this._subscribe(EVENTS.CONFIG_WARNING_UPDATE, ({ show, message }) => {
                 this.isWarningActive = show;
                 this.warningMessage = message;
@@ -10919,7 +11398,8 @@
                 id: this.styleId,
                 textContent: keyframes,
             });
-            document.head.appendChild(this.styleElement);
+            // Use (document.head || document.documentElement) to ensure injection works even at document-start, when document.head might be null.
+            (document.head || document.documentElement).appendChild(this.styleElement);
         }
 
         _handleAnimationStart(event) {
@@ -11031,6 +11511,7 @@
             this.themeManager = null;
             this.bubbleUIManager = null;
             this.messageLifecycleManager = null;
+            this.timestampManager = null;
             this.fixedNavManager = null;
             this.messageNumberManager = null;
             this.syncManager = null;
@@ -11071,7 +11552,7 @@
             this.syncManager = new SyncManager();
 
             // Create the rest of the managers, injecting their dependencies
-            this.observerManager = new ObserverManager();
+            this.observerManager = new ObserverManager(this.messageCacheManager);
             this.uiManager = new UIManager(
                 (newConfig) => this.handleSave(newConfig),
                 () => Promise.resolve(this.configManager.get()),
@@ -11087,6 +11568,12 @@
 
             // Initialize platform-specific managers, which depend on core managers (like messageLifecycleManager)
             PlatformAdapters.ThemeAutomator.initializePlatformManagers(this);
+
+            if (PlatformAdapters.Timestamp.hasTimestampLogic()) {
+                this.timestampManager = new TimestampManager(this.configManager, this.messageCacheManager);
+            } else {
+                this.timestampManager = null;
+            }
 
             if (config.features.fixed_nav_console.enabled) {
                 this.fixedNavManager = new FixedNavigationManager({
@@ -11106,6 +11593,7 @@
                 this.standingImageManager,
                 this.bubbleUIManager,
                 this.messageLifecycleManager,
+                this.timestampManager,
                 this.uiManager,
                 this.messageNumberManager,
                 this.observerManager,
@@ -11114,6 +11602,11 @@
                 this.toastManager,
             ];
             allManagers.filter(Boolean).forEach((manager) => manager.init());
+
+            // Manually enable timestamp manager if config says so
+            if (this.timestampManager && config.features.timestamp.enabled) {
+                this.timestampManager.enable();
+            }
 
             if (this.fixedNavManager) {
                 await this.fixedNavManager.init();
@@ -11158,6 +11651,9 @@
 
             // This method is now a cleanup handler triggered by the APP_SHUTDOWN event.
             // It should NOT re-publish the event that called it.
+
+            // Stop network monitoring immediately
+            PlatformAdapters.Timestamp.cleanup();
 
             // Explicitly destroy managers that don't self-destroy via event bus subscription.
             this.themeManager?.destroy();
@@ -11233,7 +11729,7 @@
             return { completeConfig, themeChanged };
         }
 
-        async _applyUiUpdates(completeConfig, themeChanged) {
+        async _applyUiUpdates(completeConfig, themeChanged, oldTimestampEnabled) {
             this.avatarManager.updateIconSizeCss();
             this.bubbleUIManager.updateAll();
             this.messageNumberManager.updateAllMessageNumbers();
@@ -11251,6 +11747,21 @@
                 this.themeManager.applyChatContentMaxWidth();
             }
 
+            // Handle TimestampManager lifecycle
+            if (this.timestampManager) {
+                const newTimestampEnabled = completeConfig.features.timestamp.enabled;
+
+                if (newTimestampEnabled && !oldTimestampEnabled) {
+                    this.timestampManager.enable();
+                } else if (!newTimestampEnabled && oldTimestampEnabled) {
+                    this.timestampManager.disable();
+                } else if (newTimestampEnabled) {
+                    // If already enabled, just force an update (e.g., if nav console was toggled)
+                    this.timestampManager.updateAllTimestamps();
+                }
+            }
+
+            // Handle FixedNavigationManager lifecycle
             const navConsoleEnabled = completeConfig.features.fixed_nav_console.enabled;
             if (navConsoleEnabled && !this.fixedNavManager) {
                 this.fixedNavManager = new FixedNavigationManager(
@@ -11278,7 +11789,9 @@
         /** @param {AppConfig} newConfig */
         async handleSave(newConfig) {
             try {
-                const oldIconSize = this.configManager.get().options.icon_size;
+                const oldConfig = this.configManager.get();
+                const oldIconSize = oldConfig.options.icon_size;
+                const oldTimestampEnabled = oldConfig.features.timestamp.enabled;
 
                 const processResult = this._processConfig(newConfig);
                 const completeConfig = processResult.completeConfig;
@@ -11305,7 +11818,9 @@
                     this.uiManager.clearConflictNotification(activeModal);
                 }
 
-                await this._applyUiUpdates(completeConfig, themeChanged);
+                // The _applyUiUpdates method now handles the enable/disable logic.
+                // We pass the old enabled state to it.
+                await this._applyUiUpdates(completeConfig, themeChanged, oldTimestampEnabled);
             } catch (e) {
                 Logger.badge('SAVE FAILED', LOG_STYLES.ERROR, 'error', 'Configuration save failed:', e.message);
                 throw e; // Re-throw the error for the UI layer to catch
@@ -11390,10 +11905,15 @@
     // Set executed flag if not executed yet
     ExecutionGuard.setExecuted();
 
+    // Initialize network interception immediately at document-start
+    PlatformAdapters.Timestamp.init();
+
     // Main controller for the entire application.
     const automator = new ThemeAutomator();
     // Singleton instance for observing DOM node insertions.
-    const sentinel = new Sentinel(OWNERID);
+    const sentinel = new Sentinel(OWNERID + APPID);
+    // Singleton instance for observing panel/header DOM node insertions.
+    const panelSentinel = new Sentinel(OWNERID + 'PanelObserver');
 
     // This immediate hook is crucial for preventing race conditions. It sets the navigating
     // flag as soon as a URL change is initiated, ensuring that the Sentinel's message
