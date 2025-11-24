@@ -5,8 +5,7 @@
 This document provides a table summarizing the purpose, example usage, allowed values, and notes for each property.
 Refer to this page if you get stuck during customization.
 
-**However, using the GUI (Text Editor Modal) for configuration is generally recommended. Please use this document as a technical reference.**  
-**Note that if you set unexpected values by directly editing the JSON, the script will fall back to allowed values upon import.**
+**However, using the GUI (Text Editor Modal) for configuration is generally recommended. Please use this document as a technical reference.** **Note that if you set unexpected values by directly editing the JSON, the script will fall back to allowed values upon import.**
 
 ---
 
@@ -21,6 +20,9 @@ The following is a sample to illustrate the JSON structure. **Ready-to-use sampl
     "insert_after_newline": false,
     "insertion_position": "end",
     "activeProfileName": "Default"
+  },
+  "developer": {
+    "logger_level": "log"
   },
   "texts": {
     "Default": {
@@ -48,9 +50,10 @@ The following is a sample to illustrate the JSON structure. **Ready-to-use sampl
 | Item Name | Description |
 | :--- | :--- |
 | `options` | Common settings for script behavior. |
+| `developer` | **Debug and development settings.** |
 | `texts` | An object that stores the text data to be inserted. It can hold multiple profiles. |
 
------
+---
 
 ## `"options"` Settings
 
@@ -60,6 +63,14 @@ The following is a sample to illustrate the JSON structure. **Ready-to-use sampl
 | `insert_after_newline` | Whether to add a newline after inserting text | `false` | `true` / `false` |
 | `insertion_position` | The position where the text is inserted | `"cursor"` | `"start"`: Beginning of the input field\<br\>`"cursor"`: Current cursor position\<br\>`"end"`: End of the input field |
 | `activeProfileName` | The name of the currently active profile | `"Default"` | A string specifying a profile name that exists within the `texts` object. |
+
+---
+
+## `"developer"` Settings
+
+| Property Name | Description | Example | Notes/Allowed Values |
+| :--- | :--- | :--- | :--- |
+| `logger_level` | Controls the verbosity of browser console logs. | `"log"` | `"error"` / `"warn"` / `"info"` / `"log"` / `"debug"` |
 
 -----
 

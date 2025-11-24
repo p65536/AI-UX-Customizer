@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.4.0] - 2025-11-24
+- **UI Improvements**
+  - **Unified Interface**: Merged the Settings and Insert buttons into a single, streamlined control.
+  - **Relocation**: Moved the button to the bottom-left of the input area for better accessibility and reduced visual clutter.
+  - **New Interaction**: Simply hover over the button to reveal the Quick Text list, or click it to open the Settings panel.
+- **Core Improvements**
+  - **Monitoring Engine**: Replaced the legacy CSS-based `Sentinel` with a `MutationObserver` engine to avoid conflicts with GPTUX/GGGUX.
+  - **Persistence**: Added a "Keep-Alive" mechanism that instantly detects if the chat input is redrawn by the website (e.g., during page navigation) and restores the buttons immediately.
+  - **Data Integrity**: Enhanced data validation to automatically detect and repair corrupted text profiles instead of causing errors.
+- **Internal Refactoring**
+  - **Optimization**: Replaced legacy object cloning with a more efficient `deepClone` utility and standardized event handling.
+  - **Configuration**: Refactored internal configuration logic (`ConfigProcessor`) to improve separation of concerns and consistency.
+
 ## [1.3.0] - 2025-11-16
 - **New Features & UI Improvements**
   - **[ChatGPT]** Improved button positioning logic. The buttons will now detect and avoid colliding with other UI elements (like native buttons or other UserScripts).

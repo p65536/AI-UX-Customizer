@@ -18,6 +18,7 @@ Currently, it supports the following AI services:
 
 ## Key Features
 
+* **Streamlined UI integrated into the input area**
 * **Intuitive text editing via GUI**
 * Manage registered text by classifying it into "profiles" and "categories"
 * Switch between profiles (sets of categories) to use text sets tailored for different purposes
@@ -30,13 +31,15 @@ Currently, it supports the following AI services:
 
 ## Screenshots
 
-### 1. Insert Text Button and Pop-up Menu
+### 1. Unified Action Button & Text Menu
 
-![Text Insertion Menu](./images/qtb_menu.webp)
+When you hover over the button:
+![Text Insertion Menu](./images/qtb_button_hover.webp)
 
 ### 2. Settings Panel
 
-![Settings Panel](./images/qtb_settings_panel.webp)
+When you click the button:
+![Settings Panel](./images/qtb_button_click.webp)
 
 ### 3. Text Editor Modal
 
@@ -46,9 +49,10 @@ Currently, it supports the following AI services:
 
 ## How to Use
 
-* Hovering over the `Insert Text button` (pen icon) in the upper right corner will display the list of registered texts. Clicking one will insert the text into the input field.
-* Open the settings panel from the `Settings button` (book icon) in the upper right corner to edit texts and change options.
-* If needed, use the "JSON" button to export your current settings or import sample settings.
+* **Access**: The **Quick Text button** (pen icon) is located at the bottom-left of the chat input field.
+* **Insert Text**: **Hover** over the button to display the list of registered texts. Clicking an item will insert it into the input field.
+* **Settings**: **Click** the button to open the **Settings Panel**, where you can edit texts, manage profiles, and change options.
+* **Import/Export**: If needed, use the "JSON" button in the settings panel to export your current settings or import sample settings.
 
 ---
 

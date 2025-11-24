@@ -2,9 +2,13 @@
 
 ## Settings Screen
 
-### 1. Click the settings button in the upper right corner to open the settings panel
+### 1. Click the Quick Text button to open the settings panel
 
-![Settings Button](./images/qtb_settings_button.webp)
+The **Quick Text button** (pen icon) is located at the bottom-left of the chat input field.
+Clicking this button opens the settings panel (Hovering over it opens the text insertion list).
+
+Click the button:
+![Settings Panel](./images/qtb_button.webp)
 
 ### 2. Settings Panel Items
 
