@@ -33,12 +33,12 @@ Currently, it supports the following AI services:
 
 ### 1. Unified Action Button & Text Menu
 
-When you hover over the button:
+When you hover over the button:  
 ![Text Insertion Menu](./images/qtb_button_hover.webp)
 
 ### 2. Settings Panel
 
-When you click the button:
+When you click the button:  
 ![Settings Panel](./images/qtb_button_click.webp)
 
 ### 3. Text Editor Modal
