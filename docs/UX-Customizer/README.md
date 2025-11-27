@@ -83,12 +83,12 @@ The scripts have been created for each site. Please install the required script.
 
 ##### GPTUX (for ChatGPT)
   - **[Firefox only]** The left end button (visible only on Firefox) is the "Run layout scan and rescan DOM" function.  
-  This is primarily used to mitigate a Firefox-specific bug where the scroll position jumps when images or messages load late. Use this button if you experience that issue, or if message counts appear incorrect.
+  This is primarily used to mitigate a Firefox-specific bug where the scroll position jumps when images or messages load late. Use this button if you experience that issue, or if message counts appear incorrect.  
 ![Navigation Console of GPTUX](./images/navi_console_chatgpt.webp)
 
 ##### GGGUX (for Gemini)
   - The left end button is the "Load full chat history (Auto scroll)" function  
-  This button is designed to allow you to manually auto-scroll specific chats while normally disabling the `Load full history on chat load` function.
+  This button is designed to allow you to manually auto-scroll specific chats while normally disabling the `Load full history on chat load` function.  
 ![Navigation Console of GGGUX](./images/navi_console_gemini.webp)
 
 ---
