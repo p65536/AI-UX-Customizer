@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.0.0] - 2025-11-28
+- **UI & UX Improvements**
+  - **ChatGPT**: Improved layout integration by switching to native positioning, ensuring the button blends perfectly with the interface.
+  - **Gemini**: Refreshed the button design to fully align with Material Design 3 styles.
+  - **Text Editor**: Improved list navigation; deleting an item now selects the next item instead of the previous one for a smoother workflow.
+- **Core Changes**
+  - **Engine Upgrade**: Re-introduced the `Sentinel` engine with significant enhancements, replacing MutationObserver to deliver faster, conflict-free, and more reliable button placement.
+  - Increased the maximum configuration storage limit from 4.8MB to 10MB.
+  - Added automatic retry logic to ensure the button appears correctly even if the target element is temporarily detached.
+  - Optimized configuration handling to automatically discard obsolete settings.
+
 ## [1.4.0] - 2025-11-24
 - **UI Improvements**
   - **Unified Interface**: Merged the Settings and Insert buttons into a single, streamlined control.

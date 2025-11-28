@@ -36,6 +36,8 @@ Currently, it supports the following AI services:
 When you hover over the button:  
 ![Text Insertion Menu](./images/qtb_button_hover.webp)
 
+* **Perfect Match:** Works seamlessly with [**UX Customizer**](../UX-Customizer/README.md) to enhance the visual interface and navigation.
+
 ### 2. Settings Panel
 
 When you click the button:  

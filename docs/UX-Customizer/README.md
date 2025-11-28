@@ -79,6 +79,8 @@ The scripts have been created for each site. Please install the required script.
 
 ![Advanced Navigation](./images/navigation.webp)
 
+**Note:** The pencil icon in the input area belongs to [**Quick Text Buttons (QTB)**](../Quick-Text-Buttons/README.md), a separate userscript. It allows you to insert predefined text or prompts with a single click. Using QTB alongside UX Customizer provides a highly efficient chat experience.
+
 ### 9. Differences between the navigation consoles of GPTUX and GGGUX
 
 ##### GPTUX (for ChatGPT)
@@ -95,7 +97,7 @@ The scripts have been created for each site. Please install the required script.
 
 ## How to Use
 
-- Click the **gear icon** in the upper right corner to **open the Settings Panel**.
+- Click the **gear icon** ⚙️ in the input area to **open the settings panel**.
 - From the Settings Panel, you can change various options or **open the Theme Editor (GUI) to create and edit themes**.
 - In the navigation console above the input field, **click on the "Assistant:", "Total:", or "User:" labels** to open the message **Jump List**.
 - If needed, use the "JSON" button to export your current settings or import sample settings.
@@ -182,5 +184,4 @@ MIT License
 
 ## Author
 
-  * [p65536](https://github.com/p65536)
-
+- [p65536](https://github.com/p65536)

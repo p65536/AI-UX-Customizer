@@ -4,6 +4,41 @@
 > This changelog applies to both **ChatGPT UX Customizer (GPTUX)** and **Gemini UX Customizer (GGGUX)**.
 > Most changes are shared between the two scripts. If a change applies only to one, it will be explicitly marked with a `[GPTUX]` or `[GGGUX]` prefix.
 
+## [2.0.0] - 2025-11-28
+- **New Features**
+  - **Interactive Jump List Preview**: The message preview tooltip in the Navigation Console is now interactive. You can select and copy text directly from the preview without the popup closing unexpectedly.
+    - **Tip:** To quickly select all text within the preview, simply **triple-click** the text.
+  - **[GPTUX]** Added support for **Research Panel** and **Activity Panel**. Standing images are now automatically hidden when these panels are open to prevent visual clutter.
+  - **Relocation**: Moved the settings button to the input area for better accessibility and reduced visual clutter.
+  - **Config Storage Increase**: The maximum configuration size has been increased from 4.8MB to 10MB, providing more space for themes and embedded images.
+    - *Note:* As stated in the README, please remember that embedding large local images is intended primarily for temporary layout verification.
+- **Bug Fixes & Improvements**
+  - **[GPTUX] Avatar Logic**: Refactored avatar injection to be turn-based, improving stability and fixing layout issues with dynamic content like "Thinking" processes.
+  - **[GPTUX] Navigation Fix**: Fixed unexpected scrolling jumps when using navigation buttons on image-only messages.
+  - **[GPTUX] Layout Fix**: Fixed an issue where custom avatars overlapped with **Deep Research** result containers; avatars are now hidden on these reports.
+  - **[GPTUX] Timestamp Positioning**: Improved the positioning and stability of message timestamps.
+  - **[GGGUX] Auto Scroll**: Fixed an issue where the **Auto Scroll** feature failed to trigger on certain chats by introducing a grace period for the initial check.
+  - **Theme Editor**:
+    - Copied themes are now inserted immediately below the selected theme.
+    - Deleting a theme now intelligently selects the adjacent theme instead of selecting the 'Default Settings'.
+  - **UI Stability**:
+    - Fixed an issue where theme styles could persist on excluded pages.
+    - Prevented duplicate insertion of navigation buttons (collapsible, sequential nav, etc.).
+    - Settings save errors (e.g., storage full) are now handled gracefully without unhandled console warnings.
+  - **Responsiveness**: Significantly improved the responsiveness of floating UI elements (Settings button, Navigation console, Standing images) during window resizing and panel transitions using frame-synced updates.
+  - **Smooth Transitions**: Implemented smooth visual tracking for panel transitions (Sidebar, Canvas, File panels), eliminating visual jumps.
+  - **History Navigation**: Improved compatibility with other browser extensions by implementing a safer method for restoring history navigation handlers (`pushState`/`replaceState`).
+- **Performance & Internal**
+  - **Refactored Sentinel Library**: The class now enforces a mandatory `prefix` (utilizing `OWNERID`) during initialization. This ensures distinct CSS animation names, allowing multiple scripts to run simultaneously on the same page without interfering with each other's DOM detection logic.
+    - **Performance**: Switched internal implementation to use the `CSSStyleSheet` API (`insertRule`/`deleteRule`) instead of text manipulation, resulting in cleaner and faster style injection.
+  - **Optimized Message Lookup**: Implemented O(1) lookup in `MessageCacheManager` using a `Map`-based cache, improving performance in long chats.
+  - **Efficient Rendering**: Implemented DOM element caching for the Navigation Console to reduce overhead during updates.
+  - **Modernized Core**: Updated utility functions to use modern browser APIs (`structuredClone`, `crypto.randomUUID`) and standardized internal logic.
+  - **Safer Scrolling**: Refactored scrolling to use standard CSS `scroll-margin-top`, eliminating DOM hacks.
+  - **Robust Lifecycle**: Hardened event listener management and improved the shutdown process for cleaner unloading and better stability on excluded pages.
+  - **Refactored Initialization**: Centralized initialization logic in `ThemeAutomator` and simplified the script entry point.
+  - **Style Tweaks**: Increased avatar icon margin for better visual spacing.
+
 ## [1.8.0] - 2025-11-16
 - **New Features**
   - **[GPTUX]** Added a new **Message Timestamp** feature to display the creation time for each message (enabled by default). This feature intercepts API requests to load historical timestamps and records new ones in real-time.
