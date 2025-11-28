@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.8.0
+// @version      2.0.0
 // @license      MIT
 // @description  Fully customize the chat UI. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=gemini.google.com
@@ -38,11 +38,11 @@
     // Style definitions for styled Logger.badge()
     const LOG_STYLES = {
         BASE: 'color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold;',
-        INFO: 'background: #007bff;',
-        LOG: 'background: #28a745;',
-        WARN: 'background: #ffc107; color: black;',
-        ERROR: 'background: #dc3545;',
-        DEBUG: 'background: #6c757d;',
+        BLUE: 'background: #007bff;',
+        GREEN: 'background: #28a745;',
+        YELLOW: 'background: #ffc107; color: black;',
+        RED: 'background: #dc3545;',
+        GRAY: 'background: #6c757d;',
     };
 
     // =================================================================================
@@ -71,7 +71,7 @@
             if (Object.prototype.hasOwnProperty.call(this.levels, level)) {
                 this.level = level;
             } else {
-                Logger.badge('INVALID LEVEL', LOG_STYLES.WARN, 'warn', `Invalid log level "${level}". Valid levels are: ${Object.keys(this.levels).join(', ')}. Level not changed.`);
+                Logger.badge('INVALID LEVEL', LOG_STYLES.YELLOW, 'warn', `Invalid log level "${level}". Valid levels are: ${Object.keys(this.levels).join(', ')}. Level not changed.`);
             }
         }
 
@@ -203,7 +203,7 @@
             if (now - this._events[key].startTime >= delay) {
                 const callsPerSecond = (this._events[key].count / ((now - this._events[key].startTime) / 1000)).toFixed(2);
                 // Use Logger.debug to ensure the output is prefixed and controlled.
-                Logger.badge('PerfMonitor', LOG_STYLES.DEBUG, 'debug', `${key}: ${this._events[key].count} calls in ${now - this._events[key].startTime}ms (${callsPerSecond} calls/sec)`);
+                Logger.badge('PerfMonitor', LOG_STYLES.GRAY, 'debug', `${key}: ${this._events[key].count} calls in ${now - this._events[key].startTime}ms (${callsPerSecond} calls/sec)`);
                 delete this._events[key];
             }
         },
@@ -251,11 +251,14 @@
     // ---- Default Settings & Theme Configuration ----
     const CONSTANTS = {
         CONFIG_KEY: `${APPID}_config`,
-        CONFIG_SIZE_LIMIT_BYTES: 5033164, // 4.8MB
+        CONFIG_SIZE_LIMIT_BYTES: 10485760, // 10MB
         CACHE_SIZE_LIMIT_BYTES: 10 * 1024 * 1024, // 10MB
         ICON_SIZE: 64,
         ICON_SIZE_VALUES: [64, 96, 128, 160, 192],
-        ICON_MARGIN: 16,
+        ICON_MARGIN: 20,
+        SENTINEL: {
+            PANEL: 'PanelObserver',
+        },
         BUTTON_VISIBILITY_THRESHOLD_PX: 128,
         BATCH_PROCESSING_SIZE: 50,
         RETRY: {
@@ -334,8 +337,15 @@
             TEXTAREA_HEIGHT: 200,
         },
         UI_DEFAULTS: {
-            SETTINGS_BUTTON_CANVAS_OFFSET_PX: 96,
-            SETTINGS_BUTTON_DEFAULT_POSITION: { top: '10px', right: '320px' },
+            SETTINGS_BUTTON_PADDING_RIGHT: '44px',
+        },
+        INTERNAL_ROLES: {
+            USER: 'user',
+            ASSISTANT: 'assistant',
+        },
+        DATA_KEYS: {
+            AVATAR_INJECT_ATTEMPTS: 'avatarInjectAttempts',
+            AVATAR_INJECT_FAILED: 'avatarInjectFailed',
         },
         SELECTORS: {
             // --- Main containers ---
@@ -347,6 +357,7 @@
 
             // --- Message containers ---
             CONVERSATION_UNIT: 'user-query, model-response',
+            MESSAGE_ID_HOLDER: '[data-message-id]',
             MESSAGE_CONTAINER_PARENT: '.conversation-container',
             MESSAGE_ROOT_NODE: 'user-query, model-response',
             USER_QUERY_CONTAINER: 'user-query-content',
@@ -369,6 +380,9 @@
             INPUT_TEXT_FIELD_TARGET: 'rich-textarea .ql-editor',
             INPUT_RESIZE_TARGET: 'input-area-v2',
 
+            // --- Input area (Button Injection) ---
+            INSERTION_ANCHOR: 'input-area-v2 .trailing-actions-wrapper',
+
             // --- Avatar area ---
             AVATAR_USER: 'user-query',
             AVATAR_ASSISTANT: 'model-response',
@@ -384,6 +398,9 @@
             SCROLL_CONTAINER: null,
 
             // --- Site Specific Selectors ---
+            CONVERSATION_TITLE_WRAPPER: '[data-test-id="conversation"].selected',
+            CONVERSATION_TITLE_TEXT: '.conversation-title',
+            CHAT_HISTORY_SCROLL_CONTAINER: '[data-test-id="chat-history-container"]',
 
             // --- BubbleFeature-specific Selectors ---
             BUBBLE_FEATURE_MESSAGE_CONTAINERS: 'user-query, model-response',
@@ -727,11 +744,24 @@
             },
         },
         SETTINGS_BUTTON: {
-            background: 'var(--gem-sys-color--surface-container-high)',
-            borderColor: 'var(--gem-sys-color--outline)',
-            backgroundHover: 'var(--gem-sys-color--surface-container-higher)',
-            borderColorHover: 'var(--gem-sys-color--outline)',
-            borderRadius: '50%',
+            base: {
+                background: 'transparent',
+                border: 'none',
+                borderRadius: '50%',
+                borderColor: 'transparent',
+                position: 'static',
+                margin: '0 2px 0 0',
+                width: '40px',
+                height: '40px',
+                alignSelf: 'center',
+                // Match native tool button color
+                color: 'var(--mat-icon-button-icon-color, var(--mat-sys-on-surface-variant))',
+            },
+            hover: {
+                // Replicate Material Design 3 state layer: State Layer Color at 8% opacity
+                background: 'color-mix(in srgb, var(--mat-icon-button-state-layer-color) 8%, transparent)',
+                borderColor: 'transparent',
+            },
             iconDef: {
                 tag: 'svg',
                 props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 0 24 24', width: '24px', fill: 'currentColor' },
@@ -772,9 +802,9 @@
             msg_success_text: 'var(--gem-sys-color--primary)',
         },
         THEME_MODAL: {
-            modal_bg: 'var(--gem-sys-color--surface-container-highest)',
-            modal_text: 'var(--gem-sys-color--on-surface)',
-            modal_border: 'var(--gem-sys-color--outline)',
+            bg: 'var(--gem-sys-color--surface-container-highest)',
+            text: 'var(--gem-sys-color--on-surface)',
+            border: 'var(--gem-sys-color--outline)',
             btn_bg: 'var(--gem-sys-color--surface-container-high)',
             btn_hover_bg: 'var(--gem-sys-color--surface-container-higher)',
             btn_text: 'var(--gem-sys-color--on-surface-variant)',
@@ -1133,6 +1163,15 @@
             },
 
             /**
+             * Checks if the current page is the "New Chat" page.
+             * @returns {boolean} True if it is the new chat page, otherwise false.
+             */
+            isNewChatPage() {
+                const p = window.location.pathname;
+                return p === '/app' || p === '/';
+            },
+
+            /**
              * Gets the platform-specific role identifier from a message element.
              * @param {Element} messageElement The message element.
              * @returns {string | null} The platform's role identifier (e.g., 'user', 'user-query').
@@ -1148,7 +1187,7 @@
              */
             getChatTitle() {
                 // GGGUX gets the title from a specific DOM element.
-                return document.querySelector('[data-test-id="conversation"].selected')?.querySelector('.conversation-title')?.textContent.trim() ?? null;
+                return document.querySelector(CONSTANTS.SELECTORS.CONVERSATION_TITLE_WRAPPER)?.querySelector(CONSTANTS.SELECTORS.CONVERSATION_TITLE_TEXT)?.textContent.trim() ?? null;
             },
 
             /**
@@ -1279,6 +1318,20 @@
                     }
                 `;
             },
+
+            /**
+             * Returns the complete configuration object for the settings button.
+             * @param {object} themeStyles - The base styles from SITE_STYLES.SETTINGS_BUTTON.
+             * @returns {object} The complete configuration object.
+             */
+            getSettingsButtonConfig(themeStyles) {
+                return {
+                    zIndex: CONSTANTS.Z_INDICES.SETTINGS_BUTTON,
+                    iconDef: themeStyles.iconDef,
+                    styles: themeStyles.base,
+                    hoverStyles: themeStyles.hover,
+                };
+            },
         },
 
         // =================================================================================
@@ -1392,6 +1445,15 @@
         },
 
         // =================================================================================
+        // SECTION: Toast Manager
+        // =================================================================================
+        Toast: {
+            getAutoScrollMessage() {
+                return 'Auto-scrolling to load history...';
+            },
+        },
+
+        // =================================================================================
         // SECTION: Adapters for class ThemeAutomator
         // =================================================================================
         ThemeAutomator: {
@@ -1413,6 +1475,8 @@
                         APPEAR_TIMEOUT_MS: 2000,
                         // The maximum time (in ms) to wait for the progress bar to disappear after it has appeared.
                         DISAPPEAR_TIMEOUT_MS: 5000,
+                        // The grace period (in ms) after navigation to allow messages to load before deciding not to scroll.
+                        GRACE_PERIOD_MS: 2000,
                     };
 
                     /**
@@ -1434,11 +1498,25 @@
                         this.progressObserver = null;
                         this.appearTimeout = null;
                         this.disappearTimeout = null;
+                        this.navigationStartTime = 0;
                     }
 
                     _subscribe(event, listener) {
                         const key = createEventKey(this, event);
                         EventBus.subscribe(event, listener, key);
+                        this.subscriptions.push({ event, key });
+                    }
+
+                    _subscribeOnce(event, listener) {
+                        const uniqueSuffix = Date.now() + Math.random().toString(36).substring(2);
+                        const key = `${createEventKey(this, event)}_${uniqueSuffix}`;
+
+                        const wrappedListener = (...args) => {
+                            this.subscriptions = this.subscriptions.filter((sub) => sub.key !== key);
+                            listener(...args);
+                        };
+
+                        EventBus.once(event, wrappedListener, key);
                         this.subscriptions.push({ event, key });
                     }
 
@@ -1470,18 +1548,23 @@
                     async start() {
                         if (this.isScrolling) return;
 
+                        // Set the flag immediately to prevent re-entrancy from other events.
+                        this.isScrolling = true;
+
                         this.observerContainer = await waitForElement(CONSTANTS.SELECTORS.CHAT_WINDOW_CONTENT);
-                        this.scrollContainer = this.observerContainer?.querySelector('[data-test-id="chat-history-container"]');
+                        // Guard against cancellation during await
+                        if (!this.isScrolling) return;
+
+                        this.scrollContainer = this.observerContainer?.querySelector(CONSTANTS.SELECTORS.CHAT_HISTORY_SCROLL_CONTAINER);
 
                         if (!this.observerContainer || !this.scrollContainer) {
-                            Logger.badge('AUTOSCROLL WARN', LOG_STYLES.WARN, 'warn', 'Could not find required containers.');
-                            // Do not stop, just reset the flag to allow re-triggering on next cache update
+                            Logger.badge('AUTOSCROLL WARN', LOG_STYLES.YELLOW, 'warn', 'Could not find required containers.');
+                            // Reset flags to allow re-triggering
                             this.isInitialScrollCheckDone = false;
+                            this.isScrolling = false;
                             return;
                         }
 
-                        // Set the flag immediately to prevent re-entrancy from other events.
-                        this.isScrolling = true;
                         Logger.log('AutoScrollManager: Starting auto-scroll with MutationObserver.');
                         this.toastShown = false;
 
@@ -1567,7 +1650,7 @@
                         });
 
                         if (progressBarAppeared) {
-                            Logger.badge('AUTOSCROLL', LOG_STYLES.DEBUG, 'debug', 'Progress bar appeared.');
+                            Logger.badge('AUTOSCROLL', LOG_STYLES.GRAY, 'debug', 'Progress bar appeared.');
                             clearTimeout(this.appearTimeout); // Cancel the "end of history" timer
                             if (!this.toastShown) {
                                 EventBus.publish(EVENTS.AUTO_SCROLL_START);
@@ -1581,7 +1664,7 @@
                         }
 
                         if (progressBarDisappeared) {
-                            Logger.badge('AUTOSCROLL', LOG_STYLES.DEBUG, 'debug', 'Progress bar disappeared.');
+                            Logger.badge('AUTOSCROLL', LOG_STYLES.GRAY, 'debug', 'Progress bar disappeared.');
                             clearTimeout(this.disappearTimeout); // Cancel the "stuck" timer
                             this._triggerScroll(); // Trigger the next scroll
                         }
@@ -1617,7 +1700,15 @@
                             this.isInitialScrollCheckDone = true;
                             EventBus.publish(EVENTS.AUTO_SCROLL_REQUEST);
                         } else {
-                            Logger.log(`AutoScrollManager: ${messageCount} messages found. No scroll needed.`);
+                            // If message count is low, check if the grace period has expired.
+                            const timeSinceNavigation = Date.now() - this.navigationStartTime;
+                            if (timeSinceNavigation > AutoScrollManager.CONFIG.GRACE_PERIOD_MS) {
+                                Logger.log(`AutoScrollManager: ${messageCount} messages found after grace period. No scroll needed.`);
+                                this.isInitialScrollCheckDone = true;
+                            } else {
+                                // Within grace period: do nothing and wait for subsequent cache updates.
+                                // This handles cases where messages load progressively.
+                            }
                         }
                     }
 
@@ -1645,153 +1736,11 @@
                             this.stop(true);
                         }
                         this.isInitialScrollCheckDone = false;
+                        this.navigationStartTime = Date.now();
                     }
                 }
-
-                // =================================================================================
-                // SECTION: Toast Manager
-                // Description: Manages the display of temporary toast notifications.
-                // =================================================================================
-
-                class ToastManager {
-                    constructor() {
-                        this.toastElement = null;
-                        this.subscriptions = [];
-                    }
-
-                    _subscribe(event, listener) {
-                        const key = createEventKey(this, event);
-                        EventBus.subscribe(event, listener, key);
-                        this.subscriptions.push({ event, key });
-                    }
-
-                    init() {
-                        this._injectStyles();
-                        this._subscribe(EVENTS.AUTO_SCROLL_START, () => this.show('Auto-scrolling to load history...', true));
-                        this._subscribe(EVENTS.AUTO_SCROLL_COMPLETE, () => this.hide());
-                        this._subscribe(EVENTS.APP_SHUTDOWN, () => this.destroy());
-                    }
-
-                    destroy() {
-                        this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
-                        this.subscriptions = [];
-                        this.hide();
-                    }
-
-                    _injectStyles() {
-                        const styleId = `${APPID}-toast-style`;
-                        if (document.getElementById(styleId)) return;
-
-                        // Define custom warning styles for the toast
-                        const warnStyles = {
-                            bg: 'rgb(255 165 0 / 0.9)', // Orange background for warning
-                            text: '#ffffff', // White text
-                            border: '#ffa000', // Darker orange border
-                            cancel_btn_bg: 'rgb(255 255 255 / 0.2)', // Semi-transparent white for button background
-                            cancel_btn_text: '#ffffff', // White text for button
-                        };
-
-                        const style = h('style', {
-                            id: styleId,
-                            textContent: `
-                                .${APPID}-toast-container {
-                                    position: fixed; /* Changed to fixed for viewport relative positioning */
-                                    top: 30%; /* Position from the top */
-                                    left: 50%; /* Center horizontally */
-                                    transform: translate(-50%, -50%); /* Adjust for exact centering */
-                                    z-index: 10002; /* Higher z-index */
-                                    background-color: ${warnStyles.bg};
-                                    color: ${warnStyles.text};
-                                    padding: 15px 25px; /* Slightly more padding */
-                                    border-radius: 12px; /* More rounded corners */
-                                    border: 1px solid ${warnStyles.border};
-                                    box-shadow: 0 6px 20px rgb(0 0 0 / 0.2); /* Stronger shadow */
-                                    display: flex;
-                                    align-items: center;
-                                    gap: 15px; /* Increased gap */
-                                    font-size: 1.1em; /* Larger font */
-                                    font-weight: bold; /* Bold text */
-                                    opacity: 0;
-                                    transition: opacity 0.4s ease, transform 0.4s ease; /* Smoother transition */
-                                    pointer-events: none;
-                                    white-space: nowrap; /* Prevent text wrapping */
-                                }
-                                .${APPID}-toast-container.is-visible {
-                                    opacity: 1;
-                                    transform: translate(-50%, 0); /* Move into view from adjusted vertical position */
-                                    pointer-events: auto;
-                                }
-                                .${APPID}-toast-cancel-btn {
-                                    background: ${warnStyles.cancel_btn_bg};
-                                    color: ${warnStyles.cancel_btn_text};
-                                    border: none;
-                                    padding: 8px 15px; /* Larger button padding */
-                                    margin-left: 10px; /* Adjusted margin */
-                                    cursor: pointer;
-                                    font-weight: bold;
-                                    border-radius: 6px; /* Rounded button */
-                                    transition: background-color 0.2s ease;
-                                }
-                                .${APPID}-toast-cancel-btn:hover {
-                                    background-color: rgb(255 255 255 / 0.3); /* Lighter hover background */
-                                }
-                            `,
-                        });
-                        document.head.appendChild(style);
-                    }
-
-                    _renderToast(message, showCancelButton) {
-                        const children = [h('span', message)];
-                        if (showCancelButton) {
-                            const cancelButton = h(
-                                'button',
-                                {
-                                    className: `${APPID}-toast-cancel-btn`,
-                                    title: 'Stop auto-scrolling',
-                                    onclick: () => EventBus.publish(EVENTS.AUTO_SCROLL_CANCEL_REQUEST),
-                                },
-                                'Cancel'
-                            );
-                            children.push(cancelButton);
-                        }
-                        return h(`div.${APPID}-toast-container`, children);
-                    }
-
-                    show(message, showCancelButton = false) {
-                        // Remove existing toast if any
-                        if (this.toastElement) {
-                            this.hide();
-                        }
-
-                        this.toastElement = this._renderToast(message, showCancelButton);
-                        document.body.appendChild(this.toastElement);
-
-                        // Trigger the transition
-                        setTimeout(() => {
-                            this.toastElement?.classList.add('is-visible');
-                        }, 10);
-                    }
-
-                    hide() {
-                        if (!this.toastElement) return;
-
-                        const el = this.toastElement;
-                        el.classList.remove('is-visible');
-
-                        // Remove from DOM after transition ends
-                        setTimeout(() => {
-                            el.remove();
-                        }, 300);
-
-                        this.toastElement = null;
-                    }
-                }
-
                 automatorInstance.autoScrollManager = new AutoScrollManager(automatorInstance.configManager, automatorInstance.messageCacheManager);
                 automatorInstance.autoScrollManager.init();
-
-                automatorInstance.toastManager = new ToastManager();
-                automatorInstance.toastManager.init();
             },
 
             /**
@@ -2027,7 +1976,7 @@
              * @param {StandingImageManager} instance - The instance of the StandingImageManager.
              */
             updateVisibility(instance) {
-                const isActiveChat = !!document.querySelector('[data-test-id="conversation"].selected');
+                const isActiveChat = !!document.querySelector(CONSTANTS.SELECTORS.CONVERSATION_TITLE_WRAPPER);
                 const hasMessages = instance.messageCacheManager.getTotalMessages().length > 0;
                 const shouldShowActors = isActiveChat && hasMessages;
                 const isCanvasActive = PlatformAdapters.General.isCanvasModeActive();
@@ -2135,23 +2084,56 @@
              * Each function, when called, should return a cleanup function to stop its observer.
              * @returns {Array<Function>} An array of observer starter functions.
              */
+            // prettier-ignore
             getPlatformObserverStarters() {
-                return [this.startSidebarObserver, this.startPanelObserver];
+                return [
+                    this.startSidebarObserver,
+                    this.startPanelObserver,
+                    this.startInputAreaObserver,
+                ];
             },
 
             /**
              * @private
-             * @description Starts a stateful observer to detect the appearance and disappearance of panels (Immersive/File) using a high-performance hybrid approach.
-             * @param {object} dependencies The dependencies passed from ObserverManager (unused in this platform).
-             * @returns {Promise<() => void>} A promise that resolves with a cleanup function.
+             * @description A generic observer for side panels that handles appearance, disappearance, resizing, and immediate state callbacks.
+             * @param {object} dependencies - The ObserverManager dependencies ({ observeElement, unobserveElement }).
+             * @param {string} triggerSelector - The selector for the element that triggers the panel's existence check.
+             * @param {string} observerType - The type identifier for ObserverManager (e.g., CONSTANTS.OBSERVED_ELEMENT_TYPES.SIDE_PANEL).
+             * @param {function(HTMLElement): HTMLElement|null} targetResolver - A function to resolve the actual panel element from the trigger element.
+             * @param {number} transitionDelay - Unused in the new loop implementation (kept for signature compatibility).
+             * @param {function(): void} [immediateCallback] - An optional callback executed immediately and repeatedly during the animation loop.
+             * @returns {Promise<() => void>} A cleanup function.
              */
-            async startPanelObserver(dependencies) {
+            async _startGenericPanelObserver(dependencies, triggerSelector, observerType, targetResolver, transitionDelay, immediateCallback) {
+                const { observeElement, unobserveElement } = dependencies;
                 let isPanelVisible = false;
                 let isStateUpdating = false; // Lock to prevent race conditions
                 let disappearanceObserver = null;
-                let repositionTimeoutId = null;
+                let observedPanel = null;
+                let animationLoopId = null;
+                const ANIMATION_DURATION = 500; // ms
 
-                const panelSelector = `${CONSTANTS.SELECTORS.CANVAS_CONTAINER}, ${CONSTANTS.SELECTORS.FILE_PANEL_CONTAINER}`;
+                // Function to run the layout update loop
+                const startUpdateLoop = () => {
+                    if (animationLoopId) cancelAnimationFrame(animationLoopId);
+
+                    const startTime = Date.now();
+
+                    const loop = () => {
+                        // Run the callback (e.g., VISIBILITY_RECHECK or SIDEBAR_LAYOUT_CHANGED)
+                        if (immediateCallback) immediateCallback();
+                        // Also trigger UI repositioning for smooth movement
+                        EventBus.publish(EVENTS.UI_REPOSITION);
+
+                        if (Date.now() - startTime < ANIMATION_DURATION) {
+                            animationLoopId = requestAnimationFrame(loop);
+                        } else {
+                            animationLoopId = null;
+                        }
+                    };
+
+                    loop();
+                };
 
                 // This is the single source of truth for updating the UI based on panel visibility.
                 const updatePanelState = async () => {
@@ -2159,57 +2141,102 @@
                     isStateUpdating = true;
 
                     try {
-                        const panel = document.querySelector(panelSelector);
-                        const isNowVisible = !!panel;
+                        const trigger = document.querySelector(triggerSelector);
+                        let isNowVisible = false;
+                        let panel = null;
 
-                        // Do nothing if the state hasn't changed. This prevents event loops.
+                        if (trigger instanceof HTMLElement) {
+                            panel = targetResolver(trigger);
+                            // Check if the panel exists and is visible in the DOM (offsetParent is non-null).
+                            if (panel instanceof HTMLElement && panel.offsetParent !== null) {
+                                isNowVisible = true;
+                            }
+                        }
+
+                        // Do nothing if the state hasn't changed.
                         if (isNowVisible === isPanelVisible) {
+                            // If visible, ensure we are still observing the same element (defensive)
+                            if (isNowVisible && panel && panel !== observedPanel) {
+                                // If the element reference changed but logic says it's still visible, switch observation
+                                if (observedPanel) unobserveElement(observedPanel);
+                                observedPanel = panel;
+                                observeElement(observedPanel, observerType);
+                            }
                             return;
                         }
 
                         isPanelVisible = isNowVisible;
-                        clearTimeout(repositionTimeoutId);
 
-                        if (isNowVisible) {
+                        if (isNowVisible && panel) {
                             // --- Panel just appeared ---
-                            Logger.badge('PANEL STATE', LOG_STYLES.DEBUG, 'debug', 'Panel appeared:', panel.tagName);
-                            const chatWindow = await waitForElement(CONSTANTS.SELECTORS.CHAT_WINDOW, {}, panelSentinel);
-                            if (!chatWindow) return;
+                            Logger.badge('PANEL STATE', LOG_STYLES.GRAY, 'debug', 'Panel appeared:', triggerSelector);
 
-                            // Setup a lightweight observer to detect when the panel is removed.
-                            disappearanceObserver = new MutationObserver(() => {
-                                // Re-check state if the parent container's children change.
-                                updatePanelState();
-                            });
-                            disappearanceObserver.observe(chatWindow, { childList: true, subtree: false });
+                            startUpdateLoop();
+
+                            observedPanel = panel;
+                            observeElement(observedPanel, observerType);
+
+                            // Setup a lightweight observer to detect when the panel is removed from DOM.
+                            // We observe the parent because the panel itself might be removed.
+                            if (panel.parentElement) {
+                                disappearanceObserver?.disconnect();
+                                disappearanceObserver = new MutationObserver(() => {
+                                    // Re-check state if the parent container's children change.
+                                    updatePanelState();
+                                });
+                                disappearanceObserver.observe(panel.parentElement, { childList: true, subtree: false });
+                            }
                         } else {
                             // --- Panel just disappeared ---
-                            Logger.badge('PANEL STATE', LOG_STYLES.DEBUG, 'debug', 'Panel disappeared.');
+                            Logger.badge('PANEL STATE', LOG_STYLES.GRAY, 'debug', 'Panel disappeared:', triggerSelector);
+
+                            startUpdateLoop();
+
                             disappearanceObserver?.disconnect();
                             disappearanceObserver = null;
+                            if (observedPanel) {
+                                unobserveElement(observedPanel);
+                                observedPanel = null;
+                            }
                         }
-
-                        // Publish events after state change.
-                        EventBus.publish(EVENTS.VISIBILITY_RECHECK);
-                        repositionTimeoutId = setTimeout(() => {
-                            EventBus.publish(EVENTS.UI_REPOSITION);
-                        }, CONSTANTS.TIMING.TIMEOUTS.PANEL_TRANSITION_DURATION);
                     } finally {
                         isStateUpdating = false; // Release the lock
                     }
                 };
 
-                // Use Sentinel to efficiently detect when a panel might have been added.
-                panelSentinel.on(panelSelector, updatePanelState);
+                // Use Sentinel to efficiently detect when the trigger might have been added.
+                sentinel.on(triggerSelector, updatePanelState);
 
-                // Perform an initial check in case a panel is already present on load.
+                // Perform an initial check in case the panel is already present on load.
                 updatePanelState();
 
-                // Return the cleanup function for all resources created by this observer.
+                // Return the cleanup function.
                 return () => {
-                    panelSentinel.off(panelSelector, updatePanelState);
+                    sentinel.off(triggerSelector, updatePanelState);
                     disappearanceObserver?.disconnect();
+                    if (observedPanel) {
+                        unobserveElement(observedPanel);
+                    }
+                    if (animationLoopId) cancelAnimationFrame(animationLoopId);
                 };
+            },
+
+            /**
+             * @private
+             * @description Starts a stateful observer to detect the appearance and disappearance of panels (Immersive/File) using a high-performance hybrid approach.
+             * @param {object} dependencies The required methods from ObserverManager.
+             * @returns {Promise<() => void>} A promise that resolves with a cleanup function.
+             */
+            async startPanelObserver(dependencies) {
+                // Use explicit reference to PlatformAdapters.Observer instead of 'this' to avoid context issues
+                return PlatformAdapters.Observer._startGenericPanelObserver(
+                    dependencies,
+                    `${CONSTANTS.SELECTORS.CANVAS_CONTAINER}, ${CONSTANTS.SELECTORS.FILE_PANEL_CONTAINER}`, // Trigger (Panel itself)
+                    CONSTANTS.OBSERVED_ELEMENT_TYPES.SIDE_PANEL, // Observer Type
+                    (el) => el, // Target Resolver (The trigger is the panel)
+                    0, // Transition Delay (Unused in loop implementation)
+                    () => EventBus.publish(EVENTS.VISIBILITY_RECHECK) // Immediate callback for loop
+                );
             },
 
             /**
@@ -2230,39 +2257,126 @@
             async startSidebarObserver(dependencies) {
                 const sidebar = await waitForElement(CONSTANTS.SELECTORS.SIDEBAR_WIDTH_TARGET);
                 if (!sidebar) {
-                    Logger.badge('OBSERVER INIT', LOG_STYLES.WARN, 'warn', 'Sidebar element not found for targeted observation.');
+                    Logger.badge('OBSERVER INIT', LOG_STYLES.YELLOW, 'warn', 'Sidebar element not found for targeted observation.');
                     return null;
                 }
 
-                const debouncedTitleUpdate = debounce(() => EventBus.publish(EVENTS.TITLE_CHANGED), CONSTANTS.TIMING.DEBOUNCE_DELAYS.THEME_UPDATE);
-                const debouncedSidebarLayoutChanged = debounce(() => EventBus.publish(EVENTS.SIDEBAR_LAYOUT_CHANGED), CONSTANTS.TIMING.DEBOUNCE_DELAYS.LAYOUT_RECALCULATION);
+                let animationLoopId = null;
+                const ANIMATION_DURATION = 500; // ms
 
-                const handleTransitionEnd = () => debouncedSidebarLayoutChanged();
+                // Function to run the layout update loop
+                const startUpdateLoop = () => {
+                    if (animationLoopId) cancelAnimationFrame(animationLoopId);
+
+                    const startTime = Date.now();
+
+                    const loop = () => {
+                        EventBus.publish(EVENTS.SIDEBAR_LAYOUT_CHANGED);
+
+                        if (Date.now() - startTime < ANIMATION_DURATION) {
+                            animationLoopId = requestAnimationFrame(loop);
+                        } else {
+                            animationLoopId = null;
+                        }
+                    };
+
+                    loop();
+                };
+
+                // Keep title updates debounced as they don't require animation loops
+                const debouncedTitleUpdate = debounce(() => EventBus.publish(EVENTS.TITLE_CHANGED), CONSTANTS.TIMING.DEBOUNCE_DELAYS.THEME_UPDATE);
+
+                // Handle transition end as a safety net to ensure final position is captured
+                const handleTransitionEnd = () => EventBus.publish(EVENTS.SIDEBAR_LAYOUT_CHANGED);
                 sidebar.addEventListener('transitionend', handleTransitionEnd);
 
-                const renameObserver = new MutationObserver((mutations) => {
+                const sidebarObserver = new MutationObserver((mutations) => {
+                    let layoutChanged = false;
+                    let titleChanged = false;
+
                     for (const mutation of mutations) {
-                        if (mutation.type === 'characterData' && mutation.target.parentElement?.matches('.conversation-title')) {
-                            debouncedTitleUpdate();
-                            return;
+                        // Check for layout changes (start of animation)
+                        if (mutation.type === 'attributes' && (mutation.attributeName === 'class' || mutation.attributeName === 'style' || mutation.attributeName === 'width')) {
+                            layoutChanged = true;
+                        }
+                        // Check for title changes
+                        if (mutation.type === 'characterData' && mutation.target.parentElement?.matches(CONSTANTS.SELECTORS.CONVERSATION_TITLE_TEXT)) {
+                            titleChanged = true;
                         }
                     }
+
+                    if (layoutChanged) {
+                        startUpdateLoop();
+                    }
+                    if (titleChanged) {
+                        debouncedTitleUpdate();
+                    }
                 });
-                renameObserver.observe(sidebar, {
-                    characterData: true,
-                    subtree: true,
-                    attributes: false,
+
+                sidebarObserver.observe(sidebar, {
+                    attributes: true, // Enable attribute observation for layout changes
+                    attributeFilter: ['class', 'style', 'width'], // specific attributes
+                    characterData: true, // For title changes
+                    subtree: true, // Needed for title text nodes deeper in the tree
                     childList: false,
                 });
 
                 // Initial triggers for the first load.
                 debouncedTitleUpdate();
-                debouncedSidebarLayoutChanged();
+                EventBus.publish(EVENTS.SIDEBAR_LAYOUT_CHANGED);
 
                 // Return the cleanup function for all resources created by this observer.
                 return () => {
                     sidebar.removeEventListener('transitionend', handleTransitionEnd);
-                    renameObserver.disconnect();
+                    sidebarObserver.disconnect();
+                    if (animationLoopId) cancelAnimationFrame(animationLoopId);
+                };
+            },
+
+            /**
+             * @private
+             * @description Starts a stateful observer for the input area to detect resizing and DOM reconstruction (button removal).
+             * @param {object} dependencies The ObserverManager dependencies.
+             * @returns {Promise<() => void>}
+             */
+            async startInputAreaObserver(dependencies) {
+                const { observeElement, unobserveElement } = dependencies;
+                let observedInputArea = null;
+
+                const setupObserver = (inputArea) => {
+                    if (inputArea === observedInputArea) return;
+
+                    // Cleanup previous observers
+                    if (observedInputArea) {
+                        unobserveElement(observedInputArea);
+                    }
+
+                    observedInputArea = inputArea;
+
+                    // Resize Observer (via ObserverManager)
+                    const resizeTargetSelector = CONSTANTS.SELECTORS.INPUT_RESIZE_TARGET;
+                    const resizeTarget = inputArea.matches(resizeTargetSelector) ? inputArea : inputArea.querySelector(resizeTargetSelector);
+
+                    if (resizeTarget instanceof HTMLElement) {
+                        observeElement(resizeTarget, CONSTANTS.OBSERVED_ELEMENT_TYPES.INPUT_AREA);
+                    }
+
+                    // Trigger initial placement
+                    EventBus.publish(EVENTS.UI_REPOSITION);
+                };
+
+                const selector = CONSTANTS.SELECTORS.INSERTION_ANCHOR;
+                sentinel.on(selector, setupObserver);
+
+                // Initial check
+                const initialInputArea = document.querySelector(selector);
+                if (initialInputArea instanceof HTMLElement) {
+                    setupObserver(initialInputArea);
+                }
+
+                return () => {
+                    sentinel.off(selector, setupObserver);
+                    if (observedInputArea) unobserveElement(observedInputArea);
                 };
             },
 
@@ -2302,9 +2416,68 @@
         // =================================================================================
         UIManager: {
             repositionSettingsButton(settingsButton) {
-                // This method is a no-op for Gemini, as dynamic repositioning is not needed.
-                // It exists to make the UIManager class identical across platforms.
-                return;
+                if (!settingsButton?.element) return;
+
+                withLayoutCycle({
+                    measure: () => {
+                        // Read phase
+                        const anchor = document.querySelector(CONSTANTS.SELECTORS.INSERTION_ANCHOR);
+                        if (!(anchor instanceof HTMLElement)) return { anchor: null };
+
+                        // Ghost Detection Logic
+                        const existingBtn = document.getElementById(settingsButton.element.id);
+                        const isGhost = existingBtn && existingBtn !== settingsButton.element;
+
+                        // Check if button is already inside (only if it's the correct instance)
+                        const isInside = !isGhost && anchor.contains(settingsButton.element);
+
+                        return {
+                            anchor,
+                            isGhost,
+                            existingBtn,
+                            shouldInject: !isInside,
+                        };
+                    },
+                    mutate: (measured) => {
+                        // Write phase
+
+                        // Guard: Check for excluded page immediately to prevent zombie UI.
+                        if (PlatformAdapters.General.isExcludedPage()) {
+                            if (settingsButton.element.isConnected) {
+                                settingsButton.element.remove();
+                                Logger.badge('UI GUARD', LOG_STYLES.GRAY, 'debug', 'Excluded page detected during UI update. Button removed.');
+                            }
+                            return;
+                        }
+
+                        if (!measured || !measured.anchor) {
+                            // Hide if anchor is gone
+                            settingsButton.element.style.display = 'none';
+                            return;
+                        }
+
+                        const { anchor, isGhost, existingBtn, shouldInject } = measured;
+
+                        // Safety Check: Ensure the anchor is still part of the document
+                        if (!anchor.isConnected) {
+                            return;
+                        }
+
+                        // 1. Ghost Buster
+                        if (isGhost && existingBtn) {
+                            Logger.badge('GHOST BUSTER', LOG_STYLES.YELLOW, 'warn', 'Detected non-functional ghost button. Removing...');
+                            existingBtn.remove();
+                        }
+
+                        // 2. Injection
+                        if (shouldInject || isGhost) {
+                            anchor.prepend(settingsButton.element);
+                            Logger.badge('UI INJECTION', LOG_STYLES.BLUE, 'debug', 'Settings button injected into anchor.');
+                        }
+
+                        settingsButton.element.style.display = '';
+                    },
+                });
             },
         },
 
@@ -2535,7 +2708,18 @@
         uiWorkQueue: [],
         isUiWorkScheduled: false,
         _logAggregation: {},
-        _aggregatedEvents: new Set([EVENTS.RAW_MESSAGE_ADDED, EVENTS.AVATAR_INJECT, EVENTS.MESSAGE_COMPLETE, EVENTS.TURN_COMPLETE]),
+        // prettier-ignore
+        _aggregatedEvents: new Set([
+            EVENTS.RAW_MESSAGE_ADDED,
+            EVENTS.AVATAR_INJECT,
+            EVENTS.MESSAGE_COMPLETE,
+            EVENTS.TURN_COMPLETE,
+            EVENTS.SIDEBAR_LAYOUT_CHANGED,
+            EVENTS.VISIBILITY_RECHECK,
+            EVENTS.UI_REPOSITION,
+            EVENTS.INPUT_AREA_RESIZED,
+            EVENTS.TIMESTAMP_ADDED,
+        ]),
         _aggregationDelay: 500, // ms
 
         /**
@@ -2653,7 +2837,7 @@
                         listener(...args);
                     } catch (e) {
                         // Enhance error logging with the specific subscriber key
-                        Logger.badge('LISTENER ERROR', LOG_STYLES.ERROR, 'error', `Listener "${key}" failed for event "${event}":`, e);
+                        Logger.badge('LISTENER ERROR', LOG_STYLES.RED, 'error', `Listener "${key}" failed for event "${event}":`, e);
                     }
                 });
 
@@ -2664,7 +2848,7 @@
                     try {
                         listener(...args);
                     } catch (e) {
-                        Logger.badge('LISTENER ERROR', LOG_STYLES.ERROR, 'error', `Listener failed for event "${event}":`, e);
+                        Logger.badge('LISTENER ERROR', LOG_STYLES.RED, 'error', `Listener failed for event "${event}":`, e);
                     }
                 });
             }
@@ -2696,7 +2880,7 @@
                 try {
                     work();
                 } catch (e) {
-                    Logger.badge('UI QUEUE ERROR', LOG_STYLES.ERROR, 'error', 'Error in queued UI work:', e);
+                    Logger.badge('UI QUEUE ERROR', LOG_STYLES.RED, 'error', 'Error in queued UI work:', e);
                 }
             }
             this.isUiWorkScheduled = false;
@@ -2712,10 +2896,7 @@
         /**
          * Converts an image file to an optimized Data URL.
          * @param {File} file The image file object.
-         * @param {object} options
-         * @param {number} [options.maxWidth] Max width for resizing.
-         * @param {number} [options.maxHeight] Max height for resizing.
-         * @param {number} [options.quality] The quality for WebP compression (0 to 1).
+         * @param {{ maxWidth?: number, maxHeight?: number, quality?: number }} options
          * @returns {Promise<string>} A promise that resolves with the optimized Data URL.
          */
         imageToOptimizedDataUrl(file, { maxWidth, maxHeight, quality = 0.85 }) {
@@ -2741,6 +2922,11 @@
                         // Otherwise, proceed with canvas-based resizing and re-compression.
                         const canvas = document.createElement('canvas');
                         const ctx = canvas.getContext('2d');
+
+                        if (!ctx) {
+                            reject(new Error('Failed to get 2D context from canvas.'));
+                            return;
+                        }
 
                         let { width, height } = img;
                         if (needsResize) {
@@ -2783,6 +2969,7 @@
      * Schedules a function to run when the browser is idle.
      * @param {(deadline: IdleDeadline) => void} callback The function to execute.
      * @param {number} [timeout] The maximum delay in milliseconds.
+     * @returns {void}
      */
     function runWhenIdle(callback, timeout = 2000) {
         if ('requestIdleCallback' in window) {
@@ -2795,42 +2982,73 @@
     /**
      * @param {Function} func
      * @param {number} delay
-     * @returns {(...args: any[]) => void}
+     * @returns {((...args: any[]) => void) & { cancel: () => void }}
      */
     function debounce(func, delay) {
         let timeout;
-        return function (...args) {
+        const debounced = function (...args) {
             clearTimeout(timeout);
             timeout = setTimeout(() => {
                 // After the debounce delay, schedule the actual execution for when the browser is idle.
                 runWhenIdle(() => func.apply(this, args));
             }, delay);
         };
+        debounced.cancel = () => {
+            clearTimeout(timeout);
+        };
+        return debounced;
     }
 
     /**
      * Helper function to check if an item is a non-array object.
-     * @param {*} item The item to check.
-     * @returns {boolean}
+     * @param {unknown} item The item to check.
+     * @returns {item is Record<string, any>}
      */
     function isObject(item) {
         return !!(item && typeof item === 'object' && !Array.isArray(item));
     }
 
     /**
-     * Recursively merges the properties of a source object into a target object.
-     * The target object is mutated. This is ideal for merging a partial user config into a complete default config.
+     * Creates a deep copy of a JSON-serializable object.
+     * @template T
+     * @param {T} obj The object to clone.
+     * @returns {T} The deep copy of the object.
+     */
+    function deepClone(obj) {
+        return structuredClone(obj);
+    }
+
+    /**
+     * Recursively resolves the configuration by overlaying source properties onto the target object.
+     * The target object is mutated. This handles recursive updates for nested objects but overwrites arrays/primitives.
+     *
+     * [MERGE BEHAVIOR]
+     * Keys present in 'source' but missing in 'target' are ignored.
+     * The 'target' object acts as a schema; it must contain all valid keys.
+     *
      * @param {object} target The target object (e.g., a deep copy of default config).
      * @param {object} source The source object (e.g., user config).
      * @returns {object} The mutated target object.
      */
-    function deepMerge(target, source) {
+    function resolveConfig(target, source) {
         for (const key in source) {
+            // Security: Prevent prototype pollution
+            if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+                continue;
+            }
+
             if (Object.prototype.hasOwnProperty.call(source, key)) {
+                // Strict check: Ignore keys that do not exist in the target (default config).
+                if (!Object.prototype.hasOwnProperty.call(target, key)) {
+                    continue;
+                }
+
                 const sourceVal = source[key];
-                if (isObject(sourceVal) && Object.prototype.hasOwnProperty.call(target, key) && isObject(target[key])) {
+                const targetVal = target[key];
+
+                if (isObject(sourceVal) && isObject(targetVal)) {
                     // If both are objects, recurse
-                    deepMerge(target[key], sourceVal);
+                    resolveConfig(targetVal, sourceVal);
                 } else if (typeof sourceVal !== 'undefined') {
                     // Otherwise, overwrite or set the value from the source
                     target[key] = sourceVal;
@@ -2842,11 +3060,11 @@
 
     /**
      * Checks if the current page is the "New Chat" page.
-     * This is determined by checking if the URL path is exactly '/'.
+     * This is determined by checking if the URL path matches the platform-specific pattern.
      * @returns {boolean} True if it is the new chat page, otherwise false.
      */
     function isNewChatPage() {
-        return window.location.pathname === '/';
+        return PlatformAdapters.General.isNewChatPage();
     }
 
     /**
@@ -2912,11 +3130,11 @@
                         el.setAttribute(key, url);
                     } else {
                         el.setAttribute(key, '#');
-                        Logger.badge('UNSAFE URL', LOG_STYLES.WARN, 'warn', `Blocked potentially unsafe protocol "${parsedUrl.protocol}" in attribute "${key}":`, url);
+                        Logger.badge('UNSAFE URL', LOG_STYLES.YELLOW, 'warn', `Blocked potentially unsafe protocol "${parsedUrl.protocol}" in attribute "${key}":`, url);
                     }
                 } catch {
                     el.setAttribute(key, '#');
-                    Logger.badge('INVALID URL', LOG_STYLES.WARN, 'warn', `Blocked invalid or relative URL in attribute "${key}":`, url);
+                    Logger.badge('INVALID URL', LOG_STYLES.YELLOW, 'warn', `Blocked invalid or relative URL in attribute "${key}":`, url);
                 }
             }
             // 2. Direct property assignments.
@@ -3152,7 +3370,7 @@
 
             timer = setTimeout(() => {
                 cleanup();
-                Logger.badge('WAIT TIMEOUT', LOG_STYLES.WARN, 'warn', `Timed out after ${timeout}ms waiting for element "${selector}"`);
+                Logger.badge('WAIT TIMEOUT', LOG_STYLES.YELLOW, 'warn', `Timed out after ${timeout}ms waiting for element "${selector}"`);
                 resolve(null);
             }, timeout);
 
@@ -3170,11 +3388,18 @@
 
     /**
      * Generates a unique ID string with a given prefix.
+     * Uses crypto.randomUUID() if available, otherwise falls back to timestamp + random.
      * @param {string} [prefix='theme'] - The prefix for the ID.
      * @returns {string}
      */
     function generateUniqueId(prefix = 'theme') {
-        return `${APPID}-${prefix}-` + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
+        let uuid;
+        if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+            uuid = crypto.randomUUID();
+        } else {
+            uuid = Date.now() + '-' + Math.random().toString(36).substring(2, 9);
+        }
+        return `${APPID}-${prefix}-${uuid}`;
     }
 
     /**
@@ -3308,8 +3533,7 @@
     /**
      * @description Scrolls to a target element, with an optional pixel offset.
      * It's platform-aware. For platforms with a dedicated scroll container (like ChatGPT), it uses the reliable `scrollTo` method.
-     * For others (like Gemini), it falls back to a "virtual anchor" method for offset scrolls.
-     * This method temporarily injects an invisible element positioned above the target, scrolls to it, and then removes it.
+     * For others (like Gemini), it falls back to `scrollIntoView` with `scroll-margin-top` for offset handling.
      * @param {HTMLElement} element The target element to scroll to.
      * @param {object} [options] - Scrolling options.
      * @param {number} [options.offset] - A pixel offset to apply above the target element.
@@ -3324,7 +3548,9 @@
         const scrollContainer = scrollContainerSelector ? document.querySelector(scrollContainerSelector) : null;
 
         if (scrollContainer) {
-            Logger.badge('SCROLL', LOG_STYLES.DEBUG, 'debug', 'Using scroll container method.');
+            // Case 1: Container is known (ChatGPT). Use strict math, no DOM styling changes.
+            Logger.badge('SCROLL', LOG_STYLES.GRAY, 'debug', 'Using scroll container method.');
+
             // Find the actual bubble element to be used as the scroll target
             const bubbleSelector = `${CONSTANTS.SELECTORS.RAW_USER_BUBBLE}, ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE}`;
             const scrollTargetElement = element.querySelector(bubbleSelector) || element;
@@ -3333,41 +3559,20 @@
                 top: targetScrollTop,
                 behavior,
             });
-            return;
-        }
-
-        // Fallback for standard window scrolling (like Gemini).
-        if (offset === 0) {
-            Logger.badge('SCROLL', LOG_STYLES.DEBUG, 'debug', '(Scroll container not found): Using simple scrollIntoView() (no offset).');
-            // Use the simplest method for non-offset scrolls.
-            element.scrollIntoView({ behavior, block: 'start' });
         } else {
-            Logger.badge('SCROLL', LOG_STYLES.DEBUG, 'debug', '(Scroll container not found): Using virtual anchor method (with offset).');
-            // Use the "virtual anchor" method for offset scrolls where direct manipulation is not possible.
-            const target = element;
-            const originalPosition = window.getComputedStyle(target).position;
-            if (originalPosition === 'static') {
-                target.style.position = 'relative';
-            }
+            // Case 2: Container is unknown (Gemini). Use scrollIntoView + scroll-margin-top.
+            Logger.badge('SCROLL', LOG_STYLES.GRAY, 'debug', '(Scroll container not found): Using scrollIntoView() with scroll-margin-top.');
 
-            const anchor = h('div', {
-                style: {
-                    position: 'absolute',
-                    top: `-${offset}px`,
-                    height: '1px',
-                    width: '1px',
-                },
-            });
+            // Use scroll-margin-top to handle the offset without modifying the DOM structure.
+            const originalScrollMargin = element.style.scrollMarginTop;
+            element.style.scrollMarginTop = `${offset}px`;
 
-            target.prepend(anchor);
-            anchor.scrollIntoView({ behavior, block: 'start' });
+            element.scrollIntoView({ behavior, block: 'start' });
 
-            // Clean up after a delay
+            // Clean up after a delay to restore the original state.
+            // The delay ensures the smooth scroll has finished before removing the margin.
             setTimeout(() => {
-                anchor.remove();
-                if (originalPosition === 'static') {
-                    target.style.position = originalPosition;
-                }
+                element.style.scrollMarginTop = originalScrollMargin;
             }, CONSTANTS.TIMING.TIMEOUTS.VIRTUAL_ANCHOR_CLEANUP);
         }
     }
@@ -3646,7 +3851,7 @@
             try {
                 measuredData = measure();
             } catch (e) {
-                Logger.badge('LAYOUT ERROR', LOG_STYLES.ERROR, 'error', 'Error during measure phase:', e);
+                Logger.badge('LAYOUT ERROR', LOG_STYLES.RED, 'error', 'Error during measure phase:', e);
                 reject(e);
                 return;
             }
@@ -3657,7 +3862,7 @@
                     mutate(measuredData);
                     resolve();
                 } catch (e) {
-                    Logger.badge('LAYOUT ERROR', LOG_STYLES.ERROR, 'error', 'Error during mutate phase:', e);
+                    Logger.badge('LAYOUT ERROR', LOG_STYLES.RED, 'error', 'Error during mutate phase:', e);
                     reject(e);
                 }
             });
@@ -3922,13 +4127,13 @@
                 try {
                     userConfig = JSON.parse(raw);
                 } catch (e) {
-                    Logger.badge('LOAD FAILED', LOG_STYLES.ERROR, 'error', 'Failed to parse configuration. Resetting to default settings.', e);
+                    Logger.badge('LOAD FAILED', LOG_STYLES.RED, 'error', 'Failed to parse configuration. Resetting to default settings.', e);
                     userConfig = null;
                 }
             }
 
-            const completeConfig = JSON.parse(JSON.stringify(this.DEFAULT_CONFIG));
-            this.config = deepMerge(completeConfig, userConfig || {});
+            const completeConfig = deepClone(this.DEFAULT_CONFIG);
+            this.config = resolveConfig(completeConfig, userConfig || {});
 
             this._validateAndSanitizeOptions();
         }
@@ -3993,8 +4198,8 @@
                 }
             }
 
-            const completeConfig = JSON.parse(JSON.stringify(this.DEFAULT_CONFIG));
-            this.config = deepMerge(completeConfig, userConfig || {});
+            const completeConfig = deepClone(this.DEFAULT_CONFIG);
+            this.config = resolveConfig(completeConfig, userConfig || {});
 
             this._validateAndSanitizeOptions();
             return this.config;
@@ -4131,7 +4336,7 @@
          */
         _makeSpaceForNewItem(newItemSize) {
             if (newItemSize > CONSTANTS.CACHE_SIZE_LIMIT_BYTES) {
-                Logger.badge('CACHE LIMIT', LOG_STYLES.WARN, 'warn', `Item size (${newItemSize}) exceeds cache limit (${CONSTANTS.CACHE_SIZE_LIMIT_BYTES}). Cannot be cached.`);
+                Logger.badge('CACHE LIMIT', LOG_STYLES.YELLOW, 'warn', `Item size (${newItemSize}) exceeds cache limit (${CONSTANTS.CACHE_SIZE_LIMIT_BYTES}). Cannot be cached.`);
                 return;
             }
             while (this.currentCacheSize + newItemSize > CONSTANTS.CACHE_SIZE_LIMIT_BYTES && this.cache.size > 0) {
@@ -4194,23 +4399,23 @@
                                 this.currentCacheSize += size;
                                 resolve(dataUrl);
                             } catch (e) {
-                                Logger.badge('CONVERSION FAILED', LOG_STYLES.ERROR, 'error', `Data conversion error for URL: ${url}`, e);
+                                Logger.badge('CONVERSION FAILED', LOG_STYLES.RED, 'error', `Data conversion error for URL: ${url}`, e);
                                 this.failedUrls.add(cacheKey);
                                 resolve(null);
                             }
                         } else {
-                            Logger.badge('FETCH FAILED', LOG_STYLES.ERROR, 'error', `HTTP Error: ${response.status}, URL: ${url}`);
+                            Logger.badge('FETCH FAILED', LOG_STYLES.RED, 'error', `HTTP Error: ${response.status}, URL: ${url}`);
                             this.failedUrls.add(cacheKey);
                             resolve(null);
                         }
                     },
                     onerror: (error) => {
-                        Logger.badge('FETCH FAILED', LOG_STYLES.ERROR, 'error', `GM_xmlhttpRequest error for URL: ${url}`, error);
+                        Logger.badge('FETCH FAILED', LOG_STYLES.RED, 'error', `GM_xmlhttpRequest error for URL: ${url}`, error);
                         this.failedUrls.add(cacheKey);
                         resolve(null);
                     },
                     ontimeout: () => {
-                        Logger.badge('FETCH FAILED', LOG_STYLES.ERROR, 'error', `GM_xmlhttpRequest timeout for URL: ${url}`);
+                        Logger.badge('FETCH FAILED', LOG_STYLES.RED, 'error', `GM_xmlhttpRequest timeout for URL: ${url}`);
                         this.failedUrls.add(cacheKey);
                         resolve(null);
                     },
@@ -4229,6 +4434,7 @@
             this.userMessages = [];
             this.assistantMessages = [];
             this.totalMessages = [];
+            this.elementMap = new Map();
             this.subscriptions = [];
             this.isStreaming = false;
             this.debouncedRebuildCache = debounce(this._rebuildCache.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.CACHE_UPDATE);
@@ -4256,14 +4462,15 @@
 
         _rebuildCache() {
             if (this.isStreaming) return;
-            Logger.time('MessageCacheManager._rebuildCache');
+
+            Logger.badge('CACHE', LOG_STYLES.BLUE, 'info', 'Rebuilding cache...');
+
             // Guard clause: If no conversation turns are on the page (e.g., on the homepage),
             // clear the cache if it's not already empty and exit early to prevent unnecessary queries.
             if (!document.querySelector(CONSTANTS.SELECTORS.CONVERSATION_UNIT)) {
                 if (this.totalMessages.length > 0) {
                     this.clear();
                 }
-                Logger.timeEnd('MessageCacheManager._rebuildCache');
                 return;
             }
             this.userMessages = Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.USER_MESSAGE));
@@ -4271,21 +4478,53 @@
             // Filter out empty, non-functional message containers that might appear in image-only turns.
             this.assistantMessages = rawAssistantMessages.filter((msg) => PlatformAdapters.General.filterMessage(msg));
 
-            // Construct totalMessages from the filtered lists and sort them by DOM order.
-            const allMessages = [...this.userMessages, ...this.assistantMessages];
-            allMessages.sort((a, b) => {
-                const position = a.compareDocumentPosition(b);
-                if (position & Node.DOCUMENT_POSITION_FOLLOWING) {
-                    return -1; // a comes before b
-                } else if (position & Node.DOCUMENT_POSITION_PRECEDING) {
-                    return 1; // a comes after b
+            // Construct totalMessages using a linear merge sort approach (O(N)).
+            // Since querySelectorAll returns elements in document order, userMessages and assistantMessages are already sorted.
+            const total = [];
+            let u = 0,
+                a = 0;
+            const uLen = this.userMessages.length;
+            const aLen = this.assistantMessages.length;
+
+            while (u < uLen && a < aLen) {
+                const uMsg = this.userMessages[u];
+                const aMsg = this.assistantMessages[a];
+                // Check position: Node.DOCUMENT_POSITION_FOLLOWING (4) means aMsg follows uMsg (uMsg comes first).
+                if (uMsg.compareDocumentPosition(aMsg) & Node.DOCUMENT_POSITION_FOLLOWING) {
+                    total.push(uMsg);
+                    u++;
+                } else {
+                    total.push(aMsg);
+                    a++;
                 }
-                return 0;
-            });
-            this.totalMessages = allMessages;
+            }
+            // Append any remaining elements
+            while (u < uLen) total.push(this.userMessages[u++]);
+            while (a < aLen) total.push(this.assistantMessages[a++]);
+
+            this.totalMessages = total;
+
+            // Rebuild the lookup map for O(1) access.
+            // This must be done after the arrays are fully filtered and sorted to ensure consistency.
+            this.elementMap.clear();
+
+            // Use for loops for better performance in hot paths
+            for (let i = 0; i < this.userMessages.length; i++) {
+                this.elementMap.set(this.userMessages[i], { role: CONSTANTS.INTERNAL_ROLES.USER, index: i, totalIndex: -1 });
+            }
+            for (let i = 0; i < this.assistantMessages.length; i++) {
+                this.elementMap.set(this.assistantMessages[i], { role: CONSTANTS.INTERNAL_ROLES.ASSISTANT, index: i, totalIndex: -1 });
+            }
+
+            // Populate totalIndex using the sorted totalMessages array
+            for (let i = 0; i < this.totalMessages.length; i++) {
+                const entry = this.elementMap.get(this.totalMessages[i]);
+                if (entry) {
+                    entry.totalIndex = i;
+                }
+            }
 
             this.notify();
-            Logger.timeEnd('MessageCacheManager._rebuildCache');
         }
 
         /**
@@ -4299,20 +4538,10 @@
         /**
          * Finds the role and index of a given message element within the cached arrays.
          * @param {HTMLElement} messageElement The element to find.
-         * @returns {{role: 'user'|'assistant', index: number} | null} An object with the role and index, or null if not found.
+         * @returns {{role: 'user'|'assistant', index: number, totalIndex: number} | null} An object with the role and index, or null if not found.
          */
         findMessageIndex(messageElement) {
-            let index = this.userMessages.indexOf(messageElement);
-            if (index !== -1) {
-                return { role: 'user', index };
-            }
-
-            index = this.assistantMessages.indexOf(messageElement);
-            if (index !== -1) {
-                return { role: 'assistant', index };
-            }
-
-            return null;
+            return this.elementMap.get(messageElement) || null;
         }
 
         /**
@@ -4333,6 +4562,7 @@
             this.userMessages = [];
             this.assistantMessages = [];
             this.totalMessages = [];
+            this.elementMap.clear();
             this.notify();
         }
 
@@ -4431,6 +4661,10 @@
             this.subscriptions = [];
             this.debouncedUpdateTheme = debounce(this.updateTheme.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.THEME_UPDATE);
             this.isStreaming = false;
+            this.isDestroyed = false;
+            this.currentRequestId = 0;
+            /** @type {Map<string, string|null>} */
+            this.lastAppliedImageValues = new Map();
         }
 
         _subscribe(event, listener) {
@@ -4449,12 +4683,29 @@
         }
 
         destroy() {
+            this.isDestroyed = true;
+            this.debouncedUpdateTheme.cancel();
             this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
             this.subscriptions = [];
+            this._cleanupCssVariables();
             this.themeStyleElem?.remove();
             this.dynamicRulesStyleElem?.remove();
             this.themeStyleElem = null;
             this.dynamicRulesStyleElem = null;
+        }
+
+        /**
+         * @private
+         * Removes all CSS variables defined in ALL_STYLE_DEFINITIONS from the root element.
+         * This ensures a clean state when the manager is destroyed.
+         */
+        _cleanupCssVariables() {
+            const rootStyle = document.documentElement.style;
+            for (const definition of ALL_STYLE_DEFINITIONS) {
+                if (definition.cssVar) {
+                    rootStyle.removeProperty(definition.cssVar);
+                }
+            }
         }
 
         _onNavigation() {
@@ -4527,7 +4778,7 @@
          * @param {boolean} [force] - If true, forces the theme to be reapplied even if no changes are detected.
          */
         updateTheme(force = false) {
-            Logger.badge('THEME CHECK', LOG_STYLES.DEBUG, 'debug', 'Update triggered.');
+            Logger.badge('THEME CHECK', LOG_STYLES.GRAY, 'debug', 'Update triggered.');
             const currentLiveURL = location.href;
             const currentTitle = this.getChatTitleAndCache();
             const urlChanged = currentLiveURL !== this.lastURL;
@@ -4541,7 +4792,7 @@
             // If the adapter returns null, it signals that the theme update should be deferred.
             // This is used to wait for a final page title after navigating from an excluded page.
             if (currentThemeSet === null) {
-                Logger.badge('THEME CHECK', LOG_STYLES.DEBUG, 'debug', 'Theme update deferred by platform adapter.');
+                Logger.badge('THEME CHECK', LOG_STYLES.GRAY, 'debug', 'Theme update deferred by platform adapter.');
                 return;
             }
 
@@ -4585,6 +4836,9 @@
          * @param {AppConfig} fullConfig The entire configuration object, including defaultSet.
          */
         async applyThemeStyles(currentThemeSet, fullConfig) {
+            if (this.isDestroyed) return;
+
+            const myRequestId = ++this.currentRequestId;
             Logger.time('ThemeManager.applyThemeStyles');
             this.lastAppliedThemeSet = currentThemeSet;
 
@@ -4603,13 +4857,25 @@
                 const isImage = definition.configKey.endsWith('icon') || definition.configKey.includes('ImageUrl');
 
                 if (isImage) {
+                    const val = value ? String(value).trim() : null;
+                    const lastVal = this.lastAppliedImageValues.get(definition.cssVar);
+
+                    // Optimization: If the image definition hasn't changed, skip processing to save resources.
+                    if (val === lastVal) {
+                        continue;
+                    }
+
+                    // Invalidation: Immediately remove the current value from cache.
+                    // This ensures that if we switch back to the original theme while this request is pending,
+                    // the value check will correctly identify it as a change (undefined !== val) and re-apply it.
+                    this.lastAppliedImageValues.delete(definition.cssVar);
+
                     // Stage 1 (Sync): Immediately set to 'none' to prevent flicker of default images.
                     rootStyle.setProperty(definition.cssVar, 'none');
 
                     if (value) {
                         // Stage 2 (Async): Start processing the image in the background.
                         const processImage = async () => {
-                            const val = String(value).trim();
                             let finalCssValue = val;
 
                             if (val.startsWith('<svg')) {
@@ -4627,12 +4893,20 @@
                                 finalCssValue = `url("${val}")`;
                             }
 
+                            // Guard: If a new theme request has started or app is destroyed, discard this result.
+                            if (this.isDestroyed || this.currentRequestId !== myRequestId) return;
+
                             // When ready, update the CSS variable to show the themed image.
                             if (finalCssValue !== 'none') {
                                 rootStyle.setProperty(definition.cssVar, finalCssValue);
+                                // Update the cache only after successful application
+                                this.lastAppliedImageValues.set(definition.cssVar, val);
                             }
                         };
                         imageProcessingPromises.push(processImage());
+                    } else {
+                        // If value is null, we already set 'none' above. Just update the cache to reflect the 'none' state.
+                        this.lastAppliedImageValues.set(definition.cssVar, val);
                     }
                 } else {
                     // This is a non-image style, apply it synchronously.
@@ -4648,7 +4922,10 @@
 
             // After all image processing promises have resolved, publish the final event.
             Promise.all(imageProcessingPromises).then(() => {
-                EventBus.publish(EVENTS.THEME_APPLIED, { theme: currentThemeSet, config: fullConfig });
+                // Guard event publication as well
+                if (!this.isDestroyed && this.currentRequestId === myRequestId) {
+                    EventBus.publish(EVENTS.THEME_APPLIED, { theme: currentThemeSet, config: fullConfig });
+                }
             });
 
             Logger.timeEnd('ThemeManager.applyThemeStyles');
@@ -4753,9 +5030,16 @@
         }
 
         _subscribeOnce(event, listener) {
-            const key = createEventKey(this, event);
-            EventBus.once(event, listener, key);
-            // 'once' subscriptions manage their own lifecycle, so we don't add them to the array for manual cleanup.
+            const uniqueSuffix = Date.now() + Math.random().toString(36).substring(2);
+            const key = `${createEventKey(this, event)}_${uniqueSuffix}`;
+
+            const wrappedListener = (...args) => {
+                this.subscriptions = this.subscriptions.filter((sub) => sub.key !== key);
+                listener(...args);
+            };
+
+            EventBus.once(event, wrappedListener, key);
+            this.subscriptions.push({ event, key });
         }
 
         /**
@@ -4823,19 +5107,32 @@
 
             // Restore original history methods and remove listeners if they were initialized.
             if (this.urlObserverInitialized) {
+                // Safe unhooking for pushState
                 if (this.originalHistoryMethods.pushState) {
-                    history.pushState = this.originalHistoryMethods.pushState;
+                    if (history.pushState === this._historyWrappers?.pushState) {
+                        history.pushState = this.originalHistoryMethods.pushState;
+                    } else {
+                        Logger.badge('HISTORY HOOK', LOG_STYLES.YELLOW, 'warn', 'history.pushState has been wrapped by another script. Skipping restoration to prevent breaking the chain.');
+                    }
                     this.originalHistoryMethods.pushState = null;
                 }
+
+                // Safe unhooking for replaceState
                 if (this.originalHistoryMethods.replaceState) {
-                    history.replaceState = this.originalHistoryMethods.replaceState;
+                    if (history.replaceState === this._historyWrappers?.replaceState) {
+                        history.replaceState = this.originalHistoryMethods.replaceState;
+                    } else {
+                        Logger.badge('HISTORY HOOK', LOG_STYLES.YELLOW, 'warn', 'history.replaceState has been wrapped by another script. Skipping restoration to prevent breaking the chain.');
+                    }
                     this.originalHistoryMethods.replaceState = null;
                 }
+
                 if (this.boundURLChangeHandler) {
                     window.removeEventListener('popstate', this.boundURLChangeHandler);
                 }
                 this.urlObserverInitialized = false;
                 this.boundURLChangeHandler = null;
+                this._historyWrappers = null;
             }
         }
 
@@ -4898,8 +5195,10 @@
                         EventBus.publish(EVENTS.NAVIGATION_START);
 
                         // Check if the new URL is an excluded page
+                        // Note: This check is also performed synchronously in the history wrapper for immediate response,
+                        // but kept here to handle popstate events or race conditions.
                         if (PlatformAdapters.General.isExcludedPage()) {
-                            Logger.log('Excluded URL detected. Shutting down script.');
+                            Logger.badge('EXCLUDED URL', LOG_STYLES.YELLOW, 'log', 'Excluded URL detected (via handler). Suspending script functions.');
                             EventBus.publish(EVENTS.APP_SHUTDOWN);
                             return; // Stop further processing
                         }
@@ -4960,10 +5259,16 @@
                             }
                         });
 
+                        // Check if the message element already exists to handle immediate detection
+                        const existingMessage = document.querySelector(CONSTANTS.SELECTORS.MESSAGE_ROOT_NODE);
+                        if (existingMessage) {
+                            sentinelCallbackForMainObserver(existingMessage);
+                        }
+
                         // Wait for the main app container, which is always present on chat pages.
                         const appContainer = await waitForElement(CONSTANTS.SELECTORS.MAIN_APP_CONTAINER);
                         if (!appContainer) {
-                            Logger.badge('OBSERVER INIT', LOG_STYLES.WARN, 'warn', 'Main app container not found after URL change.');
+                            Logger.badge('OBSERVER INIT', LOG_STYLES.YELLOW, 'warn', 'Main app container not found after URL change.');
                             return;
                         }
 
@@ -4979,7 +5284,7 @@
                             }
                         }
                     } catch (e) {
-                        Logger.badge('NAV_HANDLER_ERROR', LOG_STYLES.ERROR, 'error', 'Error during navigation handling:', e);
+                        Logger.badge('NAV_HANDLER_ERROR', LOG_STYLES.RED, 'error', 'Error during navigation handling:', e);
                     }
                 };
 
@@ -4991,6 +5296,7 @@
             // Hook into history changes only once per lifecycle, managed by the destroy method.
             if (!this.urlObserverInitialized) {
                 this.urlObserverInitialized = true;
+                this._historyWrappers = {}; // Store our wrappers to identify them later
 
                 // Capture the ObserverManager instance for use in the wrapper function.
                 const observerManagerInstance = this;
@@ -4999,9 +5305,17 @@
                     const orig = history[m];
                     this.originalHistoryMethods[m] = orig; // Store original for restoration
 
-                    history[m] = function (...args) {
+                    // Define the wrapper function
+                    const wrapper = function (...args) {
                         // Call original method with the correct context (`this` = `history`).
                         const result = orig.apply(this, args);
+
+                        // Immediate check for excluded pages to stop the script ASAP.
+                        if (PlatformAdapters.General.isExcludedPage()) {
+                            Logger.badge('EXCLUDED URL', LOG_STYLES.YELLOW, 'log', 'Excluded URL detected (immediate). Suspending script functions.');
+                            EventBus.publish(EVENTS.APP_SHUTDOWN);
+                            return result;
+                        }
 
                         // Call our handler using the captured instance.
                         if (observerManagerInstance.boundURLChangeHandler) {
@@ -5009,6 +5323,10 @@
                         }
                         return result;
                     };
+
+                    // Store our wrapper reference and apply it
+                    this._historyWrappers[m] = wrapper;
+                    history[m] = wrapper;
                 }
                 window.addEventListener('popstate', this.boundURLChangeHandler);
             }
@@ -5114,7 +5432,7 @@
             const hasDeletion = mutations.some((mutation) => Array.from(mutation.removedNodes).some((node) => node instanceof Element && node.matches(CONSTANTS.SELECTORS.MESSAGE_ROOT_NODE)));
 
             if (hasDeletion) {
-                Logger.badge('MUTATION', LOG_STYLES.DEBUG, 'debug', 'Message deletion detected.');
+                Logger.badge('MUTATION', LOG_STYLES.GRAY, 'debug', 'Message deletion detected.');
                 // A deletion occurred, so a full cache rebuild is necessary.
                 this.debouncedCacheUpdate();
             }
@@ -5244,21 +5562,20 @@
          * @param {HTMLElement} msgElem The message element to process.
          */
         queueForInjection(msgElem) {
-            const ATTEMPT_KEY = 'avatarInjectAttempts';
             const MAX_ATTEMPTS = 5;
 
-            const attempts = parseInt(msgElem.dataset[ATTEMPT_KEY] || '0', 10);
+            const attempts = parseInt(msgElem.dataset[CONSTANTS.DATA_KEYS.AVATAR_INJECT_ATTEMPTS] || '0', 10);
 
             if (attempts >= MAX_ATTEMPTS) {
                 // Log the failure only once to avoid spamming the console.
-                if (!msgElem.dataset.avatarInjectFailed) {
-                    Logger.badge('AVATAR RETRY FAILED', LOG_STYLES.WARN, 'warn', `Avatar injection failed after ${MAX_ATTEMPTS} attempts. Halting retries for this element:`, msgElem);
-                    msgElem.dataset.avatarInjectFailed = 'true';
+                if (!msgElem.dataset[CONSTANTS.DATA_KEYS.AVATAR_INJECT_FAILED]) {
+                    Logger.badge('AVATAR RETRY FAILED', LOG_STYLES.YELLOW, 'warn', `Avatar injection failed after ${MAX_ATTEMPTS} attempts. Halting retries for this element:`, msgElem);
+                    msgElem.dataset[CONSTANTS.DATA_KEYS.AVATAR_INJECT_FAILED] = 'true';
                 }
                 return; // Stop trying
             }
 
-            msgElem.dataset[ATTEMPT_KEY] = String(attempts + 1);
+            msgElem.dataset[CONSTANTS.DATA_KEYS.AVATAR_INJECT_ATTEMPTS] = String(attempts + 1);
 
             if (!this._injectionQueue.includes(msgElem)) {
                 this._injectionQueue.push(msgElem);
@@ -5275,7 +5592,7 @@
             if (this._injectionQueue.length === 0) {
                 return;
             }
-            Logger.badge('AVATAR QUEUE', LOG_STYLES.DEBUG, 'debug', `Processing ${this._injectionQueue.length} items.`);
+            Logger.badge('AVATAR QUEUE', LOG_STYLES.GRAY, 'debug', `Processing ${this._injectionQueue.length} items.`);
 
             const messagesToProcess = [...this._injectionQueue];
             this._injectionQueue = [];
@@ -5288,14 +5605,15 @@
 
                     const container = this.avatarTemplate.cloneNode(true);
                     if (container instanceof HTMLElement) {
+                        // Call the platform-specific injection logic
                         PlatformAdapters.Avatar.addAvatarToMessage(msgElem, container);
 
                         // On successful injection attempt, remove the counter.
                         // If the injection somehow fails and the avatar is still missing,
                         // Sentinel will re-queue it, and the counter will be incremented again.
                         // Also clear the permanent failure flag.
-                        delete msgElem.dataset.avatarInjectAttempts;
-                        delete msgElem.dataset.avatarInjectFailed;
+                        delete msgElem.dataset[CONSTANTS.DATA_KEYS.AVATAR_INJECT_ATTEMPTS];
+                        delete msgElem.dataset[CONSTANTS.DATA_KEYS.AVATAR_INJECT_FAILED];
                     }
                 },
                 CONSTANTS.BATCH_PROCESSING_SIZE
@@ -5343,10 +5661,8 @@
             this.messageCacheManager = messageCacheManager;
             this.subscriptions = [];
             this.isStreaming = false;
-            this.debouncedRecalculateStandingImagesLayout = debounce(() => {
-                if (this.isStreaming) return;
-                EventBus.queueUIWork(this.recalculateStandingImagesLayout.bind(this));
-            }, CONSTANTS.RETRY.STANDING_IMAGES_INTERVAL);
+            this.isUpdateScheduled = false;
+            this.scheduleUpdate = this.scheduleUpdate.bind(this);
         }
 
         _subscribe(event, listener) {
@@ -5361,23 +5677,16 @@
         init() {
             this.createContainers();
             this.injectStyles();
-            this._subscribe(EVENTS.WINDOW_RESIZED, this.debouncedRecalculateStandingImagesLayout);
-            this._subscribe(EVENTS.SIDEBAR_LAYOUT_CHANGED, this.debouncedRecalculateStandingImagesLayout);
-            // Subscribe to the new event that fires after all images are processed.
-            this._subscribe(EVENTS.THEME_APPLIED, () => {
-                this.updateVisibility();
-                this.debouncedRecalculateStandingImagesLayout();
-            });
-            this._subscribe(EVENTS.VISIBILITY_RECHECK, () => {
-                this.updateVisibility();
-            });
-            // Subscribe to the UI reposition event to recalculate layout after transitions.
-            this._subscribe(EVENTS.UI_REPOSITION, this.debouncedRecalculateStandingImagesLayout);
-            this._subscribe(EVENTS.CHAT_CONTENT_WIDTH_UPDATED, this.debouncedRecalculateStandingImagesLayout);
+            this._subscribe(EVENTS.WINDOW_RESIZED, this.scheduleUpdate);
+            this._subscribe(EVENTS.SIDEBAR_LAYOUT_CHANGED, this.scheduleUpdate);
+            this._subscribe(EVENTS.THEME_APPLIED, this.scheduleUpdate);
+            this._subscribe(EVENTS.VISIBILITY_RECHECK, this.scheduleUpdate);
+            this._subscribe(EVENTS.UI_REPOSITION, this.scheduleUpdate);
+            this._subscribe(EVENTS.CHAT_CONTENT_WIDTH_UPDATED, this.scheduleUpdate);
             this._subscribe(EVENTS.APP_SHUTDOWN, () => this.destroy());
             this._subscribe(EVENTS.STREAMING_START, () => (this.isStreaming = true));
             this._subscribe(EVENTS.STREAMING_END, () => (this.isStreaming = false));
-            this._subscribe(EVENTS.DEFERRED_LAYOUT_UPDATE, this.debouncedRecalculateStandingImagesLayout);
+            this._subscribe(EVENTS.DEFERRED_LAYOUT_UPDATE, this.scheduleUpdate);
             PlatformAdapters.StandingImage.setupEventListeners(this);
         }
 
@@ -5387,6 +5696,16 @@
             document.getElementById(`${APPID}-standing-image-user`)?.remove();
             document.getElementById(`${APPID}-standing-image-assistant`)?.remove();
             document.getElementById(`${APPID}-standing-image-style`)?.remove();
+        }
+
+        scheduleUpdate() {
+            if (this.isStreaming || this.isUpdateScheduled) return;
+            this.isUpdateScheduled = true;
+            EventBus.queueUIWork(() => {
+                this.updateVisibility();
+                this.recalculateStandingImagesLayout();
+                this.isUpdateScheduled = false;
+            });
         }
 
         injectStyles() {
@@ -5500,7 +5819,7 @@
                             e.stopPropagation();
                             info.msgWrapper.classList.toggle(`${APPID}-bubble-collapsed`);
                         };
-                        info.positioningParent.appendChild(button);
+                        // Only create and return the element. Insertion is handled by processElement.
                         return button;
                     },
                     update: (element, info, isEnabled) => {
@@ -5686,15 +6005,43 @@
                         if (featureElement) {
                             this.featureElementsCache.set(cacheKey, featureElement);
 
+                            // --- Unified Placement and Cleanup Logic ---
+                            let targetContainer = null;
+                            let cleanupSelector = null;
+
                             if (feature.group === 'sideNav') {
                                 if (!sideNavContainer) {
                                     sideNavContainer = this._getOrCreateNavContainer(messageElement);
                                 }
-                                const navButtons = sideNavContainer?.querySelector(`.${APPID}-nav-buttons`);
+                                if (sideNavContainer) {
+                                    targetContainer = sideNavContainer.querySelector(`.${APPID}-nav-buttons`);
+                                    // Identify duplication by the main class of the container returned by render
+                                    if (featureElement.classList.contains(`${APPID}-nav-group-top`)) {
+                                        cleanupSelector = `.${APPID}-nav-group-top`;
+                                    } else {
+                                        cleanupSelector = `.${APPID}-nav-group-bottom`;
+                                    }
+                                }
+                            } else {
+                                // For non-grouped features like collapsible, attach directly to positioningParent
+                                targetContainer = info.positioningParent;
+                                // Identify duplication by the main class of the element itself
+                                // We assume the first class added in render is the identifier, e.g., APPID-collapsible-toggle-btn
+                                if (featureElement.classList.length > 0) {
+                                    cleanupSelector = `.${featureElement.classList[0]}`;
+                                }
+                            }
+
+                            if (targetContainer && cleanupSelector) {
+                                // 1. Cleanup: Remove any existing element of the same type
+                                const existing = targetContainer.querySelector(cleanupSelector);
+                                if (existing) existing.remove();
+
+                                // 2. Append: Insert the new element
                                 if (feature.position === 'top') {
-                                    navButtons?.prepend(featureElement);
+                                    targetContainer.prepend(featureElement);
                                 } else {
-                                    navButtons?.appendChild(featureElement);
+                                    targetContainer.appendChild(featureElement);
                                 }
                             }
                         }
@@ -5785,7 +6132,7 @@
 
             const positioningParent = PlatformAdapters.BubbleUI.getNavPositioningParent(messageElement);
             if (!positioningParent) {
-                Logger.badge('UI WARN', LOG_STYLES.WARN, 'warn', 'Navigation button container could not be attached. Positioning parent not found for:', messageElement);
+                Logger.badge('NAV SKIP', LOG_STYLES.GRAY, 'debug', 'Navigation attachment skipped (no positioning parent). This is expected for image-only or transient elements:', messageElement);
                 return null;
             }
 
@@ -5975,11 +6322,42 @@
             this._renderUI();
         }
 
+        /**
+         * Checks if a DOM element is contained within the jump list or its preview tooltip.
+         * @param {Node} target The element to check.
+         * @returns {boolean} True if the element is inside the component.
+         */
+        contains(target) {
+            if (!target) return false;
+            // Check if inside the main list element
+            if (this.element?.contains(target)) return true;
+            // Check if inside the preview tooltip (which is attached to body)
+            if (this.previewTooltip?.contains(target)) return true;
+            return false;
+        }
+
         _createPreviewTooltip() {
             if (this.previewTooltip) return;
             this.previewTooltip = h(`div#${APPID}-jump-list-preview`);
+
+            // Prevent clicks and selections inside the tooltip from bubbling up and closing the UI
+            ['pointerdown', 'click', 'mouseup'].forEach((eventType) => {
+                this.previewTooltip.addEventListener(eventType, (e) => e.stopPropagation());
+            });
+
             this.previewTooltip.addEventListener('mouseenter', () => clearTimeout(this.hideTimeout));
-            this.previewTooltip.addEventListener('mouseleave', () => this._revertToFocusedPreview());
+            this.previewTooltip.addEventListener('mouseleave', (e) => {
+                // Guard: Do not close if the user is dragging (mouse button down)
+                // or if text is currently selected (user might be moving to copy).
+                // e.buttons & 1 checks if the primary (left) button is pressed.
+                const isDragging = e instanceof MouseEvent && (e.buttons & 1) === 1;
+                const hasSelection = window.getSelection()?.toString().length > 0;
+
+                if (isDragging || hasSelection) {
+                    return;
+                }
+                this._revertToFocusedPreview();
+            });
             document.body.appendChild(this.previewTooltip);
         }
 
@@ -6464,10 +6842,15 @@
                 lastFilterValue: '',
                 previousTotalMessages: 0,
                 isAutoScrolling: false,
+                isStreaming: false,
             };
 
+            // Cache for UI elements to avoid repeated querySelector calls
+            this.uiCache = null;
+
             this.subscriptions = [];
-            this.debouncedReposition = debounce(() => EventBus.queueUIWork(this.repositionContainers.bind(this)), CONSTANTS.TIMING.DEBOUNCE_DELAYS.NAVIGATION_UPDATE);
+            this.isRepositionScheduled = false;
+            this.scheduleReposition = this.scheduleReposition.bind(this);
 
             this.handleBodyClick = this.handleBodyClick.bind(this);
             this._handleKeyDown = this._handleKeyDown.bind(this);
@@ -6476,6 +6859,19 @@
         _subscribe(event, listener) {
             const key = createEventKey(this, event);
             EventBus.subscribe(event, listener, key);
+            this.subscriptions.push({ event, key });
+        }
+
+        _subscribeOnce(event, listener) {
+            const uniqueSuffix = Date.now() + Math.random().toString(36).substring(2);
+            const key = `${createEventKey(this, event)}_${uniqueSuffix}`;
+
+            const wrappedListener = (...args) => {
+                this.subscriptions = this.subscriptions.filter((sub) => sub.key !== key);
+                listener(...args);
+            };
+
+            EventBus.once(event, wrappedListener, key);
             this.subscriptions.push({ event, key });
         }
 
@@ -6491,14 +6887,14 @@
             this._subscribe(EVENTS.NAVIGATION, this.resetState.bind(this));
             this._subscribe(EVENTS.POLLING_MESSAGES_FOUND, this._handlePollingMessagesFound.bind(this));
             this._subscribe(EVENTS.NAV_HIGHLIGHT_MESSAGE, this.setHighlightAndIndices.bind(this));
-            this._subscribe(EVENTS.WINDOW_RESIZED, this.debouncedReposition);
-            this._subscribe(EVENTS.SIDEBAR_LAYOUT_CHANGED, this.debouncedReposition);
-            this._subscribe(EVENTS.INPUT_AREA_RESIZED, this.debouncedReposition);
-            this._subscribe(EVENTS.UI_REPOSITION, this.debouncedReposition);
+            this._subscribe(EVENTS.WINDOW_RESIZED, this.scheduleReposition);
+            this._subscribe(EVENTS.SIDEBAR_LAYOUT_CHANGED, this.scheduleReposition);
+            this._subscribe(EVENTS.INPUT_AREA_RESIZED, this.scheduleReposition);
+            this._subscribe(EVENTS.UI_REPOSITION, this.scheduleReposition);
             this._subscribe(EVENTS.APP_SHUTDOWN, () => this.destroy());
             this._subscribe(EVENTS.MESSAGE_COMPLETE, this._detectStreamingStart.bind(this));
             this._subscribe(EVENTS.TURN_COMPLETE, this._handleTurnComplete.bind(this));
-            this._subscribe(EVENTS.DEFERRED_LAYOUT_UPDATE, this.debouncedReposition);
+            this._subscribe(EVENTS.DEFERRED_LAYOUT_UPDATE, this.scheduleReposition);
 
             // Subscribe to auto-scroll events if the manager exists.
             if (this.autoScrollManager) {
@@ -6516,6 +6912,15 @@
 
             // After the main UI is ready, trigger an initial UI update.
             this._handleCacheUpdate();
+        }
+
+        scheduleReposition() {
+            if (this.isRepositionScheduled) return;
+            this.isRepositionScheduled = true;
+            EventBus.queueUIWork(() => {
+                this.repositionContainers();
+                this.isRepositionScheduled = false;
+            });
         }
 
         resetState() {
@@ -6676,7 +7081,7 @@
         }
 
         _renderUI() {
-            if (!this.navConsole) return;
+            if (!this.navConsole || !this.uiCache) return;
             const { currentIndices, highlightedMessage } = this.state;
             const userMessages = this.messageCacheManager.getUserMessages();
             const asstMessages = this.messageCacheManager.getAssistantMessages();
@@ -6693,13 +7098,16 @@
                 }
             }
 
-            this.navConsole.querySelector(`#${APPID}-nav-group-user .${APPID}-counter-total`).textContent = String(userMessages.length ? userMessages.length : '--');
-            this.navConsole.querySelector(`#${APPID}-nav-group-assistant .${APPID}-counter-total`).textContent = String(asstMessages.length ? asstMessages.length : '--');
-            this.navConsole.querySelector(`#${APPID}-nav-group-total .${APPID}-counter-total`).textContent = String(totalMessages.length ? totalMessages.length : '--');
+            // Access elements from cache
+            const { counters } = this.uiCache;
 
-            this.navConsole.querySelector(`#${APPID}-nav-group-user .${APPID}-counter-current`).textContent = String(currentIndices.user > -1 ? currentIndices.user + 1 : '--');
-            this.navConsole.querySelector(`#${APPID}-nav-group-assistant .${APPID}-counter-current`).textContent = String(currentIndices.asst > -1 ? currentIndices.asst + 1 : '--');
-            this.navConsole.querySelector(`#${APPID}-nav-group-total .${APPID}-counter-current`).textContent = String(currentIndices.total > -1 ? currentIndices.total + 1 : '--');
+            counters.user.total.textContent = String(userMessages.length ? userMessages.length : '--');
+            counters.assistant.total.textContent = String(asstMessages.length ? asstMessages.length : '--');
+            counters.total.total.textContent = String(totalMessages.length ? totalMessages.length : '--');
+
+            counters.user.current.textContent = String(currentIndices.user > -1 ? currentIndices.user + 1 : '--');
+            counters.assistant.current.textContent = String(currentIndices.asst > -1 ? currentIndices.asst + 1 : '--');
+            counters.total.current.textContent = String(currentIndices.total > -1 ? currentIndices.total + 1 : '--');
 
             document.querySelectorAll(`.${APPID}-highlight-message, .${APPID}-highlight-turn`).forEach((el) => {
                 el.classList.remove(`${APPID}-highlight-message`);
@@ -6715,8 +7123,8 @@
             }
 
             // Update UI state for the auto-scroll feature.
-            if (this.autoScrollManager) {
-                const autoscrollBtn = this.navConsole.querySelector(`#${APPID}-autoscroll-btn`);
+            if (this.autoScrollManager && this.uiCache.autoscrollBtn) {
+                const autoscrollBtn = this.uiCache.autoscrollBtn;
                 if (autoscrollBtn instanceof HTMLButtonElement) {
                     PlatformAdapters.FixedNav.updatePlatformSpecificButtonState(autoscrollBtn, this.state.isAutoScrolling, this.autoScrollManager);
                 }
@@ -6724,12 +7132,12 @@
 
             // Update bulk collapse button visibility
             const config = this.configManager.get();
-            const collapseBtn = this.navConsole.querySelector(`#${APPID}-bulk-collapse-btn`);
+            const collapseBtn = this.uiCache.bulkCollapseBtn;
             if (collapseBtn instanceof HTMLElement) {
                 const collapsibleEnabled = config?.features?.collapsible_button?.enabled ?? false;
                 const shouldShow = collapsibleEnabled && totalMessages.length > 0;
                 collapseBtn.style.display = shouldShow ? 'flex' : 'none';
-                const separator = collapseBtn.previousElementSibling;
+                const separator = this.uiCache.bulkCollapseSeparator;
                 if (separator instanceof HTMLElement && separator.classList.contains(`${APPID}-nav-separator`)) {
                     separator.style.display = shouldShow ? 'flex' : 'none';
                 }
@@ -6783,24 +7191,42 @@
         setHighlightAndIndices(targetMsg) {
             if (!targetMsg) return;
 
+            // Retrieve cached info for O(1) access
+            const cachedInfo = this.messageCacheManager.findMessageIndex(targetMsg);
+            if (!cachedInfo) return;
+
+            const totalMessages = this.messageCacheManager.getTotalMessages();
             const userMessages = this.messageCacheManager.getUserMessages();
             const asstMessages = this.messageCacheManager.getAssistantMessages();
-            const totalMessages = this.messageCacheManager.getTotalMessages();
+
+            let currentTotalIndex = cachedInfo.totalIndex;
+            let currentRoleIndex = cachedInfo.index;
+
+            // Verify if the cached index actually points to the target message.
+            if (totalMessages[currentTotalIndex] !== targetMsg) {
+                // If mismatch (e.g. due to cache lag), fall back to O(N) indexOf for ALL indices to ensure consistency.
+                // We cannot trust ANY part of the cachedInfo if the totalIndex verification fails.
+                currentTotalIndex = totalMessages.indexOf(targetMsg);
+                if (cachedInfo.role === CONSTANTS.INTERNAL_ROLES.USER) {
+                    currentRoleIndex = userMessages.indexOf(targetMsg);
+                } else {
+                    currentRoleIndex = asstMessages.indexOf(targetMsg);
+                }
+            }
 
             const newIndices = {
-                total: totalMessages.indexOf(targetMsg),
+                total: currentTotalIndex,
                 user: -1,
                 asst: -1,
             };
 
-            const role = PlatformAdapters.General.getMessageRole(targetMsg);
-
-            if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER) {
-                newIndices.user = userMessages.indexOf(targetMsg);
-                newIndices.asst = this.findNearestIndex(targetMsg, asstMessages);
+            // Determine indices based on the message role
+            if (cachedInfo.role === CONSTANTS.INTERNAL_ROLES.USER) {
+                newIndices.user = currentRoleIndex;
+                newIndices.asst = this.findNearestIndex(targetMsg, CONSTANTS.INTERNAL_ROLES.ASSISTANT);
             } else {
-                newIndices.asst = asstMessages.indexOf(targetMsg);
-                newIndices.user = this.findNearestIndex(targetMsg, userMessages);
+                newIndices.asst = currentRoleIndex;
+                newIndices.user = this.findNearestIndex(targetMsg, CONSTANTS.INTERNAL_ROLES.USER);
             }
 
             this.state.highlightedMessage = targetMsg;
@@ -6811,34 +7237,36 @@
 
         /**
          * @private
-         * @description Finds the index of the message in a given array that is nearest to the current message, using DOM order. This avoids performance-intensive layout calculations.
-         * @description It iterates backwards through a master list of all messages from the current message's position, looking for the first message that exists in the target role's array.
+         * @description Finds the index of the nearest preceding message of a specific role using cached data.
+         * This avoids O(N) Set creation and array searches.
          * @param {HTMLElement} currentMsg The reference message element.
-         * @param {HTMLElement[]} messageArray The array of messages (e.g., only user messages) to search within.
-         * @returns {number} The index of the nearest message in `messageArray`, or -1 if not found.
+         * @param {string} targetRole The role to search for ('user' or 'assistant').
+         * @returns {number} The index of the nearest message in the target role's array, or -1 if not found.
          */
-        findNearestIndex(currentMsg, messageArray) {
-            if (messageArray.length === 0) {
-                return -1;
-            }
+        findNearestIndex(currentMsg, targetRole) {
+            const currentInfo = this.messageCacheManager.findMessageIndex(currentMsg);
+            if (!currentInfo) return -1;
 
             const totalMessages = this.messageCacheManager.getTotalMessages();
-            const currentIndexInTotal = totalMessages.indexOf(currentMsg);
+            let startIndex = currentInfo.totalIndex;
 
-            if (currentIndexInTotal === -1) {
-                return -1; // Should not happen in normal operation
+            // Verify if the cached index is valid. If mismatch, fallback to O(N) search for safety.
+            if (totalMessages[startIndex] !== currentMsg) {
+                startIndex = totalMessages.indexOf(currentMsg);
             }
 
-            // Create a Set for efficient O(1) average time complexity lookups.
-            const messageSet = new Set(messageArray);
+            if (startIndex === -1) return -1;
 
             // Iterate backwards from the current message's position in the master list.
-            for (let i = currentIndexInTotal; i >= 0; i--) {
+            for (let i = startIndex; i >= 0; i--) {
                 const candidateMsg = totalMessages[i];
-                // Check if the candidate message belongs to the target role array.
-                if (messageSet.has(candidateMsg)) {
-                    // Found the nearest message. Now, find its index within its own role array.
-                    return messageArray.indexOf(candidateMsg);
+                const candidateInfo = this.messageCacheManager.findMessageIndex(candidateMsg);
+
+                // Check if the candidate matches the target role.
+                if (candidateInfo && candidateInfo.role === targetRole) {
+                    // Found the nearest message. Return its cached role-specific index directly.
+                    // Note: If totalIndex verification passed (or was corrected), we assume candidateInfo is consistent enough for this lookup.
+                    return candidateInfo.index;
                 }
             }
 
@@ -7084,8 +7512,8 @@
                 return;
             }
 
-            // If the click is inside the jump list, let the component handle it.
-            if (this.state.jumpListComponent?.element.contains(target)) {
+            // If the click is inside the jump list (including preview), let the component handle it.
+            if (this.state.jumpListComponent?.contains(target)) {
                 return;
             }
 
@@ -7176,6 +7604,27 @@
             ];
             this.navConsole.textContent = '';
             navUI.forEach((el) => this.navConsole.appendChild(el));
+
+            // Build the cache for O(1) access during updates
+            this.uiCache = {
+                autoscrollBtn: this.navConsole.querySelector(`#${APPID}-autoscroll-btn`),
+                bulkCollapseBtn: bulkCollapseBtn,
+                bulkCollapseSeparator: bulkCollapseBtn.previousElementSibling,
+                counters: {
+                    user: {
+                        total: this.navConsole.querySelector(`#${APPID}-nav-group-user .${APPID}-counter-total`),
+                        current: this.navConsole.querySelector(`#${APPID}-nav-group-user .${APPID}-counter-current`),
+                    },
+                    assistant: {
+                        total: this.navConsole.querySelector(`#${APPID}-nav-group-assistant .${APPID}-counter-total`),
+                        current: this.navConsole.querySelector(`#${APPID}-nav-group-assistant .${APPID}-counter-current`),
+                    },
+                    total: {
+                        total: this.navConsole.querySelector(`#${APPID}-nav-group-total .${APPID}-counter-total`),
+                        current: this.navConsole.querySelector(`#${APPID}-nav-group-total .${APPID}-counter-current`),
+                    },
+                },
+            };
         }
 
         attachEventListeners() {
@@ -7431,6 +7880,8 @@
                     white-space: pre-wrap;
                     word-break: break-word;
                     visibility: hidden;
+                    user-select: text;
+                    cursor: auto;
                 }
                 #${APPID}-jump-list-preview.is-visible {
                     opacity: 1;
@@ -7573,7 +8024,7 @@
                 // Publish the timestamp for this message as soon as it's identified.
                 // This is for real-time messages; historical ones are loaded via API.
                 // Find the correct messageId from the parent element
-                const messageIdHolder = messageElement.closest('[data-message-id]');
+                const messageIdHolder = messageElement.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
                 const messageId = messageIdHolder instanceof HTMLElement ? messageIdHolder.dataset.messageId : null;
 
                 // Only publish TIMESTAMP_ADDED (real-time/current time) if we are NOT in the initial page load/navigation phase.
@@ -7646,7 +8097,7 @@
          * Called when the feature is enabled.
          */
         enable() {
-            Logger.badge('TIMESTAMPS', LOG_STYLES.DEBUG, 'debug', 'Enabling...');
+            Logger.badge('TIMESTAMPS', LOG_STYLES.GRAY, 'debug', 'Enabling...');
             this.isEnabled = true;
 
             // Subscribe to cache updates (e.g., deletions)
@@ -7663,7 +8114,7 @@
          * Does NOT clear the internal timestamp cache.
          */
         disable() {
-            Logger.badge('TIMESTAMPS', LOG_STYLES.DEBUG, 'debug', 'Disabling...');
+            Logger.badge('TIMESTAMPS', LOG_STYLES.GRAY, 'debug', 'Disabling...');
             this.isEnabled = false;
 
             // Unsubscribe from events that trigger DOM updates
@@ -7704,13 +8155,13 @@
         _loadHistoricalTimestamps({ chatId, timestamps }) {
             // If the loaded data is for a different chat (e.g., race condition), clear cache.
             if (chatId !== this.currentChatId) {
-                Logger.badge('TIMESTAMPS', LOG_STYLES.DEBUG, 'debug', `New chat detected (${chatId}). Clearing previous timestamp cache.`);
+                Logger.badge('TIMESTAMPS', LOG_STYLES.GRAY, 'debug', `New chat detected (${chatId}). Clearing previous timestamp cache.`);
                 this.messageTimestamps.clear();
                 this.currentChatId = chatId;
             }
 
             if (timestamps && timestamps.size > 0) {
-                Logger.badge('TIMESTAMPS', LOG_STYLES.DEBUG, 'debug', `Loading ${timestamps.size} historical timestamps from adapter.`);
+                Logger.badge('TIMESTAMPS', LOG_STYLES.GRAY, 'debug', `Loading ${timestamps.size} historical timestamps from adapter.`);
                 timestamps.forEach((date, id) => {
                     // Overwrite any existing (likely real-time) timestamp with the historical one
                     this.messageTimestamps.set(id, date);
@@ -7731,7 +8182,7 @@
          */
         _handleTimestampAdded({ messageId, timestamp }) {
             if (messageId && timestamp && !this.messageTimestamps.has(messageId)) {
-                Logger.badge('TIMESTAMPS', LOG_STYLES.DEBUG, 'debug', `Added real-time timestamp for ${messageId}.`);
+                Logger.badge('TIMESTAMPS', LOG_STYLES.GRAY, 'debug', `Added real-time timestamp for ${messageId}.`);
                 this.messageTimestamps.set(messageId, timestamp);
 
                 // If enabled, trigger a DOM update for the new real-time timestamp
@@ -7768,15 +8219,14 @@
                     border-radius: 4px;
                     white-space: pre;
                     display: flex;
-                    position: relative;
+                    position: absolute;
+                    top: -20px; /* Align vertically with the 24px collapse button */
                 }
                 .${APPID}-timestamp-container.${APPID}-timestamp-assistant {
-                    justify-content: flex-start;
-                    margin-left: 0px;
+                    left: 30px; /* (button left 4px + width 24px + margin 2px) */
                 }
                 .${APPID}-timestamp-container.${APPID}-timestamp-user {
-                    justify-content: flex-end;
-                    margin-right: 0px;
+                    right: 30px; /* (button right 4px + width 24px + margin 2px) */
                 }
                 .${APPID}-timestamp {
                     background-color: rgb(0 0 0 / 0.4);
@@ -7858,9 +8308,8 @@
 
             // 1. Create DOM element if it doesn't exist
             if (!timestampContainer) {
-                const messageIdHolder = messageElement.closest('[data-message-id]');
-                const rootEle = messageIdHolder?.parentElement;
-                if (!rootEle || !messageIdHolder) return; // Cannot find insertion point
+                const messageIdHolder = messageElement.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
+                if (!messageIdHolder) return; // Cannot find insertion point
 
                 const role = PlatformAdapters.General.getMessageRole(messageElement);
                 if (!role) return; // Cannot determine role
@@ -7874,7 +8323,7 @@
                     timestampContainer = containerNode; // Assign after type check
                     timestampContainer.classList.add(roleClass);
                     timestampContainer.appendChild(spanNode);
-                    rootEle.insertBefore(timestampContainer, messageIdHolder);
+                    messageIdHolder.prepend(timestampContainer);
                     this.timestampDomCache.set(messageElement, timestampContainer);
                 } else {
                     return; // Failed to create element
@@ -7887,7 +8336,7 @@
 
             let text = '';
             if (isTimestampEnabled) {
-                const messageIdHolder = messageElement.closest('[data-message-id]');
+                const messageIdHolder = messageElement.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
                 const messageId = messageIdHolder instanceof HTMLElement ? messageIdHolder.dataset.messageId : null;
                 const timestamp = messageId ? this.getTimestamp(messageId) : undefined;
                 text = this._formatTimestamp(timestamp);
@@ -8878,9 +9327,9 @@
             // Apply site-specific styles via CSS custom properties.
             const s = this.options.styles;
             if (s) {
-                const bg = s.bg || s.modal_bg || '#fff';
-                const text = s.text || s.modal_text || '#000';
-                const border = s.border || s.modal_border || '#888';
+                const bg = s.bg || '#fff';
+                const text = s.text || '#000';
+                const border = s.border || '#888';
 
                 modalBox.style.setProperty(`--${p}-bg`, bg);
                 modalBox.style.setProperty(`--${p}-text`, text);
@@ -8917,6 +9366,7 @@
                     const btnRect = anchorElement.getBoundingClientRect();
                     const margin = 8;
                     const modalWidth = modalBox.offsetWidth || parseInt(this.options.width, 10);
+                    const modalHeight = modalBox.offsetHeight;
 
                     let left = btnRect.left;
                     const top = btnRect.bottom + 4;
@@ -8925,10 +9375,23 @@
                         left = window.innerWidth - modalWidth - margin;
                     }
 
+                    // Vertical collision detection & adjustment
+                    let finalTop = top;
+                    if (finalTop + modalHeight > window.innerHeight - margin) {
+                        // Try positioning above the anchor
+                        const topAbove = btnRect.top - modalHeight - 4;
+                        if (topAbove > margin) {
+                            finalTop = topAbove;
+                        } else {
+                            // If it doesn't fit above, pin to the bottom edge of the window
+                            finalTop = window.innerHeight - modalHeight - margin;
+                        }
+                    }
+
                     Object.assign(this.element.style, {
                         position: 'absolute',
                         left: `${Math.max(left, margin)}px`,
-                        top: `${Math.max(top, margin)}px`,
+                        top: `${Math.max(finalTop, margin)}px`,
                         margin: '0',
                         transform: 'none',
                     });
@@ -8993,9 +9456,7 @@
          * @param {string} options.id - The DOM ID for the button element.
          * @param {string} options.textContent - The text or emoji to display inside the button.
          * @param {string} options.title - The tooltip text for the button.
-         * @param {number|string} options.zIndex - The z-index for the button.
-         * @param {{top?: string, right?: string, bottom?: string, left?: string}} options.position - The fixed position of the button.
-         * @param {object} options.siteStyles - CSS variables for theming.
+         * @param {object} options.config - The style configuration object generated by PlatformAdapters. Contains zIndex, styles, hoverStyles, and iconDef.
          */
         constructor(callbacks, options) {
             super(callbacks);
@@ -9011,7 +9472,7 @@
         }
 
         /**
-         * Renders the settings button element and appends it to the document body.
+         * Renders the settings button element in memory.
          * @returns {HTMLElement} The created button element.
          */
         render() {
@@ -9030,14 +9491,13 @@
                 },
             });
 
-            const iconDef = this.options.siteStyles.iconDef;
+            const iconDef = this.options.config.iconDef;
             if (iconDef) {
                 const svgElement = createIconFromDef(iconDef);
                 if (svgElement) {
                     this.element.appendChild(svgElement);
                 }
             }
-            document.body.appendChild(this.element);
 
             return this.element;
         }
@@ -9048,38 +9508,36 @@
          */
         _injectStyles() {
             if (document.getElementById(this.styleId)) return;
-            const { position, zIndex, siteStyles } = this.options;
+
+            const { styles, hoverStyles, zIndex } = this.options.config;
+
+            // Helper to convert camelCase keys to kebab-case CSS properties
+            const toCss = (obj) =>
+                Object.entries(obj || {})
+                    .map(([k, v]) => `${k.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)}: ${v};`)
+                    .join('\n                    ');
 
             const style = h('style', {
                 id: this.styleId,
                 textContent: `
                 #${this.id} {
-                    position: fixed;
-                    top: ${position.top || 'auto'};
-                    right: ${position.right || 'auto'};
-                    bottom: ${position.bottom || 'auto'};
-                    left: ${position.left || 'auto'};
                     z-index: ${zIndex};
-                    width: 32px;
-                    height: 32px;
-                    border-radius: ${siteStyles.borderRadius};
-                    background: ${siteStyles.background};
-                    border: 1px solid ${siteStyles.borderColor};
+                    ${toCss(styles)}
+                    
+                    /* Fixed base styles */
                     font-size: 16px;
                     cursor: pointer;
                     box-shadow: var(--drop-shadow-xs, 0 1px 1px #0000000d);
                     transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
-
-                    /* Add flexbox properties for centering */
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     padding: 0;
                     pointer-events: auto !important;
+                    margin: 0;
                 }
                 #${this.id}:hover {
-                    background: ${siteStyles.backgroundHover};
-                    border-color: ${siteStyles.borderColorHover};
+                    ${toCss(hoverStyles)}
                 }
             `,
             });
@@ -9162,7 +9620,12 @@
          */
         async _handleDebouncedSave() {
             const newConfig = await this._collectDataFromForm();
-            this.callbacks.onSave?.(newConfig);
+            try {
+                await this.callbacks.onSave?.(newConfig);
+            } catch (e) {
+                // Log the error to console. User notification is handled via EventBus (CONFIG_SIZE_EXCEEDED).
+                Logger.error('SettingsPanel save failed:', e);
+            }
         }
 
         _createPanelContainer() {
@@ -9359,7 +9822,7 @@
 
         async _collectDataFromForm() {
             const currentConfig = await this.callbacks.getCurrentConfig();
-            const newConfig = JSON.parse(JSON.stringify(currentConfig));
+            const newConfig = deepClone(currentConfig);
             if (!this.element) return newConfig;
 
             collectDataFromSchema(this._getPanelSchema(), this.element, newConfig);
@@ -9954,7 +10417,7 @@
                 activeThemeKey: selectThemeKey || 'defaultSet',
                 uiMode: 'NORMAL',
                 pendingDeletionKey: null,
-                config: JSON.parse(JSON.stringify(initialConfig)), // Create a deep copy for editing
+                config: deepClone(initialConfig), // Create a deep copy for editing
             };
 
             this.modal = new CustomModal({
@@ -9981,7 +10444,7 @@
             const mainContent = this._createMainContent();
             // CustomModal now handles its own base styling, so we just add content.
             Object.assign(this.modal.dom.header.style, {
-                borderBottom: `1px solid ${this.callbacks.siteStyles.modal_border}`,
+                borderBottom: `1px solid ${this.callbacks.siteStyles.border}`,
                 paddingBottom: '12px',
                 display: 'flex',
                 flexDirection: 'column',
@@ -9989,7 +10452,7 @@
                 gap: '12px',
             });
             Object.assign(this.modal.dom.footer.style, {
-                borderTop: `1px solid ${this.callbacks.siteStyles.modal_border}`,
+                borderTop: `1px solid ${this.callbacks.siteStyles.border}`,
                 paddingTop: '16px',
             });
             this.modal.dom.header.appendChild(headerControls);
@@ -10354,7 +10817,7 @@
                         errorField.style.color = ''; // Reset color to inherit from CSS
                     }
                 } catch (error) {
-                    Logger.badge('IMAGE PROC FAILED', LOG_STYLES.ERROR, 'error', 'Image processing failed:', error);
+                    Logger.badge('IMAGE PROC FAILED', LOG_STYLES.RED, 'error', 'Image processing failed:', error);
                     // Show a proper error message with the error color on failure.
                     if (errorField instanceof HTMLElement) {
                         errorField.textContent = `Error: ${error.message}`;
@@ -10527,7 +10990,7 @@
 
             try {
                 await this.callbacks.onSave(newConfig);
-                this.state.config = JSON.parse(JSON.stringify(newConfig)); // Update local state on success
+                this.state.config = deepClone(newConfig); // Update local state on success
                 if (onSuccessCallback) await onSuccessCallback();
                 return true;
             } catch (e) {
@@ -10554,10 +11017,10 @@
                 return;
             }
 
-            const newConfig = JSON.parse(JSON.stringify(this.state.config));
+            const newConfig = deepClone(this.state.config);
             if (this.state.activeThemeKey === 'defaultSet') {
-                // Use deepMerge to apply changes to defaultSet
-                deepMerge(newConfig.defaultSet, themeData);
+                // Update defaultSet values while enforcing strict schema validation
+                resolveConfig(newConfig.defaultSet, themeData);
                 // metadata is not part of defaultSet, so clear it
                 delete newConfig.defaultSet.metadata;
             } else {
@@ -10585,7 +11048,7 @@
                 window: {},
                 inputArea: {},
             };
-            const newConfig = JSON.parse(JSON.stringify(config));
+            const newConfig = deepClone(config);
             newConfig.themeSets.push(newTheme);
 
             const onSuccess = () => {
@@ -10611,13 +11074,22 @@
             const baseName = `${themeToCopy.metadata.name || 'Theme'} Copy`;
             const existingNames = new Set(config.themeSets.map((t) => t.metadata.name?.trim().toLowerCase()));
             const newName = proposeUniqueName(baseName, existingNames);
-            const newTheme = JSON.parse(JSON.stringify(themeToCopy));
+            const newTheme = deepClone(themeToCopy);
 
             newTheme.metadata = { ...newTheme.metadata, id: generateUniqueId(), name: newName };
             if (isDefault) newTheme.metadata.matchPatterns = [];
 
-            const newConfig = JSON.parse(JSON.stringify(config));
-            newConfig.themeSets.push(newTheme);
+            const newConfig = deepClone(config);
+
+            // Determine insertion index: after the current item, or at the start if default is selected
+            let insertIndex = 0;
+            if (!isDefault) {
+                const currentIndex = newConfig.themeSets.findIndex((t) => t.metadata.id === activeThemeKey);
+                if (currentIndex !== -1) {
+                    insertIndex = currentIndex + 1;
+                }
+            }
+            newConfig.themeSets.splice(insertIndex, 0, newTheme);
 
             const onSuccess = () => {
                 this.state.activeThemeKey = newTheme.metadata.id;
@@ -10635,7 +11107,7 @@
             const newIndex = currentIndex + direction;
             if (newIndex < 0 || newIndex >= config.themeSets.length) return;
 
-            const newConfig = JSON.parse(JSON.stringify(config));
+            const newConfig = deepClone(config);
             const item = newConfig.themeSets.splice(currentIndex, 1)[0];
             newConfig.themeSets.splice(newIndex, 0, item);
 
@@ -10670,7 +11142,7 @@
                 return;
             }
 
-            const newConfig = JSON.parse(JSON.stringify(config));
+            const newConfig = deepClone(config);
             const themeToUpdate = newConfig.themeSets.find((t) => t.metadata.id === activeThemeKey);
             if (themeToUpdate) {
                 themeToUpdate.metadata.name = newName;
@@ -10693,10 +11165,27 @@
                 this._handleActionCancel();
                 return;
             }
-            const newConfig = JSON.parse(JSON.stringify(config));
+
+            // Determine the next ID to select *before* deletion modifying the array
+            let nextActiveId = 'defaultSet';
+            const currentIndex = config.themeSets.findIndex((t) => t.metadata.id === pendingDeletionKey);
+            const currentLength = config.themeSets.length;
+
+            if (currentLength > 1) {
+                if (currentIndex === currentLength - 1) {
+                    // Deleting the last item: select the previous item
+                    nextActiveId = config.themeSets[currentIndex - 1].metadata.id;
+                } else {
+                    // Deleting from start or middle: select the next item (which shifts into this index)
+                    // In the current array, this is index + 1
+                    nextActiveId = config.themeSets[currentIndex + 1].metadata.id;
+                }
+            }
+
+            const newConfig = deepClone(config);
             newConfig.themeSets = newConfig.themeSets.filter((t) => t.metadata.id !== pendingDeletionKey);
             this._saveConfigAndHandleFeedback(newConfig, () => {
-                this.state.activeThemeKey = 'defaultSet';
+                this.state.activeThemeKey = nextActiveId;
                 this.state.pendingDeletionKey = null;
                 this.state.uiMode = 'NORMAL';
                 this._populateFormWithThemeData();
@@ -10834,7 +11323,7 @@
                 }
                 .${APPID}-theme-separator {
                   border: none;
-                  border-top: 1px solid ${styles.modal_border};
+                  border-top: 1px solid ${styles.border};
                   margin: 0;
                 }
                 fieldset > .${APPID}-theme-separator {
@@ -11089,9 +11578,10 @@
             this.warningMessage = '';
             this.subscriptions = [];
             this.isStreaming = false;
+            this.isRepositionScheduled = false;
 
-            // Debounce the repositioning logic
-            this.debouncedReposition = debounce(() => this._handleRepositionEvent(), CONSTANTS.TIMING.DEBOUNCE_DELAYS.UI_REPOSITION);
+            // Bind the reposition logic
+            this.scheduleReposition = this.scheduleReposition.bind(this);
 
             const modalCallbacks = {
                 onSave: (newConfig) => this.onSave(newConfig),
@@ -11108,9 +11598,8 @@
                     id: `${APPID}-settings-button`,
                     textContent: '',
                     title: `Settings (${APPNAME})`,
-                    zIndex: CONSTANTS.Z_INDICES.SETTINGS_BUTTON,
-                    position: CONSTANTS.UI_DEFAULTS.SETTINGS_BUTTON_DEFAULT_POSITION,
-                    siteStyles: this.siteStyles.SETTINGS_BUTTON,
+                    // Pass the complete config generated by PlatformAdapters
+                    config: PlatformAdapters.StyleManager.getSettingsButtonConfig(this.siteStyles.SETTINGS_BUTTON),
                 }
             );
             this.settingsPanel = new SettingsPanelComponent({
@@ -11144,6 +11633,7 @@
 
         init() {
             this.settingsButton.render();
+            this.repositionSettingsButton();
             this.settingsPanel.init();
             this.settingsPanel.render();
             this.themeModal.render();
@@ -11154,7 +11644,7 @@
                     this.themeModal.open(key);
                 }
             });
-            this._subscribe(EVENTS.UI_REPOSITION, this.debouncedReposition);
+            this._subscribe(EVENTS.UI_REPOSITION, this.scheduleReposition);
             this._subscribe(EVENTS.CONFIG_WARNING_UPDATE, ({ show, message }) => {
                 this.isWarningActive = show;
                 this.warningMessage = message;
@@ -11163,7 +11653,8 @@
             this._subscribe(EVENTS.APP_SHUTDOWN, () => this.destroy());
             this._subscribe(EVENTS.STREAMING_START, () => (this.isStreaming = true));
             this._subscribe(EVENTS.STREAMING_END, () => (this.isStreaming = false));
-            this._subscribe(EVENTS.DEFERRED_LAYOUT_UPDATE, () => this._handleRepositionEvent());
+            this._subscribe(EVENTS.DEFERRED_LAYOUT_UPDATE, () => this.scheduleReposition());
+            this._subscribe(EVENTS.NAVIGATION_END, this.scheduleReposition);
         }
 
         destroy() {
@@ -11175,9 +11666,13 @@
             this.themeModal?.close();
         }
 
-        _handleRepositionEvent() {
-            if (this.isStreaming) return;
-            EventBus.queueUIWork(this.repositionSettingsButton.bind(this));
+        scheduleReposition() {
+            if (this.isStreaming || this.isRepositionScheduled) return;
+            this.isRepositionScheduled = true;
+            EventBus.queueUIWork(() => {
+                this.repositionSettingsButton();
+                this.isRepositionScheduled = false;
+            });
         }
 
         repositionSettingsButton() {
@@ -11310,6 +11805,80 @@
         }
 
         /**
+         * Exposes the debug object to the global scope (unsafeWindow).
+         */
+        expose() {
+            try {
+                const debugApi = {};
+                const proto = Object.getPrototypeOf(this);
+                const methodNames = Object.getOwnPropertyNames(proto).filter((key) => typeof this[key] === 'function' && key !== 'constructor' && !key.startsWith('_'));
+
+                for (const key of methodNames) {
+                    debugApi[key] = this[key].bind(this);
+                }
+
+                // fallback help if not defined
+                if (typeof debugApi.help !== 'function') {
+                    debugApi.help = () => {
+                        console.table(Object.keys(debugApi));
+                        Logger.log('All available debug commands listed above.');
+                    };
+                    Logger.warn('debugManager.help not found, fallback help() defined.');
+                }
+
+                if (typeof unsafeWindow !== 'undefined') {
+                    /** @type {any} */ (unsafeWindow)[`${APPID}Debug`] = debugApi;
+                }
+
+                Logger.badge('DEBUG READY', LOG_STYLES.BLUE, 'log', `Debug tools available. Use \`${APPID}Debug.help()\` for commands.`);
+            } catch (e) {
+                Logger.badge('DEBUG INIT FAILED', LOG_STYLES.RED, 'error', 'Could not expose debug object to console.', e);
+            }
+        }
+
+        /**
+         * @description Checks if all CSS selectors defined in the CONSTANTS.SELECTORS object are valid and exist in the current DOM.
+         * @returns {boolean} True if all selectors are valid, otherwise false.
+         */
+        checkSelectors() {
+            // Automatically create the checklist from the CONSTANTS.SELECTORS object.
+            const selectorsToCheck = Object.entries(CONSTANTS.SELECTORS).map(([key, selector]) => {
+                // Create a description from the key name.
+                const desc = key
+                    .replace(/_/g, ' ')
+                    .toLowerCase()
+                    .replace(/ \w/g, (L) => L.toUpperCase());
+                return {
+                    selector,
+                    desc,
+                };
+            });
+            let allOK = true;
+            console.groupCollapsed(LOG_PREFIX, 'CSS Selector Check');
+            for (const { selector, desc } of selectorsToCheck) {
+                try {
+                    const el = document.querySelector(selector);
+                    if (el) {
+                        Logger.badge('SELECTOR OK', LOG_STYLES.GREEN, 'log', `"${selector}"\n     description: ${desc}\n     element found:`, el);
+                    } else {
+                        Logger.badge('SELECTOR NG', LOG_STYLES.YELLOW, 'warn', `"${selector}"\n     description: ${desc}\n     element NOT found.`);
+                        allOK = false;
+                    }
+                } catch (e) {
+                    Logger.badge('SELECTOR INVALID', LOG_STYLES.RED, 'error', `Invalid selector "${selector}"\n     description: ${desc}\n     error:`, e.message);
+                    allOK = false;
+                }
+            }
+            if (allOK) {
+                Logger.badge('SELECTOR CHECK', LOG_STYLES.GREEN, 'log', 'All essential selectors are currently valid!');
+            } else {
+                Logger.badge('SELECTOR CHECK', LOG_STYLES.YELLOW, 'warn', 'One or more essential selectors are NOT found or invalid. The script might not function correctly.');
+            }
+            console.groupEnd();
+            return allOK;
+        }
+
+        /**
          * Toggles the visibility of debug layout borders.
          * @param {boolean} [forceState] - If true, shows borders. If false, hides them. If undefined, toggles the current state.
          */
@@ -11365,9 +11934,18 @@
      * @property {Map<string, Array<(element: Element) => void>>} listeners
      * @property {Set<string>} rules
      * @property {HTMLElement | null} styleElement
+     * @property {CSSStyleSheet | null} sheet
+     * @property {string[]} pendingRules
      */
     class Sentinel {
-        constructor(prefix = 'my-project') {
+        /**
+         * @param {string} prefix - A unique identifier for this Sentinel instance to avoid CSS conflicts. Required.
+         */
+        constructor(prefix) {
+            if (!prefix) {
+                throw new Error('[Sentinel] "prefix" argument is required to avoid CSS conflicts.');
+            }
+
             /** @type {any} */
             const globalScope = window;
             globalScope.__global_sentinel_instances__ = globalScope.__global_sentinel_instances__ || {};
@@ -11381,6 +11959,8 @@
             this.listeners = new Map();
             this.rules = new Set(); // Tracks all active selectors
             this.styleElement = null; // Holds the reference to the single style element
+            this.sheet = null; // Cache the CSSStyleSheet reference
+            this.pendingRules = []; // Queue for rules requested before sheet is ready
 
             this._injectStyleElement();
             document.addEventListener('animationstart', this._handleAnimationStart.bind(this), true);
@@ -11391,15 +11971,82 @@
         _injectStyleElement() {
             // Ensure the style element is injected only once per project prefix.
             this.styleElement = document.getElementById(this.styleId);
-            if (this.styleElement) return;
 
-            const keyframes = `@keyframes ${this.animationName} { from { transform: none; } to { transform: none; } }`;
+            if (this.styleElement instanceof HTMLStyleElement) {
+                this.sheet = this.styleElement.sheet;
+                return;
+            }
+
+            // Create empty style element
             this.styleElement = h('style', {
                 id: this.styleId,
-                textContent: keyframes,
             });
-            // Use (document.head || document.documentElement) to ensure injection works even at document-start, when document.head might be null.
-            (document.head || document.documentElement).appendChild(this.styleElement);
+
+            // Try to inject immediately. If the document is not yet ready (e.g. extremely early document-start), wait for the root element.
+            const target = document.head || document.documentElement;
+
+            const initSheet = () => {
+                if (this.styleElement instanceof HTMLStyleElement) {
+                    this.sheet = this.styleElement.sheet;
+                    // Insert the shared keyframes rule at index 0 and keep it there.
+                    // We use insertRule for performance instead of textContent replacement.
+                    try {
+                        const keyframes = `@keyframes ${this.animationName} { from { transform: none; } to { transform: none; } }`;
+                        this.sheet.insertRule(keyframes, 0);
+                    } catch (e) {
+                        Logger.badge('SENTINEL', LOG_STYLES.RED, 'error', 'Failed to insert keyframes rule:', e);
+                    }
+                    this._flushPendingRules();
+                }
+            };
+
+            if (target) {
+                target.appendChild(this.styleElement);
+                initSheet();
+            } else {
+                const observer = new MutationObserver(() => {
+                    const retryTarget = document.head || document.documentElement;
+                    if (retryTarget) {
+                        observer.disconnect();
+                        retryTarget.appendChild(this.styleElement);
+                        initSheet();
+                    }
+                });
+                observer.observe(document, { childList: true });
+            }
+        }
+
+        _flushPendingRules() {
+            if (!this.sheet || this.pendingRules.length === 0) return;
+
+            const rulesToInsert = [...this.pendingRules];
+            this.pendingRules = [];
+
+            rulesToInsert.forEach((selector) => {
+                this._insertRule(selector);
+            });
+        }
+
+        /**
+         * Helper to insert a single rule into the stylesheet
+         * @param {string} selector
+         */
+        _insertRule(selector) {
+            try {
+                const index = this.sheet.cssRules.length;
+                const ruleText = `${selector} { animation-duration: 0.001s; animation-name: ${this.animationName}; }`;
+                this.sheet.insertRule(ruleText, index);
+
+                // Tag the inserted rule object with the selector for safer removal later.
+                // This mimics sentinel.js behavior to handle index shifts and selector normalization.
+                const insertedRule = this.sheet.cssRules[index];
+                if (insertedRule) {
+                    // @ts-ignore - Custom property for tracking
+                    insertedRule._id = selector;
+                }
+            } catch (e) {
+                Logger.badge('SENTINEL', LOG_STYLES.RED, 'error', `Failed to insert rule for selector "${selector}":`, e);
+            }
         }
 
         _handleAnimationStart(event) {
@@ -11425,16 +12072,23 @@
          * @param {(element: Element) => void} callback
          */
         on(selector, callback) {
+            // Add callback to listeners
             if (!this.listeners.has(selector)) {
                 this.listeners.set(selector, []);
-                this.rules.add(selector);
-
-                // Regenerate and apply all rules to the single style element.
-                const keyframes = `@keyframes ${this.animationName} { from { transform: none; } to { transform: none; } }`;
-                const selectors = Array.from(this.rules).join(', ');
-                this.styleElement.textContent = `${keyframes}\n${selectors} { animation-duration: 0.001s; animation-name: ${this.animationName}; }`;
             }
             this.listeners.get(selector).push(callback);
+
+            // If selector is already registered in rules, do nothing
+            if (this.rules.has(selector)) return;
+
+            this.rules.add(selector);
+
+            // Apply rule
+            if (this.sheet) {
+                this._insertRule(selector);
+            } else {
+                this.pendingRules.push(selector);
+            }
         }
 
         /**
@@ -11452,12 +12106,23 @@
             }
 
             if (newCallbacks.length === 0) {
+                // Remove listener and rule
                 this.listeners.delete(selector);
                 this.rules.delete(selector);
 
-                const keyframes = `@keyframes ${this.animationName} { from { transform: none; } to { transform: none; } }`;
-                const selectors = Array.from(this.rules).join(', ');
-                this.styleElement.textContent = `${keyframes}\n${selectors ? `${selectors} { animation-duration: 0.001s; animation-name: ${this.animationName}; }` : ''}`;
+                if (this.sheet) {
+                    // Iterate backwards to avoid index shifting issues during deletion
+                    for (let i = this.sheet.cssRules.length - 1; i >= 0; i--) {
+                        const rule = this.sheet.cssRules[i];
+                        // Check for custom tag or fallback to selectorText match
+                        // @ts-ignore
+                        if (rule._id === selector || rule.selectorText === selector) {
+                            this.sheet.deleteRule(i);
+                            // We assume one rule per selector, so we can break after deletion
+                            break;
+                        }
+                    }
+                }
             } else {
                 this.listeners.set(selector, newCallbacks);
             }
@@ -11467,14 +12132,154 @@
             if (this.styleElement instanceof HTMLStyleElement) {
                 this.styleElement.disabled = true;
             }
-            Logger.badge('SENTINEL', LOG_STYLES.DEBUG, 'debug', 'Suspended.');
+            Logger.badge('SENTINEL', LOG_STYLES.GRAY, 'debug', 'Suspended.');
         }
 
         resume() {
             if (this.styleElement instanceof HTMLStyleElement) {
                 this.styleElement.disabled = false;
             }
-            Logger.badge('SENTINEL', LOG_STYLES.DEBUG, 'debug', 'Resumed.');
+            Logger.badge('SENTINEL', LOG_STYLES.GRAY, 'debug', 'Resumed.');
+        }
+    }
+
+    // =================================================================================
+    // SECTION: Toast Manager
+    // Description: Manages the display of temporary toast notifications.
+    // =================================================================================
+
+    class ToastManager {
+        constructor() {
+            this.toastElement = null;
+            this.subscriptions = [];
+        }
+
+        _subscribe(event, listener) {
+            const key = createEventKey(this, event);
+            EventBus.subscribe(event, listener, key);
+            this.subscriptions.push({ event, key });
+        }
+
+        init() {
+            this._injectStyles();
+            const message = PlatformAdapters.Toast.getAutoScrollMessage();
+            this._subscribe(EVENTS.AUTO_SCROLL_START, () => this.show(message, true));
+            this._subscribe(EVENTS.AUTO_SCROLL_COMPLETE, () => this.hide());
+            this._subscribe(EVENTS.APP_SHUTDOWN, () => this.destroy());
+        }
+
+        destroy() {
+            this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
+            this.subscriptions = [];
+            this.hide();
+        }
+
+        _injectStyles() {
+            const styleId = `${APPID}-toast-style`;
+            if (document.getElementById(styleId)) return;
+
+            // Define custom warning styles for the toast
+            const warnStyles = {
+                bg: 'rgb(255 165 0 / 0.9)', // Orange background for warning
+                text: '#ffffff', // White text
+                border: '#ffa000', // Darker orange border
+                cancel_btn_bg: 'rgb(255 255 255 / 0.2)', // Semi-transparent white for button background
+                cancel_btn_text: '#ffffff', // White text for button
+            };
+
+            const style = h('style', {
+                id: styleId,
+                textContent: `
+                                .${APPID}-toast-container {
+                                    position: fixed; /* Changed to fixed for viewport relative positioning */
+                                    top: 30%; /* Position from the top */
+                                    left: 50%; /* Center horizontally */
+                                    transform: translate(-50%, -50%); /* Adjust for exact centering */
+                                    z-index: 10002; /* Higher z-index */
+                                    background-color: ${warnStyles.bg};
+                                    color: ${warnStyles.text};
+                                    padding: 15px 25px; /* Slightly more padding */
+                                    border-radius: 12px; /* More rounded corners */
+                                    border: 1px solid ${warnStyles.border};
+                                    box-shadow: 0 6px 20px rgb(0 0 0 / 0.2); /* Stronger shadow */
+                                    display: flex;
+                                    align-items: center;
+                                    gap: 15px; /* Increased gap */
+                                    font-size: 1.1em; /* Larger font */
+                                    font-weight: bold; /* Bold text */
+                                    opacity: 0;
+                                    transition: opacity 0.4s ease, transform 0.4s ease; /* Smoother transition */
+                                    pointer-events: none;
+                                    white-space: nowrap; /* Prevent text wrapping */
+                                }
+                                .${APPID}-toast-container.is-visible {
+                                    opacity: 1;
+                                    transform: translate(-50%, 0); /* Move into view from adjusted vertical position */
+                                    pointer-events: auto;
+                                }
+                                .${APPID}-toast-cancel-btn {
+                                    background: ${warnStyles.cancel_btn_bg};
+                                    color: ${warnStyles.cancel_btn_text};
+                                    border: none;
+                                    padding: 8px 15px; /* Larger button padding */
+                                    margin-left: 10px; /* Adjusted margin */
+                                    cursor: pointer;
+                                    font-weight: bold;
+                                    border-radius: 6px; /* Rounded button */
+                                    transition: background-color 0.2s ease;
+                                }
+                                .${APPID}-toast-cancel-btn:hover {
+                                    background-color: rgb(255 255 255 / 0.3); /* Lighter hover background */
+                                }
+                            `,
+            });
+            document.head.appendChild(style);
+        }
+
+        _renderToast(message, showCancelButton) {
+            const children = [h('span', message)];
+            if (showCancelButton) {
+                const cancelButton = h(
+                    'button',
+                    {
+                        className: `${APPID}-toast-cancel-btn`,
+                        title: 'Stop action',
+                        onclick: () => EventBus.publish(EVENTS.AUTO_SCROLL_CANCEL_REQUEST),
+                    },
+                    'Cancel'
+                );
+                children.push(cancelButton);
+            }
+            return h(`div.${APPID}-toast-container`, children);
+        }
+
+        show(message, showCancelButton = false) {
+            // Remove existing toast if any
+            if (this.toastElement) {
+                this.hide();
+            }
+
+            this.toastElement = this._renderToast(message, showCancelButton);
+            document.body.appendChild(this.toastElement);
+
+            // Trigger the transition
+            setTimeout(() => {
+                this.toastElement?.classList.add('is-visible');
+            }, 10);
+        }
+
+        hide() {
+            if (!this.toastElement) return;
+
+            const el = this.toastElement;
+            el.classList.remove('is-visible');
+
+            // Remove from DOM after transition ends
+            setTimeout(() => {
+                el.remove();
+            }, 300);
+
+            this.toastElement = null;
         }
     }
 
@@ -11520,10 +12325,15 @@
             this.isConfigSizeExceeded = false;
             this.configWarningMessage = '';
             this.isNavigating = true;
-            this.isInitialized = false;
-            this.isDestroying = false;
             this.pendingRemoteConfig = null;
             this.subscriptions = [];
+
+            // Flag to track if the application is fully initialized.
+            // Guards against double-initialization and controls message processing availability.
+            this.isInitialized = false;
+
+            // Flag to prevent re-entrant destruction calls during the shutdown process.
+            this.isDestroying = false;
         }
 
         _subscribe(event, listener) {
@@ -11533,8 +12343,7 @@
         }
 
         async init() {
-            if (this.isInitialized) return;
-            this.isDestroying = false; // Reset the destroy guard on re-initialization.
+            if (this.isDestroying) return;
 
             await this.configManager.load();
 
@@ -11565,6 +12374,7 @@
             this.standingImageManager = new StandingImageManager(this.configManager, this.messageCacheManager);
             this.bubbleUIManager = new BubbleUIManager(this.configManager, this.messageCacheManager);
             this.messageLifecycleManager = new MessageLifecycleManager(this.messageCacheManager);
+            this.toastManager = new ToastManager();
 
             // Initialize platform-specific managers, which depend on core managers (like messageLifecycleManager)
             PlatformAdapters.ThemeAutomator.initializePlatformManagers(this);
@@ -11612,8 +12422,10 @@
                 await this.fixedNavManager.init();
             }
 
-            // Set initialized flag and start the main observers
-            this.isInitialized = true;
+            // Expose debug tools
+            this.debugManager.expose();
+
+            // Start the main observers
             this.observerManager.start();
 
             // Subscribe to app-wide events
@@ -11646,11 +12458,9 @@
         }
 
         destroy() {
+            // Prevent double destruction or destruction of uninitialized instance
             if (!this.isInitialized || this.isDestroying) return;
             this.isDestroying = true;
-
-            // This method is now a cleanup handler triggered by the APP_SHUTDOWN event.
-            // It should NOT re-publish the event that called it.
 
             // Stop network monitoring immediately
             PlatformAdapters.Timestamp.cleanup();
@@ -11664,8 +12474,79 @@
 
             Logger.log('ThemeAutomator destroyed.');
 
+            // Reset flags to allow clean re-initialization (re-launch) if needed.
             this.isInitialized = false;
-            isInitialized = false; // Reset the global guard
+            this.isDestroying = false;
+        }
+
+        /**
+         * Sets up navigation hooks to detect URL changes immediately.
+         * This helps prevents race conditions by setting the navigating flag early.
+         */
+        setupNavigationHooks() {
+            let lastHref = location.href;
+            const handler = () => {
+                if (location.href !== lastHref) {
+                    this.isNavigating = true;
+                    lastHref = location.href;
+                }
+            };
+            for (const m of ['pushState', 'replaceState']) {
+                const orig = history[m];
+                history[m] = (...args) => {
+                    orig.apply(history, args);
+                    handler();
+                };
+            }
+            window.addEventListener('popstate', handler);
+        }
+
+        /**
+         * Handles raw message elements detected by Sentinel.
+         * @param {HTMLElement} contentElement
+         */
+        handleRawMessage(contentElement) {
+            if (!this.isInitialized) return;
+            EventBus.publish(EVENTS.RAW_MESSAGE_ADDED, contentElement);
+        }
+
+        /**
+         * Launches the application.
+         * Sets up hooks, waits for the anchor element, and initializes the main logic.
+         * Note: This method assumes that the global `sentinel` instance has already been created.
+         */
+        launch() {
+            // 1. Setup Hooks
+            this.setupNavigationHooks();
+
+            // 2. Wait for Anchor to Initialize (We use the global sentinel instance here)
+            const initApp = () => {
+                // Run the full initialization only once.
+                if (this.isInitialized) return;
+
+                // Guard: Even if the anchor is found, abort if the current page is on the exclusion list.
+                if (PlatformAdapters.General.isExcludedPage()) {
+                    Logger.badge('INIT ABORT', LOG_STYLES.YELLOW, 'log', 'Target element detected, but the page is on the exclusion list. Initialization aborted.');
+                    return;
+                }
+
+                this.isInitialized = true;
+
+                Logger.badge('INIT', LOG_STYLES.GREEN, 'log', 'Target element detected. Initializing...');
+                this.init();
+            };
+
+            sentinel.on(CONSTANTS.SELECTORS.INPUT_TEXT_FIELD_TARGET, initApp);
+
+            const existingAnchor = document.querySelector(CONSTANTS.SELECTORS.INPUT_TEXT_FIELD_TARGET);
+            if (existingAnchor) {
+                Logger.badge('INIT', LOG_STYLES.GRAY, 'debug', 'Target already exists. Triggering immediate init.');
+                initApp();
+            }
+
+            // 3. Setup Message Processor using Platform Adapter
+            // This connects the low-level Sentinel detection to the high-level EventBus.
+            PlatformAdapters.General.initializeSentinel((el) => this.handleRawMessage(el));
         }
 
         _handleRemoteConfigChange(newValue) {
@@ -11674,7 +12555,7 @@
                 const activeModal = this.uiManager.getActiveModal?.();
 
                 if (activeModal) {
-                    Logger.badge('SYNC', LOG_STYLES.DEBUG, 'debug', 'Modal open. Storing remote update & showing conflict.');
+                    Logger.badge('SYNC', LOG_STYLES.GRAY, 'debug', 'Modal open. Storing remote update & showing conflict.');
                     this.pendingRemoteConfig = newConfig;
                     const reloadCallback = () => {
                         const reopenContext = activeModal.getContextForReopen?.();
@@ -11687,17 +12568,17 @@
                     };
                     this.uiManager.showConflictNotification(activeModal, reloadCallback);
                 } else {
-                    Logger.badge('SYNC', LOG_STYLES.DEBUG, 'debug', 'No modal open. Applying silent remote update.');
+                    Logger.badge('SYNC', LOG_STYLES.GRAY, 'debug', 'No modal open. Applying silent remote update.');
                     this.applyUpdate(newConfig);
                 }
             } catch (e) {
-                Logger.badge('SYNC FAILED', LOG_STYLES.ERROR, 'error', 'Failed to handle remote config change:', e);
+                Logger.badge('SYNC FAILED', LOG_STYLES.RED, 'error', 'Failed to handle remote config change:', e);
             }
         }
 
         applyPendingUpdateOnModalClose() {
             if (this.pendingRemoteConfig) {
-                Logger.badge('SYNC', LOG_STYLES.DEBUG, 'debug', 'Modal closed with pending update. Applying now.');
+                Logger.badge('SYNC', LOG_STYLES.GRAY, 'debug', 'Modal closed with pending update. Applying now.');
                 this.applyUpdate(this.pendingRemoteConfig);
                 this.pendingRemoteConfig = null;
             }
@@ -11718,7 +12599,7 @@
             const currentConfig = this.configManager.get();
             const themeChanged = JSON.stringify(currentConfig.themeSets) !== JSON.stringify(newConfig.themeSets) || JSON.stringify(currentConfig.defaultSet) !== JSON.stringify(newConfig.defaultSet);
             // Create a complete config object by merging the incoming data with defaults.
-            let completeConfig = deepMerge(JSON.parse(JSON.stringify(DEFAULT_THEME_CONFIG)), newConfig);
+            let completeConfig = resolveConfig(deepClone(DEFAULT_THEME_CONFIG), newConfig);
 
             // Ensure all theme IDs are unique before proceeding.
             completeConfig.themeSets = this._ensureUniqueThemeIds(completeConfig.themeSets);
@@ -11822,7 +12703,7 @@
                 // We pass the old enabled state to it.
                 await this._applyUiUpdates(completeConfig, themeChanged, oldTimestampEnabled);
             } catch (e) {
-                Logger.badge('SAVE FAILED', LOG_STYLES.ERROR, 'error', 'Configuration save failed:', e.message);
+                Logger.badge('SAVE FAILED', LOG_STYLES.RED, 'error', 'Configuration save failed:', e.message);
                 throw e; // Re-throw the error for the UI layer to catch
             }
         }
@@ -11840,7 +12721,7 @@
             // Use map to create a new array with unique IDs
             return themeSets.map((originalTheme) => {
                 // Deep copy to avoid mutating the original theme object in the array
-                const theme = JSON.parse(JSON.stringify(originalTheme));
+                const theme = deepClone(originalTheme);
                 if (!theme.metadata) {
                     theme.metadata = { id: '', name: 'Unnamed Theme', matchPatterns: [] };
                 }
@@ -11851,48 +12732,6 @@
                 seenIds.add(theme.metadata.id);
                 return theme;
             });
-        }
-
-        /**
-         * @description Checks if all CSS selectors defined in the CONSTANTS.SELECTORS object are valid and exist in the current DOM.
-         * @returns {boolean} True if all selectors are valid, otherwise false.
-         */
-        checkSelectors() {
-            // Automatically create the checklist from the CONSTANTS.SELECTORS object.
-            const selectorsToCheck = Object.entries(CONSTANTS.SELECTORS).map(([key, selector]) => {
-                // Create a description from the key name.
-                const desc = key
-                    .replace(/_/g, ' ')
-                    .toLowerCase()
-                    .replace(/ \w/g, (L) => L.toUpperCase());
-                return {
-                    selector,
-                    desc,
-                };
-            });
-            let allOK = true;
-            console.groupCollapsed(LOG_PREFIX, 'CSS Selector Check');
-            for (const { selector, desc } of selectorsToCheck) {
-                try {
-                    const el = document.querySelector(selector);
-                    if (el) {
-                        Logger.badge('SELECTOR OK', LOG_STYLES.LOG, 'log', `"${selector}"\n     description: ${desc}\n     element found:`, el);
-                    } else {
-                        Logger.badge('SELECTOR NG', LOG_STYLES.WARN, 'warn', `"${selector}"\n     description: ${desc}\n     element NOT found.`);
-                        allOK = false;
-                    }
-                } catch (e) {
-                    Logger.badge('SELECTOR INVALID', LOG_STYLES.ERROR, 'error', `Invalid selector "${selector}"\n     description: ${desc}\n     error:`, e.message);
-                    allOK = false;
-                }
-            }
-            if (allOK) {
-                Logger.badge('SELECTOR CHECK', LOG_STYLES.LOG, 'log', 'All essential selectors are currently valid!');
-            } else {
-                Logger.badge('SELECTOR CHECK', LOG_STYLES.WARN, 'warn', 'One or more essential selectors are NOT found or invalid. The script might not function correctly.');
-            }
-            console.groupEnd();
-            return allOK;
         }
     }
 
@@ -11905,104 +12744,17 @@
     // Set executed flag if not executed yet
     ExecutionGuard.setExecuted();
 
-    // Initialize network interception immediately at document-start
-    PlatformAdapters.Timestamp.init();
+    // Initialize network interception immediately at document-start, but only if not on an excluded page.
+    if (!PlatformAdapters.General.isExcludedPage()) {
+        PlatformAdapters.Timestamp.init();
+    }
 
     // Main controller for the entire application.
     const automator = new ThemeAutomator();
+
     // Singleton instance for observing DOM node insertions.
-    const sentinel = new Sentinel(OWNERID + APPID);
-    // Singleton instance for observing panel/header DOM node insertions.
-    const panelSentinel = new Sentinel(OWNERID + 'PanelObserver');
+    const sentinel = new Sentinel(OWNERID);
 
-    // This immediate hook is crucial for preventing race conditions. It sets the navigating
-    // flag as soon as a URL change is initiated, ensuring that the Sentinel's message
-    // processor is paused *before* new DOM elements begin to render.
-    (() => {
-        let lastHref = location.href;
-        const handler = () => {
-            if (location.href !== lastHref) {
-                automator.isNavigating = true;
-                lastHref = location.href;
-            }
-        };
-        for (const m of ['pushState', 'replaceState']) {
-            const orig = history[m];
-            history[m] = function (...args) {
-                orig.apply(this, args);
-                handler();
-            };
-        }
-        window.addEventListener('popstate', handler);
-    })();
-
-    // Use the text input area as a reliable signal that the UI is fully interactive.
-    const ANCHOR_SELECTOR = CONSTANTS.SELECTORS.INPUT_TEXT_FIELD_TARGET;
-    let isInitialized = false;
-
-    // Use the Sentinel to wait for the main UI container to appear.
-    sentinel.on(ANCHOR_SELECTOR, () => {
-        // Run the full initialization only once.
-        if (isInitialized) return;
-
-        // Guard: Even if the anchor is found, abort if the current page is on the exclusion list.
-        // This prevents re-initialization on excluded pages that might contain the anchor element (e.g., /library?tab=images).
-        if (PlatformAdapters.General.isExcludedPage()) {
-            Logger.badge('INIT ABORT', LOG_STYLES.WARN, 'log', 'Anchor element detected, but the page is on the exclusion list. Initialization aborted.');
-            return;
-        }
-
-        isInitialized = true;
-
-        Logger.badge('INIT', LOG_STYLES.LOG, 'log', 'Anchor element detected. Initializing...');
-        automator.init();
-    });
-
-    /**
-     * Processes a message element once its inner bubble is fully rendered and attached to the DOM.
-     * This function now acts as a simple relay, publishing a generic event.
-     * @param {HTMLElement} contentElement The content element (text bubble, image, etc.) detected by the Sentinel.
-     */
-    const processReadyMessage = (contentElement) => {
-        if (!isInitialized) return;
-        EventBus.publish(EVENTS.RAW_MESSAGE_ADDED, contentElement);
-    };
-
-    // Use the Platform Adapter to set up platform-specific Sentinel listeners.
-    PlatformAdapters.General.initializeSentinel(processReadyMessage);
-
-    // ---- Debugging ----
-    // Description: Exposes a debug object to the console.
-    try {
-        const debugApi = {};
-        if (automator.debugManager) {
-            const proto = Object.getPrototypeOf(automator.debugManager);
-            const methodNames = Object.getOwnPropertyNames(proto).filter((key) => typeof automator.debugManager[key] === 'function' && key !== 'constructor' && !key.startsWith('_'));
-
-            for (const key of methodNames) {
-                debugApi[key] = automator.debugManager[key].bind(automator.debugManager);
-            }
-        }
-
-        if (typeof automator.checkSelectors === 'function') {
-            debugApi.checkSelectors = automator.checkSelectors.bind(automator);
-        }
-
-        // fallback help if not defined
-        if (typeof debugApi.help !== 'function') {
-            debugApi.help = () => {
-                console.table(Object.keys(debugApi));
-                Logger.log('All available debug commands listed above.');
-            };
-            Logger.warn('debugManager.help not found, fallback help() defined.');
-        }
-
-        if (typeof unsafeWindow !== 'undefined') {
-            /** @type {any} */ (unsafeWindow)[`${APPID}Debug`] = debugApi;
-        }
-
-        Logger.badge('DEBUG READY', LOG_STYLES.INFO, 'log', `Debug tools available. Use \`${APPID}Debug.help()\` for commands.`);
-    } catch (e) {
-        Logger.badge('DEBUG INIT FAILED', LOG_STYLES.ERROR, 'error', 'Could not expose debug object to console.', e);
-    }
+    // Launch application
+    automator.launch();
 })();
