@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Quick-Text-Buttons
 // @namespace    https://github.com/p65536
-// @version      1.4.0
+// @version      2.0.0
 // @license      MIT
 // @description  Adds customizable buttons to paste predefined text into the input field on ChatGPT/Gemini.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/qtb.ico
@@ -208,7 +208,7 @@
 
     const CONSTANTS = {
         CONFIG_KEY: `${APPID}_config`,
-        CONFIG_SIZE_LIMIT_BYTES: 5033164, // 4.8MB
+        CONFIG_SIZE_LIMIT_BYTES: 10485760, // 10MB
         ID_PREFIX: `${APPID}-id-`,
         TEXT_LIST_WIDTH: 500,
         HIDE_DELAY_MS: 250,
@@ -248,25 +248,22 @@
         SELECTORS: {
             chatgpt: {
                 // Reference element for button positioning (Parent container)
-                ANCHOR_ELEMENT: 'form[data-type="unified-composer"]',
-                LAYOUT_TARGET: 'div[class*="[grid-area:leading]"]',
+                INSERTION_ANCHOR: 'form[data-type="unified-composer"] div[class*="[grid-area:leading]"]',
                 // Actual input element for text insertion
                 INPUT_TARGET: 'div.ProseMirror#prompt-textarea',
-                // Main application container for scoped observation
-                MAIN_APP_CONTAINER: 'main#main',
-                // Padding for the button
-                PADDING: '44px',
+                // Explicit settings for layout strategy
+                ANCHOR_PADDING_LEFT: null, // No padding adjustment needed
+                INSERT_METHOD: 'prepend',
             },
             gemini: {
-                // Reference element for button positioning
-                ANCHOR_ELEMENT: 'input-area-v2',
-                LAYOUT_TARGET: 'input-area-v2',
+                // Reference element for button positioning - Main text input wrapper (Stable parent)
+                INSERTION_ANCHOR: 'input-area-v2 .text-input-field',
                 // Actual input element for text insertion
                 INPUT_TARGET: 'rich-textarea .ql-editor',
-                // Main application container for scoped observation
-                MAIN_APP_CONTAINER: 'bard-sidenav-content',
-                // Padding for the button
-                PADDING: '44px',
+                // Settings for absolute positioning strategy
+                // Button occupies 48px (left:8px + width:40px). 52px provides a 4px gap.
+                ANCHOR_PADDING_LEFT: '52px',
+                INSERT_METHOD: 'append',
             },
         },
         PLATFORM: {
@@ -303,17 +300,29 @@
     // ---- Site-specific Style Variables ----
     const SITE_STYLES = {
         chatgpt: {
+            ANCHOR: {
+                display: 'flex',
+                'align-items': 'center',
+                gap: '2px',
+            },
             INSERT_BUTTON: {
-                position: 'absolute',
-                left: '8px',
-                bottom: '12px',
-                margin: '0',
-                width: '40px',
-                height: '40px',
-                background: 'transparent',
-                border: 'none',
-                backgroundHover: 'var(--interactive-bg-secondary-hover)',
-                borderRadius: '50%',
+                styles: {
+                    position: 'static !important',
+                    margin: '0 0 0 0 !important',
+                    display: 'flex',
+                    // Updated dimensions to match native buttons
+                    width: 'calc(var(--spacing)*9)',
+                    height: 'calc(var(--spacing)*9)',
+                    background: 'transparent',
+                    border: 'none',
+                    // Capsule/Circle shape
+                    'border-radius': '50%',
+                    // Apply site icon color
+                    color: 'var(--text-primary)',
+                },
+                hoverStyles: {
+                    background: 'var(--interactive-bg-secondary-hover)',
+                },
                 iconDef: {
                     tag: 'svg',
                     props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 0 24 24', width: '24px', fill: 'currentColor' },
@@ -419,17 +428,30 @@
             },
         },
         gemini: {
+            ANCHOR: {
+                display: 'flex',
+                'align-items': 'center',
+                position: 'relative', // Ensure anchor is a positioning context
+            },
             INSERT_BUTTON: {
-                position: 'absolute',
-                left: '8px',
-                bottom: '12px',
-                margin: '0',
-                width: '40px',
-                height: '40px',
-                background: 'transparent',
-                border: 'none',
-                backgroundHover: 'var(--gem-sys-color--surface-container-high)',
-                borderRadius: '50%',
+                styles: {
+                    position: 'absolute !important',
+                    left: '8px',
+                    bottom: '12px',
+                    margin: '0 !important',
+                    display: 'flex',
+                    width: '40px',
+                    height: '40px',
+                    background: 'transparent',
+                    border: 'none',
+                    'border-radius': '50%',
+                    // Match native tool button color
+                    color: 'var(--mat-icon-button-icon-color, var(--mat-sys-on-surface-variant))',
+                },
+                hoverStyles: {
+                    // Replicate Material Design 3 state layer: State Layer Color at 8% opacity
+                    background: 'color-mix(in srgb, var(--mat-icon-button-state-layer-color) 8%, transparent)',
+                },
                 iconDef: {
                     tag: 'svg',
                     props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 0 24 24', width: '24px', fill: 'currentColor' },
@@ -634,84 +656,102 @@
         },
 
         UI: {
-            repositionButtons(uiManager) {
-                const platform = PlatformAdapters.General.getPlatformDetails();
-                if (!platform || !uiManager) return;
-
-                const { insertBtn } = uiManager.components;
-                if (!insertBtn?.element) return;
+            repositionInsertButton(insertButton) {
+                if (!insertButton?.element) return;
 
                 withLayoutCycle({
                     measure: () => {
-                        // --- Read Phase ---
-                        const anchor = document.querySelector(platform.selectors.ANCHOR_ELEMENT);
-                        if (!anchor) return { anchor: null };
+                        // Read phase
+                        const platform = PlatformAdapters.General.getPlatformDetails();
+                        if (!platform) return { anchor: null };
 
-                        // Identify the target container to apply padding to (to push existing content)
-                        let layoutTarget = anchor;
-                        if (platform.platformId === CONSTANTS.PLATFORM.CHATGPT.ID) {
-                            // For ChatGPT, target the visual container inside the form.
-                            const leadingArea = anchor.querySelector(platform.selectors.LAYOUT_TARGET);
-                            if (leadingArea && leadingArea.parentElement) {
-                                layoutTarget = leadingArea.parentElement;
-                            }
+                        const anchor = document.querySelector(platform.selectors.INSERTION_ANCHOR);
+                        if (!(anchor instanceof HTMLElement)) return { anchor: null };
+
+                        // Retrieve configuration for positioning
+                        const paddingLeft = platform.selectors.ANCHOR_PADDING_LEFT;
+                        const insertMethod = platform.selectors.INSERT_METHOD;
+
+                        if (!insertMethod) {
+                            Logger.warn('INSERT_METHOD is not defined for this platform.');
+                        }
+
+                        // Check if padding update is needed
+                        let shouldUpdatePadding = false;
+                        if (paddingLeft) {
+                            const currentPadding = anchor.style.paddingLeft;
+                            shouldUpdatePadding = currentPadding !== paddingLeft;
                         }
 
                         // Ghost Detection Logic
-                        const existingBtn = document.getElementById(insertBtn.element.id);
-                        const isGhost = existingBtn && existingBtn !== insertBtn.element;
-                        const isInside = !isGhost && anchor.contains(insertBtn.element);
+                        const existingBtn = document.getElementById(insertButton.element.id);
+                        const isGhost = existingBtn && existingBtn !== insertButton.element;
 
-                        // Check current padding to avoid unnecessary writes if already set
-                        const currentPadding = layoutTarget.style.paddingLeft;
-                        const targetPadding = platform.selectors.PADDING;
+                        // Check if button is already inside
+                        const isInside = !isGhost && anchor.contains(insertButton.element);
 
-                        const rect = anchor.getBoundingClientRect();
-                        const visible = rect.width > 0 && rect.height > 0;
+                        // Check specific position validity
+                        let isAtCorrectPosition = isInside;
+                        if (isInside) {
+                            if (insertMethod === 'append') {
+                                isAtCorrectPosition = anchor.lastElementChild === insertButton.element;
+                            } else if (insertMethod === 'prepend') {
+                                isAtCorrectPosition = anchor.firstElementChild === insertButton.element;
+                            }
+                        }
 
                         return {
                             anchor,
-                            layoutTarget,
                             isGhost,
                             existingBtn,
-                            shouldInject: !isInside,
-                            shouldUpdatePadding: currentPadding !== targetPadding,
-                            targetPadding,
-                            visible,
+                            shouldInject: !isAtCorrectPosition,
+                            shouldUpdatePadding,
+                            paddingLeft,
+                            insertMethod,
                         };
                     },
                     mutate: (measured) => {
-                        // --- Write Phase ---
+                        // Write phase
+
                         if (!measured || !measured.anchor) {
-                            insertBtn.element.style.display = 'none';
+                            insertButton.element.style.display = 'none';
                             return;
                         }
 
-                        const { anchor, layoutTarget, isGhost, existingBtn, shouldInject, shouldUpdatePadding, targetPadding, visible } = measured;
+                        const { anchor, isGhost, existingBtn, shouldInject, shouldUpdatePadding, paddingLeft, insertMethod } = measured;
+
+                        if (!anchor.isConnected) {
+                            Logger.badge('UI RETRY', LOG_STYLES.YELLOW, 'debug', 'Anchor detached. Retrying reposition.');
+                            EventBus.publish(EVENTS.UI_REPOSITION);
+                            return;
+                        }
 
                         // 1. Ghost Buster
                         if (isGhost && existingBtn) {
+                            Logger.badge('GHOST BUSTER', LOG_STYLES.YELLOW, 'warn', 'Detected non-functional ghost button. Removing...');
                             existingBtn.remove();
                         }
 
-                        // 2. Inject Button
+                        // 2. Injection
                         if (shouldInject || isGhost) {
-                            // For absolute positioning, ensure the anchor has relative positioning if it's static
-                            const computedStyle = window.getComputedStyle(anchor);
-                            if (computedStyle.position === 'static') {
-                                anchor.style.position = 'relative';
+                            // Add marker class to apply flex/relative styles from SITE_STYLES.ANCHOR
+                            anchor.classList.add(`${APPID}-anchor-styled`);
+
+                            // Insert based on explicit method
+                            if (insertMethod === 'append') {
+                                anchor.appendChild(insertButton.element);
+                            } else if (insertMethod === 'prepend') {
+                                anchor.prepend(insertButton.element);
                             }
-
-                            anchor.appendChild(insertBtn.element);
-                            Logger.badge('UI INJECTION', LOG_STYLES.GREEN, 'debug', 'Button injected into Anchor.');
+                            Logger.badge('UI INJECTION', LOG_STYLES.GREEN, 'debug', `Button injected into Anchor (${insertMethod}).`);
                         }
 
-                        // 3. Apply Padding (Push existing content)
-                        if (shouldUpdatePadding && visible) {
-                            layoutTarget.style.paddingLeft = targetPadding;
+                        // 3. Update padding if configured
+                        if (shouldUpdatePadding && paddingLeft) {
+                            anchor.style.paddingLeft = paddingLeft;
                         }
 
-                        insertBtn.element.style.display = visible ? '' : 'none';
+                        insertButton.element.style.display = '';
                     },
                 });
             },
@@ -725,114 +765,45 @@
             // prettier-ignore
             getInitializers() {
                 return [
-                    this.startInputAreaObserver,
+                    this.triggerInitialPlacement,
                 ];
             },
 
             /**
              * @private
-             * @description Starts a persistent observer loop that handles the lifecycle of the input area:
-             * Waiting -> Active Monitoring -> Death Detection -> Re-Waiting.
-             * @returns {Promise<() => void>} A cleanup function to stop the observer loop.
+             * @description triggers the initial button placement when the anchor element is detected.
+             * @returns {Promise<() => void>}
              */
-            async startInputAreaObserver() {
+            async triggerInitialPlacement() {
                 const platform = PlatformAdapters.General.getPlatformDetails();
                 if (!platform) return () => {};
 
-                let isRunning = true;
-                let activeCleanup = null; // Function to clean up the current active phase
+                const selector = platform.selectors.INSERTION_ANCHOR;
 
-                // Main loop logic
-                const runLoop = async () => {
-                    while (isRunning) {
-                        // --- Phase 1: Wait for Anchor ---
-                        // Determine the best context for the observer to reduce overhead
-                        const contextEl = document.querySelector(platform.selectors.MAIN_APP_CONTAINER) || document;
-
-                        // Wait for the anchor element to appear.
-                        const anchor = await waitForElement(platform.selectors.ANCHOR_ELEMENT, { context: contextEl });
-
-                        if (!isRunning) return;
-
-                        if (!anchor) {
-                            // If timed out or not found, wait a bit before retrying to avoid hot loops
-                            // in case waitForElement returns null immediately (though it has a timeout).
-                            await new Promise((r) => setTimeout(r, 1000));
-                            continue;
-                        }
-
-                        // --- Phase 2: Active Monitoring ---
-                        // The anchor exists. Set up the logic to handle button placement and death detection.
-                        await new Promise((resolvePhase) => {
-                            let mutationObserver = null;
-                            let deathCheckInterval = null;
-
-                            // 2a. Button Placement Logic
-                            const setupButtonPlacement = () => {
-                                activeCleanup = () => {
-                                    if (mutationObserver) mutationObserver.disconnect();
-                                    if (deathCheckInterval) clearInterval(deathCheckInterval);
-                                    resolvePhase(); // Signal that this phase is done (anchor died)
-                                };
-
-                                // Trigger initial placement
-                                EventBus.publish(EVENTS.UI_REPOSITION);
-
-                                // Observe specifically for button removal (childList changes on anchor)
-                                mutationObserver = new MutationObserver((mutations) => {
-                                    let buttonRemoved = false;
-                                    for (const mutation of mutations) {
-                                        if (mutation.type === 'childList') {
-                                            for (const node of mutation.removedNodes) {
-                                                if (node instanceof HTMLElement && node.id.startsWith(CONSTANTS.ID_PREFIX)) {
-                                                    buttonRemoved = true;
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    if (buttonRemoved) {
-                                        Logger.badge('DOM CHANGED', LOG_STYLES.YELLOW, 'debug', 'Button removal detected. Triggering reposition.');
-                                        EventBus.publish(EVENTS.UI_REPOSITION);
-                                    } else {
-                                        // Defensive check: if button is missing from DOM
-                                        const btn = document.getElementById(`${CONSTANTS.ID_PREFIX}insert-btn`);
-                                        if (!btn) {
-                                            EventBus.publish(EVENTS.UI_REPOSITION);
-                                        }
-                                    }
-                                });
-
-                                mutationObserver.observe(anchor, { childList: true });
-                            };
-
-                            // 2b. Death Detection Logic (Keep-Alive)
-                            // React/SPA frameworks might remove the parent of the anchor, or the anchor itself.
-                            // MutationObserver on the anchor won't fire if the anchor itself is detached.
-                            const startDeathCheck = () => {
-                                deathCheckInterval = setInterval(() => {
-                                    if (!anchor.isConnected) {
-                                        Logger.badge('ANCHOR LOST', LOG_STYLES.YELLOW, 'debug', 'Anchor element disconnected from DOM. Restarting search.');
-                                        if (activeCleanup) activeCleanup();
-                                    }
-                                }, 1000); // Check every second
-                            };
-
-                            // Initialize Phase 2
-                            setupButtonPlacement();
-                            startDeathCheck();
-                        });
-                    }
+                const handleAnchorAppearance = () => {
+                    EventBus.publish(EVENTS.UI_REPOSITION);
                 };
 
-                // Start the loop asynchronously (do not await it, as we want to return the cleanup function immediately)
-                runLoop();
+                sentinel.on(selector, handleAnchorAppearance);
 
-                // Return the master cleanup function
+                // Initial check in case the element is already present
+                const initialInputArea = document.querySelector(selector);
+                if (initialInputArea instanceof HTMLElement) {
+                    handleAnchorAppearance();
+                }
+
                 return () => {
-                    isRunning = false;
-                    if (activeCleanup) activeCleanup();
+                    sentinel.off(selector, handleAnchorAppearance);
+                };
+            },
+        },
+
+        StyleManager: {
+            getInsertButtonConfig(platformId) {
+                const platformStyles = SITE_STYLES[platformId];
+                return {
+                    ...platformStyles.INSERT_BUTTON,
+                    anchorStyles: platformStyles.ANCHOR, // Include anchor styles for injection
                 };
             },
         },
@@ -1104,8 +1075,13 @@
 
     const EventBus = {
         events: {},
+        uiWorkQueue: [],
+        isUiWorkScheduled: false,
         _logAggregation: {},
-        _aggregatedEvents: new Set(),
+        // prettier-ignore
+        _aggregatedEvents: new Set([
+            EVENTS.UI_REPOSITION,
+        ]),
         _aggregationDelay: 500, // ms
 
         /**
@@ -1166,23 +1142,67 @@
                 return;
             }
 
-            // Simplified logging for QTB (no aggregation needed yet)
             if (Logger.levels[Logger.level] >= Logger.levels.debug) {
-                const subscriberKeys = [...this.events[event].keys()];
-                console.groupCollapsed(LOG_PREFIX, `Event Published: ${event}`);
-                if (args.length > 0) console.log('  - Payload:', ...args);
-                else console.log('  - Payload: (No data)');
-                if (subscriberKeys.length > 0) console.log('  - Subscribers:\n' + subscriberKeys.map((key) => `    > ${key}`).join('\n'));
-                else console.log('  - Subscribers: (None)');
+                // --- Aggregation logic START ---
+                if (this._aggregatedEvents.has(event)) {
+                    if (!this._logAggregation[event]) {
+                        this._logAggregation[event] = { timer: null, count: 0 };
+                    }
+                    const aggregation = this._logAggregation[event];
+                    aggregation.count++;
 
+                    clearTimeout(aggregation.timer);
+                    aggregation.timer = setTimeout(() => {
+                        const finalCount = this._logAggregation[event]?.count || 0;
+                        if (finalCount > 0) {
+                            console.log(LOG_PREFIX, `Event Published: ${event} (x${finalCount})`);
+                        }
+                        delete this._logAggregation[event];
+                    }, this._aggregationDelay);
+
+                    // Execute subscribers for the aggregated event, but without the verbose individual logs.
+                    [...this.events[event].values()].forEach((listener) => {
+                        try {
+                            listener(...args);
+                        } catch (e) {
+                            Logger.error(`EventBus error in listener for event "${event}":`, e);
+                        }
+                    });
+                    return; // End execution here for aggregated events in debug mode.
+                }
+                // --- Aggregation logic END ---
+
+                // In debug mode, provide detailed logging for NON-aggregated events.
+                const subscriberKeys = [...this.events[event].keys()];
+
+                // Use groupCollapsed for a cleaner default view
+                console.groupCollapsed(LOG_PREFIX, `Event Published: ${event}`);
+
+                if (args.length > 0) {
+                    console.log('  - Payload:', ...args);
+                } else {
+                    console.log('  - Payload: (No data)');
+                }
+
+                // Displaying subscribers helps in understanding the event's impact.
+                if (subscriberKeys.length > 0) {
+                    console.log('  - Subscribers:\n' + subscriberKeys.map((key) => `    > ${key}`).join('\n'));
+                } else {
+                    console.log('  - Subscribers: (None)');
+                }
+
+                // Iterate with keys for better logging
                 this.events[event].forEach((listener, key) => {
                     try {
+                        // Log which specific subscriber is being executed
                         Logger.debug(`-> Executing: ${key}`);
                         listener(...args);
                     } catch (e) {
-                        Logger.error(`EventBus error in listener "${key}" for event "${event}":`, e);
+                        // Enhance error logging with the specific subscriber key
+                        Logger.badge('LISTENER ERROR', LOG_STYLES.RED, 'error', `Listener "${key}" failed for event "${event}":`, e);
                     }
                 });
+
                 console.groupEnd();
             } else {
                 // Iterate over a copy of the values in case a listener unsubscribes itself.
@@ -1190,10 +1210,42 @@
                     try {
                         listener(...args);
                     } catch (e) {
-                        Logger.error(`EventBus error in listener for event "${event}":`, e);
+                        Logger.badge('LISTENER ERROR', LOG_STYLES.RED, 'error', `Listener failed for event "${event}":`, e);
                     }
                 });
             }
+        },
+
+        /**
+         * Queues a function to be executed on the next animation frame.
+         * Batches multiple UI updates into a single repaint cycle.
+         * @param {Function} workFunction The function to execute.
+         */
+        queueUIWork(workFunction) {
+            this.uiWorkQueue.push(workFunction);
+            if (!this.isUiWorkScheduled) {
+                this.isUiWorkScheduled = true;
+                requestAnimationFrame(this._processUIWorkQueue.bind(this));
+            }
+        },
+
+        /**
+         * @private
+         * Processes all functions in the UI work queue.
+         */
+        _processUIWorkQueue() {
+            // Prevent modifications to the queue while processing.
+            const queueToProcess = [...this.uiWorkQueue];
+            this.uiWorkQueue.length = 0;
+
+            for (const work of queueToProcess) {
+                try {
+                    work();
+                } catch (e) {
+                    Logger.badge('UI QUEUE ERROR', LOG_STYLES.RED, 'error', 'Error in queued UI work:', e);
+                }
+            }
+            this.isUiWorkScheduled = false;
         },
     };
 
@@ -1256,17 +1308,34 @@
     /**
      * Recursively resolves the configuration by overlaying source properties onto the target object.
      * The target object is mutated. This handles recursive updates for nested objects but overwrites arrays/primitives.
+     *
+     * [MERGE BEHAVIOR]
+     * Keys present in 'source' but missing in 'target' are ignored.
+     * The 'target' object acts as a schema; it must contain all valid keys.
+     *
      * @param {object} target The target object (e.g., a deep copy of default config).
      * @param {object} source The source object (e.g., user config).
      * @returns {object} The mutated target object.
      */
     function resolveConfig(target, source) {
         for (const key in source) {
+            // Security: Prevent prototype pollution
+            if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+                continue;
+            }
+
             if (Object.prototype.hasOwnProperty.call(source, key)) {
+                // Strict check: Ignore keys that do not exist in the target (default config).
+                if (!Object.prototype.hasOwnProperty.call(target, key)) {
+                    continue;
+                }
+
                 const sourceVal = source[key];
-                if (isObject(sourceVal) && Object.prototype.hasOwnProperty.call(target, key) && isObject(target[key])) {
+                const targetVal = target[key];
+
+                if (isObject(sourceVal) && isObject(targetVal)) {
                     // If both are objects, recurse
-                    resolveConfig(target[key], sourceVal);
+                    resolveConfig(targetVal, sourceVal);
                 } else if (typeof sourceVal !== 'undefined') {
                     // Otherwise, overwrite or set the value from the source
                     target[key] = sourceVal;
@@ -1467,30 +1536,30 @@
     }
 
     /**
-     * Waits for a specific HTMLElement to appear in the DOM using MutationObserver.
-     * It specifically checks for `instanceof HTMLElement`.
+     * Waits for a specific HTMLElement to appear in the DOM using a high-performance, Sentinel-based approach.
+     * It specifically checks for `instanceof HTMLElement` and will not resolve for other element types (e.g., SVGElement), even if they match the selector.
      * @param {string} selector The CSS selector for the element.
      * @param {object} [options]
      * @param {number} [options.timeout] The maximum time to wait in milliseconds.
      * @param {Document | HTMLElement} [options.context] The element to search within.
+     * @param {Sentinel} [sentinelInstance] The Sentinel instance to use (defaults to global `sentinel`).
      * @returns {Promise<HTMLElement | null>} A promise that resolves with the HTMLElement or null if timed out.
      */
-    function waitForElement(selector, { timeout = 10000, context = document } = {}) {
-        return new Promise((resolve) => {
-            // 1. Check if the element already exists
-            const existingEl = context.querySelector(selector);
-            if (existingEl instanceof HTMLElement) {
-                resolve(existingEl);
-                return;
-            }
+    function waitForElement(selector, { timeout = 10000, context = document } = {}, sentinelInstance = sentinel) {
+        // First, check if the element already exists.
+        const existingEl = context.querySelector(selector);
+        if (existingEl instanceof HTMLElement) {
+            return Promise.resolve(existingEl);
+        }
 
-            // 2. Setup MutationObserver
-            let observer = null;
+        // If not, use Sentinel wrapped in a Promise.
+        return new Promise((resolve) => {
             let timer = null;
+            let sentinelCallback = null;
 
             const cleanup = () => {
                 if (timer) clearTimeout(timer);
-                if (observer) observer.disconnect();
+                if (sentinelCallback) sentinelInstance.off(selector, sentinelCallback);
             };
 
             timer = setTimeout(() => {
@@ -1499,33 +1568,15 @@
                 resolve(null);
             }, timeout);
 
-            observer = new MutationObserver((mutations) => {
-                for (const mutation of mutations) {
-                    if (mutation.type === 'childList') {
-                        // Optimize: Check specifically added nodes if possible, or query strictly
-                        for (const node of mutation.addedNodes) {
-                            if (node instanceof HTMLElement) {
-                                // Check if the added node matches or contains the selector
-                                if (node.matches(selector)) {
-                                    cleanup();
-                                    resolve(node);
-                                    return;
-                                }
-                                if (node.querySelector(selector)) {
-                                    cleanup();
-                                    resolve(node.querySelector(selector));
-                                    return;
-                                }
-                            }
-                        }
-                    }
+            sentinelCallback = (element) => {
+                // Ensure the found element is an HTMLElement and is within the specified context.
+                if (element instanceof HTMLElement && context.contains(element)) {
+                    cleanup();
+                    resolve(element);
                 }
-            });
+            };
 
-            observer.observe(context === document ? document.body : context, {
-                childList: true,
-                subtree: true,
-            });
+            sentinelInstance.on(selector, sentinelCallback);
         });
     }
 
@@ -2185,7 +2236,7 @@
             let header, content, footer, modalBox, footerMessage;
             // Create footer buttons declaratively using map and h().
             const buttons = this.options.buttons.map((btnDef) => {
-                const fullClassName = [`${p}-button`, btnDef.className].filter(Boolean).join(' ');
+                const fullClassName = [`${p}-button`, btnDef.className, `${APPID}-modal-button`].filter(Boolean).join(' ');
                 return h(
                     'button',
                     {
@@ -2758,25 +2809,22 @@
                     background-color: ${styles.toggle_bg_off};
                     transition: .3s;
                     border-radius: 22px;
-                    border: 1px solid ${styles.input_border};
                 }
                 .${APPID}-toggle-slider:before {
                     position: absolute;
                     content: "";
                     height: 16px;
                     width: 16px;
-                    left: 2px;
-                    bottom: 2px;
+                    left: 3px;
+                    bottom: 3px;
                     background-color: ${styles.toggle_knob};
                     transition: .3s;
                     border-radius: 50%;
                 }
                 .${APPID}-toggle-switch input:checked + .${APPID}-toggle-slider {
                     background-color: ${styles.toggle_bg_on};
-                    border-color: ${styles.toggle_bg_on};
                 }
                 .${APPID}-toggle-switch input:checked + .${APPID}-toggle-slider:before {
-                    background-color: #fff;
                     transform: translateX(18px);
                 }
                 .${APPID}-slider-wrapper {
@@ -3531,13 +3579,18 @@
                 const currentIndex = keys.indexOf(keyToDelete);
                 delete newConfig.texts[keyToDelete];
 
+                // Determine the next profile to view
+                const latestKeys = Object.keys(newConfig.texts);
+                const nextIndex = Math.min(currentIndex, latestKeys.length - 1);
+                const nextViewKey = latestKeys[nextIndex] || (latestKeys.length > 0 ? latestKeys[0] : null);
+
+                // Update the active profile setting ONLY if the deleted profile was the active one.
                 if (newConfig.options.activeProfileName === keyToDelete) {
-                    const latestKeys = Object.keys(newConfig.texts);
-                    const nextIndex = Math.max(0, currentIndex - 1);
-                    newConfig.options.activeProfileName = latestKeys[nextIndex] || (latestKeys.length > 0 ? latestKeys[0] : null);
+                    newConfig.options.activeProfileName = nextViewKey;
                 }
 
-                this.activeProfileKey = newConfig.options.activeProfileName;
+                // Always update the view to the next item
+                this.activeProfileKey = nextViewKey;
                 const activeProfile = newConfig.texts[this.activeProfileKey] || {};
                 this.activeCategoryKey = Object.keys(activeProfile)[0] || null;
             } else {
@@ -3549,7 +3602,8 @@
                 delete newConfig.texts[this.activeProfileKey][keyToDelete];
 
                 const latestKeys = Object.keys(newConfig.texts[this.activeProfileKey]);
-                const nextIndex = Math.max(0, currentIndex - 1);
+                // Select the next item, or the previous one if the deleted item was last.
+                const nextIndex = Math.min(currentIndex, latestKeys.length - 1);
                 this.activeCategoryKey = latestKeys[nextIndex] || (latestKeys.length > 0 ? latestKeys[0] : null);
             }
 
@@ -4184,7 +4238,8 @@
                 onmouseleave: (e) => this.callbacks.onMouseLeave?.(e),
             });
 
-            const iconDef = this.options.siteStyles.iconDef;
+            // Retrieve icon definition from the config structure
+            const iconDef = this.options.config.iconDef;
             if (iconDef) {
                 const svgElement = createIconFromDef(iconDef);
                 if (svgElement) {
@@ -4198,34 +4253,36 @@
         /** @private */
         _injectStyles() {
             if (document.getElementById(this.styleId)) return;
-            const { siteStyles } = this.options;
+
+            const { styles, hoverStyles, anchorStyles } = this.options.config;
+
+            // Helper to stringify style objects directly
+            const toCss = (obj) =>
+                Object.entries(obj || {})
+                    .map(([k, v]) => `${k}: ${v};`)
+                    .join('\n                    ');
 
             const style = h('style', {
                 id: this.styleId,
                 textContent: `
                 #${this.id} {
-                    position: ${siteStyles.position} !important;
-                    left: ${siteStyles.left};
-                    bottom: ${siteStyles.bottom};
-                    margin: ${siteStyles.margin} !important;
-                    width: ${siteStyles.width};
-                    height: ${siteStyles.height};
-                    background: ${siteStyles.background};
-                    border: ${siteStyles.border || `1px solid ${siteStyles.borderColor}`};
-                    border-radius: ${siteStyles.borderRadius};
+                    ${toCss(styles)}
+                    
+                    /* Fixed base styles */
                     font-size: 16px;
                     cursor: pointer;
                     box-shadow: var(--drop-shadow-xs, 0 1px 1px #0000000d);
                     transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
-                    display: flex;
                     align-items: center;
                     justify-content: center;
                     padding: 0;
                     pointer-events: auto !important;
                 }
                 #${this.id}:hover {
-                    background: ${siteStyles.backgroundHover};
-                    border-color: ${siteStyles.borderColorHover || siteStyles.borderColor};
+                    ${toCss(hoverStyles)}
+                }
+                .${APPID}-anchor-styled {
+                    ${toCss(anchorStyles)}
                 }
             `,
             });
@@ -4456,7 +4513,8 @@
                 {
                     id: `${CONSTANTS.ID_PREFIX}insert-btn`,
                     title: 'Add quick text / Click for Settings',
-                    siteStyles: this.siteStyles.INSERT_BUTTON,
+                    // Pass the structured config from StyleManager
+                    config: PlatformAdapters.StyleManager.getInsertButtonConfig(this.platformDetails.platformId),
                 }
             );
 
@@ -4541,7 +4599,7 @@
 
             this.isRepositioningScheduled = true;
             requestAnimationFrame(() => {
-                PlatformAdapters.UI.repositionButtons(this);
+                PlatformAdapters.UI.repositionInsertButton(this.components.insertBtn);
                 this.isRepositioningScheduled = false;
             });
         }
@@ -5008,6 +5066,225 @@
     // SECTION: Main Application Controller
     // =================================================================================
 
+    /**
+     * @class Sentinel
+     * @description Detects DOM node insertion using a shared, prefixed CSS animation trick.
+     * @property {Map<string, Array<(element: Element) => void>>} listeners
+     * @property {Set<string>} rules
+     * @property {HTMLElement | null} styleElement
+     * @property {CSSStyleSheet | null} sheet
+     * @property {string[]} pendingRules
+     */
+    class Sentinel {
+        /**
+         * @param {string} prefix - A unique identifier for this Sentinel instance to avoid CSS conflicts. Required.
+         */
+        constructor(prefix) {
+            if (!prefix) {
+                throw new Error('[Sentinel] "prefix" argument is required to avoid CSS conflicts.');
+            }
+
+            /** @type {any} */
+            const globalScope = window;
+            globalScope.__global_sentinel_instances__ = globalScope.__global_sentinel_instances__ || {};
+            if (globalScope.__global_sentinel_instances__[prefix]) {
+                return globalScope.__global_sentinel_instances__[prefix];
+            }
+
+            // Use a unique, prefixed animation name shared by all scripts in a project.
+            this.animationName = `${prefix}-global-sentinel-animation`;
+            this.styleId = `${prefix}-sentinel-global-rules`; // A single, unified style element
+            this.listeners = new Map();
+            this.rules = new Set(); // Tracks all active selectors
+            this.styleElement = null; // Holds the reference to the single style element
+            this.sheet = null; // Cache the CSSStyleSheet reference
+            this.pendingRules = []; // Queue for rules requested before sheet is ready
+
+            this._injectStyleElement();
+            document.addEventListener('animationstart', this._handleAnimationStart.bind(this), true);
+
+            globalScope.__global_sentinel_instances__[prefix] = this;
+        }
+
+        _injectStyleElement() {
+            // Ensure the style element is injected only once per project prefix.
+            this.styleElement = document.getElementById(this.styleId);
+
+            if (this.styleElement instanceof HTMLStyleElement) {
+                this.sheet = this.styleElement.sheet;
+                return;
+            }
+
+            // Create empty style element
+            this.styleElement = h('style', {
+                id: this.styleId,
+            });
+
+            // Try to inject immediately. If the document is not yet ready (e.g. extremely early document-start), wait for the root element.
+            const target = document.head || document.documentElement;
+
+            const initSheet = () => {
+                if (this.styleElement instanceof HTMLStyleElement) {
+                    this.sheet = this.styleElement.sheet;
+                    // Insert the shared keyframes rule at index 0 and keep it there.
+                    // We use insertRule for performance instead of textContent replacement.
+                    try {
+                        const keyframes = `@keyframes ${this.animationName} { from { transform: none; } to { transform: none; } }`;
+                        this.sheet.insertRule(keyframes, 0);
+                    } catch (e) {
+                        Logger.badge('SENTINEL', LOG_STYLES.RED, 'error', 'Failed to insert keyframes rule:', e);
+                    }
+                    this._flushPendingRules();
+                }
+            };
+
+            if (target) {
+                target.appendChild(this.styleElement);
+                initSheet();
+            } else {
+                const observer = new MutationObserver(() => {
+                    const retryTarget = document.head || document.documentElement;
+                    if (retryTarget) {
+                        observer.disconnect();
+                        retryTarget.appendChild(this.styleElement);
+                        initSheet();
+                    }
+                });
+                observer.observe(document, { childList: true });
+            }
+        }
+
+        _flushPendingRules() {
+            if (!this.sheet || this.pendingRules.length === 0) return;
+
+            const rulesToInsert = [...this.pendingRules];
+            this.pendingRules = [];
+
+            rulesToInsert.forEach((selector) => {
+                this._insertRule(selector);
+            });
+        }
+
+        /**
+         * Helper to insert a single rule into the stylesheet
+         * @param {string} selector
+         */
+        _insertRule(selector) {
+            try {
+                const index = this.sheet.cssRules.length;
+                const ruleText = `${selector} { animation-duration: 0.001s; animation-name: ${this.animationName}; }`;
+                this.sheet.insertRule(ruleText, index);
+
+                // Tag the inserted rule object with the selector for safer removal later.
+                // This mimics sentinel.js behavior to handle index shifts and selector normalization.
+                const insertedRule = this.sheet.cssRules[index];
+                if (insertedRule) {
+                    // @ts-ignore - Custom property for tracking
+                    insertedRule._id = selector;
+                }
+            } catch (e) {
+                Logger.badge('SENTINEL', LOG_STYLES.RED, 'error', `Failed to insert rule for selector "${selector}":`, e);
+            }
+        }
+
+        _handleAnimationStart(event) {
+            // Check if the animation is the one we're listening for.
+            if (event.animationName !== this.animationName) return;
+
+            const target = event.target;
+            if (!(target instanceof Element)) {
+                return;
+            }
+
+            // Check if the target element matches any of this instance's selectors.
+            for (const [selector, callbacks] of this.listeners.entries()) {
+                if (target.matches(selector)) {
+                    // Use a copy of the callbacks array in case a callback removes itself.
+                    [...callbacks].forEach((cb) => cb(target));
+                }
+            }
+        }
+
+        /**
+         * @param {string} selector
+         * @param {(element: Element) => void} callback
+         */
+        on(selector, callback) {
+            // Add callback to listeners
+            if (!this.listeners.has(selector)) {
+                this.listeners.set(selector, []);
+            }
+            this.listeners.get(selector).push(callback);
+
+            // If selector is already registered in rules, do nothing
+            if (this.rules.has(selector)) return;
+
+            this.rules.add(selector);
+
+            // Apply rule
+            if (this.sheet) {
+                this._insertRule(selector);
+            } else {
+                this.pendingRules.push(selector);
+            }
+        }
+
+        /**
+         * @param {string} selector
+         * @param {(element: Element) => void} callback
+         */
+        off(selector, callback) {
+            const callbacks = this.listeners.get(selector);
+            if (!callbacks) return;
+
+            const newCallbacks = callbacks.filter((cb) => cb !== callback);
+
+            if (newCallbacks.length === callbacks.length) {
+                return; // Callback not found, do nothing.
+            }
+
+            if (newCallbacks.length === 0) {
+                // Remove listener and rule
+                this.listeners.delete(selector);
+                this.rules.delete(selector);
+
+                if (this.sheet) {
+                    // Iterate backwards to avoid index shifting issues during deletion
+                    for (let i = this.sheet.cssRules.length - 1; i >= 0; i--) {
+                        const rule = this.sheet.cssRules[i];
+                        // Check for custom tag or fallback to selectorText match
+                        // @ts-ignore
+                        if (rule._id === selector || rule.selectorText === selector) {
+                            this.sheet.deleteRule(i);
+                            // We assume one rule per selector, so we can break after deletion
+                            break;
+                        }
+                    }
+                }
+            } else {
+                this.listeners.set(selector, newCallbacks);
+            }
+        }
+
+        suspend() {
+            if (this.styleElement instanceof HTMLStyleElement) {
+                this.styleElement.disabled = true;
+            }
+            Logger.badge('SENTINEL', LOG_STYLES.GRAY, 'debug', 'Suspended.');
+        }
+
+        resume() {
+            if (this.styleElement instanceof HTMLStyleElement) {
+                this.styleElement.disabled = false;
+            }
+            Logger.badge('SENTINEL', LOG_STYLES.GRAY, 'debug', 'Resumed.');
+        }
+    }
+
+    // =================================================================================
+    // SECTION: Core Functions
+    // =================================================================================
+
     class AppController {
         constructor() {
             this.subscriptions = [];
@@ -5144,35 +5421,28 @@
     // Set executed flag if not executed yet
     ExecutionGuard.setExecuted();
 
+    // Singleton instance for observing internal DOM node insertions.
+    const sentinel = new Sentinel(OWNERID);
+
     const platformDetails = PlatformAdapters.General.getPlatformDetails();
     if (platformDetails) {
         let isInitialized = false;
-        const targetSelector = platformDetails.selectors.INPUT_TARGET;
 
-        // Use MutationObserver for the entry point to avoid CSS animation name conflicts
-        // with other scripts (like UXC) that might be observing the same input element.
-        const observer = new MutationObserver((mutations, obs) => {
-            if (document.querySelector(targetSelector)) {
-                obs.disconnect();
-                if (!isInitialized) {
-                    isInitialized = true;
-                    Logger.log('Input target detected via MutationObserver. Initializing the script...');
-                    const app = new AppController();
-                    app.init();
-                }
-            }
-        });
-
-        // Start observing the body for the appearance of the input target
-        observer.observe(document.body, { childList: true, subtree: true });
-
-        // Initial check in case the element is already present
-        if (document.querySelector(targetSelector)) {
-            observer.disconnect();
+        const initApp = () => {
+            if (isInitialized) return;
             isInitialized = true;
-            Logger.log('Input target detected immediately. Initializing the script...');
+
+            Logger.badge('INIT', LOG_STYLES.GREEN, 'log', 'Target element detected. Initializing...');
             const app = new AppController();
             app.init();
+        };
+
+        sentinel.on(platformDetails.selectors.INPUT_TARGET, initApp);
+
+        const existingElement = document.querySelector(platformDetails.selectors.INPUT_TARGET);
+        if (existingElement) {
+            Logger.badge('INIT', LOG_STYLES.GRAY, 'debug', 'Target already exists. Triggering immediate init.');
+            initApp();
         }
     }
 })();
