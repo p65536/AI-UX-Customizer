@@ -102,6 +102,22 @@ The scripts have been created for each site. Please install the required script.
 - In the navigation console above the input field, **click on the "Assistant:", "Total:", or "User:" labels** to open the message **Jump List**.
 - If needed, use the "JSON" button to export your current settings or import sample settings.
 
+### Allowing External Images (XHR Security)
+
+When you use external URLs for icons or backgrounds, your userscript manager (e.g., Tampermonkey) requires permission to access those domains.
+
+#### Method 1: Via Popup (Recommended)
+When the script tries to load an external image for the first time, a permission dialog will appear.
+For the smoothest experience with images from various sources, select **"Always allow all domains"** at the bottom.
+
+![XHR Security Popup](./images/xhr_security1.webp)
+
+#### Method 2: Manual Configuration
+You can also configure this manually in the Tampermonkey dashboard.
+Go to the script's **Settings** tab, scroll to **XHR Security**, and add `*` to the **User domain whitelist**.
+
+![XHR Security Settings](./images/xhr_security2.webp)
+
 ---
 
 ## Sample Settings
