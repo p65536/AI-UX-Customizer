@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      2.0.0
+// @version      2.1.0
 // @license      MIT
 // @description  Fully customize the chat UI. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://chatgpt.com/favicon.ico
@@ -3420,8 +3420,10 @@
                 for (const [dataKey, dataVal] of Object.entries(value)) {
                     el.dataset[dataKey] = dataVal;
                 }
-            } else if (key.startsWith('on') && typeof value === 'function') {
-                el.addEventListener(key.slice(2).toLowerCase(), value);
+            } else if (key.startsWith('on')) {
+                if (typeof value === 'function') {
+                    el.addEventListener(key.slice(2).toLowerCase(), value);
+                }
             } else if (key === 'className') {
                 const classes = String(value).trim();
                 if (classes) {
@@ -4932,7 +4934,6 @@
             this.cachedThemeSet = null;
             this.subscriptions = [];
             this.debouncedUpdateTheme = debounce(this.updateTheme.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.THEME_UPDATE);
-            this.isStreaming = false;
             this.isDestroyed = false;
             this.currentRequestId = 0;
             /** @type {Map<string, string|null>} */
@@ -4949,8 +4950,6 @@
             this._subscribe(EVENTS.NAVIGATION, () => this._onNavigation());
             this._subscribe(EVENTS.TITLE_CHANGED, this.debouncedUpdateTheme);
             this._subscribe(EVENTS.THEME_UPDATE, this.debouncedUpdateTheme);
-            this._subscribe(EVENTS.STREAMING_START, () => (this.isStreaming = true));
-            this._subscribe(EVENTS.STREAMING_END, () => (this.isStreaming = false));
             this._subscribe(EVENTS.DEFERRED_LAYOUT_UPDATE, () => this._handleLayoutEvent());
         }
 
@@ -4987,7 +4986,6 @@
         }
 
         _handleLayoutEvent(forcedWidth = undefined) {
-            if (this.isStreaming) return;
             this.applyChatContentMaxWidth(forcedWidth);
         }
 
@@ -5932,7 +5930,6 @@
             this.configManager = configManager;
             this.messageCacheManager = messageCacheManager;
             this.subscriptions = [];
-            this.isStreaming = false;
             this.isUpdateScheduled = false;
             this.scheduleUpdate = this.scheduleUpdate.bind(this);
         }
@@ -5956,8 +5953,6 @@
             this._subscribe(EVENTS.UI_REPOSITION, this.scheduleUpdate);
             this._subscribe(EVENTS.CHAT_CONTENT_WIDTH_UPDATED, this.scheduleUpdate);
             this._subscribe(EVENTS.APP_SHUTDOWN, () => this.destroy());
-            this._subscribe(EVENTS.STREAMING_START, () => (this.isStreaming = true));
-            this._subscribe(EVENTS.STREAMING_END, () => (this.isStreaming = false));
             this._subscribe(EVENTS.DEFERRED_LAYOUT_UPDATE, this.scheduleUpdate);
             PlatformAdapters.StandingImage.setupEventListeners(this);
         }
@@ -5971,7 +5966,7 @@
         }
 
         scheduleUpdate() {
-            if (this.isStreaming || this.isUpdateScheduled) return;
+            if (this.isUpdateScheduled) return;
             this.isUpdateScheduled = true;
             EventBus.queueUIWork(() => {
                 this.updateVisibility();
@@ -10323,8 +10318,8 @@
                 buttons: [
                     { text: 'Export', id: `${p}-json-modal-export-btn`, className: '', onClick: () => this._handleExport() },
                     { text: 'Import', id: `${p}-json-modal-import-btn`, className: '', onClick: () => this._handleImport() },
-                    { text: 'Save', id: `${p}-json-modal-save-btn`, className: '', onClick: () => this._handleSave() },
-                    { text: 'Cancel', id: `${p}-json-modal-cancel-btn`, className: '', onClick: () => this.close() },
+                    { text: 'Cancel', id: `${p}-json-modal-cancel-btn`, className: '-btn-push-right', onClick: () => this.close() },
+                    { text: 'Save', id: `${p}-json-modal-save-btn`, className: '-btn-primary', onClick: () => this._handleSave() },
                 ],
                 onDestroy: () => {
                     this.callbacks.onModalOpenStateChange?.(false);
@@ -10486,9 +10481,34 @@
 
         _injectStyles() {
             const styleId = `${APPID}-json-modal-styles`;
-            if (document.getElementById(styleId)) {
-                document.getElementById(styleId).remove();
-            }
+            if (document.getElementById(styleId)) return;
+
+            const style = h('style', {
+                id: styleId,
+                textContent: `
+                    .${APPID}-modal-shell-footer-message {
+                        display: none !important;
+                    }
+                    .${APPID}-modal-shell-button-group {
+                        flex-grow: 1;
+                    }
+                    .${APPID}-modal-shell-button {
+                        min-width: 80px;
+                    }
+                    .-btn-push-right {
+                        margin-left: auto !important;
+                    }
+                    .-btn-primary {
+                        background-color: #1a73e8 !important;
+                        color: #ffffff !important;
+                        border: 1px solid transparent !important;
+                    }
+                    .-btn-primary:hover {
+                        background-color: #1557b0 !important;
+                    }
+                `,
+            });
+            document.head.appendChild(style);
         }
 
         getContextForReopen() {
@@ -10699,9 +10719,9 @@
                 closeOnBackdropClick: false,
                 styles: this.callbacks.siteStyles, // Pass styles to the modal
                 buttons: [
-                    { text: 'Apply', id: `${APPID}-theme-modal-apply-btn`, className: ``, title: 'Save changes and keep the modal open.', onClick: () => this._handleThemeAction(false) },
-                    { text: 'Save', id: `${APPID}-theme-modal-save-btn`, className: ``, title: 'Save changes and close the modal.', onClick: () => this._handleThemeAction(true) },
                     { text: 'Cancel', id: `${APPID}-theme-modal-cancel-btn`, className: ``, title: 'Discard changes and close the modal.', onClick: () => this.close() },
+                    { text: 'Apply', id: `${APPID}-theme-modal-apply-btn`, className: ``, title: 'Save changes and keep the modal open.', onClick: () => this._handleThemeAction(false) },
+                    { text: 'Save', id: `${APPID}-theme-modal-save-btn`, className: `-btn-primary`, title: 'Save changes and close the modal.', onClick: () => this._handleThemeAction(true) },
                 ],
                 onDestroy: () => {
                     this.callbacks.onModalOpenStateChange?.(false);
@@ -11801,6 +11821,7 @@
                   font-size: ${CONSTANTS.MODAL.BTN_FONT_SIZE}px;
                   padding: ${CONSTANTS.MODAL.BTN_PADDING};
                   transition: background 0.12s;
+                  min-width: 80px; /* Unify button width */
                 }
                 .${APPID}-modal-button:hover {
                   background: ${styles.btn_hover_bg} !important;
@@ -11824,6 +11845,14 @@
                 }
                 .${APPID}-text-item.drag-over-bottom {
                   border-bottom: 2px solid ${styles.dnd_indicator_color};
+                }
+                .-btn-primary {
+                    background-color: #1a73e8 !important;
+                    color: #ffffff !important;
+                    border: 1px solid transparent !important;
+                }
+                .-btn-primary:hover {
+                    background-color: #1557b0 !important;
                 }
             `;
             document.head.appendChild(style);
@@ -11849,7 +11878,6 @@
             this.isWarningActive = false;
             this.warningMessage = '';
             this.subscriptions = [];
-            this.isStreaming = false;
             this.isRepositionScheduled = false;
 
             // Bind the reposition logic
@@ -11923,8 +11951,6 @@
                 this.updateWarningBanners();
             });
             this._subscribe(EVENTS.APP_SHUTDOWN, () => this.destroy());
-            this._subscribe(EVENTS.STREAMING_START, () => (this.isStreaming = true));
-            this._subscribe(EVENTS.STREAMING_END, () => (this.isStreaming = false));
             this._subscribe(EVENTS.DEFERRED_LAYOUT_UPDATE, () => this.scheduleReposition());
             this._subscribe(EVENTS.NAVIGATION_END, this.scheduleReposition);
         }
@@ -11939,7 +11965,7 @@
         }
 
         scheduleReposition() {
-            if (this.isStreaming || this.isRepositionScheduled) return;
+            if (this.isRepositionScheduled) return;
             this.isRepositionScheduled = true;
             EventBus.queueUIWork(() => {
                 this.repositionSettingsButton();
@@ -12208,6 +12234,7 @@
      * @property {HTMLElement | null} styleElement
      * @property {CSSStyleSheet | null} sheet
      * @property {string[]} pendingRules
+     * @property {WeakMap<CSSRule, string>} ruleSelectors
      */
     class Sentinel {
         /**
@@ -12233,6 +12260,8 @@
             this.styleElement = null; // Holds the reference to the single style element
             this.sheet = null; // Cache the CSSStyleSheet reference
             this.pendingRules = []; // Queue for rules requested before sheet is ready
+            /** @type {WeakMap<CSSRule, string>} */
+            this.ruleSelectors = new WeakMap(); // Tracks selector strings associated with CSSRule objects
 
             this._injectStyleElement();
             document.addEventListener('animationstart', this._handleAnimationStart.bind(this), true);
@@ -12254,14 +12283,29 @@
                 id: this.styleId,
             });
 
+            // CSP Fix: Try to fetch a valid nonce from existing scripts/styles
+            // "nonce" property exists on HTMLScriptElement/HTMLStyleElement, not basic Element.
+            let nonce;
+            const script = document.querySelector('script[nonce]');
+            const style = document.querySelector('style[nonce]');
+
+            if (script instanceof HTMLScriptElement) {
+                nonce = script.nonce;
+            } else if (style instanceof HTMLStyleElement) {
+                nonce = style.nonce;
+            }
+
+            if (nonce) {
+                this.styleElement.setAttribute('nonce', nonce);
+            }
+
             // Try to inject immediately. If the document is not yet ready (e.g. extremely early document-start), wait for the root element.
             const target = document.head || document.documentElement;
 
             const initSheet = () => {
                 if (this.styleElement instanceof HTMLStyleElement) {
                     this.sheet = this.styleElement.sheet;
-                    // Insert the shared keyframes rule at index 0 and keep it there.
-                    // We use insertRule for performance instead of textContent replacement.
+                    // Insert the shared keyframes rule at index 0.
                     try {
                         const keyframes = `@keyframes ${this.animationName} { from { transform: none; } to { transform: none; } }`;
                         this.sheet.insertRule(keyframes, 0);
@@ -12309,12 +12353,11 @@
                 const ruleText = `${selector} { animation-duration: 0.001s; animation-name: ${this.animationName}; }`;
                 this.sheet.insertRule(ruleText, index);
 
-                // Tag the inserted rule object with the selector for safer removal later.
+                // Associate the inserted rule with the selector via WeakMap for safer removal later.
                 // This mimics sentinel.js behavior to handle index shifts and selector normalization.
                 const insertedRule = this.sheet.cssRules[index];
                 if (insertedRule) {
-                    // @ts-ignore - Custom property for tracking
-                    insertedRule._id = selector;
+                    this.ruleSelectors.set(insertedRule, selector);
                 }
             } catch (e) {
                 Logger.badge('SENTINEL', LOG_STYLES.RED, 'error', `Failed to insert rule for selector "${selector}":`, e);
@@ -12386,9 +12429,10 @@
                     // Iterate backwards to avoid index shifting issues during deletion
                     for (let i = this.sheet.cssRules.length - 1; i >= 0; i--) {
                         const rule = this.sheet.cssRules[i];
-                        // Check for custom tag or fallback to selectorText match
-                        // @ts-ignore
-                        if (rule._id === selector || rule.selectorText === selector) {
+                        // Check for recorded selector via WeakMap or fallback to selectorText match
+                        const recordedSelector = this.ruleSelectors.get(rule);
+
+                        if (recordedSelector === selector || (rule instanceof CSSStyleRule && rule.selectorText === selector)) {
                             this.sheet.deleteRule(i);
                             // We assume one rule per selector, so we can break after deletion
                             break;
