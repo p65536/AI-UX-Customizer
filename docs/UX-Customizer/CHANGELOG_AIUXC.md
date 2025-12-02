@@ -4,6 +4,18 @@
 > This changelog applies to both **ChatGPT UX Customizer (GPTUX)** and **Gemini UX Customizer (GGGUX)**.
 > Most changes are shared between the two scripts. If a change applies only to one, it will be explicitly marked with a `[GPTUX]` or `[GGGUX]` prefix.
 
+## [2.1.0] - 2025-12-02
+- **UX Improvements**
+  - Enabled real-time layout updates during message streaming. These updates were previously suppressed to optimize performance, but the restriction has been lifted to ensure the UI remains visually consistent during user interactions.
+- **UI Improvements**
+  - **[Modal Standardization]**
+    - Buttons now follow a consistent order (Cancel, Apply, Save) across all menus.
+    - The "Save" button is now visually highlighted as the primary action.
+    - Enforced uniform button widths for a cleaner look.
+  - **[JSON Settings]** Improved button layout for better usability. File operations (Export, Import) are now separated from dialog actions (Cancel, Save) to prevent accidental clicks.
+- **Core Improvements**
+  - Enhanced internal security and stability, including better compatibility with strict browser security environments (CSP).
+
 ## [2.0.0] - 2025-11-28
 - **New Features**
   - **Interactive Jump List Preview**: The message preview tooltip in the Navigation Console is now interactive. You can select and copy text directly from the preview without the popup closing unexpectedly.

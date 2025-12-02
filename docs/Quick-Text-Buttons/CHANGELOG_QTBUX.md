@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.1.0] - 2025-12-02
+- **UI Improvements**
+  - **[Modal Standardization]**
+    - Buttons now follow a consistent order (Cancel, Apply, Save) across all menus.
+    - The "Save" button is now visually highlighted as the primary action.
+    - Enforced uniform button widths for a cleaner look.
+  - **[JSON Settings]** Improved button layout for better usability. File operations (Export, Import) are now separated from dialog actions (Cancel, Save) to prevent accidental clicks.
+- **Core Improvements**
+  - Enhanced internal security and stability, including better compatibility with strict browser security environments (CSP).
+
 ## [2.0.0] - 2025-11-28
 - **UI & UX Improvements**
   - **ChatGPT**: Improved layout integration by switching to native positioning, ensuring the button blends perfectly with the interface.
