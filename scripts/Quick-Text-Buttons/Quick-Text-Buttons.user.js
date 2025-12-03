@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         Quick-Text-Buttons
 // @namespace    https://github.com/p65536
-// @version      2.1.0
+// @version      2.2.0
 // @license      MIT
 // @description  Adds customizable buttons to paste predefined text into the input field on ChatGPT/Gemini.
-// @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/qtb.ico
+// @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/qtb.svg
 // @author       p65536
 // @match        https://chatgpt.com/*
 // @match        https://gemini.google.com/*
@@ -563,6 +563,7 @@
             insert_before_newline: false,
             insert_after_newline: false,
             insertion_position: 'cursor', // 'cursor', 'start', 'end'
+            trigger_mode: 'hover', // 'hover', 'click'
             activeProfileName: 'Default',
         },
         developer: {
@@ -2410,6 +2411,7 @@
         }
 
         destroy() {
+            this.hide();
             super.destroy(); // Call UIComponentBase's destroy
             this.debouncedSave.cancel();
             this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
@@ -2444,9 +2446,6 @@
         }
 
         render() {
-            if (document.getElementById(`${APPID}-settings-panel`)) {
-                document.getElementById(`${APPID}-settings-panel`).remove();
-            }
             this._injectStyles();
             this.element = this._createPanelContainer();
             const content = this._createPanelContent();
@@ -2587,7 +2586,30 @@
                         {
                             type: 'container-row',
                             children: [
-                                { type: 'label', for: `${APPID}-opt-insert-before-newline`, text: 'Insert newline before text' },
+                                {
+                                    type: 'label',
+                                    for: `${APPID}-opt-trigger-mode`,
+                                    text: 'Trigger Mode',
+                                    title: 'Choose how to open the text list.',
+                                },
+                                {
+                                    type: 'select',
+                                    id: `${APPID}-opt-trigger-mode`,
+                                    configKey: 'options.trigger_mode',
+                                    title: 'Choose how to open the text list. "Hover" opens on mouse over, "Click" opens on click (preventing accidental opens).',
+                                },
+                            ],
+                        },
+                        { type: 'submenu-separator' },
+                        {
+                            type: 'container-row',
+                            children: [
+                                {
+                                    type: 'label',
+                                    for: `${APPID}-opt-insert-before-newline`,
+                                    text: 'Insert newline before text',
+                                    title: 'Automatically add a newline before the pasted text.',
+                                },
                                 {
                                     type: 'toggle',
                                     id: `${APPID}-opt-insert-before-newline`,
@@ -2599,7 +2621,12 @@
                         {
                             type: 'container-row',
                             children: [
-                                { type: 'label', for: `${APPID}-opt-insert-after-newline`, text: 'Insert newline after text' },
+                                {
+                                    type: 'label',
+                                    for: `${APPID}-opt-insert-after-newline`,
+                                    text: 'Insert newline after text',
+                                    title: 'Automatically add a newline after the pasted text.',
+                                },
                                 {
                                     type: 'toggle',
                                     id: `${APPID}-opt-insert-after-newline`,
@@ -2654,7 +2681,7 @@
             const currentConfig = config || (await this.callbacks.getCurrentConfig());
             if (!currentConfig || !currentConfig.options) return;
 
-            // --- Manually handle dynamic select options ---
+            // --- Manually handle dynamic select options (Profile) ---
             const profileSelect = this.element.querySelector(`#${APPID}-profile-select`);
             profileSelect.textContent = ''; // Clear existing options
             const profileNames = Object.keys(currentConfig.texts);
@@ -2668,11 +2695,24 @@
                 profileSelect.value = activeProfileName;
             } else if (profileNames.length > 0) {
                 profileSelect.value = profileNames[0];
-                // Optionally log or notify about the fallback
                 Logger.warn(`Active profile "${activeProfileName}" not found, falling back to "${profileNames[0]}".`);
             } else {
                 profileSelect.value = ''; // No profiles available
             }
+
+            // --- Manually handle dynamic select options (Trigger Mode) ---
+            const triggerSelect = this.element.querySelector(`#${APPID}-opt-trigger-mode`);
+            if (triggerSelect) {
+                triggerSelect.textContent = '';
+                const triggerOptions = [
+                    { value: 'hover', text: 'Hover' },
+                    { value: 'click', text: 'Click' },
+                ];
+                triggerOptions.forEach((opt) => {
+                    triggerSelect.appendChild(h('option', { value: opt.value }, opt.text));
+                });
+            }
+
             // --- End manual handling ---
 
             const schema = this._getPanelSchema();
@@ -2706,6 +2746,8 @@
                 this.hide();
             });
             this.element.querySelector(`#${APPID}-profile-select`).addEventListener('change', this.debouncedSave);
+
+            this.element.querySelector(`#${APPID}-opt-trigger-mode`).addEventListener('change', this.debouncedSave);
 
             this.element.querySelector(`#${APPID}-opt-insert-before-newline`).addEventListener('change', this.debouncedSave);
             this.element.querySelector(`#${APPID}-opt-insert-after-newline`).addEventListener('change', this.debouncedSave);
@@ -2773,6 +2815,13 @@
                     justify-content: space-between;
                     gap: 8px;
                     margin-top: 8px;
+                }
+                .${APPID}-submenu-row label {
+                    white-space: nowrap;
+                    flex-shrink: 0;
+                }
+                .${APPID}-submenu-row select {
+                    width: 60%;
                 }
                 .${APPID}-submenu-row-stacked {
                     display: flex;
@@ -2922,6 +2971,7 @@
         }
 
         destroy() {
+            this.modal?.destroy();
             super.destroy();
             this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
             this.subscriptions = [];
@@ -4054,6 +4104,7 @@
         }
 
         destroy() {
+            this.modal?.destroy();
             this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
             this.subscriptions = [];
         }
@@ -4248,15 +4299,22 @@
         }
 
         /**
+         * Updates the button's title (tooltip) dynamically.
+         * @param {string} title The new title text.
+         */
+        setTitle(title) {
+            this.options.title = title;
+            if (this.element) {
+                this.element.title = title;
+            }
+        }
+
+        /**
          * Renders the settings button element and appends it to the document body.
          * @returns {HTMLElement} The created button element.
          */
         render() {
             this._injectStyles();
-            const oldElement = document.getElementById(this.id);
-            if (oldElement) {
-                oldElement.remove();
-            }
 
             this.element = h('button', {
                 // Explicitly set type="button" to prevent form submission
@@ -4269,6 +4327,11 @@
                 onclick: (e) => {
                     e.stopPropagation();
                     this.callbacks.onClick?.(e);
+                },
+                oncontextmenu: (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.callbacks.onContextMenu?.(e);
                 },
                 onmouseenter: (e) => this.callbacks.onMouseEnter?.(e),
                 onmouseleave: (e) => this.callbacks.onMouseLeave?.(e),
@@ -4383,20 +4446,12 @@
 
         /** @private */
         _injectStyles() {
-            // Versioned ID to force CSS refresh
-            const currentStyleId = `${this.styleId}-v3`;
-            if (document.getElementById(currentStyleId)) return;
-
-            // Remove old style if exists
-            const oldStyle = document.getElementById(this.styleId);
-            if (oldStyle) oldStyle.remove();
-            const v2Style = document.getElementById(`${this.styleId}-v2`);
-            if (v2Style) v2Style.remove();
+            if (document.getElementById(this.styleId)) return;
 
             const styles = this.options.siteStyles;
 
             const style = h('style', {
-                id: currentStyleId,
+                id: this.styleId,
                 textContent: `
                 #${this.id} {
                     position: fixed;
@@ -4502,7 +4557,15 @@
             this.activeCategory = Object.keys(activeProfile)[0] || null;
 
             this.hideTimeoutId = null;
+            this.globalListenerTimeoutId = null; // Added to prevent listener registration conflicts
             this.isModalOpen = false;
+
+            // Bind handlers for global events to ensure reference equality for removal
+            this._handlers = {
+                globalClick: this._handleGlobalClick.bind(this),
+                globalKeydown: this._handleGlobalKeydown.bind(this),
+            };
+
             this.components = {
                 settingsPanel: null,
                 insertBtn: null,
@@ -4533,22 +4596,59 @@
 
             this.components.insertBtn = new InsertButtonComponent(
                 {
-                    onClick: () => {
-                        // Exclusive control: Hide text list when opening settings
-                        this.components.textList.element.style.display = 'none';
-                        this.components.settingsPanel.toggle();
-                    },
-                    onMouseEnter: () => {
-                        // Exclusive control: Only show list if settings panel is closed
-                        if (!this.components.settingsPanel.isOpen()) {
-                            this._showList();
+                    onClick: (e) => {
+                        const mode = this.config.options.trigger_mode || 'hover';
+
+                        // Check if settings panel is open
+                        if (this.components.settingsPanel.isOpen()) {
+                            // If settings panel is open, close it and open text list.
+                            this.components.settingsPanel.hide();
+                            this._showTextList();
+                            return;
+                        }
+
+                        if (mode === 'click') {
+                            // Click mode: Toggle list
+                            if (this.components.textList.element.style.display === 'none') {
+                                this._showTextList();
+                            } else {
+                                this._hideTextList();
+                            }
+                        } else {
+                            // Hover mode (legacy): Toggle settings panel
+                            // (If we reached here, settings panel is closed, so we open it)
+                            // Exclusive control: Hide text list when opening settings
+                            this._hideTextList();
+                            this.components.settingsPanel.show();
                         }
                     },
-                    onMouseLeave: () => this._startHideTimer(),
+                    onContextMenu: (e) => {
+                        // Right-click: Toggle settings panel
+                        this._hideTextList(); // Always close text list first
+                        if (this.components.settingsPanel.isOpen()) {
+                            this.components.settingsPanel.hide();
+                        } else {
+                            this.components.settingsPanel.show();
+                        }
+                    },
+                    onMouseEnter: () => {
+                        const mode = this.config.options.trigger_mode || 'hover';
+                        // Exclusive control: Only show list if settings panel is closed
+                        if (mode === 'hover' && !this.components.settingsPanel.isOpen()) {
+                            this._showTextList();
+                        }
+                    },
+                    onMouseLeave: () => {
+                        // In click mode, we do NOT auto-hide on mouse leave
+                        const mode = this.config.options.trigger_mode || 'hover';
+                        if (mode !== 'click') {
+                            this._startHideTimer();
+                        }
+                    },
                 },
                 {
                     id: `${CONSTANTS.ID_PREFIX}insert-btn`,
-                    title: 'Add quick text / Click for Settings',
+                    title: 'Add quick text', // Initial title, will be updated in init()
                     // Pass the structured config from StyleManager
                     config: PlatformAdapters.StyleManager.getInsertButtonConfig(this.platformDetails.platformId),
                 }
@@ -4557,7 +4657,13 @@
             this.components.textList = new TextListComponent(
                 {
                     onMouseEnter: () => clearTimeout(this.hideTimeoutId),
-                    onMouseLeave: () => this._startHideTimer(),
+                    onMouseLeave: () => {
+                        // In click mode, we do NOT auto-hide on mouse leave
+                        const mode = this.config.options.trigger_mode || 'hover';
+                        if (mode !== 'click') {
+                            this._startHideTimer();
+                        }
+                    },
                 },
                 {
                     id: `${CONSTANTS.ID_PREFIX}text-list`,
@@ -4601,6 +4707,8 @@
         init() {
             this._renderComponents();
             this.renderContent();
+            this._updateButtonTitle(); // Initialize tooltip based on config
+
             this._subscribe(EVENTS.REOPEN_MODAL, ({ type, key }) => {
                 if (type === CONSTANTS.MODAL_TYPES.JSON) {
                     this.components.jsonModal.open(this.components.insertBtn.element);
@@ -4613,6 +4721,12 @@
             // Use direct method call instead of debounced version
             this._subscribe(EVENTS.UI_REPOSITION, () => this.repositionInsertButton());
 
+            // Close all floating UIs when navigation starts
+            this._subscribe(EVENTS.NAVIGATION_START, () => {
+                this.components.settingsPanel.hide();
+                this._hideTextList();
+            });
+
             // Trigger initial repositioning
             this.repositionInsertButton();
 
@@ -4623,6 +4737,8 @@
         }
 
         destroy() {
+            clearTimeout(this.hideTimeoutId);
+            clearTimeout(this.globalListenerTimeoutId);
             for (const key in this.components) {
                 this.components[key]?.destroy();
             }
@@ -4663,6 +4779,7 @@
             const activeProfile = this.config.texts[activeProfileName] || {};
             this.activeCategory = Object.keys(activeProfile)[0] || null;
             this.renderContent();
+            this._updateButtonTitle(); // Update tooltip when config changes
         }
 
         renderContent() {
@@ -4704,11 +4821,23 @@
                         e.preventDefault();
                         e.stopPropagation();
                         this._insertText(txt);
-                        this.components.textList.element.style.display = 'none';
+                        // Ensure _hideTextList is called to clean up listeners properly
+                        this._hideTextList();
                     },
                 });
                 optionsContainer.appendChild(btn);
             });
+        }
+
+        /**
+         * Updates the insert button's tooltip based on the current trigger mode.
+         * @private
+         */
+        _updateButtonTitle() {
+            if (!this.components.insertBtn) return;
+            const mode = this.config.options.trigger_mode || 'hover';
+            const title = mode === 'click' ? 'Click for Text List / Right-click for Settings' : 'Hover for Text List / Click for Settings';
+            this.components.insertBtn.setTitle(title);
         }
 
         _renderComponents() {
@@ -4765,8 +4894,9 @@
             });
         }
 
-        _showList() {
+        _showTextList() {
             clearTimeout(this.hideTimeoutId);
+            clearTimeout(this.globalListenerTimeoutId); // Clear any pending listener attachment
             const listElem = this.components.textList.element;
 
             // Reset styles to ensure clean state before calculation
@@ -4777,12 +4907,61 @@
             listElem.style.bottom = '';
 
             this._positionList();
+
+            const mode = this.config.options.trigger_mode || 'hover';
+            if (mode === 'click') {
+                // Add global listeners with slight delay to avoid immediate trigger from the opening click
+                this.globalListenerTimeoutId = setTimeout(() => {
+                    document.addEventListener('click', this._handlers.globalClick);
+                    document.addEventListener('keydown', this._handlers.globalKeydown);
+                }, 0);
+            }
         }
 
         _startHideTimer() {
             this.hideTimeoutId = setTimeout(() => {
-                this.components.textList.element.style.display = 'none';
+                this._hideTextList();
             }, CONSTANTS.HIDE_DELAY_MS);
+        }
+
+        _hideTextList() {
+            clearTimeout(this.hideTimeoutId);
+            clearTimeout(this.globalListenerTimeoutId); // Cancel pending listener attachment
+            if (this.components.textList && this.components.textList.element) {
+                this.components.textList.element.style.display = 'none';
+            }
+
+            // Remove global listeners
+            document.removeEventListener('click', this._handlers.globalClick);
+            document.removeEventListener('keydown', this._handlers.globalKeydown);
+        }
+
+        _handleGlobalClick(e) {
+            const listEl = this.components.textList.element;
+            const btnEl = this.components.insertBtn.element;
+
+            // Check if list is visible; if not, cleanup listeners (safety check)
+            if (listEl.style.display === 'none') {
+                this._hideTextList();
+                return;
+            }
+
+            // If click is inside list or button, do nothing (keep open)
+            if (listEl.contains(e.target) || btnEl.contains(e.target)) {
+                return;
+            }
+
+            // Clicked outside: close list
+            this._hideTextList();
+        }
+
+        _handleGlobalKeydown(e) {
+            const listEl = this.components.textList.element;
+            if (listEl.style.display === 'none') return;
+
+            if (e.key === 'Escape') {
+                this._hideTextList();
+            }
         }
     }
 
@@ -4795,6 +4974,7 @@
             this.subscriptions = [];
             this.app = appInstance;
             this.pendingRemoteConfig = null;
+            this.remoteChangeListenerId = null;
         }
 
         _subscribe(event, listener) {
@@ -4817,7 +4997,7 @@
         }
 
         init() {
-            GM_addValueChangeListener(this.app.configKey, async (name, oldValue, newValue, remote) => {
+            this.remoteChangeListenerId = GM_addValueChangeListener(this.app.configKey, async (name, oldValue, newValue, remote) => {
                 if (remote) {
                     await this._handleRemoteChange(newValue);
                 }
@@ -4825,6 +5005,10 @@
         }
 
         destroy() {
+            if (this.remoteChangeListenerId !== null) {
+                GM_removeValueChangeListener(this.remoteChangeListenerId);
+                this.remoteChangeListenerId = null;
+            }
             this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
             this.subscriptions = [];
         }
@@ -4964,6 +5148,11 @@
 
             this.activePageObservers.forEach((cleanup) => cleanup());
             this.activePageObservers = [];
+
+            // Cancel any pending debounced handler execution
+            if (this.boundURLChangeHandler && typeof this.boundURLChangeHandler.cancel === 'function') {
+                this.boundURLChangeHandler.cancel();
+            }
 
             // Restore original history methods and remove listeners if they were initialized.
             if (this.urlObserverInitialized) {
