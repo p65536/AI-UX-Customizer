@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.2.0] - 2025-12-03
+- **New Features**
+  - Added a **Trigger Mode** option to the settings panel. Users can now choose between "Hover" (default) or "Click" to open the text list.
+  - Added support for **Right-clicking** the insert button to quickly open the settings panel, regardless of the selected trigger mode.
+- **Improvements**
+  - The insert button's tooltip now dynamically updates to indicate the current interaction mode.
+- **Fixes**
+  - Fixed a race condition where global event listeners could persist if the text list was toggled rapidly.
+  - Fixed an issue where the text list or settings panel would remain visible after navigating to a different chat URL.
+  - Fixed various resource leaks to prevent memory issues and improve long-term stability.
+- **Miscellaneous**
+  - Updated the script icon.
+
 ## [2.1.0] - 2025-12-02
 - **UI Improvements**
   - **[Modal Standardization]**

@@ -2,12 +2,12 @@
 
 ## Settings Screen
 
-### 1. Click the Quick Text button to open the settings panel
+### 1. Right-Click the Quick Text button to open the settings panel
 
-The **Quick Text button** (pen icon) is located at the bottom-left of the chat input field.
-Clicking this button opens the settings panel (Hovering over it opens the text insertion list).
+The **Quick Text button** (pen icon) is located at the bottom-left of the chat input field.  
+Right-clicking this button opens the settings panel.
 
-Click the button:  
+Right-click the button:  
 ![Settings Panel](./images/qtb_button.webp)
 
 ### 2. Settings Panel Items
@@ -20,6 +20,7 @@ Click the button:
 | **Texts** | Opens the "Text Editor Modal" to create, edit, and delete texts. |
 | **JSON** | Opens the screen to directly edit, import, and export all settings in JSON format. |
 | **Options** | **Settings for text insertion behavior** |
+| `Trigger Mode` | Choose between "Hover" or "Click" to open the text list. |
 | `Insert newline before text` | Adds one newline character before inserting the text. |
 | `Insert newline after text` | Adds one newline character after inserting the text. |
 | `Insertion position` | Selects the text insertion position from "Start of the input field," "Current cursor position," or "End of the input field." |

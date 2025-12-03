@@ -19,6 +19,7 @@ The following is a sample to illustrate the JSON structure. **Ready-to-use sampl
     "insert_before_newline": false,
     "insert_after_newline": false,
     "insertion_position": "end",
+    "trigger_mode": "hover",
     "activeProfileName": "Default"
   },
   "developer": {
@@ -61,7 +62,8 @@ The following is a sample to illustrate the JSON structure. **Ready-to-use sampl
 | :--- | :--- | :--- | :--- |
 | `insert_before_newline` | Whether to add a newline before inserting text | `false` | `true` / `false` |
 | `insert_after_newline` | Whether to add a newline after inserting text | `false` | `true` / `false` |
-| `insertion_position` | The position where the text is inserted | `"cursor"` | `"start"`: Beginning of the input field\<br\>`"cursor"`: Current cursor position\<br\>`"end"`: End of the input field |
+| `insertion_position` | The position where the text is inserted | `"cursor"` | `"start"`: Beginning of the input field<br>`"cursor"`: Current cursor position<br>`"end"`: End of the input field |
+| `trigger_mode` | Determines how the text list is opened | `"hover"` | `"hover"`: Mouse over<br>`"click"`: Click |
 | `activeProfileName` | The name of the currently active profile | `"Default"` | A string specifying a profile name that exists within the `texts` object. |
 
 ---

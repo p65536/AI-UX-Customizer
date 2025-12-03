@@ -31,17 +31,17 @@ Currently, it supports the following AI services:
 
 ## Screenshots
 
-### 1. Unified Action Button & Text Menu
+### 1. Text List
 
-When you hover over the button:  
-![Text Insertion Menu](./images/qtb_button_hover.webp)
+When you **Hover** (or **Click**, depending on settings) over the button:  
+![Text Insertion Menu](./images/qtb_open_textlist.webp)
 
 * **Perfect Match:** Works seamlessly with [**UX Customizer**](../UX-Customizer/README.md) to enhance the visual interface and navigation.
 
 ### 2. Settings Panel
 
-When you click the button:  
-![Settings Panel](./images/qtb_button_click.webp)
+When you Right-click the button:  
+![Settings Panel](./images/qtb_open_settings_panel.webp)
 
 ### 3. Text Editor Modal
 
@@ -52,8 +52,8 @@ When you click the button:
 ## How to Use
 
 * **Access**: The **Quick Text button** (pen icon) is located at the bottom-left of the chat input field.
-* **Insert Text**: **Hover** over the button to display the list of registered texts. Clicking an item will insert it into the input field.
-* **Settings**: **Click** the button to open the **Settings Panel**, where you can edit texts, manage profiles, and change options.
+* **Insert Text**: **Hover** (or **Click**, depending on settings) over the button to display the list of registered texts. Clicking an item will insert it into the input field.
+* **Settings**: **Right-click** the button to open the **Settings Panel**, where you can edit texts, manage profiles, and change options.
 * **Import/Export**: If needed, use the "JSON" button in the settings panel to export your current settings or import sample settings.
 
 ---
