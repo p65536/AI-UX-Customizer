@@ -21,7 +21,7 @@ The scripts have been created for each site. Please install the required script.
 ## Key Features
 
 - **Powerful Theme Customization**
-  - **Automatic Theme Switching**: Automatically apply different themes (colors, names, icons, backgrounds) based on chat titles, Custom GPTs, or project names using **regular expressions**.
+  - **Automatic Theme Switching**: Automatically apply different themes (colors, names, icons, backgrounds) based on chat titles, **URLs**, Custom GPTs, or project names using **regular expressions**.
   - **Intuitive Theme Editor**: Edit all theme settings via a user-friendly GUI.
   - **Display "Standing Images"**: Show unique character images for both the user and assistant on the left and right sides of the chat.
   - **Full Actor Customization**: Change display names, avatar icons, and text colors for both user and assistant.
@@ -36,8 +36,10 @@ The scripts have been created for each site. Please install the required script.
   - **Message Jump List with Search**: Instantly jump to any message in the conversation from a list. You can filter messages by plain text or regular expressions.
   - **Per-Message Navigation**: Adds buttons to each message to jump to the next/previous message by the same speaker (user/assistant) or scroll to the top of the current message.
   - **Collapsible Messages**: Adds a button to collapse long messages, and includes a "Bulk Collapse/Expand" button in the navigation console.
+  - **[ChatGPT only] Auto-collapse User Messages**: Automatically collapses long user queries upon loading to save screen space.
 
 - **Utility & Platform-Specific**
+  - **Responsive Settings UI**: The Settings Panel and Theme Editor automatically adjust their size and layout to fit smaller screens.
   - **Export/Import Settings**: Easily back up and share your complete configuration as a JSON file.
   - **[Gemini only] Auto-Load Full Chat History**: Automatically loads the entire chat history when opening a conversation, eliminating the need to manually scroll up.
   - **[ChatGPT only] Layout Scan (Firefox Only)**: Automatically performs a layout scan on chat load to mitigate scroll position jumps caused by late-loading messages or images.
@@ -135,6 +137,30 @@ Next, to check the theme application for a specific project/custom GPT/chat, try
 
 The samples include one default theme and three specific themes.
 Try modifying these settings to your liking. The GUI theme editor makes it easy to make changes.
+
+
+- **(New)** You can also try setting a **URL Pattern** in the Theme Editor to apply themes based on the browser URL. This is particularly useful for targeting specific pages. Here are examples of how to extract the ID:
+
+  <ul>
+    <li>
+      <strong>Project (ChatGPT)</strong><br>
+      URL: <code>https://chatgpt.com/g/g-p-<mark>abcdefghijklmnopqrstuvwxyz123456</mark>-something/project</code><br>
+      Pattern: <code>/abcdefghijklmnopqrstuvwxyz123456/i</code><br>
+      <small>Extract the 32-digit unique ID.</small>
+    </li>
+    <li>
+      <strong>Custom GPT (ChatGPT)</strong><br>
+      URL: <code>https://chatgpt.com/g/g-<mark>abcdefghijklmnopqrstuvwxyz123456</mark>-something</code><br>
+      Pattern: <code>/abcdefghijklmnopqrstuvwxyz123456/i</code><br>
+      <small>Extract the 32-digit unique ID.</small>
+    </li>
+    <li>
+      <strong>Gem (Gemini)</strong><br>
+      URL: <code>https://gemini.google.com/<mark>gem/abcdefghijkl</mark></code><br>
+      Pattern: <code>/gem\/abcdefghijkl/i</code><br>
+      <small>Include "gem/" and escape the forward slash (<code>\/</code>).</small>
+    </li>
+  </ul>
 
 ---
 

@@ -27,6 +27,9 @@ The following is a sample to illustrate the JSON structure. **Ready-to-use sampl
     "collapsible_button": {
       "enabled": true
     },
+    "auto_collapse_user_message": {
+      "enabled": false
+    },
     "sequential_nav_buttons": {
       "enabled": true
     },
@@ -51,6 +54,9 @@ The following is a sample to illustrate the JSON structure. **Ready-to-use sampl
         "matchPatterns": [
           "/\\[theme1\\]/i",
           "/My Project/i"
+        ],
+        "urlPatterns": [
+          "/abcdef123456/i"
         ]
       },
       "user": {
@@ -165,6 +171,7 @@ Configure ON/OFF and thresholds for convenient UI improvement features.
 
 | Property Name | Description | Example | Notes/Allowed Values |
 | --- | --- | --- | --- |
+| `auto_collapse_user_message` | **[ChatGPT only]**<br>Automatically collapses user messages that exceed the height threshold upon loading. | `{ "enabled": false }` | `true`/`false`<br>Default is `false`.<br>Requires `collapsible_button` to be enabled. |
 | `collapsible_button` | Displays a button to collapse messages at the top of each message bubble.  | `{ "enabled": true }` | `true`/`false`<br>Displays on the top-left for assistant and top-right for user.<br>Note: For Gemini, user bubbles have a standard collapse button, so this script does not process user bubbles for Gemini.<br>When this feature is enabled, a button to toggle the collapse state of all messages is displayed to the right of the message input field.  |
 | `sequential_nav_buttons` | Displays buttons next to each message bubble to jump to the next/previous message from the same author (user or assistant).  | `{ "enabled": true }` | `true`/`false`<br>Displays on the top-left for assistant and top-right for user.  |
 | `scroll_to_top_button` | Displays a button to scroll to the top of a message (or turn) at the bottom of each message bubble.  | `{ "enabled": true }` | `true`/`false`<br>Displays on the bottom-left for assistant and bottom-right for user.  |
@@ -197,6 +204,7 @@ At the beginning of each theme object, describe the theme's information in `meta
 | `id` | Unique ID for the theme | `"gptux-theme-12345"` | An ID for internal management by the script. You usually don't need to edit this. It is automatically assigned when a new theme is created in the theme editor. Even if duplicate IDs exist in the JSON, duplicates will be automatically avoided upon import.  |
 | `name` | Theme name | `"My Project Theme"` | The name displayed in the theme editor's dropdown. Use a descriptive name.  |
 | `matchPatterns` | Theme application conditions  | `[ "/myproject/i", "/^Project\\\\d+/" ]` | An **array of regular expression strings**. The theme is applied if the window title matches these conditions.<br>**Backslashes (\\) must be escaped twice (\\\\) in the JSON.**<br><br>**Examples:**<br>- Contains `"myproject"` (case-insensitive with `/i`)<br>- Starts with `"Project"` followed by a number  |
+| `urlPatterns` | Theme application conditions (URL) | `[ "/abcdef123/i" ]` | An **array of regular expression strings**. The theme is applied if the **URL path** matches these conditions.<br>**Evaluated before `matchPatterns`.** If a URL match is found, title matching is skipped. |
 
 -----
 

@@ -4,6 +4,28 @@
 > This changelog applies to both **ChatGPT UX Customizer (GPTUX)** and **Gemini UX Customizer (GGGUX)**.
 > Most changes are shared between the two scripts. If a change applies only to one, it will be explicitly marked with a `[GPTUX]` or `[GGGUX]` prefix.
 
+## [2.2.0] - 2025-12-05
+- **New Features**
+  - **URL Pattern Matching:** You can now apply themes based on the URL path in addition to the page title. URL matches take priority for faster switching.
+    - Example (ChatGPT Project): `/123456abcdef789012ghijklmnopq345/i`
+    - Example (Gemini Gem): `/gem\/abc123456789/i`
+  - Added a **"URL Patterns"** field to the Theme Editor.
+  - **[GPTUX] Auto-collapse User Messages:** Added an option to automatically collapse long user queries upon loading. This saves screen space and requires the "Collapsible button" feature to be enabled.
+- **UI/UX Improvements**
+  - **Responsive Settings UI:** The Settings Panel and Theme Editor now automatically adapt their size and layout for smaller screens.
+    - The Theme Editor switches to a single-column layout on narrower windows to prevent overlap.
+    - Added scroll support to the Settings Panel for better accessibility on small displays.
+- **Core Changes**
+  - Introduced `NavigationMonitor` for faster and more reliable detection of page navigation and URL changes.
+  - Refactored the internal event system to prevent conflicts and ensure smoother operation.
+- **Fixes**
+  - Fixed an issue where clicking the settings button while typing could accidentally submit the chat message.
+  - Fixed the Color Picker popup remaining floating/detached when scrolling the settings panel. It now auto-closes on scroll.
+  - Improved resource cleanup to prevent potential memory leaks from lingering timers or listeners.
+  - **[GGGUX]** Fixed an issue where **Standing Images** failed to reappear when switching between Gems.
+  - **[GPTUX]** Improved theme logic to prevent the default theme from briefly flashing during page transitions.
+  - **[GPTUX]** Fixed an issue where the top toolbar obscured the custom background on project pages, due to recent changes in ChatGPT specifications. It is now transparent, ensuring consistent background visibility.
+
 ## [2.1.0] - 2025-12-02
 - **UX Improvements**
   - Enabled real-time layout updates during message streaming. These updates were previously suppressed to optimize performance, but the restriction has been lifted to ensure the UI remains visually consistent during user interactions.
