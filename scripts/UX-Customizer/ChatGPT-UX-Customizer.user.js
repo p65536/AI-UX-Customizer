@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      2.1.0
+// @version      2.2.0
 // @license      MIT
 // @description  Fully customize the chat UI. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://chatgpt.com/favicon.ico
@@ -262,8 +262,6 @@
         BUTTON_VISIBILITY_THRESHOLD_PX: 128,
         BATCH_PROCESSING_SIZE: 50,
         RETRY: {
-            MAX_STANDING_IMAGES: 10,
-            STANDING_IMAGES_INTERVAL: 250,
             SCROLL_OFFSET_FOR_NAV: 40,
         },
         TIMING: {
@@ -290,8 +288,8 @@
             TIMEOUTS: {
                 // Delay to wait for the DOM to settle after a URL change before re-scanning
                 POST_NAVIGATION_DOM_SETTLE: 200,
-                // Delay before removing the temporary anchor element used for smooth scrolling with an offset
-                VIRTUAL_ANCHOR_CLEANUP: 1500,
+                // Delay before resetting the scroll-margin-top style used for smooth scrolling offset
+                SCROLL_OFFSET_CLEANUP: 1500,
                 // Delay before reopening a modal after a settings sync conflict is resolved
                 MODAL_REOPEN_DELAY: 100,
                 // Delay to wait for panel transition animations (e.g., Canvas, File Panel) to complete
@@ -1031,6 +1029,9 @@
             collapsible_button: {
                 enabled: true,
             },
+            auto_collapse_user_message: {
+                enabled: false,
+            },
             sequential_nav_buttons: {
                 enabled: true,
             },
@@ -1056,6 +1057,7 @@
                     id: `${APPID}-theme-example-1`,
                     name: 'Project Example',
                     matchPatterns: ['/project1/i'],
+                    urlPatterns: [],
                 },
                 assistant: {
                     name: null,
@@ -1372,7 +1374,12 @@
                     ${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE} {
                         box-sizing: border-box;
                     }
-                    #page-header,
+                    #page-header {
+                        background: transparent !important;
+                        position: absolute !important;
+                        top: 0;
+                        width: 100%;
+                    }
                     ${CONSTANTS.SELECTORS.BUTTON_SHARE_CHAT} {
                         background: transparent;
                     }
@@ -1450,16 +1457,32 @@
             selectThemeForUpdate(themeManager, config, urlChanged, titleChanged) {
                 const currentTitle = themeManager.getChatTitleAndCache();
 
-                // Flicker-prevention logic:
-                // If the URL changed and the title is the intermediate "ChatGPT",
-                // keep the previous theme UNLESS the destination is the "New Chat" page.
-                if (urlChanged && currentTitle === 'ChatGPT' && themeManager.lastAppliedThemeSet && !isNewChatPage()) {
+                // 1. Invalidate cache on URL change to force pattern re-evaluation.
+                if (urlChanged) {
+                    themeManager.cachedThemeSet = null;
+                }
+
+                // 2. Get the candidate theme based on the current context (URL, Title).
+                const candidateTheme = themeManager.getThemeSet();
+
+                // 3. Flicker prevention logic:
+                // If the URL changed, the title is currently "ChatGPT" (loading),
+                // and the resolved theme is the default one (meaning no URL pattern matched),
+                // then keep the previous theme to avoid a flash of the default theme before the title loads.
+                // Exception: Do not maintain the previous theme if we are navigating to the "New Chat" page.
+                const isDefaultTheme = candidateTheme.metadata.id === 'default' || candidateTheme === config.defaultSet;
+                const shouldKeepPreviousTheme = urlChanged && currentTitle === 'ChatGPT' && isDefaultTheme && themeManager.lastAppliedThemeSet && !isNewChatPage();
+
+                if (shouldKeepPreviousTheme) {
                     return themeManager.lastAppliedThemeSet;
                 }
 
-                // In all other cases (including navigating to "New Chat", or when the final title is ready),
-                // determine the theme based on the current title.
-                return themeManager.getThemeSet();
+                // Otherwise, apply the candidate theme immediately.
+                // This handles cases where:
+                // - URL patterns matched (candidate is not default) -> Instant switch
+                // - Title is already loaded -> Correct theme
+                // - Navigating to New Chat -> Default theme
+                return candidateTheme;
             },
 
             /**
@@ -1605,15 +1628,37 @@
                         this.isLayoutScanComplete = false;
                     }
 
+                    /**
+                     * Helper to subscribe to EventBus and track the subscription for cleanup.
+                     * Appends the listener name and a unique suffix to the key to avoid conflicts.
+                     * @param {string} event
+                     * @param {Function} listener
+                     */
                     _subscribe(event, listener) {
-                        const key = createEventKey(this, event);
+                        const baseKey = createEventKey(this, event);
+                        // Use function name for debugging aid, fallback to 'anonymous'
+                        const listenerName = listener.name || 'anonymous';
+                        // Generate a short random suffix to guarantee uniqueness even for anonymous functions
+                        const uniqueSuffix = Math.random().toString(36).substring(2, 7);
+                        const key = `${baseKey}_${listenerName}_${uniqueSuffix}`;
+
                         EventBus.subscribe(event, listener, key);
                         this.subscriptions.push({ event, key });
                     }
 
+                    /**
+                     * Helper to subscribe to EventBus once and track the subscription for cleanup.
+                     * Appends the listener name and a unique suffix to the key to avoid conflicts.
+                     * @param {string} event
+                     * @param {Function} listener
+                     */
                     _subscribeOnce(event, listener) {
-                        const uniqueSuffix = Date.now() + Math.random().toString(36).substring(2);
-                        const key = `${createEventKey(this, event)}_${uniqueSuffix}`;
+                        const baseKey = createEventKey(this, event);
+                        // Use function name for debugging aid, fallback to 'anonymous'
+                        const listenerName = listener.name || 'anonymous';
+                        // Generate a short random suffix to guarantee uniqueness even for anonymous functions
+                        const uniqueSuffix = Math.random().toString(36).substring(2, 7);
+                        const key = `${baseKey}_${listenerName}_${uniqueSuffix}`;
 
                         const wrappedListener = (...args) => {
                             this.subscriptions = this.subscriptions.filter((sub) => sub.key !== key);
@@ -1823,8 +1868,15 @@
                     title: 'Displays the timestamp for each message.',
                 };
 
+                const autoCollapseFeature = {
+                    id: 'features.auto_collapse_user_message.enabled',
+                    configKey: 'features.auto_collapse_user_message.enabled',
+                    label: 'Auto collapse user message',
+                    title: 'Automatically collapses user messages that exceed the height threshold.\nOnly applies to new messages. Requires "Collapsible button" to be enabled.',
+                };
+
                 if (!isFirefox()) {
-                    return [timestampFeature];
+                    return [timestampFeature, autoCollapseFeature];
                 }
 
                 const scanLayoutFeature = {
@@ -1834,7 +1886,7 @@
                     title: 'When enabled, automatically scans the layout of all messages when a chat is opened. This prevents layout shifts from images loading later.',
                 };
 
-                return [scanLayoutFeature, timestampFeature];
+                return [scanLayoutFeature, timestampFeature, autoCollapseFeature];
             },
         },
 
@@ -2085,6 +2137,7 @@
              */
             updateVisibility(instance) {
                 const isCanvasActive = PlatformAdapters.General.isCanvasModeActive();
+
                 ['user', 'assistant'].forEach((actor) => {
                     const imgElement = document.getElementById(`${APPID}-standing-image-${actor}`);
                     if (!imgElement) return;
@@ -2204,9 +2257,9 @@
              * @param {function(HTMLElement): HTMLElement|null} targetResolver - A function to resolve the actual panel element from the trigger element.
              * @param {number} transitionDelay - Unused in the new loop implementation (kept for signature compatibility).
              * @param {function(): void} [immediateCallback] - An optional callback executed immediately and repeatedly during the animation loop.
-             * @returns {Promise<() => void>} A cleanup function.
+             * @returns {() => void} A cleanup function.
              */
-            async _startGenericPanelObserver(dependencies, triggerSelector, observerType, targetResolver, transitionDelay, immediateCallback) {
+            _startGenericPanelObserver(dependencies, triggerSelector, observerType, targetResolver, transitionDelay, immediateCallback) {
                 const { observeElement, unobserveElement } = dependencies;
                 let isPanelVisible = false;
                 let isStateUpdating = false; // Lock to prevent race conditions
@@ -2238,7 +2291,7 @@
                 };
 
                 // This is the single source of truth for updating the UI based on panel visibility.
-                const updatePanelState = async () => {
+                const updatePanelState = () => {
                     if (isStateUpdating) return; // Prevent concurrent executions
                     isStateUpdating = true;
 
@@ -2327,9 +2380,9 @@
              * @private
              * @description Starts a stateful observer for the right sidebar (Activity/Thread flyout).
              * @param {object} dependencies
-             * @returns {Promise<() => void>}
+             * @returns {() => void}
              */
-            async startRightSidebarObserver(dependencies) {
+            startRightSidebarObserver(dependencies) {
                 // Use explicit reference to PlatformAdapters.Observer instead of 'this' to avoid context issues
                 return PlatformAdapters.Observer._startGenericPanelObserver(
                     dependencies,
@@ -2345,9 +2398,9 @@
              * @private
              * @description Starts a stateful observer for the Research Panel.
              * @param {object} dependencies
-             * @returns {Promise<() => void>}
+             * @returns {() => void}
              */
-            async startResearchPanelObserver(dependencies) {
+            startResearchPanelObserver(dependencies) {
                 // Use explicit reference to PlatformAdapters.Observer instead of 'this' to avoid context issues
                 return PlatformAdapters.Observer._startGenericPanelObserver(
                     dependencies,
@@ -2365,9 +2418,9 @@
              * @private
              * @description Starts a stateful observer to detect the appearance and disappearance of the Canvas panel using a high-performance hybrid approach.
              * @param {{observeElement: function(HTMLElement, string): void, unobserveElement: function(HTMLElement): void}} dependencies The required methods from ObserverManager.
-             * @returns {Promise<() => void>} A promise that resolves with a cleanup function.
+             * @returns {() => void} A cleanup function.
              */
-            async startCanvasObserver(dependencies) {
+            startCanvasObserver(dependencies) {
                 // Use explicit reference to PlatformAdapters.Observer instead of 'this' to avoid context issues
                 return PlatformAdapters.Observer._startGenericPanelObserver(
                     dependencies,
@@ -2383,42 +2436,54 @@
              * @param {object} dependencies The dependencies passed from ObserverManager (unused in this method).
              * @private
              * @description Sets up the monitoring for title changes.
-             * @returns {(() => void) | null} A cleanup function to stop the observer, or null if setup fails.
+             * @returns {() => void} A cleanup function to stop the observer.
              */
             startGlobalTitleObserver(dependencies) {
-                const targetElement = document.querySelector(CONSTANTS.SELECTORS.TITLE_OBSERVER_TARGET);
-                if (!targetElement) {
-                    Logger.badge('OBSERVER INIT', LOG_STYLES.YELLOW, 'warn', 'Title element not found for observation.');
-                    return null;
+                let titleObserver = null;
+
+                const setupObserver = (targetElement) => {
+                    titleObserver?.disconnect(); // Disconnect if already running
+
+                    // Encapsulate state within the closure
+                    let lastObservedTitle = (targetElement.textContent || '').trim();
+                    const currentObservedTitleSource = targetElement;
+
+                    titleObserver = new MutationObserver(() => {
+                        const currentText = (currentObservedTitleSource?.textContent || '').trim();
+                        if (currentText !== lastObservedTitle) {
+                            lastObservedTitle = currentText;
+                            EventBus.publish(EVENTS.TITLE_CHANGED);
+                        }
+                    });
+                    titleObserver.observe(targetElement, {
+                        childList: true,
+                        characterData: true,
+                        subtree: true,
+                    });
+                };
+
+                const selector = CONSTANTS.SELECTORS.TITLE_OBSERVER_TARGET;
+                sentinel.on(selector, setupObserver);
+
+                const existingTarget = document.querySelector(selector);
+                if (existingTarget) {
+                    setupObserver(existingTarget);
                 }
 
-                // Encapsulate state within the closure of this function
-                let lastObservedTitle = (targetElement.textContent || '').trim();
-                const currentObservedTitleSource = targetElement;
-
-                const titleObserver = new MutationObserver(() => {
-                    const currentText = (currentObservedTitleSource?.textContent || '').trim();
-                    if (currentText !== lastObservedTitle) {
-                        lastObservedTitle = currentText;
-                        EventBus.publish(EVENTS.TITLE_CHANGED);
-                    }
-                });
-                titleObserver.observe(targetElement, {
-                    childList: true,
-                    characterData: true,
-                    subtree: true,
-                });
                 // Return the cleanup function for this observer.
-                return () => titleObserver.disconnect();
+                return () => {
+                    sentinel.off(selector, setupObserver);
+                    titleObserver?.disconnect();
+                };
             },
 
             /**
              * @param {object} dependencies The dependencies passed from ObserverManager (unused in this method).
              * @private
              * @description Sets up a robust, two-tiered observer for the sidebar.
-             * @returns {Promise<() => void>} A promise that resolves with a cleanup function.
+             * @returns {() => void} A cleanup function.
              */
-            async startSidebarObserver(dependencies) {
+            startSidebarObserver(dependencies) {
                 let attributeObserver = null;
                 let animationLoopId = null;
                 const ANIMATION_DURATION = 500; // ms
@@ -2481,9 +2546,9 @@
              * @private
              * @description Starts a stateful observer for the input area to detect resizing and DOM reconstruction (button removal).
              * @param {object} dependencies The ObserverManager dependencies.
-             * @returns {Promise<() => void>}
+             * @returns {() => void} A cleanup function.
              */
-            async startInputAreaObserver(dependencies) {
+            startInputAreaObserver(dependencies) {
                 const { observeElement, unobserveElement } = dependencies;
                 let observedInputArea = null;
 
@@ -3159,6 +3224,24 @@
         },
     };
 
+    /**
+     * Creates a unique, consistent event subscription key for EventBus.
+     * @param {object} context The `this` context of the subscribing class instance.
+     * @param {string} eventName The full event name from the EVENTS constant.
+     * @returns {string} A key in the format 'ClassName.purpose'.
+     */
+    function createEventKey(context, eventName) {
+        // Extract a meaningful 'purpose' from the event name
+        const parts = eventName.split(':');
+        const purpose = parts.length > 1 ? parts.slice(1).join('_') : parts[0];
+
+        let contextName = 'UnknownContext';
+        if (context && context.constructor && context.constructor.name) {
+            contextName = context.constructor.name;
+        }
+        return `${contextName}.${purpose}`;
+    }
+
     // =================================================================================
     // SECTION: Data Conversion Utilities
     // Description: Handles image optimization.
@@ -3254,15 +3337,21 @@
     /**
      * @param {Function} func
      * @param {number} delay
+     * @param {boolean} useIdle
      * @returns {((...args: any[]) => void) & { cancel: () => void }}
      */
-    function debounce(func, delay) {
+    function debounce(func, delay, useIdle) {
         let timeout;
         const debounced = function (...args) {
             clearTimeout(timeout);
             timeout = setTimeout(() => {
-                // After the debounce delay, schedule the actual execution for when the browser is idle.
-                runWhenIdle(() => func.apply(this, args));
+                if (useIdle) {
+                    // After the debounce delay, schedule the actual execution for when the browser is idle.
+                    runWhenIdle(() => func.apply(this, args));
+                } else {
+                    // Execute immediately after the delay without waiting for idle time.
+                    func.apply(this, args);
+                }
             }, delay);
         };
         debounced.cancel = () => {
@@ -3787,6 +3876,26 @@
     }
 
     /**
+     * Parses a regex string in the format "/pattern/flags".
+     * @param {string} input The string to parse.
+     * @returns {RegExp} The constructed RegExp object.
+     * @throws {Error} If the format is invalid or the regex is invalid.
+     */
+    function parseRegexPattern(input) {
+        if (typeof input !== 'string' || !/^\/.*\/[gimsuy]*$/.test(input)) {
+            throw new Error(`Invalid format. Must be /pattern/flags string: ${input}`);
+        }
+        const lastSlash = input.lastIndexOf('/');
+        const pattern = input.slice(1, lastSlash);
+        const flags = input.slice(lastSlash + 1);
+        try {
+            return new RegExp(pattern, flags);
+        } catch (e) {
+            throw new Error(`Invalid RegExp: "${input}". ${e.message}`);
+        }
+    }
+
+    /**
      * Gets the current width of the sidebar.
      * @returns {number}
      */
@@ -3847,7 +3956,7 @@
             // The delay ensures the smooth scroll has finished before removing the margin.
             setTimeout(() => {
                 element.style.scrollMarginTop = originalScrollMargin;
-            }, CONSTANTS.TIMING.TIMEOUTS.VIRTUAL_ANCHOR_CLEANUP);
+            }, CONSTANTS.TIMING.TIMEOUTS.SCROLL_OFFSET_CLEANUP);
         }
     }
 
@@ -4093,21 +4202,6 @@
     }
 
     /**
-     * Creates a unique, consistent event subscription key for EventBus.
-     * @param {object} context The `this` context of the subscribing class instance.
-     * @param {string} eventName The full event name from the EVENTS constant (e.g., 'EVENTS.NAVIGATION').
-     * @returns {string} A key in the format 'ClassName.purpose'.
-     */
-    function createEventKey(context, eventName) {
-        const purpose = eventName.split(':')[1] || eventName;
-        if (!context || !context.constructor || !context.constructor.name) {
-            // Fallback for contexts where constructor name might not be available
-            return `UnknownContext.${purpose}`;
-        }
-        return `${context.constructor.name}.${purpose}`;
-    }
-
-    /**
      * @description A utility to prevent layout thrashing by separating DOM reads (measure)
      * from DOM writes (mutate). The mutate function is executed in the next animation frame.
      * @param {{
@@ -4217,14 +4311,18 @@
             }
 
             // --- RegExp Pattern Validation (only for non-default themes) ---
-            if (!isDefaultSet && themeData.metadata?.matchPatterns) {
-                for (const p of themeData.metadata.matchPatterns) {
-                    try {
-                        const lastSlash = p.lastIndexOf('/');
-                        new RegExp(p.slice(1, lastSlash), p.slice(lastSlash + 1));
-                    } catch (e) {
-                        errors.push({ field: 'metadata-matchPatterns', message: `Invalid RegExp: "${p}". ${e.message}` });
-                        break; // Stop after first invalid regex
+            if (!isDefaultSet) {
+                const patternFields = ['matchPatterns', 'urlPatterns'];
+                for (const field of patternFields) {
+                    if (themeData.metadata?.[field]) {
+                        for (const p of themeData.metadata[field]) {
+                            try {
+                                parseRegexPattern(p);
+                            } catch (e) {
+                                errors.push({ field: `metadata-${field}`, message: e.message });
+                                break; // Stop after first invalid regex in the list
+                            }
+                        }
                     }
                 }
             }
@@ -4287,7 +4385,8 @@
             }
 
             // 3. Validate RegExp patterns (throws error on invalid format)
-            this._validateThemeMatchPatterns(config);
+            this._validatePatternsInConfig(config, 'matchPatterns');
+            this._validatePatternsInConfig(config, 'urlPatterns');
 
             return config;
         },
@@ -4318,26 +4417,20 @@
 
         /**
          * @private
-         * Validates the matchPatterns within the themeSets of a given config object.
+         * Validates the specified pattern list within the themeSets of a given config object.
          * Throws an error if validation fails.
          * @param {AppConfig} config - The configuration object to validate.
+         * @param {string} propertyName - The property name to validate ('matchPatterns' or 'urlPatterns').
          */
-        _validateThemeMatchPatterns(config) {
+        _validatePatternsInConfig(config, propertyName) {
             if (!config || !config.themeSets || !Array.isArray(config.themeSets)) {
                 return;
             }
             for (const set of config.themeSets) {
-                if (!set.metadata || !Array.isArray(set.metadata.matchPatterns)) continue;
-                for (const p of set.metadata.matchPatterns) {
-                    if (typeof p !== 'string' || !/^\/.*\/[gimsuy]*$/.test(p)) {
-                        throw new Error(`Invalid format. Must be /pattern/flags string: ${p}`);
-                    }
-                    try {
-                        const lastSlash = p.lastIndexOf('/');
-                        new RegExp(p.slice(1, lastSlash), p.slice(lastSlash + 1));
-                    } catch (e) {
-                        throw new Error(`Invalid RegExp: "${p}"\n${e.message}`);
-                    }
+                if (!set.metadata || !Array.isArray(set.metadata[propertyName])) continue;
+                for (const p of set.metadata[propertyName]) {
+                    // Use the shared parser to validate. It throws on error.
+                    parseRegexPattern(p);
                 }
             }
         },
@@ -4552,8 +4645,20 @@
             this.subscriptions = [];
         }
 
+        /**
+         * Helper to subscribe to EventBus and track the subscription for cleanup.
+         * Appends the listener name and a unique suffix to the key to avoid conflicts.
+         * @param {string} event
+         * @param {Function} listener
+         */
         _subscribe(event, listener) {
-            const key = createEventKey(this, event);
+            const baseKey = createEventKey(this, event);
+            // Use function name for debugging aid, fallback to 'anonymous'
+            const listenerName = listener.name || 'anonymous';
+            // Generate a short random suffix to guarantee uniqueness even for anonymous functions
+            const uniqueSuffix = Math.random().toString(36).substring(2, 7);
+            const key = `${baseKey}_${listenerName}_${uniqueSuffix}`;
+
             EventBus.subscribe(event, listener, key);
             this.subscriptions.push({ event, key });
         }
@@ -4584,6 +4689,104 @@
         _handleRemoteChange(newValue) {
             Logger.log('SyncManager: Remote config change detected. Publishing event.');
             EventBus.publish(EVENTS.REMOTE_CONFIG_CHANGED, { newValue });
+        }
+    }
+
+    // =================================================================================
+    // SECTION: Navigation Monitor
+    // Description: Centralizes URL change detection via history API hooks and popstate events.
+    // =================================================================================
+
+    class NavigationMonitor {
+        constructor() {
+            this.originalHistoryMethods = { pushState: null, replaceState: null };
+            this._historyWrappers = {};
+            this.isInitialized = false;
+            this.lastPath = null;
+            this._handlePopState = this._handlePopState.bind(this);
+
+            // Debounce the navigation event to allow the DOM to settle and prevent duplicate events
+            this.debouncedNavigation = debounce(
+                () => {
+                    EventBus.publish(EVENTS.NAVIGATION);
+                },
+                CONSTANTS.TIMING.TIMEOUTS.POST_NAVIGATION_DOM_SETTLE,
+                true
+            );
+        }
+
+        init() {
+            if (this.isInitialized) return;
+            this.isInitialized = true;
+            // Capture initial path
+            this.lastPath = location.pathname + location.search;
+            this._hookHistory();
+            window.addEventListener('popstate', this._handlePopState);
+        }
+
+        destroy() {
+            if (!this.isInitialized) return;
+            this._restoreHistory();
+            window.removeEventListener('popstate', this._handlePopState);
+            this.debouncedNavigation.cancel();
+            this.isInitialized = false;
+        }
+
+        _hookHistory() {
+            // Capture the instance for use in the wrapper
+            const instance = this;
+
+            for (const m of ['pushState', 'replaceState']) {
+                const orig = history[m];
+                this.originalHistoryMethods[m] = orig;
+
+                const wrapper = function (...args) {
+                    const result = orig.apply(this, args);
+                    instance._onUrlChange();
+                    return result;
+                };
+
+                this._historyWrappers[m] = wrapper;
+                history[m] = wrapper;
+            }
+        }
+
+        _restoreHistory() {
+            for (const m of ['pushState', 'replaceState']) {
+                if (this.originalHistoryMethods[m]) {
+                    if (history[m] === this._historyWrappers[m]) {
+                        history[m] = this.originalHistoryMethods[m];
+                    } else {
+                        Logger.badge('HISTORY HOOK', LOG_STYLES.YELLOW, 'warn', `history.${m} has been wrapped by another script. Skipping restoration to prevent breaking the chain.`);
+                    }
+                    this.originalHistoryMethods[m] = null;
+                }
+            }
+            this._historyWrappers = {};
+        }
+
+        _handlePopState() {
+            this._onUrlChange();
+        }
+
+        _onUrlChange() {
+            const currentPath = location.pathname + location.search;
+
+            // Prevent re-triggers if the path hasn't actually changed
+            if (currentPath === this.lastPath) {
+                return;
+            }
+            this.lastPath = currentPath;
+
+            // Immediate check for excluded pages
+            if (PlatformAdapters.General.isExcludedPage()) {
+                Logger.badge('EXCLUDED URL', LOG_STYLES.YELLOW, 'log', 'Excluded URL detected. Suspending script functions.');
+                EventBus.publish(EVENTS.APP_SHUTDOWN);
+                return;
+            }
+
+            EventBus.publish(EVENTS.NAVIGATION_START);
+            this.debouncedNavigation();
         }
     }
 
@@ -4711,11 +4914,23 @@
             this.elementMap = new Map();
             this.subscriptions = [];
             this.isStreaming = false;
-            this.debouncedRebuildCache = debounce(this._rebuildCache.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.CACHE_UPDATE);
+            this.debouncedRebuildCache = debounce(this._rebuildCache.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.CACHE_UPDATE, true);
         }
 
+        /**
+         * Helper to subscribe to EventBus and track the subscription for cleanup.
+         * Appends the listener name and a unique suffix to the key to avoid conflicts.
+         * @param {string} event
+         * @param {Function} listener
+         */
         _subscribe(event, listener) {
-            const key = createEventKey(this, event);
+            const baseKey = createEventKey(this, event);
+            // Use function name for debugging aid, fallback to 'anonymous'
+            const listenerName = listener.name || 'anonymous';
+            // Generate a short random suffix to guarantee uniqueness even for anonymous functions
+            const uniqueSuffix = Math.random().toString(36).substring(2, 7);
+            const key = `${baseKey}_${listenerName}_${uniqueSuffix}`;
+
             EventBus.subscribe(event, listener, key);
             this.subscriptions.push({ event, key });
         }
@@ -4730,6 +4945,7 @@
         }
 
         destroy() {
+            this.debouncedRebuildCache.cancel();
             this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
             this.subscriptions = [];
         }
@@ -4933,15 +5149,27 @@
             /** @type {ThemeSet | null} */
             this.cachedThemeSet = null;
             this.subscriptions = [];
-            this.debouncedUpdateTheme = debounce(this.updateTheme.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.THEME_UPDATE);
+            this.debouncedUpdateTheme = debounce(this.updateTheme.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.THEME_UPDATE, true);
             this.isDestroyed = false;
             this.currentRequestId = 0;
             /** @type {Map<string, string|null>} */
             this.lastAppliedImageValues = new Map();
         }
 
+        /**
+         * Helper to subscribe to EventBus and track the subscription for cleanup.
+         * Appends the listener name and a unique suffix to the key to avoid conflicts.
+         * @param {string} event
+         * @param {Function} listener
+         */
         _subscribe(event, listener) {
-            const key = createEventKey(this, event);
+            const baseKey = createEventKey(this, event);
+            // Use function name for debugging aid, fallback to 'anonymous'
+            const listenerName = listener.name || 'anonymous';
+            // Generate a short random suffix to guarantee uniqueness even for anonymous functions
+            const uniqueSuffix = Math.random().toString(36).substring(2, 7);
+            const key = `${baseKey}_${listenerName}_${uniqueSuffix}`;
+
             EventBus.subscribe(event, listener, key);
             this.subscriptions.push({ event, key });
         }
@@ -5009,36 +5237,52 @@
             }
             const config = this.configManager.get();
             const regexArr = [];
-            for (const set of config.themeSets ?? []) {
-                for (const title of set.metadata?.matchPatterns ?? []) {
-                    if (typeof title === 'string') {
-                        if (/^\/.*\/[gimsuy]*$/.test(title)) {
-                            const lastSlash = title.lastIndexOf('/');
-                            const pattern = title.slice(1, lastSlash);
-                            const flags = title.slice(lastSlash + 1);
-                            try {
-                                regexArr.push({ pattern: new RegExp(pattern, flags), set });
-                            } catch {
-                                /* ignore invalid regex strings in config */
-                            }
-                        } else {
-                            Logger.error(`Invalid match pattern format (must be /pattern/flags): ${title}`);
-                        }
+
+            // Compile patterns into a linear array.
+            // The order of push operations here strictly determines the matching priority.
+            // Items pushed earlier will be checked first by regexArr.find().
+            const compilePatterns = (patterns, type, set) => {
+                for (const patternStr of patterns ?? []) {
+                    try {
+                        const regex = parseRegexPattern(patternStr);
+                        regexArr.push({ pattern: regex, set, type });
+                    } catch (e) {
+                        Logger.error(`Invalid ${type} pattern in theme "${set.metadata?.name}": ${e.message}`);
                     }
                 }
+            };
+
+            for (const set of config.themeSets ?? []) {
+                // 1. Check URL patterns first.
+                // If a URL match is found, we can skip title checks and avoid waiting for the title to load.
+                compilePatterns(set.metadata?.urlPatterns, 'url', set);
+                // 2. Check Title patterns next.
+                compilePatterns(set.metadata?.matchPatterns, 'title', set);
             }
 
-            const name = this.cachedTitle;
-            if (name) {
-                const regexHit = regexArr.find((r) => r.pattern.test(name));
-                if (regexHit) {
-                    this.cachedThemeSet = regexHit.set;
-                    return regexHit.set;
+            const titleName = this.cachedTitle;
+            const urlPath = window.location.pathname;
+
+            // Find the first matching pattern in the array.
+            // Note: The order of checks inside this callback does NOT affect priority.
+            // Priority is determined solely by the order of elements in regexArr.
+            const regexHit = regexArr.find((r) => {
+                if (r.type === 'title' && titleName) {
+                    return r.pattern.test(titleName);
                 }
+                if (r.type === 'url') {
+                    return r.pattern.test(urlPath);
+                }
+                return false;
+            });
+
+            if (regexHit) {
+                this.cachedThemeSet = regexHit.set;
+                return regexHit.set;
             }
 
             // Fallback to default if no title or no match
-            const defaultMetadata = { id: 'default', name: 'Default Settings', matchPatterns: [] };
+            const defaultMetadata = { id: 'default', name: 'Default Settings', matchPatterns: [], urlPatterns: [] };
             this.cachedThemeSet = { ...config.defaultSet, metadata: defaultMetadata };
             return this.cachedThemeSet;
         }
@@ -5266,24 +5510,20 @@
 
     class ObserverManager {
         constructor(messageCacheManager) {
-            this.mainObserver = null;
+            // Initialize the MutationObserver with the bound callback immediately.
+            this.mainObserver = new MutationObserver((mutations) => this._handleMainMutations(mutations));
             this.mainObserverContainer = null;
             this.layoutResizeObserver = new ResizeObserver(this._handleResize.bind(this));
             this.observedElements = new Map();
             this.processedTurnNodes = new Set();
             this.sentinelTurnListeners = new Map();
             this.subscriptions = [];
-            this.debouncedCacheUpdate = debounce(this._publishCacheUpdate.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.CACHE_UPDATE);
+            this.debouncedCacheUpdate = debounce(this._publishCacheUpdate.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.CACHE_UPDATE, true);
             this.activeObservers = [];
             this.activePageObservers = [];
-            this.urlObserverInitialized = false;
-
-            // Properties for robust URL observation lifecycle
-            this.originalHistoryMethods = { pushState: null, replaceState: null };
-            this.boundURLChangeHandler = null;
 
             // The debounced visibility check
-            this.debouncedVisibilityCheck = debounce(() => EventBus.queueUIWork(this.publishVisibilityRecheck.bind(this)), CONSTANTS.TIMING.DEBOUNCE_DELAYS.VISIBILITY_CHECK);
+            this.debouncedVisibilityCheck = debounce(() => EventBus.queueUIWork(this.publishVisibilityRecheck.bind(this)), CONSTANTS.TIMING.DEBOUNCE_DELAYS.VISIBILITY_CHECK, true);
 
             // Add reference to MessageCacheManager
             this.messageCacheManager = messageCacheManager;
@@ -5291,17 +5531,41 @@
             this.zeroMessageTimer = null;
             // Bound listener for navigation-related cache updates
             this.boundHandleCacheUpdateForNavigation = this._handleCacheUpdateForNavigation.bind(this);
+            // Bound listener for Sentinel main observer setup
+            this.boundSetupMainObserver = this._setupMainObserver.bind(this);
         }
 
+        /**
+         * Helper to subscribe to EventBus and track the subscription for cleanup.
+         * Appends the listener name and a unique suffix to the key to avoid conflicts.
+         * @param {string} event
+         * @param {Function} listener
+         */
         _subscribe(event, listener) {
-            const key = createEventKey(this, event);
+            const baseKey = createEventKey(this, event);
+            // Use function name for debugging aid, fallback to 'anonymous'
+            const listenerName = listener.name || 'anonymous';
+            // Generate a short random suffix to guarantee uniqueness even for anonymous functions
+            const uniqueSuffix = Math.random().toString(36).substring(2, 7);
+            const key = `${baseKey}_${listenerName}_${uniqueSuffix}`;
+
             EventBus.subscribe(event, listener, key);
             this.subscriptions.push({ event, key });
         }
 
+        /**
+         * Helper to subscribe to EventBus once and track the subscription for cleanup.
+         * Appends the listener name and a unique suffix to the key to avoid conflicts.
+         * @param {string} event
+         * @param {Function} listener
+         */
         _subscribeOnce(event, listener) {
-            const uniqueSuffix = Date.now() + Math.random().toString(36).substring(2);
-            const key = `${createEventKey(this, event)}_${uniqueSuffix}`;
+            const baseKey = createEventKey(this, event);
+            // Use function name for debugging aid, fallback to 'anonymous'
+            const listenerName = listener.name || 'anonymous';
+            // Generate a short random suffix to guarantee uniqueness even for anonymous functions
+            const uniqueSuffix = Math.random().toString(36).substring(2, 7);
+            const key = `${baseKey}_${listenerName}_${uniqueSuffix}`;
 
             const wrappedListener = (...args) => {
                 this.subscriptions = this.subscriptions.filter((sub) => sub.key !== key);
@@ -5333,28 +5597,41 @@
         }
 
         /**
-         * Starts all platform-specific observers.
+         * Starts all platform-specific observers using Sentinel for synchronous registration.
          */
-        async start() {
-            const container = await waitForElement(CONSTANTS.SELECTORS.MAIN_APP_CONTAINER);
-            if (!container) {
-                Logger.error('Main container not found. Observer not started.');
-                return;
-            }
-            this.mainObserverContainer = container;
+        start() {
+            // Use Sentinel to detect the main container.
+            sentinel.on(CONSTANTS.SELECTORS.MESSAGE_CONTAINER_PARENT, this.boundSetupMainObserver);
 
-            this.mainObserver = new MutationObserver((mutations) => this._handleMainMutations(mutations));
+            // Immediate check in case the element already exists.
+            const existingContainer = document.querySelector(CONSTANTS.SELECTORS.MESSAGE_CONTAINER_PARENT);
+            if (existingContainer instanceof HTMLElement) {
+                this.boundSetupMainObserver(existingContainer);
+            }
 
             // Centralized ResizeObserver for layout changes
             this.observeElement(document.body, CONSTANTS.OBSERVED_ELEMENT_TYPES.BODY);
 
-            // Call the URL change observer to set up all page-specific listeners.
-            this.startURLChangeObserver();
-            await this.startInputAreaObserver();
+            // Subscribe to navigation events to handle page changes
+            this._subscribe(EVENTS.NAVIGATION, () => this._onNavigation());
+
+            // Subscribe to RAW_MESSAGE_ADDED to trigger cache updates when new messages appear.
+            this._subscribe(EVENTS.RAW_MESSAGE_ADDED, () => this.debouncedCacheUpdate());
+
+            this.startInputAreaObserver();
+
+            // Perform initial setup.
+            // This ensures all managers recognize the initial load as a navigation event.
+            EventBus.publish(EVENTS.NAVIGATION);
         }
 
         destroy() {
+            this.debouncedCacheUpdate.cancel();
             this.stopMainObserver();
+
+            // Clean up Sentinel listener for main observer
+            sentinel.off(CONSTANTS.SELECTORS.MESSAGE_CONTAINER_PARENT, this.boundSetupMainObserver);
+
             // Clean up any lingering turn completion listeners.
             for (const [selector, callback] of this.sentinelTurnListeners.values()) {
                 sentinel.off(selector, callback);
@@ -5374,35 +5651,81 @@
 
             this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
             this.subscriptions = [];
+        }
 
-            // Restore original history methods and remove listeners if they were initialized.
-            if (this.urlObserverInitialized) {
-                // Safe unhooking for pushState
-                if (this.originalHistoryMethods.pushState) {
-                    if (history.pushState === this._historyWrappers?.pushState) {
-                        history.pushState = this.originalHistoryMethods.pushState;
-                    } else {
-                        Logger.badge('HISTORY HOOK', LOG_STYLES.YELLOW, 'warn', 'history.pushState has been wrapped by another script. Skipping restoration to prevent breaking the chain.');
+        /**
+         * @private
+         * @description Callback for Sentinel to set up the main observer when the container is detected.
+         * @param {HTMLElement} container The detected container element.
+         */
+        _setupMainObserver(container) {
+            // Prevent duplicate setup for the same container reference
+            if (!container || this.mainObserverContainer === container) return;
+
+            Logger.debug('Main app container detected. Starting observers.');
+            this.mainObserverContainer = container;
+            this.startMainObserver(container);
+        }
+
+        /**
+         * @private
+         * @description Handles the logic required when a navigation occurs or the app initializes.
+         * Resets observers and sets up page-specific listeners synchronously to avoid race conditions.
+         */
+        _onNavigation() {
+            try {
+                // Clean up all resources from the previous page.
+                clearTimeout(this.zeroMessageTimer); // Stop any pending 0-message timers
+
+                // Safely cleanup all active page observers
+                this.activePageObservers.forEach((cleanup) => {
+                    try {
+                        cleanup();
+                    } catch (e) {
+                        Logger.warn('Error during observer cleanup:', e);
                     }
-                    this.originalHistoryMethods.pushState = null;
+                });
+                this.activePageObservers = [];
+
+                this.stopMainObserver();
+
+                // Only restart the main observer if the container is still connected to the DOM.
+                // This prevents holding onto "zombie" containers during SPA transitions (especially on ChatGPT).
+                if (this.mainObserverContainer && this.mainObserverContainer.isConnected) {
+                    this.startMainObserver(this.mainObserverContainer);
+                } else {
+                    // If disconnected, clear the reference. Sentinel will re-detect the new container when it appears.
+                    this.mainObserverContainer = null;
                 }
 
-                // Safe unhooking for replaceState
-                if (this.originalHistoryMethods.replaceState) {
-                    if (history.replaceState === this._historyWrappers?.replaceState) {
-                        history.replaceState = this.originalHistoryMethods.replaceState;
-                    } else {
-                        Logger.badge('HISTORY HOOK', LOG_STYLES.YELLOW, 'warn', 'history.replaceState has been wrapped by another script. Skipping restoration to prevent breaking the chain.');
+                // Clean up any lingering turn completion listeners from the previous page.
+                for (const [selector, callback] of this.sentinelTurnListeners.values()) {
+                    sentinel.off(selector, callback);
+                }
+                this.sentinelTurnListeners.clear();
+
+                // Subscribe to CACHE_UPDATED to manage the NAVIGATION_END lifecycle.
+                const cacheEventKey = createEventKey(this, EVENTS.CACHE_UPDATED);
+                EventBus.subscribe(EVENTS.CACHE_UPDATED, this.boundHandleCacheUpdateForNavigation, cacheEventKey);
+                this.activePageObservers.push(() => EventBus.unsubscribe(EVENTS.CACHE_UPDATED, cacheEventKey));
+
+                // Trigger an initial cache update immediately. This will start the navigation end detection.
+                this.debouncedCacheUpdate();
+
+                // --- Start all page-specific observers from here ---
+                const observerStarters = PlatformAdapters.Observer.getPlatformObserverStarters();
+                for (const startObserver of observerStarters) {
+                    // Synchronously start observer and get cleanup function
+                    const cleanup = startObserver({
+                        observeElement: this.observeElement.bind(this),
+                        unobserveElement: this.unobserveElement.bind(this),
+                    });
+                    if (typeof cleanup === 'function') {
+                        this.activePageObservers.push(cleanup);
                     }
-                    this.originalHistoryMethods.replaceState = null;
                 }
-
-                if (this.boundURLChangeHandler) {
-                    window.removeEventListener('popstate', this.boundURLChangeHandler);
-                }
-                this.urlObserverInitialized = false;
-                this.boundURLChangeHandler = null;
-                this._historyWrappers = null;
+            } catch (e) {
+                Logger.badge('NAV_HANDLER_ERROR', LOG_STYLES.RED, 'error', 'Error during navigation handling:', e);
             }
         }
 
@@ -5440,179 +5763,9 @@
 
         /**
          * @private
-         * @description Sets up the monitoring for URL changes, which acts as the main entry point for initializing page-specific observers.
-         */
-        startURLChangeObserver() {
-            // The handler is now defined only once and bound to the instance for stable reference.
-            if (!this.boundURLChangeHandler) {
-                // Initialize with null to ensure the handler logic runs on the first call after any init.
-                let lastPath = null;
-                let sentinelCallbackForMainObserver = null;
-
-                // Define the "raw" handler function that contains the navigation logic.
-                const rawURLChangeHandler = async () => {
-                    const currentPath = location.pathname + location.search;
-
-                    // Gate: If the URL is the same as the one we just processed, do nothing.
-                    // This prevents re-triggers if the debounced function fires after we've already handled a subsequent navigation.
-                    if (currentPath === lastPath) {
-                        Logger.debug('URL change detected, but path is the same as last processed. Ignoring.');
-                        return;
-                    }
-
-                    try {
-                        lastPath = currentPath;
-                        EventBus.publish(EVENTS.NAVIGATION_START);
-
-                        // Check if the new URL is an excluded page
-                        // Note: This check is also performed synchronously in the history wrapper for immediate response,
-                        // but kept here to handle popstate events or race conditions.
-                        if (PlatformAdapters.General.isExcludedPage()) {
-                            Logger.badge('EXCLUDED URL', LOG_STYLES.YELLOW, 'log', 'Excluded URL detected (via handler). Suspending script functions.');
-                            EventBus.publish(EVENTS.APP_SHUTDOWN);
-                            return; // Stop further processing
-                        }
-
-                        // --- Default behavior for navigation between valid chat pages ---
-
-                        // Clean up all resources from the previous page.
-                        clearTimeout(this.zeroMessageTimer); // Stop any pending 0-message timers
-                        if (sentinelCallbackForMainObserver) {
-                            sentinel.off(CONSTANTS.SELECTORS.MESSAGE_ROOT_NODE, sentinelCallbackForMainObserver);
-                            sentinelCallbackForMainObserver = null;
-                        }
-                        this.activePageObservers.forEach((cleanup) => cleanup());
-                        this.activePageObservers = [];
-
-                        this.stopMainObserver();
-                        // Clean up any lingering turn completion listeners from the previous page.
-                        for (const [selector, callback] of this.sentinelTurnListeners.values()) {
-                            sentinel.off(selector, callback);
-                        }
-                        this.sentinelTurnListeners.clear();
-
-                        EventBus.publish(EVENTS.NAVIGATION);
-
-                        // Subscribe to CACHE_UPDATED to manage the NAVIGATION_END lifecycle.
-                        const cacheEventKey = createEventKey(this, EVENTS.CACHE_UPDATED);
-                        EventBus.subscribe(EVENTS.CACHE_UPDATED, this.boundHandleCacheUpdateForNavigation, cacheEventKey);
-                        this.activePageObservers.push(() => EventBus.unsubscribe(EVENTS.CACHE_UPDATED, cacheEventKey));
-
-                        // Trigger an initial cache update immediately. This will start the navigation end detection.
-                        this.debouncedCacheUpdate();
-
-                        // Function to set up the main observer on the message container
-                        const setupMainObserver = (messageContainer) => {
-                            this.mainObserverContainer = messageContainer;
-                            this.startMainObserver(messageContainer);
-                        };
-
-                        // Use Sentinel to wait for the *first* message to be inserted.
-                        // This is time-independent and works for both fast and slow-loading chats.
-                        sentinelCallbackForMainObserver = (firstMessageElement) => {
-                            if (firstMessageElement?.parentElement) {
-                                Logger.debug('First message node detected. Setting up main observer.');
-                                setupMainObserver(firstMessageElement.parentElement);
-                                // Self-destruct: this listener is only needed once per navigation.
-                                sentinel.off(CONSTANTS.SELECTORS.MESSAGE_ROOT_NODE, sentinelCallbackForMainObserver);
-                                sentinelCallbackForMainObserver = null; // Mark as executed
-                                // Trigger a second cache update to scan the messages inside the container.
-                                this.debouncedCacheUpdate();
-                            }
-                        };
-                        sentinel.on(CONSTANTS.SELECTORS.MESSAGE_ROOT_NODE, sentinelCallbackForMainObserver);
-                        // Add to active observers for cleanup on next navigation
-                        this.activePageObservers.push(() => {
-                            if (sentinelCallbackForMainObserver) {
-                                sentinel.off(CONSTANTS.SELECTORS.MESSAGE_ROOT_NODE, sentinelCallbackForMainObserver);
-                                sentinelCallbackForMainObserver = null;
-                            }
-                        });
-
-                        // Check if the message element already exists to handle immediate detection
-                        const existingMessage = document.querySelector(CONSTANTS.SELECTORS.MESSAGE_ROOT_NODE);
-                        if (existingMessage) {
-                            sentinelCallbackForMainObserver(existingMessage);
-                        }
-
-                        // Wait for the main app container, which is always present on chat pages.
-                        const appContainer = await waitForElement(CONSTANTS.SELECTORS.MAIN_APP_CONTAINER);
-                        if (!appContainer) {
-                            Logger.badge('OBSERVER INIT', LOG_STYLES.YELLOW, 'warn', 'Main app container not found after URL change.');
-                            return;
-                        }
-
-                        // --- Start all page-specific observers from here ---
-                        const observerStarters = PlatformAdapters.Observer.getPlatformObserverStarters();
-                        for (const startObserver of observerStarters) {
-                            const cleanup = await startObserver({
-                                observeElement: this.observeElement.bind(this),
-                                unobserveElement: this.unobserveElement.bind(this),
-                            });
-                            if (typeof cleanup === 'function') {
-                                this.activePageObservers.push(cleanup);
-                            }
-                        }
-                    } catch (e) {
-                        Logger.badge('NAV_HANDLER_ERROR', LOG_STYLES.RED, 'error', 'Error during navigation handling:', e);
-                    }
-                };
-
-                // Create the debounced version of the handler.
-                // This prevents race conditions during rapid URL changes on initialization.
-                this.boundURLChangeHandler = debounce(rawURLChangeHandler, CONSTANTS.TIMING.TIMEOUTS.POST_NAVIGATION_DOM_SETTLE);
-            }
-
-            // Hook into history changes only once per lifecycle, managed by the destroy method.
-            if (!this.urlObserverInitialized) {
-                this.urlObserverInitialized = true;
-                this._historyWrappers = {}; // Store our wrappers to identify them later
-
-                // Capture the ObserverManager instance for use in the wrapper function.
-                const observerManagerInstance = this;
-
-                for (const m of ['pushState', 'replaceState']) {
-                    const orig = history[m];
-                    this.originalHistoryMethods[m] = orig; // Store original for restoration
-
-                    // Define the wrapper function
-                    const wrapper = function (...args) {
-                        // Call original method with the correct context (`this` = `history`).
-                        const result = orig.apply(this, args);
-
-                        // Immediate check for excluded pages to stop the script ASAP.
-                        if (PlatformAdapters.General.isExcludedPage()) {
-                            Logger.badge('EXCLUDED URL', LOG_STYLES.YELLOW, 'log', 'Excluded URL detected (immediate). Suspending script functions.');
-                            EventBus.publish(EVENTS.APP_SHUTDOWN);
-                            return result;
-                        }
-
-                        // Call our handler using the captured instance.
-                        if (observerManagerInstance.boundURLChangeHandler) {
-                            observerManagerInstance.boundURLChangeHandler();
-                        }
-                        return result;
-                    };
-
-                    // Store our wrapper reference and apply it
-                    this._historyWrappers[m] = wrapper;
-                    history[m] = wrapper;
-                }
-                window.addEventListener('popstate', this.boundURLChangeHandler);
-            }
-
-            // Manually call the handler on initialization to process the initial page load/navigation.
-            if (this.boundURLChangeHandler) {
-                this.boundURLChangeHandler();
-            }
-        }
-
-        /**
-         * @private
          * @description Starts a stateful observer for the input area, attaching a ResizeObserver to trigger UI repositioning events.
-         * @returns {Promise<void>}
          */
-        async startInputAreaObserver() {
+        startInputAreaObserver() {
             let observedInputArea = null;
             // Capture the ObserverManager instance for use in the callback
             const instance = this;
@@ -5674,7 +5827,14 @@
          * @param {HTMLElement} container The main container element to observe.
          */
         startMainObserver(container) {
-            if (this.mainObserver && container) {
+            // Guard: Ensure the container is valid and actually connected to the DOM.
+            // This prevents starting observers on stale elements or null references.
+            if (!container || !container.isConnected) {
+                Logger.debug('startMainObserver skipped: Container is invalid or disconnected.');
+                return;
+            }
+
+            if (this.mainObserver) {
                 this.mainObserver.observe(container, { childList: true, subtree: false });
             }
         }
@@ -5786,7 +5946,7 @@
             // A queue to hold incoming avatar injection requests.
             this._injectionQueue = [];
             // A debounced function to process the queue in a single batch.
-            this._debouncedProcessQueue = debounce(this._processInjectionQueue.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.AVATAR_INJECTION);
+            this._debouncedProcessQueue = debounce(this._processInjectionQueue.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.AVATAR_INJECTION, true);
             this._handleAvatarDisappearance = (element) => {
                 if (element instanceof HTMLElement) {
                     this.queueForInjection(element);
@@ -5797,8 +5957,20 @@
             this.avatarTemplate = h(`div${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER}`, [h(`span${CONSTANTS.SELECTORS.SIDE_AVATAR_ICON}`), h(`div${CONSTANTS.SELECTORS.SIDE_AVATAR_NAME}`)]);
         }
 
+        /**
+         * Helper to subscribe to EventBus and track the subscription for cleanup.
+         * Appends the listener name and a unique suffix to the key to avoid conflicts.
+         * @param {string} event
+         * @param {Function} listener
+         */
         _subscribe(event, listener) {
-            const key = createEventKey(this, event);
+            const baseKey = createEventKey(this, event);
+            // Use function name for debugging aid, fallback to 'anonymous'
+            const listenerName = listener.name || 'anonymous';
+            // Generate a short random suffix to guarantee uniqueness even for anonymous functions
+            const uniqueSuffix = Math.random().toString(36).substring(2, 7);
+            const key = `${baseKey}_${listenerName}_${uniqueSuffix}`;
+
             EventBus.subscribe(event, listener, key);
             this.subscriptions.push({ event, key });
         }
@@ -5932,10 +6104,23 @@
             this.subscriptions = [];
             this.isUpdateScheduled = false;
             this.scheduleUpdate = this.scheduleUpdate.bind(this);
+            this.anchorSelectors = [];
         }
 
+        /**
+         * Helper to subscribe to EventBus and track the subscription for cleanup.
+         * Appends the listener name and a unique suffix to the key to avoid conflicts.
+         * @param {string} event
+         * @param {Function} listener
+         */
         _subscribe(event, listener) {
-            const key = createEventKey(this, event);
+            const baseKey = createEventKey(this, event);
+            // Use function name for debugging aid, fallback to 'anonymous'
+            const listenerName = listener.name || 'anonymous';
+            // Generate a short random suffix to guarantee uniqueness even for anonymous functions
+            const uniqueSuffix = Math.random().toString(36).substring(2, 7);
+            const key = `${baseKey}_${listenerName}_${uniqueSuffix}`;
+
             EventBus.subscribe(event, listener, key);
             this.subscriptions.push({ event, key });
         }
@@ -5954,12 +6139,29 @@
             this._subscribe(EVENTS.CHAT_CONTENT_WIDTH_UPDATED, this.scheduleUpdate);
             this._subscribe(EVENTS.APP_SHUTDOWN, () => this.destroy());
             this._subscribe(EVENTS.DEFERRED_LAYOUT_UPDATE, this.scheduleUpdate);
+
+            // Anchor Detection using Sentinel
+            // Automatically detect when the layout anchor element appears or is re-inserted into the DOM.
+            // This is critical for SPA transitions (like switching Gems in Gemini) where the container is replaced.
+            this.anchorSelectors = CONSTANTS.SELECTORS.STANDING_IMAGE_ANCHOR.split(',').map((s) => s.trim());
+            this.anchorSelectors.forEach((selector) => {
+                sentinel.on(selector, this.scheduleUpdate);
+            });
+
             PlatformAdapters.StandingImage.setupEventListeners(this);
         }
 
         destroy() {
             this.subscriptions.forEach(({ event, key }) => EventBus.unsubscribe(event, key));
             this.subscriptions = [];
+
+            // Cleanup Sentinel listeners
+            if (this.anchorSelectors) {
+                this.anchorSelectors.forEach((selector) => {
+                    sentinel.off(selector, this.scheduleUpdate);
+                });
+            }
+
             document.getElementById(`${APPID}-standing-image-user`)?.remove();
             document.getElementById(`${APPID}-standing-image-assistant`)?.remove();
             document.getElementById(`${APPID}-standing-image-style`)?.remove();
@@ -6060,6 +6262,7 @@
             this.navContainers = new Map();
             this.featureElementsCache = new Map();
             this.subscriptions = [];
+            this.autoCollapseProcessedIds = new Set();
 
             // Create templates for UI features to be cloned for performance.
             this.featureTemplates = {
@@ -6089,12 +6292,31 @@
                         // Only create and return the element. Insertion is handled by processElement.
                         return button;
                     },
-                    update: (element, info, isEnabled) => {
+                    update: (element, info, isEnabled, messageElement) => {
                         if (isEnabled && info) {
                             element.classList.remove(`${APPID}-hidden`);
                             info.msgWrapper.classList.add(`${APPID}-collapsible`);
                             info.bubbleElement.classList.add(`${APPID}-collapsible-content`);
                             info.positioningParent.classList.add(`${APPID}-collapsible-parent`);
+
+                            // --- Auto Collapse Logic ---
+                            const uniqueId = messageElement.dataset[`${APPID}UniqueId`];
+                            if (uniqueId && !this.autoCollapseProcessedIds.has(uniqueId)) {
+                                const config = this.configManager.get();
+                                // Check if auto-collapse is enabled AND collapsible button is enabled (isEnabled is already true here)
+                                if (config.features.auto_collapse_user_message.enabled) {
+                                    const role = PlatformAdapters.General.getMessageRole(messageElement);
+                                    if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER) {
+                                        // Check height threshold using the raw bubble element
+                                        const height = info.bubbleElement.offsetHeight;
+                                        if (height > CONSTANTS.BUTTON_VISIBILITY_THRESHOLD_PX) {
+                                            info.msgWrapper.classList.add(`${APPID}-bubble-collapsed`);
+                                        }
+                                    }
+                                }
+                                // Mark as processed to ensure it only runs once per message lifetime
+                                this.autoCollapseProcessedIds.add(uniqueId);
+                            }
                         } else {
                             element.classList.add(`${APPID}-hidden`);
                             if (info) {
@@ -6160,8 +6382,20 @@
             ];
         }
 
+        /**
+         * Helper to subscribe to EventBus and track the subscription for cleanup.
+         * Appends the listener name and a unique suffix to the key to avoid conflicts.
+         * @param {string} event
+         * @param {Function} listener
+         */
         _subscribe(event, listener) {
-            const key = createEventKey(this, event);
+            const baseKey = createEventKey(this, event);
+            // Use function name for debugging aid, fallback to 'anonymous'
+            const listenerName = listener.name || 'anonymous';
+            // Generate a short random suffix to guarantee uniqueness even for anonymous functions
+            const uniqueSuffix = Math.random().toString(36).substring(2, 7);
+            const key = `${baseKey}_${listenerName}_${uniqueSuffix}`;
+
             EventBus.subscribe(event, listener, key);
             this.subscriptions.push({ event, key });
         }
@@ -6314,12 +6548,12 @@
                         }
                     }
                     if (featureElement) {
-                        feature.update(featureElement, info, true);
+                        feature.update(featureElement, info, true, messageElement);
                     }
                 } else {
                     const featureElement = this.featureElementsCache.get(cacheKey);
                     if (featureElement) {
-                        feature.update(featureElement, info, false);
+                        feature.update(featureElement, info, false, messageElement);
                     }
                 }
             }
@@ -6344,6 +6578,7 @@
         _onNavigation() {
             this.navContainers.clear();
             this.featureElementsCache.clear();
+            this.autoCollapseProcessedIds.clear();
         }
 
         /**
@@ -7123,15 +7358,37 @@
             this._handleKeyDown = this._handleKeyDown.bind(this);
         }
 
+        /**
+         * Helper to subscribe to EventBus and track the subscription for cleanup.
+         * Appends the listener name and a unique suffix to the key to avoid conflicts.
+         * @param {string} event
+         * @param {Function} listener
+         */
         _subscribe(event, listener) {
-            const key = createEventKey(this, event);
+            const baseKey = createEventKey(this, event);
+            // Use function name for debugging aid, fallback to 'anonymous'
+            const listenerName = listener.name || 'anonymous';
+            // Generate a short random suffix to guarantee uniqueness even for anonymous functions
+            const uniqueSuffix = Math.random().toString(36).substring(2, 7);
+            const key = `${baseKey}_${listenerName}_${uniqueSuffix}`;
+
             EventBus.subscribe(event, listener, key);
             this.subscriptions.push({ event, key });
         }
 
+        /**
+         * Helper to subscribe to EventBus once and track the subscription for cleanup.
+         * Appends the listener name and a unique suffix to the key to avoid conflicts.
+         * @param {string} event
+         * @param {Function} listener
+         */
         _subscribeOnce(event, listener) {
-            const uniqueSuffix = Date.now() + Math.random().toString(36).substring(2);
-            const key = `${createEventKey(this, event)}_${uniqueSuffix}`;
+            const baseKey = createEventKey(this, event);
+            // Use function name for debugging aid, fallback to 'anonymous'
+            const listenerName = listener.name || 'anonymous';
+            // Generate a short random suffix to guarantee uniqueness even for anonymous functions
+            const uniqueSuffix = Math.random().toString(36).substring(2, 7);
+            const key = `${baseKey}_${listenerName}_${uniqueSuffix}`;
 
             const wrappedListener = (...args) => {
                 this.subscriptions = this.subscriptions.filter((sub) => sub.key !== key);
@@ -7354,8 +7611,15 @@
             const asstMessages = this.messageCacheManager.getAssistantMessages();
             const totalMessages = this.messageCacheManager.getTotalMessages();
 
-            // Toggle visibility based on message count or if it's a new chat page
-            if (totalMessages.length === 0 || isNewChatPage()) {
+            // Determine visibility
+            // Hide if it's explicitly a new chat page.
+            // If not a new chat page, only hide if there are NO messages in cache AND no message elements in the DOM.
+            // This prevents the console from disappearing during cache rebuilds or temporary state inconsistencies.
+            const isNewChat = isNewChatPage();
+            const hasCachedMessages = totalMessages.length > 0;
+            const hasDomMessages = !!document.querySelector(CONSTANTS.SELECTORS.MESSAGE_ROOT_NODE);
+
+            if (isNewChat || (!hasCachedMessages && !hasDomMessages)) {
                 this.navConsole.classList.add(`${APPID}-nav-hidden`);
             } else {
                 this.navConsole.classList.remove(`${APPID}-nav-hidden`);
@@ -8185,8 +8449,20 @@
             this.isNavigating = true;
         }
 
+        /**
+         * Helper to subscribe to EventBus and track the subscription for cleanup.
+         * Appends the listener name and a unique suffix to the key to avoid conflicts.
+         * @param {string} event
+         * @param {Function} listener
+         */
         _subscribe(event, listener) {
-            const key = createEventKey(this, event);
+            const baseKey = createEventKey(this, event);
+            // Use function name for debugging aid, fallback to 'anonymous'
+            const listenerName = listener.name || 'anonymous';
+            // Generate a short random suffix to guarantee uniqueness even for anonymous functions
+            const uniqueSuffix = Math.random().toString(36).substring(2, 7);
+            const key = `${baseKey}_${listenerName}_${uniqueSuffix}`;
+
             EventBus.subscribe(event, listener, key);
             this.subscriptions.push({ event, key });
         }
@@ -8340,8 +8616,20 @@
             this.isEnabled = false; // Add state tracking
         }
 
+        /**
+         * Helper to subscribe to EventBus and track the subscription for cleanup.
+         * Appends the listener name and a unique suffix to the key to avoid conflicts.
+         * @param {string} event
+         * @param {Function} listener
+         */
         _subscribe(event, listener) {
-            const key = createEventKey(this, event);
+            const baseKey = createEventKey(this, event);
+            // Use function name for debugging aid, fallback to 'anonymous'
+            const listenerName = listener.name || 'anonymous';
+            // Generate a short random suffix to guarantee uniqueness even for anonymous functions
+            const uniqueSuffix = Math.random().toString(36).substring(2, 7);
+            const key = `${baseKey}_${listenerName}_${uniqueSuffix}`;
+
             EventBus.subscribe(event, listener, key);
             this.subscriptions.push({ event, key });
         }
@@ -8669,8 +8957,20 @@
             this.numberSpanTemplate = h(`span.${APPID}-message-number`);
         }
 
+        /**
+         * Helper to subscribe to EventBus and track the subscription for cleanup.
+         * Appends the listener name and a unique suffix to the key to avoid conflicts.
+         * @param {string} event
+         * @param {Function} listener
+         */
         _subscribe(event, listener) {
-            const key = createEventKey(this, event);
+            const baseKey = createEventKey(this, event);
+            // Use function name for debugging aid, fallback to 'anonymous'
+            const listenerName = listener.name || 'anonymous';
+            // Generate a short random suffix to guarantee uniqueness even for anonymous functions
+            const uniqueSuffix = Math.random().toString(36).substring(2, 7);
+            const key = `${baseKey}_${listenerName}_${uniqueSuffix}`;
+
             EventBus.subscribe(event, listener, key);
             this.subscriptions.push({ event, key });
         }
@@ -8856,17 +9156,27 @@
             this._handleClick = this._handleClick.bind(this);
             this._handleOutsideClick = this._handleOutsideClick.bind(this);
             this._handleTextInput = this._handleTextInput.bind(this);
+            this._handleScroll = this._handleScroll.bind(this);
         }
 
         init() {
             this.container.addEventListener('click', this._handleClick);
             this.container.addEventListener('input', this._handleTextInput);
+            // Capture scroll events from any child element to close the picker
+            this.container.addEventListener('scroll', this._handleScroll, { capture: true, passive: true });
         }
 
         destroy() {
             this._closePicker();
             this.container.removeEventListener('click', this._handleClick);
             this.container.removeEventListener('input', this._handleTextInput);
+            this.container.removeEventListener('scroll', this._handleScroll, { capture: true });
+        }
+
+        _handleScroll() {
+            if (this.activePicker) {
+                this._closePicker();
+            }
         }
 
         _handleTextInput(e) {
@@ -9751,8 +10061,10 @@
 
             this.element = h('button', {
                 id: this.id,
+                type: 'button',
                 title: this.options.title,
                 onclick: (e) => {
+                    e.preventDefault();
                     e.stopPropagation();
                     this.callbacks.onClick?.();
                 },
@@ -9819,7 +10131,7 @@
     class SettingsPanelBase extends UIComponentBase {
         constructor(callbacks) {
             super(callbacks);
-            this.debouncedSave = debounce(this._handleDebouncedSave.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.SETTINGS_SAVE);
+            this.debouncedSave = debounce(this._handleDebouncedSave.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.SETTINGS_SAVE, true);
             this._handleDocumentClick = this._handleDocumentClick.bind(this);
             this._handleDocumentKeydown = this._handleDocumentKeydown.bind(this);
         }
@@ -9836,6 +10148,13 @@
             document.body.appendChild(this.element);
             this._setupEventListeners();
             return this.element;
+        }
+
+        destroy() {
+            this.debouncedSave.cancel();
+            document.removeEventListener('click', this._handleDocumentClick, true);
+            document.removeEventListener('keydown', this._handleDocumentKeydown, true);
+            super.destroy();
         }
 
         toggle() {
@@ -9940,8 +10259,20 @@
             this.subscriptions = [];
         }
 
+        /**
+         * Helper to subscribe to EventBus and track the subscription for cleanup.
+         * Appends the listener name and a unique suffix to the key to avoid conflicts.
+         * @param {string} event
+         * @param {Function} listener
+         */
         _subscribe(event, listener) {
-            const key = createEventKey(this, event);
+            const baseKey = createEventKey(this, event);
+            // Use function name for debugging aid, fallback to 'anonymous'
+            const listenerName = listener.name || 'anonymous';
+            // Generate a short random suffix to guarantee uniqueness even for anonymous functions
+            const uniqueSuffix = Math.random().toString(36).substring(2, 7);
+            const key = `${baseKey}_${listenerName}_${uniqueSuffix}`;
+
             EventBus.subscribe(event, listener, key);
             this.subscriptions.push({ event, key });
         }
@@ -9986,41 +10317,27 @@
         }
 
         _getPanelSchema() {
-            const widthConfig = CONSTANTS.SLIDER_CONFIGS.CHAT_WIDTH;
-
-            const commonFeatures = [
-                { id: 'features.collapsible_button.enabled', label: 'Collapsible button', title: 'Enables a button to collapse large message bubbles.' },
-                { id: 'features.sequential_nav_buttons.enabled', label: 'Sequential nav buttons', title: 'Enables buttons to jump to the previous/next message.' },
-                { id: 'features.scroll_to_top_button.enabled', label: 'Scroll to top button', title: 'Enables a button to scroll to the top of a message.' },
-                { id: 'features.fixed_nav_console.enabled', label: 'Navigation console', title: 'When enabled, a navigation console with message counters will be displayed next to the text input area.' },
+            // prettier-ignore
+            return [
+                ...this._getAppliedThemeSchema(),
+                ...this._getSubmenuButtonsSchema(),
+                ...this._getOptionsSchema(),
+                ...this._getFeaturesSchema(),
             ];
+        }
 
-            const platformFeatures = PlatformAdapters.SettingsPanel.getPlatformSpecificFeatureToggles().map((f) => ({ ...f, id: f.configKey }));
-            const allFeatures = [...platformFeatures, ...commonFeatures];
-
-            const featureGroups = allFeatures.map((feature) => {
-                const formId = `${APPID}-form-${feature.id.replace(/\./g, '-')}`;
-                return {
-                    type: 'container',
-                    className: `${APPID}-feature-group`,
-                    children: [
-                        {
-                            type: 'container-row',
-                            children: [
-                                { type: 'label', for: formId, title: feature.title, text: feature.label },
-                                { type: 'toggle', id: feature.id, configKey: feature.id },
-                            ],
-                        },
-                    ],
-                };
-            });
-
+        _getAppliedThemeSchema() {
             return [
                 {
                     type: 'fieldset',
                     legend: 'Applied Theme',
                     children: [{ type: 'button', id: `${APPID}-applied-theme-name`, text: 'Loading...', title: 'Click to edit this theme', fullWidth: true }],
                 },
+            ];
+        }
+
+        _getSubmenuButtonsSchema() {
+            return [
                 {
                     type: 'container',
                     className: `${APPID}-submenu-top-row`,
@@ -10035,6 +10352,12 @@
                         },
                     ],
                 },
+            ];
+        }
+
+        _getOptionsSchema() {
+            const widthConfig = CONSTANTS.SLIDER_CONFIGS.CHAT_WIDTH;
+            return [
                 {
                     type: 'fieldset',
                     legend: 'Options',
@@ -10076,8 +10399,38 @@
                         },
                     ],
                 },
-                { type: 'fieldset', legend: 'Features', children: featureGroups },
             ];
+        }
+
+        _getFeaturesSchema() {
+            const commonFeatures = [
+                { id: 'features.collapsible_button.enabled', label: 'Collapsible button', title: 'Enables a button to collapse large message bubbles.' },
+                { id: 'features.sequential_nav_buttons.enabled', label: 'Sequential nav buttons', title: 'Enables buttons to jump to the previous/next message.' },
+                { id: 'features.scroll_to_top_button.enabled', label: 'Scroll to top button', title: 'Enables a button to scroll to the top of a message.' },
+                { id: 'features.fixed_nav_console.enabled', label: 'Navigation console', title: 'When enabled, a navigation console with message counters will be displayed next to the text input area.' },
+            ];
+
+            const platformFeatures = PlatformAdapters.SettingsPanel.getPlatformSpecificFeatureToggles().map((f) => ({ ...f, id: f.configKey }));
+            const allFeatures = [...platformFeatures, ...commonFeatures];
+
+            const featureGroups = allFeatures.map((feature) => {
+                const formId = `${APPID}-form-${feature.id.replace(/\./g, '-')}`;
+                return {
+                    type: 'container',
+                    className: `${APPID}-feature-group`,
+                    children: [
+                        {
+                            type: 'container-row',
+                            children: [
+                                { type: 'label', for: formId, title: feature.title, text: feature.label },
+                                { type: 'toggle', id: feature.id, configKey: feature.id },
+                            ],
+                        },
+                    ],
+                };
+            });
+
+            return [{ type: 'fieldset', legend: 'Features', children: featureGroups }];
         }
 
         async _populateForm() {
@@ -10085,6 +10438,7 @@
             if (!config || !this.element) return;
 
             populateFormFromSchema(this._getPanelSchema(), this.element, config, this);
+            this._updateDependencies();
         }
 
         async _collectDataFromForm() {
@@ -10145,9 +10499,31 @@
 
             this.element.addEventListener('change', (e) => {
                 if (e.target.matches('input[type="checkbox"]')) {
+                    this._updateDependencies();
                     this.debouncedSave();
                 }
             });
+        }
+
+        _updateDependencies() {
+            if (!this.element) return;
+            // The IDs are generated based on the config key structure: features.collapsible_button.enabled -> features-collapsible_button-enabled
+            // Note: Underscores in the config key are NOT replaced with hyphens in the ID generation logic.
+            const collapseToggle = this.element.querySelector(`#${APPID}-form-features-collapsible_button-enabled`);
+            const autoCollapseToggle = this.element.querySelector(`#${APPID}-form-features-auto_collapse_user_message-enabled`);
+
+            // Note: The auto-collapse toggle might not exist in all platforms (e.g. Gemini), so we check for its existence.
+            if (collapseToggle && autoCollapseToggle) {
+                const isEnabled = collapseToggle.checked;
+                autoCollapseToggle.disabled = !isEnabled;
+
+                // Visually indicate disabled state on the parent container row
+                const containerRow = autoCollapseToggle.closest(`.${APPID}-submenu-row`);
+                if (containerRow) {
+                    containerRow.style.opacity = isEnabled ? '1' : '0.5';
+                    containerRow.style.pointerEvents = isEnabled ? 'auto' : 'none';
+                }
+            }
         }
 
         _injectStyles() {
@@ -10160,7 +10536,10 @@
                 textContent: `
                 #${APPID}-settings-panel {
                     position: fixed;
-                    width: 340px;
+                    width: min(340px, 95vw);
+                    max-height: 85vh;
+                    overflow-y: auto;
+                    overscroll-behavior: contain;
                     background: ${styles.bg};
                     color: ${styles.text_primary};
                     border-radius: 0.5rem;
@@ -10542,10 +10921,10 @@
             this.modal = null;
             this.colorPickerManager = null;
             this.dataConverter = callbacks.dataConverter;
-            this.debouncedUpdateUserPreview = debounce(() => this._updatePreviewFor('user'), CONSTANTS.TIMING.DEBOUNCE_DELAYS.THEME_PREVIEW);
-            this.debouncedUpdateAssistantPreview = debounce(() => this._updatePreviewFor('assistant'), CONSTANTS.TIMING.DEBOUNCE_DELAYS.THEME_PREVIEW);
-            this.debouncedUpdateInputAreaPreview = debounce(() => this._updatePreviewFor('inputArea'), CONSTANTS.TIMING.DEBOUNCE_DELAYS.THEME_PREVIEW);
-            this.debouncedUpdateWindowPreview = debounce(() => this._updatePreviewFor('window'), CONSTANTS.TIMING.DEBOUNCE_DELAYS.THEME_PREVIEW);
+            this.debouncedUpdateUserPreview = debounce(() => this._updatePreviewFor('user'), CONSTANTS.TIMING.DEBOUNCE_DELAYS.THEME_PREVIEW, true);
+            this.debouncedUpdateAssistantPreview = debounce(() => this._updatePreviewFor('assistant'), CONSTANTS.TIMING.DEBOUNCE_DELAYS.THEME_PREVIEW, true);
+            this.debouncedUpdateInputAreaPreview = debounce(() => this._updatePreviewFor('inputArea'), CONSTANTS.TIMING.DEBOUNCE_DELAYS.THEME_PREVIEW, true);
+            this.debouncedUpdateWindowPreview = debounce(() => this._updatePreviewFor('window'), CONSTANTS.TIMING.DEBOUNCE_DELAYS.THEME_PREVIEW, true);
 
             // Centralized state management
             this.state = {
@@ -10566,12 +10945,25 @@
                     isDefaultHidden: true,
                     children: [
                         {
-                            type: 'textarea',
-                            id: 'metadata.matchPatterns',
-                            label: 'Patterns (one per line):',
-                            tooltip: 'Enter one RegEx pattern per line to automatically apply this theme (e.g., /My Project/i).',
-                            rows: 3,
-                            validation: { type: 'regexArray' },
+                            type: 'compound-container',
+                            children: [
+                                {
+                                    type: 'textarea',
+                                    id: 'metadata.matchPatterns',
+                                    label: 'Title Patterns (one per line):',
+                                    tooltip: 'Enter one RegEx pattern per line to automatically apply this theme (e.g., /My Project/i).',
+                                    rows: 3,
+                                    validation: { type: 'regexArray' },
+                                },
+                                {
+                                    type: 'textarea',
+                                    id: 'metadata.urlPatterns',
+                                    label: 'URL Patterns (one per line):',
+                                    tooltip: 'Enter one RegEx pattern per line to match against the URL path (pathname).\nExample: /\\/c\\/[a-z0-9-]+$/i',
+                                    rows: 3,
+                                    validation: { type: 'regexArray' },
+                                },
+                            ],
                         },
                     ],
                 },
@@ -10714,7 +11106,7 @@
 
             this.modal = new CustomModal({
                 title: `${APPNAME} - Theme settings`,
-                width: '880px',
+                width: 'min(880px, 95vw)',
                 cssPrefix: `${APPID}-theme-modal-shell`,
                 closeOnBackdropClick: false,
                 styles: this.callbacks.siteStyles, // Pass styles to the modal
@@ -10765,6 +11157,14 @@
                 const scrollableArea = this.modal.element.querySelector(`.${APPID}-theme-scrollable-area`);
                 if (scrollableArea) scrollableArea.scrollTop = 0;
             });
+        }
+
+        destroy() {
+            this.debouncedUpdateUserPreview.cancel();
+            this.debouncedUpdateAssistantPreview.cancel();
+            this.debouncedUpdateInputAreaPreview.cancel();
+            this.debouncedUpdateWindowPreview.cancel();
+            super.destroy();
         }
 
         /**
@@ -11320,7 +11720,11 @@
                 if (index !== -1) {
                     // Preserve existing metadata not edited in this form (like name and id)
                     const existingMetadata = newConfig.themeSets[index].metadata;
-                    themeData.metadata = { ...existingMetadata, matchPatterns: themeData.metadata.matchPatterns };
+                    themeData.metadata = {
+                        ...existingMetadata,
+                        matchPatterns: themeData.metadata.matchPatterns,
+                        urlPatterns: themeData.metadata.urlPatterns,
+                    };
                     newConfig.themeSets[index] = themeData;
                 }
             }
@@ -11515,6 +11919,11 @@
                   gap: 8px;
                   align-items: center;
                 }
+                @media (max-width: 800px) {
+                    .${APPID}-theme-grid {
+                        grid-template-columns: 1fr !important;
+                    }
+                }
                 .${APPID}-header-row > label {
                   grid-column: 1;
                   text-align: right;
@@ -11571,6 +11980,10 @@
                   margin-top: 2px;
                   white-space: pre-wrap;
                 }
+                .${APPID}-theme-modal-shell-box {
+                  max-height: 90vh;
+                  overflow: hidden;
+                }
                 .${APPID}-theme-modal-shell-box .is-invalid {
                   border-color: ${styles.error_text} !important;
                 }
@@ -11609,8 +12022,8 @@
                   display: flex;
                   flex-direction: column;
                   gap: 16px;
-                  height: 70vh;
-                  min-height: 400px;
+                  min-height: 0;
+                  flex: 1;
                   overflow: hidden;
                 }
                 .${APPID}-theme-separator {
@@ -11925,8 +12338,20 @@
             });
         }
 
+        /**
+         * Helper to subscribe to EventBus and track the subscription for cleanup.
+         * Appends the listener name and a unique suffix to the key to avoid conflicts.
+         * @param {string} event
+         * @param {Function} listener
+         */
         _subscribe(event, listener) {
-            const key = createEventKey(this, event);
+            const baseKey = createEventKey(this, event);
+            // Use function name for debugging aid, fallback to 'anonymous'
+            const listenerName = listener.name || 'anonymous';
+            // Generate a short random suffix to guarantee uniqueness even for anonymous functions
+            const uniqueSuffix = Math.random().toString(36).substring(2, 7);
+            const key = `${baseKey}_${listenerName}_${uniqueSuffix}`;
+
             EventBus.subscribe(event, listener, key);
             this.subscriptions.push({ event, key });
         }
@@ -12470,8 +12895,20 @@
             this.subscriptions = [];
         }
 
+        /**
+         * Helper to subscribe to EventBus and track the subscription for cleanup.
+         * Appends the listener name and a unique suffix to the key to avoid conflicts.
+         * @param {string} event
+         * @param {Function} listener
+         */
         _subscribe(event, listener) {
-            const key = createEventKey(this, event);
+            const baseKey = createEventKey(this, event);
+            // Use function name for debugging aid, fallback to 'anonymous'
+            const listenerName = listener.name || 'anonymous';
+            // Generate a short random suffix to guarantee uniqueness even for anonymous functions
+            const uniqueSuffix = Math.random().toString(36).substring(2, 7);
+            const key = `${baseKey}_${listenerName}_${uniqueSuffix}`;
+
             EventBus.subscribe(event, listener, key);
             this.subscriptions.push({ event, key });
         }
@@ -12638,6 +13075,7 @@
             this.syncManager = null;
             this.autoScrollManager = null;
             this.toastManager = null;
+            this.navigationMonitor = new NavigationMonitor();
             this.isConfigSizeExceeded = false;
             this.configWarningMessage = '';
             this.isNavigating = true;
@@ -12652,8 +13090,20 @@
             this.isDestroying = false;
         }
 
+        /**
+         * Helper to subscribe to EventBus and track the subscription for cleanup.
+         * Appends the listener name and a unique suffix to the key to avoid conflicts.
+         * @param {string} event
+         * @param {Function} listener
+         */
         _subscribe(event, listener) {
-            const key = createEventKey(this, event);
+            const baseKey = createEventKey(this, event);
+            // Use function name for debugging aid, fallback to 'anonymous'
+            const listenerName = listener.name || 'anonymous';
+            // Generate a short random suffix to guarantee uniqueness even for anonymous functions
+            const uniqueSuffix = Math.random().toString(36).substring(2, 7);
+            const key = `${baseKey}_${listenerName}_${uniqueSuffix}`;
+
             EventBus.subscribe(event, listener, key);
             this.subscriptions.push({ event, key });
         }
@@ -12796,28 +13246,6 @@
         }
 
         /**
-         * Sets up navigation hooks to detect URL changes immediately.
-         * This helps prevents race conditions by setting the navigating flag early.
-         */
-        setupNavigationHooks() {
-            let lastHref = location.href;
-            const handler = () => {
-                if (location.href !== lastHref) {
-                    this.isNavigating = true;
-                    lastHref = location.href;
-                }
-            };
-            for (const m of ['pushState', 'replaceState']) {
-                const orig = history[m];
-                history[m] = (...args) => {
-                    orig.apply(history, args);
-                    handler();
-                };
-            }
-            window.addEventListener('popstate', handler);
-        }
-
-        /**
          * Handles raw message elements detected by Sentinel.
          * @param {HTMLElement} contentElement
          */
@@ -12833,7 +13261,7 @@
          */
         launch() {
             // 1. Setup Hooks
-            this.setupNavigationHooks();
+            this.navigationMonitor.init();
 
             // 2. Wait for Anchor to Initialize (We use the global sentinel instance here)
             const initApp = () => {
@@ -13039,7 +13467,7 @@
                 // Deep copy to avoid mutating the original theme object in the array
                 const theme = deepClone(originalTheme);
                 if (!theme.metadata) {
-                    theme.metadata = { id: '', name: 'Unnamed Theme', matchPatterns: [] };
+                    theme.metadata = { id: '', name: 'Unnamed Theme', matchPatterns: [], urlPatterns: [] };
                 }
                 const id = theme.metadata.id;
                 if (typeof id !== 'string' || id.trim() === '' || seenIds.has(id)) {
