@@ -4,6 +4,16 @@
 > This changelog applies to both **ChatGPT UX Customizer (GPTUX)** and **Gemini UX Customizer (GGGUX)**.
 > Most changes are shared between the two scripts. If a change applies only to one, it will be explicitly marked with a `[GPTUX]` or `[GGGUX]` prefix.
 
+## [2.2.1] - 2025-12-06
+- **New Features**
+  - Added a real-time **Configuration Size Indicator** to the JSON settings modal. It monitors config size against recommended (5MB) and hard (10MB) limits, using text colors (yellow/red) to warn of potential storage issues.
+  - Added visual feedback (loading cursor, status messages) and robust error handling during file reading.
+- **Fixes**
+  - Fixed an issue where the text editor would not auto-focus or reset scroll position when opening the JSON settings modal.
+- **Style Updates**
+  - [GPTUX] Added support for custom background images on ChatGPT Project pages by making the header transparent.
+  - [GPTUX] Removed default borders and shadows from the chat header to ensure a seamless appearance when using custom background images.
+
 ## [2.2.0] - 2025-12-05
 - **New Features**
   - **URL Pattern Matching:** You can now apply themes based on the URL path in addition to the page title. URL matches take priority for faster switching.
