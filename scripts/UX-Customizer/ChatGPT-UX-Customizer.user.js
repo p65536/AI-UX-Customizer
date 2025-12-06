@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      2.2.0
+// @version      2.2.1
 // @license      MIT
 // @description  Fully customize the chat UI. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://chatgpt.com/favicon.ico
@@ -251,7 +251,8 @@
     // ---- Default Settings & Theme Configuration ----
     const CONSTANTS = {
         CONFIG_KEY: `${APPID}_config`,
-        CONFIG_SIZE_LIMIT_BYTES: 10485760, // 10MB
+        CONFIG_SIZE_RECOMMENDED_LIMIT_BYTES: 5 * 1024 * 1024, // 5MB
+        CONFIG_SIZE_LIMIT_BYTES: 10 * 1024 * 1024, // 10MB
         CACHE_SIZE_LIMIT_BYTES: 10 * 1024 * 1024, // 10MB
         ICON_SIZE: 64,
         ICON_SIZE_VALUES: [64, 96, 128, 160, 192],
@@ -807,6 +808,8 @@
             textarea_border: 'var(--border-default)',
             msg_error_text: 'var(--text-danger)',
             msg_success_text: 'var(--text-accent)',
+            size_warning_text: '#FFD54F',
+            size_danger_text: 'var(--text-danger)',
         },
         THEME_MODAL: {
             bg: 'var(--main-surface-primary)',
@@ -1379,6 +1382,9 @@
                         position: absolute !important;
                         top: 0;
                         width: 100%;
+                        /* (2025/12/06) Hide borders and shadows for seamless background integration */
+                        border: none !important;
+                        box-shadow: none !important;
                     }
                     ${CONSTANTS.SELECTORS.BUTTON_SHARE_CHAT} {
                         background: transparent;
@@ -1403,6 +1409,14 @@
                     /* (2025/07/01) ChatGPT UI change fix: Remove bottom gradient that conflicts with theme backgrounds. */
                     .content-fade::after {
                         background: none !important;
+                    }
+                    /* (2025/12/06) Project page top fade fix: Remove top gradient and mask only for project headers. */
+                    main .content-fade-top:has([name="project-title"]),
+                    main .content-fade-top:has([name="project-title"])::before,
+                    main .content-fade-top:has([name="project-title"])::after {
+                        background: none !important;
+                        mask-image: none !important;
+                        -webkit-mask-image: none !important;
                     }
                     /* This rule is now conditional on a body class and scoped to the scroll container to avoid affecting other elements. */
                     body.${APPID}-max-width-active ${CONSTANTS.SELECTORS.SCROLL_CONTAINER} ${CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH} {
@@ -10682,6 +10696,7 @@
         constructor(callbacks) {
             this.callbacks = callbacks;
             this.modal = null; // To hold the CustomModal instance
+            this.debouncedUpdateSize = debounce((text) => this._updateSizeDisplay(text), 300, true);
         }
 
         async open(anchorElement) {
@@ -10701,6 +10716,7 @@
                     { text: 'Save', id: `${p}-json-modal-save-btn`, className: '-btn-primary', onClick: () => this._handleSave() },
                 ],
                 onDestroy: () => {
+                    this.debouncedUpdateSize.cancel();
                     this.callbacks.onModalOpenStateChange?.(false);
                     this.modal = null;
                 },
@@ -10715,15 +10731,23 @@
             const config = await this.callbacks.getCurrentConfig();
             const textarea = contentContainer.querySelector('textarea');
             if (textarea) {
-                textarea.value = JSON.stringify(config, null, 2);
-                // Set focus and move cursor to the start of the textarea.
-                textarea.focus();
-                textarea.scrollTop = 0;
-                textarea.selectionStart = 0;
-                textarea.selectionEnd = 0;
+                const initialText = JSON.stringify(config, null, 2);
+                textarea.value = initialText;
+                // Immediate update for initial state
+                this._updateSizeDisplay(initialText);
             }
 
             this.modal.show(anchorElement);
+
+            // Defer focus and scroll adjustment until the modal is visible
+            if (textarea) {
+                requestAnimationFrame(() => {
+                    textarea.focus();
+                    textarea.scrollTop = 0;
+                    textarea.selectionStart = 0;
+                    textarea.selectionEnd = 0;
+                });
+            }
         }
 
         close() {
@@ -10749,15 +10773,44 @@
                     background: styles.textarea_bg,
                     color: styles.textarea_text,
                 },
+                oninput: (e) => this.debouncedUpdateSize(e.target.value),
             });
+
             const msgDiv = h(`div.${APPID}-modal-msg`, {
                 style: {
                     color: styles.msg_error_text,
-                    marginTop: '4px',
                     fontSize: '0.9em',
+                    flex: '1',
+                    marginRight: '8px',
+                    minHeight: '1.2em', // Reserve space
                 },
             });
-            parent.append(textarea, msgDiv);
+
+            const sizeInfoDiv = h(`div.${APPID}-modal-size-info`, {
+                textContent: 'Checking size...',
+                style: {
+                    color: styles.textarea_text,
+                    fontSize: '0.85em',
+                    whiteSpace: 'nowrap',
+                    textAlign: 'right',
+                    marginTop: '2px', // Slight adjustment for alignment
+                },
+            });
+
+            const statusContainer = h(
+                `div.${APPID}-json-status-container`,
+                {
+                    style: {
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        marginTop: '4px',
+                    },
+                },
+                [msgDiv, sizeInfoDiv]
+            );
+
+            parent.append(textarea, statusContainer);
         }
 
         async _handleSave() {
@@ -10832,24 +10885,58 @@
                     if (!(target instanceof HTMLInputElement)) return;
 
                     const file = target.files?.[0];
-                    if (file) {
-                        const reader = new FileReader();
-                        reader.onload = (e) => {
+                    // Reset input value to allow re-importing the same file if needed
+                    target.value = '';
+
+                    if (!file) return;
+
+                    const reader = new FileReader();
+
+                    // Step 1: Update UI immediately upon load completion
+                    reader.onload = (e) => {
+                        msgDiv.textContent = 'Processing...'; // Use standard text color (Case B)
+                        msgDiv.style.color = '';
+                        document.body.style.cursor = 'wait';
+
+                        // Step 2: Defer heavy processing to allow UI to render
+                        requestAnimationFrame(() => {
+                            // Guard: Check if modal is still open before proceeding
+                            if (!this.modal || !textarea.isConnected) {
+                                document.body.style.cursor = '';
+                                return;
+                            }
+
                             try {
                                 const readerTarget = e.target;
                                 if (readerTarget && typeof readerTarget.result === 'string') {
+                                    // Heavy operations
                                     const importedConfig = JSON.parse(readerTarget.result);
-                                    textarea.value = JSON.stringify(importedConfig, null, 2);
+                                    const jsonString = JSON.stringify(importedConfig, null, 2);
+
+                                    textarea.value = jsonString;
+                                    this._updateSizeDisplay(jsonString);
+
                                     msgDiv.textContent = 'Import successful. Click "Save" to apply.';
                                     msgDiv.style.color = this.callbacks.siteStyles.msg_success_text;
                                 }
                             } catch (err) {
                                 msgDiv.textContent = `Import failed: ${err.message}`;
                                 msgDiv.style.color = this.callbacks.siteStyles.msg_error_text;
+                            } finally {
+                                document.body.style.cursor = '';
                             }
-                        };
-                        reader.readAsText(file);
-                    }
+                        });
+                    };
+
+                    reader.onerror = () => {
+                        msgDiv.textContent = 'Failed to read file.';
+                        msgDiv.style.color = this.callbacks.siteStyles.msg_error_text;
+                    };
+
+                    // Initial status
+                    msgDiv.textContent = 'Reading file...';
+                    msgDiv.style.color = '';
+                    reader.readAsText(file);
                 },
             });
 
@@ -10885,6 +10972,9 @@
                     .-btn-primary:hover {
                         background-color: #1557b0 !important;
                     }
+                    .${APPID}-json-status-container {
+                        width: 100%;
+                    }
                 `,
             });
             document.head.appendChild(style);
@@ -10892,6 +10982,58 @@
 
         getContextForReopen() {
             return { type: 'json' };
+        }
+
+        _updateSizeDisplay(text) {
+            const container = this.modal?.getContentContainer();
+            if (!container) return;
+            const sizeInfoDiv = container.querySelector(`.${APPID}-modal-size-info`);
+            if (!sizeInfoDiv) return;
+
+            let sizeInBytes = 0;
+            let isRaw = false;
+
+            try {
+                // Try to parse and minify to get the actual storage size
+                const obj = JSON.parse(text);
+                const minified = JSON.stringify(obj);
+                sizeInBytes = new Blob([minified]).size;
+            } catch (e) {
+                // Fallback to raw text size if parsing fails
+                sizeInBytes = new Blob([text]).size;
+                isRaw = true;
+            }
+
+            const sizeStr = this._formatBytes(sizeInBytes);
+            const recommendedStr = this._formatBytes(CONSTANTS.CONFIG_SIZE_RECOMMENDED_LIMIT_BYTES);
+            const limitStr = this._formatBytes(CONSTANTS.CONFIG_SIZE_LIMIT_BYTES);
+
+            // Display format: 1.23 MB / 5.00 MB (Max: 10.00 MB)
+            sizeInfoDiv.textContent = `${isRaw ? '(Raw) ' : ''}${sizeStr} / ${recommendedStr} (Max: ${limitStr})`;
+
+            // Tooltip with detailed limits explanation
+            sizeInfoDiv.title = `Recommended Limit: ${recommendedStr} (Warns if exceeded)\nHard Limit: ${limitStr} (Cannot save if exceeded)`;
+
+            // Visual warning based on size limits
+            if (sizeInBytes >= CONSTANTS.CONFIG_SIZE_LIMIT_BYTES) {
+                sizeInfoDiv.style.color = this.callbacks.siteStyles.size_danger_text;
+                sizeInfoDiv.style.fontWeight = 'bold';
+            } else if (sizeInBytes >= CONSTANTS.CONFIG_SIZE_RECOMMENDED_LIMIT_BYTES) {
+                sizeInfoDiv.style.color = this.callbacks.siteStyles.size_warning_text;
+                sizeInfoDiv.style.fontWeight = 'bold';
+            } else {
+                // Restore default color
+                sizeInfoDiv.style.color = '';
+                sizeInfoDiv.style.fontWeight = 'normal';
+            }
+        }
+
+        _formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
     }
 
