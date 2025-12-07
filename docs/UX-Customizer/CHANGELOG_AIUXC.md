@@ -4,6 +4,15 @@
 > This changelog applies to both **ChatGPT UX Customizer (GPTUX)** and **Gemini UX Customizer (GGGUX)**.
 > Most changes are shared between the two scripts. If a change applies only to one, it will be explicitly marked with a `[GPTUX]` or `[GGGUX]` prefix.
 
+## [2.2.2] - 2025-12-07
+- **Style Updates**
+  - **[GGGUX]** Added support for custom background images on the Gem Manager page by making the container transparent.
+- **Fixes**
+  -  Fixed a potential crash that could occur when closing the jump list immediately after hovering over an item.
+- **Core Changes**
+  - Refactored internal UI components and centralized shared styles to improve consistency and maintainability.
+  - Optimized the initialization process and code structure.
+
 ## [2.2.1] - 2025-12-06
 - **New Features**
   - Added a real-time **Configuration Size Indicator** to the JSON settings modal. It monitors config size against recommended (5MB) and hard (10MB) limits, using text colors (yellow/red) to warn of potential storage issues.
