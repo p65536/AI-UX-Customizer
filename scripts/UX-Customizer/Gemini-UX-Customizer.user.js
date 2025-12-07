@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      2.2.1
+// @version      2.2.2
 // @license      MIT
 // @description  Fully customize the chat UI. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=gemini.google.com
@@ -437,6 +437,9 @@
             // --- List Item Selectors for Observation ---
             CHAT_HISTORY_ITEM: '[data-test-id="conversation"]',
             GEM_LIST_ITEM: 'bot-list-item',
+
+            // --- Gem Manager ---
+            GEM_MANAGER_CONTAINER: 'all-bots',
         },
     };
 
@@ -693,7 +696,30 @@
     };
 
     // ---- Site-specific Style Variables ----
+    const UI_PALETTE = {
+        bg: 'var(--gem-sys-color--surface-container-highest)',
+        input_bg: 'var(--gem-sys-color--surface-container-low)',
+        text_primary: 'var(--gem-sys-color--on-surface)',
+        text_secondary: 'var(--gem-sys-color--on-surface-variant)',
+        border: 'var(--gem-sys-color--outline)',
+        btn_bg: 'var(--gem-sys-color--surface-container-high)',
+        btn_hover_bg: 'var(--gem-sys-color--surface-container-higher)',
+        btn_text: 'var(--gem-sys-color--on-surface-variant)',
+        btn_border: 'var(--gem-sys-color--outline)',
+        toggle_bg_off: 'var(--gem-sys-color--surface-container)',
+        toggle_bg_on: 'var(--gem-sys-color--primary)',
+        toggle_knob: 'var(--gem-sys-color--on-primary-container)',
+        danger_text: 'var(--gem-sys-color--error)',
+        accent_text: 'var(--gem-sys-color--primary)',
+        // Shared properties
+        slider_display_text: 'var(--gem-sys-color--on-surface)',
+        label_text: 'var(--gem-sys-color--on-surface-variant)',
+        error_text: 'var(--gem-sys-color--error)',
+        dnd_indicator_color: 'var(--gem-sys-color--primary)',
+    };
+
     const SITE_STYLES = {
+        PALETTE: UI_PALETTE,
         ICONS: {
             // For ThemeModal
             folder: {
@@ -787,56 +813,56 @@
             },
         },
         SETTINGS_PANEL: {
-            bg: 'var(--gem-sys-color--surface-container-highest)',
-            text_primary: 'var(--gem-sys-color--on-surface)',
-            text_secondary: 'var(--gem-sys-color--on-surface-variant)',
-            border_medium: 'var(--gem-sys-color--outline)',
-            border_default: 'var(--gem-sys-color--outline)',
-            border_light: 'var(--gem-sys-color--outline)',
-            toggle_bg_off: 'var(--gem-sys-color--surface-container)',
-            toggle_bg_on: 'var(--gem-sys-color--primary)',
-            toggle_knob: 'var(--gem-sys-color--on-primary-container)',
+            bg: UI_PALETTE.bg,
+            text_primary: UI_PALETTE.text_primary,
+            text_secondary: UI_PALETTE.text_secondary,
+            border_medium: UI_PALETTE.border,
+            border_default: UI_PALETTE.border,
+            border_light: UI_PALETTE.border,
+            toggle_bg_off: UI_PALETTE.toggle_bg_off,
+            toggle_bg_on: UI_PALETTE.toggle_bg_on,
+            toggle_knob: UI_PALETTE.toggle_knob,
         },
         JSON_MODAL: {
-            bg: 'var(--gem-sys-color--surface-container-highest)',
-            text: 'var(--gem-sys-color--on-surface)',
-            border: 'var(--gem-sys-color--outline)',
-            btn_bg: 'var(--gem-sys-color--surface-container-high)',
-            btn_hover_bg: 'var(--gem-sys-color--surface-container-higher)',
-            btn_text: 'var(--gem-sys-color--on-surface-variant)',
-            btn_border: 'var(--gem-sys-color--outline)',
-            textarea_bg: 'var(--gem-sys-color--surface-container-low)',
-            textarea_text: 'var(--gem-sys-color--on-surface)',
-            textarea_border: 'var(--gem-sys-color--outline)',
-            msg_error_text: 'var(--gem-sys-color--error)',
-            msg_success_text: 'var(--gem-sys-color--primary)',
+            bg: UI_PALETTE.bg,
+            text: UI_PALETTE.text_primary,
+            border: UI_PALETTE.border,
+            btn_bg: UI_PALETTE.btn_bg,
+            btn_hover_bg: UI_PALETTE.btn_hover_bg,
+            btn_text: UI_PALETTE.btn_text,
+            btn_border: UI_PALETTE.btn_border,
+            textarea_bg: UI_PALETTE.input_bg,
+            textarea_text: UI_PALETTE.text_primary,
+            textarea_border: UI_PALETTE.border,
+            msg_error_text: UI_PALETTE.danger_text,
+            msg_success_text: UI_PALETTE.accent_text,
             size_warning_text: '#FFD54F',
-            size_danger_text: 'var(--gem-sys-color--error)',
+            size_danger_text: UI_PALETTE.danger_text,
         },
         THEME_MODAL: {
-            bg: 'var(--gem-sys-color--surface-container-highest)',
-            text: 'var(--gem-sys-color--on-surface)',
-            border: 'var(--gem-sys-color--outline)',
-            btn_bg: 'var(--gem-sys-color--surface-container-high)',
-            btn_hover_bg: 'var(--gem-sys-color--surface-container-higher)',
-            btn_text: 'var(--gem-sys-color--on-surface-variant)',
-            btn_border: 'var(--gem-sys-color--outline)',
-            error_text: 'var(--gem-sys-color--error)',
-            delete_confirm_label_text: 'var(--gem-sys-color--error)',
+            bg: UI_PALETTE.bg,
+            text: UI_PALETTE.text_primary,
+            border: UI_PALETTE.border,
+            btn_bg: UI_PALETTE.btn_bg,
+            btn_hover_bg: UI_PALETTE.btn_hover_bg,
+            btn_text: UI_PALETTE.btn_text,
+            btn_border: UI_PALETTE.btn_border,
+            error_text: UI_PALETTE.danger_text,
+            delete_confirm_label_text: UI_PALETTE.danger_text,
             delete_confirm_btn_text: 'var(--gem-sys-color--on-error-container)',
             delete_confirm_btn_bg: 'var(--gem-sys-color--error-container)',
             delete_confirm_btn_hover_text: 'var(--gem-sys-color--on-error-container)',
             delete_confirm_btn_hover_bg: 'var(--gem-sys-color--error-container)',
-            fieldset_border: 'var(--gem-sys-color--outline)',
-            legend_text: 'var(--gem-sys-color--on-surface-variant)',
-            label_text: 'var(--gem-sys-color--on-surface-variant)',
-            input_bg: 'var(--gem-sys-color--surface-container-low)',
-            input_text: 'var(--gem-sys-color--on-surface)',
-            input_border: 'var(--gem-sys-color--outline)',
-            slider_display_text: 'var(--gem-sys-color--on-surface)',
-            popup_bg: 'var(--gem-sys-color--surface-container-highest)',
-            popup_border: 'var(--gem-sys-color--outline)',
-            dnd_indicator_color: 'var(--gem-sys-color--primary)',
+            fieldset_border: UI_PALETTE.border,
+            legend_text: UI_PALETTE.text_secondary,
+            label_text: UI_PALETTE.text_secondary,
+            input_bg: UI_PALETTE.input_bg,
+            input_text: UI_PALETTE.text_primary,
+            input_border: UI_PALETTE.border,
+            slider_display_text: UI_PALETTE.text_primary,
+            popup_bg: UI_PALETTE.bg,
+            popup_border: UI_PALETTE.border,
+            dnd_indicator_color: UI_PALETTE.dnd_indicator_color,
             folderIconDef: {
                 tag: 'svg',
                 props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 -960 960 960', width: '24px', fill: 'currentColor' },
@@ -857,24 +883,24 @@
             bg: 'var(--gem-sys-color--surface-container)',
             border: 'var(--gem-sys-color--outline)',
             separator_bg: 'var(--gem-sys-color--outline)',
-            label_text: 'var(--gem-sys-color--on-surface-variant)',
+            label_text: UI_PALETTE.text_secondary,
             counter_bg: 'var(--gem-sys-color--surface-container-high)',
             counter_text: 'var(--gem-sys-color--on-surface-variant)',
             counter_border: 'var(--gem-sys-color--primary)',
-            btn_bg: 'var(--gem-sys-color--surface-container-high)',
-            btn_hover_bg: 'var(--gem-sys-color--surface-container-higher)',
-            btn_text: 'var(--gem-sys-color--on-surface-variant)',
-            btn_border: 'var(--gem-sys-color--outline)',
-            btn_accent_text: 'var(--gem-sys-color--primary)',
-            btn_danger_text: 'var(--gem-sys-color--error)',
-            highlight_outline: 'var(--gem-sys-color--primary)',
+            btn_bg: UI_PALETTE.btn_bg,
+            btn_hover_bg: UI_PALETTE.btn_hover_bg,
+            btn_text: UI_PALETTE.btn_text,
+            btn_border: UI_PALETTE.btn_border,
+            btn_accent_text: UI_PALETTE.accent_text,
+            btn_danger_text: UI_PALETTE.danger_text,
+            highlight_outline: UI_PALETTE.accent_text,
             highlight_border_radius: '12px',
         },
         JUMP_LIST: {
             list_bg: 'var(--gem-sys-color--surface-container)',
             list_border: 'var(--gem-sys-color--outline)',
             hover_outline: 'var(--gem-sys-color--outline)',
-            current_outline: 'var(--gem-sys-color--primary)',
+            current_outline: UI_PALETTE.accent_text,
         },
         CSS_IMPORTANT_FLAG: ' !important',
         COLLAPSIBLE_CSS: `
@@ -998,9 +1024,9 @@
                 border-radius: 5px;
                 box-sizing: border-box;
                 cursor: pointer;
-                background-color: var(--gem-sys-color--surface-container-high);
-                color: var(--gem-sys-color--on-surface-variant);
-                border: 1px solid var(--gem-sys-color--outline);
+                background: ${UI_PALETTE.btn_bg};
+                color: ${UI_PALETTE.text_secondary};
+                border: 1px solid ${UI_PALETTE.border};
                 display: flex;
                 align-items: center;
                 justify-content: center;
@@ -1008,8 +1034,8 @@
                 margin: 0 auto; /* Center the buttons within the group */
             }
             .${APPID}-bubble-nav-btn:hover {
-                background-color: var(--gem-sys-color--surface-container-higher);
-                color: var(--gem-sys-color--on-surface);
+                background-color: ${UI_PALETTE.btn_hover_bg};
+                color: ${UI_PALETTE.text_primary};
             }
             .${APPID}-bubble-nav-btn:disabled {
                 opacity: 0.4;
@@ -1337,7 +1363,9 @@
                     /* Make content areas transparent to show the main background */
                     ${CONSTANTS.SELECTORS.CHAT_WINDOW},
                     ${CONSTANTS.SELECTORS.INPUT_CONTAINER},
-                    ${CONSTANTS.SELECTORS.INPUT_AREA_BG_TARGET} {
+                    ${CONSTANTS.SELECTORS.INPUT_AREA_BG_TARGET},
+                    ${CONSTANTS.SELECTORS.GEM_MANAGER_CONTAINER},
+                    ${CONSTANTS.SELECTORS.GEM_MANAGER_CONTAINER} > .container {
                         background: none !important;
                     }
 
@@ -6424,636 +6452,6 @@
     // Description: Manages the fixed navigation UI docked to the input area.
     // =================================================================================
 
-    class JumpListComponent {
-        constructor(role, messages, highlightedMessage, callbacks, siteStyles, initialFilterValue = '') {
-            this.role = role;
-            this.messages = messages;
-            this.callbacks = callbacks;
-            this.siteStyles = siteStyles;
-
-            // Pre-cache the display text for each message to avoid repeated DOM queries during filtering.
-            this.searchableMessages = this.messages.map((msg) => ({
-                element: msg,
-                text: PlatformAdapters.General.getJumpListDisplayText(msg),
-            }));
-
-            // --- Component state ---
-            this.state = {
-                highlightedMessage: highlightedMessage,
-                initialFilterValue: initialFilterValue,
-                filteredMessages: [],
-                scrollTop: 0,
-                focusedIndex: -1,
-                isRendering: false,
-            };
-
-            // --- Virtual scroll properties ---
-            this.itemHeight = 34; // The fixed height of each list item in pixels.
-            this.element = null; // The main component container
-            this.scrollBox = null; // The dedicated scrolling element
-            this.listElement = null; // The inner element that provides the virtual height
-            this.previewTooltip = null;
-            this.hideTimeout = null;
-            this.hoveredItem = null;
-
-            // Bind event handlers
-            this._handleClick = this._handleClick.bind(this);
-            this._handleFilter = this._handleFilter.bind(this);
-            this._handleKeyDown = this._handleKeyDown.bind(this);
-            this._handleFilterKeyDown = this._handleFilterKeyDown.bind(this);
-            this._handleScroll = this._handleScroll.bind(this);
-        }
-
-        render() {
-            // 1. The inner list (ul) acts as a "sizer" or "spacer".
-            // It has no overflow and its height is set to the total virtual height of all items.
-            this.listElement = h(`ul#${APPID}-jump-list`, {
-                style: { position: 'relative', overflow: 'hidden', height: '0px' },
-            });
-
-            // 2. The scrollBox (div) is the "viewport".
-            // It is the element that actually scrolls and has a fixed visible height.
-            this.scrollBox = h(`div.${APPID}-jump-list-scrollbox`, {
-                onkeydown: this._handleKeyDown,
-                tabindex: -1,
-                style: {
-                    overflowY: 'auto',
-                    position: 'relative',
-                    flex: '1 1 auto', // Allows this box to fill the available space in the flex container.
-                },
-            });
-            this.scrollBox.appendChild(this.listElement);
-            this.scrollBox.addEventListener('scroll', this._handleScroll, { passive: true });
-
-            // 3. The filter input container.
-            const filterInput = h('input', {
-                type: 'text',
-                placeholder: 'Filter with text or /pattern/flags',
-                title: 'Filter by plain text or a regular expression.\nEnter text for a simple search.\nUse /regex/flags format for advanced filtering.',
-                className: `${APPID}-jump-list-filter`,
-                value: this.state.initialFilterValue,
-                oninput: this._handleFilter,
-                onkeydown: this._handleFilterKeyDown,
-                onclick: (e) => e.stopPropagation(),
-            });
-            const modeLabel = h('span', { className: `${APPID}-jump-list-mode-label` });
-            const inputContainer = h(`div.${APPID}-jump-list-filter-container`, [filterInput, modeLabel]);
-
-            // 4. The main element (div) handles the overall layout using flexbox.
-            this.element = h(`div#${APPID}-jump-list-container`, {
-                onclick: this._handleClick,
-                style: {
-                    display: 'flex',
-                    flexDirection: 'column',
-                    overflow: 'hidden', // Important to prevent the main container itself from scrolling.
-                },
-            });
-
-            this.element.append(this.scrollBox, inputContainer);
-            this._createPreviewTooltip();
-            return this.element;
-        }
-
-        show(anchorElement) {
-            if (!this.element) this.render();
-            document.body.appendChild(this.element);
-
-            // Manually trigger the filter once on show to apply the initial value
-            this._handleFilter({ target: this.element.querySelector(`.${APPID}-jump-list-filter`) });
-
-            requestAnimationFrame(() => {
-                const anchorRect = anchorElement.getBoundingClientRect();
-                const viewportHeight = window.innerHeight;
-                const margin = 8;
-                const topLimit = viewportHeight * 0.3;
-
-                this.element.style.left = `${anchorRect.left}px`;
-                this.element.style.bottom = `${viewportHeight - anchorRect.top + 4}px`;
-                this.element.style.width = `360px`;
-
-                const maxHeight = anchorRect.top - topLimit - margin;
-                this.element.style.maxHeight = `${Math.max(100, maxHeight)}px`;
-
-                this.element.classList.add('is-visible');
-                const filterInput = this.element.querySelector(`.${APPID}-jump-list-filter`);
-                if (filterInput instanceof HTMLInputElement) {
-                    filterInput.focus();
-                    filterInput.select();
-                }
-            });
-        }
-
-        destroy() {
-            if (!this.element) return;
-            this._hidePreview();
-            this.previewTooltip?.remove();
-            this.element.remove();
-            this.element = null;
-            this.previewTooltip = null;
-        }
-
-        updateHighlightedMessage(newMessage) {
-            this.state.highlightedMessage = newMessage;
-            // Re-render visible items to update the '.is-current' class
-            this._renderUI();
-        }
-
-        /**
-         * Checks if a DOM element is contained within the jump list or its preview tooltip.
-         * @param {Node} target The element to check.
-         * @returns {boolean} True if the element is inside the component.
-         */
-        contains(target) {
-            if (!target) return false;
-            // Check if inside the main list element
-            if (this.element?.contains(target)) return true;
-            // Check if inside the preview tooltip (which is attached to body)
-            if (this.previewTooltip?.contains(target)) return true;
-            return false;
-        }
-
-        _createPreviewTooltip() {
-            if (this.previewTooltip) return;
-            this.previewTooltip = h(`div#${APPID}-jump-list-preview`);
-
-            // Prevent clicks and selections inside the tooltip from bubbling up and closing the UI
-            ['pointerdown', 'click', 'mouseup'].forEach((eventType) => {
-                this.previewTooltip.addEventListener(eventType, (e) => e.stopPropagation());
-            });
-
-            this.previewTooltip.addEventListener('mouseenter', () => clearTimeout(this.hideTimeout));
-            this.previewTooltip.addEventListener('mouseleave', (e) => {
-                // Guard: Do not close if the user is dragging (mouse button down)
-                // or if text is currently selected (user might be moving to copy).
-                // e.buttons & 1 checks if the primary (left) button is pressed.
-                const isDragging = e instanceof MouseEvent && (e.buttons & 1) === 1;
-                const hasSelection = window.getSelection()?.toString().length > 0;
-
-                if (isDragging || hasSelection) {
-                    return;
-                }
-                this._revertToFocusedPreview();
-            });
-            document.body.appendChild(this.previewTooltip);
-        }
-
-        _showPreview(index) {
-            if (!this.previewTooltip || index < 0 || index >= this.state.filteredMessages.length) {
-                this._hidePreview();
-                return;
-            }
-
-            const searchableMessage = this.state.filteredMessages[index];
-            if (!searchableMessage) {
-                this._hidePreview();
-                return;
-            }
-
-            const fullText = (searchableMessage.text || '').replace(/\s+/g, ' ').trim();
-            const filterInput = this.element.querySelector(`.${APPID}-jump-list-filter`);
-            const searchTerm = filterInput instanceof HTMLInputElement ? filterInput.value : '';
-
-            const contentFragment = document.createDocumentFragment();
-            contentFragment.appendChild(document.createTextNode(`${this.messages.indexOf(searchableMessage.element) + 1}: `));
-
-            let regex = null;
-            if (searchTerm.trim()) {
-                const regexMatch = searchTerm.match(/^\/(.*)\/([gimsuy]*)$/);
-                if (regexMatch && filterInput?.classList.contains('is-regex-valid')) {
-                    // This will be a valid regex because it's pre-validated in _handleFilter
-                    regex = new RegExp(regexMatch[1], regexMatch[2]);
-                } else {
-                    // Fallback to plain string search for highlighting
-                    regex = new RegExp(escapeRegExp(searchTerm), 'gi');
-                }
-            }
-
-            if (regex) {
-                const parts = fullText.split(regex);
-                const matches = fullText.match(regex) || [];
-                parts.forEach((part, i) => {
-                    contentFragment.appendChild(document.createTextNode(part));
-                    if (i < parts.length - 1) {
-                        contentFragment.appendChild(h('strong', matches[i]));
-                    }
-                });
-            } else {
-                contentFragment.appendChild(document.createTextNode(fullText));
-            }
-
-            this.previewTooltip.textContent = '';
-            this.previewTooltip.appendChild(contentFragment);
-
-            withLayoutCycle({
-                measure: () => {
-                    const listItem = this.listElement.querySelector(`li[data-filtered-index="${index}"]`);
-                    if (!this.element || !this.previewTooltip || !(listItem instanceof HTMLElement)) {
-                        return null;
-                    }
-                    return {
-                        listRect: this.element.getBoundingClientRect(),
-                        itemRect: listItem.getBoundingClientRect(),
-                        tooltipRect: this.previewTooltip.getBoundingClientRect(),
-                        windowWidth: window.innerWidth,
-                        windowHeight: window.innerHeight,
-                    };
-                },
-                mutate: (measured) => {
-                    if (!measured) {
-                        this._hidePreview();
-                        return;
-                    }
-
-                    const { listRect, itemRect, tooltipRect, windowWidth, windowHeight } = measured;
-                    const margin = 12;
-
-                    let top = itemRect.top;
-                    let left = listRect.right + margin;
-
-                    if (left + tooltipRect.width > windowWidth - margin) {
-                        left = listRect.left - tooltipRect.width - margin;
-                    }
-                    if (top + tooltipRect.height > windowHeight - margin) {
-                        top = windowHeight - tooltipRect.height - margin;
-                    }
-                    top = Math.max(margin, top);
-                    left = Math.max(margin, left);
-
-                    this.previewTooltip.style.left = `${left}px`;
-                    this.previewTooltip.style.top = `${top}px`;
-                    this.previewTooltip.classList.add('is-visible');
-                },
-            });
-        }
-
-        _hidePreview() {
-            if (this.previewTooltip) {
-                this.previewTooltip.classList.remove('is-visible');
-            }
-        }
-
-        _revertToFocusedPreview() {
-            if (this.state.focusedIndex > -1) {
-                this._showPreview(this.state.focusedIndex);
-            } else {
-                this._hidePreview();
-            }
-        }
-
-        _createListItem(searchableMessage, index) {
-            const messageElement = searchableMessage.element;
-            const originalIndex = this.messages.indexOf(messageElement);
-            const role = PlatformAdapters.General.getMessageRole(messageElement);
-
-            // Use the adapter to get the appropriate display text, handling platform differences.
-            const textContent = (searchableMessage.text || '').replace(/\s+/g, ' ').trim();
-
-            const displayText = `${originalIndex + 1}: ${textContent}`;
-
-            const item = h(
-                'li',
-                {
-                    dataset: {
-                        messageIndex: originalIndex,
-                        filteredIndex: index,
-                    },
-                    style: {
-                        position: 'absolute',
-                        top: `${index * this.itemHeight}px`,
-                        height: `${this.itemHeight}px`,
-                        width: '100%',
-                        boxSizing: 'border-box',
-                        display: 'flex',
-                        alignItems: 'center',
-                    },
-                    onmouseenter: (e) => {
-                        clearTimeout(this.hideTimeout);
-                        this.hoveredItem = e.currentTarget;
-                        this._showPreview(index);
-                    },
-                    onmouseleave: () => {
-                        this.hoveredItem = null;
-                        this.hideTimeout = setTimeout(() => this._revertToFocusedPreview(), 200);
-                    },
-                },
-                displayText
-            );
-
-            if (this.state.highlightedMessage === messageElement) {
-                item.classList.add('is-current');
-            }
-            if (this.state.focusedIndex === index) {
-                item.classList.add('is-focused');
-            }
-            if (role) {
-                item.classList.add(role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER ? 'user-item' : 'assistant-item');
-            }
-
-            return item;
-        }
-
-        _filterMessages(searchTerm, inputElement) {
-            const modeLabel = this.element.querySelector(`.${APPID}-jump-list-mode-label`);
-            let regex = null;
-
-            inputElement.classList.remove('is-regex-valid');
-            modeLabel.setAttribute('class', `${APPID}-jump-list-mode-label is-string`);
-            modeLabel.textContent = 'Text';
-
-            const regexMatch = searchTerm.match(/^\/(.*)\/([gimsuy]*)$/);
-            if (regexMatch) {
-                try {
-                    regex = new RegExp(regexMatch[1], regexMatch[2]);
-                    inputElement.classList.add('is-regex-valid');
-                    modeLabel.setAttribute('class', `${APPID}-jump-list-mode-label is-regex`);
-                    modeLabel.textContent = 'RegExp';
-                } catch {
-                    // Invalid regex, remains null and will be treated as a plain string.
-                    modeLabel.setAttribute('class', `${APPID}-jump-list-mode-label is-regex-invalid`);
-                    modeLabel.textContent = 'Invalid';
-                }
-            }
-
-            const lowerCaseSearchTerm = searchTerm.toLowerCase();
-
-            return this.searchableMessages.filter((msg) => {
-                const originalItemText = msg.text;
-
-                if (regex) {
-                    // For regex, test against the original, case-preserved text.
-                    // The user controls case-sensitivity with the 'i' flag.
-                    return regex.test(originalItemText);
-                } else {
-                    // For plain text, perform a case-insensitive search.
-                    const lowerCaseItemText = originalItemText.toLowerCase();
-                    return lowerCaseSearchTerm === '' || lowerCaseItemText.includes(lowerCaseSearchTerm);
-                }
-            });
-        }
-
-        _getVisibleRange() {
-            if (!this.scrollBox) return { startIndex: 0, endIndex: -1 };
-
-            const containerHeight = this.scrollBox.clientHeight;
-            const buffer = 5;
-            const startIndex = Math.max(0, Math.floor(this.state.scrollTop / this.itemHeight) - buffer);
-
-            if (containerHeight === 0) {
-                // Initial render, container height not yet known. Render a default batch.
-                const initialBatchSize = 20;
-                const endIndex = Math.min(this.state.filteredMessages.length - 1, initialBatchSize);
-                return { startIndex: 0, endIndex };
-            }
-
-            const endIndex = Math.min(this.state.filteredMessages.length - 1, Math.ceil((this.state.scrollTop + containerHeight) / this.itemHeight) + buffer);
-            return { startIndex, endIndex };
-        }
-
-        _renderUI() {
-            if (!this.listElement || !this.scrollBox) return;
-
-            // Step 1: Update the virtual height immediately to ensure correct layout calculations.
-            this.listElement.style.height = `${this.state.filteredMessages.length * this.itemHeight}px`;
-
-            // Step 2: Determine the new visible range.
-            const { startIndex, endIndex } = this._getVisibleRange();
-            const visibleIndices = new Set();
-            for (let i = startIndex; i <= endIndex; i++) {
-                visibleIndices.add(i);
-            }
-
-            // Step 3: Map existing DOM elements for efficient lookup.
-            const existingElements = new Map(
-                Array.from(this.listElement.children)
-                    .filter((el) => el instanceof HTMLElement)
-                    .map((el) => [parseInt(el.dataset.filteredIndex, 10), el])
-            );
-
-            // Step 4: Reconcile the DOM against the new state.
-            const fragment = document.createDocumentFragment();
-
-            // First, remove any elements that are no longer in the visible range.
-            for (const [index, element] of existingElements.entries()) {
-                if (!visibleIndices.has(index)) {
-                    element.remove();
-                }
-            }
-
-            // Then, add or update elements that should be visible.
-            for (let i = startIndex; i <= endIndex; i++) {
-                const message = this.state.filteredMessages[i];
-                const existingEl = existingElements.get(i);
-
-                if (existingEl) {
-                    // Element exists, just update its state (e.g., current/focused classes).
-                    existingEl.classList.toggle('is-current', this.state.highlightedMessage === message);
-                    existingEl.classList.toggle('is-focused', this.state.focusedIndex === i);
-                } else {
-                    // Element is missing, create it and add to the fragment for batch insertion.
-                    const newItem = this._createListItem(message, i);
-                    fragment.appendChild(newItem);
-                }
-            }
-
-            // Append all new items at once.
-            if (fragment.children.length > 0) {
-                this.listElement.appendChild(fragment);
-            }
-        }
-
-        _updateFocus(shouldScroll = true) {
-            if (!this.scrollBox) return;
-
-            if (shouldScroll && this.state.focusedIndex > -1) {
-                const itemTop = this.state.focusedIndex * this.itemHeight;
-                const itemBottom = itemTop + this.itemHeight;
-                const viewTop = this.scrollBox.scrollTop;
-                const viewBottom = viewTop + this.scrollBox.clientHeight;
-
-                if (itemTop < viewTop) {
-                    this.scrollBox.scrollTop = itemTop;
-                } else if (itemBottom > viewBottom) {
-                    this.scrollBox.scrollTop = itemBottom - this.scrollBox.clientHeight;
-                }
-                // Update state after potential scroll change
-                this.state.scrollTop = this.scrollBox.scrollTop;
-            }
-
-            this._renderUI();
-
-            // Defer the preview update to the next animation frame.
-            // This ensures that the DOM updates from _renderUI have been rendered by the browser,
-            // making the target <li> element available for _showPreview to find.
-            requestAnimationFrame(() => {
-                if (this.state.focusedIndex > -1) {
-                    this._showPreview(this.state.focusedIndex);
-                } else {
-                    this._hidePreview();
-                }
-            });
-        }
-
-        _handleScroll(event) {
-            this.state.scrollTop = event.target.scrollTop;
-            if (!this.state.isRendering) {
-                requestAnimationFrame(() => {
-                    this._renderUI();
-                    this.state.isRendering = false;
-                });
-                this.state.isRendering = true;
-            }
-        }
-
-        _handleFilter(event) {
-            const inputElement = event.target;
-            const searchTerm = inputElement.value;
-
-            if (this.listElement) {
-                this.listElement.textContent = '';
-            }
-
-            // Update state
-            this.state.filteredMessages = this._filterMessages(searchTerm, inputElement);
-            this.state.focusedIndex = -1;
-            this.state.scrollTop = 0;
-            if (this.scrollBox) this.scrollBox.scrollTop = 0;
-
-            this._renderUI();
-            this._hidePreview();
-        }
-
-        _handleFilterKeyDown(event) {
-            if (this.state.filteredMessages.length === 0) return;
-
-            switch (event.key) {
-                case 'ArrowDown':
-                case 'Tab':
-                    if (!event.shiftKey) {
-                        event.preventDefault();
-                        this.state.focusedIndex = 0;
-                        this._updateFocus(true);
-                        this.scrollBox.focus({ preventScroll: true });
-                    }
-                    break;
-                case 'ArrowUp':
-                    event.preventDefault();
-                    this.state.focusedIndex = this.state.filteredMessages.length - 1;
-                    this._updateFocus(true);
-                    this.scrollBox.focus({ preventScroll: true });
-                    break;
-                case 'Enter':
-                    event.preventDefault();
-                    if (this.state.filteredMessages.length > 0) {
-                        this.state.focusedIndex = 0;
-                        this._updateFocus(false);
-                        const targetMessage = this.state.filteredMessages[this.state.focusedIndex].element;
-                        if (targetMessage) this.callbacks.onSelect?.(targetMessage);
-                    }
-                    break;
-            }
-
-            if (event.shiftKey && event.key === 'Tab') {
-                event.preventDefault();
-                this.state.focusedIndex = this.state.filteredMessages.length - 1;
-                this._updateFocus(true);
-                this.scrollBox.focus({ preventScroll: true });
-            }
-        }
-
-        /** @param {KeyboardEvent} event */
-        _handleKeyDown(event) {
-            if (!this.scrollBox || document.activeElement !== this.scrollBox || this.state.filteredMessages.length === 0) return;
-
-            const totalItems = this.state.filteredMessages.length;
-            let newFocusedIndex = this.state.focusedIndex;
-
-            switch (event.key) {
-                case 'ArrowDown': {
-                    event.preventDefault();
-                    newFocusedIndex = newFocusedIndex === -1 ? 0 : (newFocusedIndex + 1) % totalItems;
-                    break;
-                }
-                case 'ArrowUp': {
-                    event.preventDefault();
-                    newFocusedIndex = newFocusedIndex === -1 ? totalItems - 1 : (newFocusedIndex - 1 + totalItems) % totalItems;
-                    break;
-                }
-                case 'Home': {
-                    event.preventDefault();
-                    newFocusedIndex = 0;
-                    break;
-                }
-                case 'End': {
-                    event.preventDefault();
-                    newFocusedIndex = totalItems - 1;
-                    break;
-                }
-                case 'PageDown': {
-                    event.preventDefault();
-                    if (newFocusedIndex === -1) newFocusedIndex = 0;
-                    const itemsPerPage = Math.floor(this.scrollBox.clientHeight / this.itemHeight);
-                    newFocusedIndex = Math.min(totalItems - 1, newFocusedIndex + itemsPerPage);
-                    break;
-                }
-                case 'PageUp': {
-                    event.preventDefault();
-                    if (newFocusedIndex === -1) newFocusedIndex = 0;
-                    const itemsPerPage = Math.floor(this.scrollBox.clientHeight / this.itemHeight);
-                    newFocusedIndex = Math.max(0, newFocusedIndex - itemsPerPage);
-                    break;
-                }
-                case 'Enter': {
-                    event.preventDefault();
-                    if (this.state.focusedIndex > -1) {
-                        const targetMessage = this.state.filteredMessages[this.state.focusedIndex].element;
-                        if (targetMessage) this.callbacks.onSelect?.(targetMessage);
-                    }
-                    return; // Don't update focus on enter
-                }
-                case 'Tab': {
-                    event.preventDefault();
-                    const filterInput = this.element.querySelector(`.${APPID}-jump-list-filter`);
-                    if (filterInput instanceof HTMLInputElement) {
-                        filterInput.focus();
-                        filterInput.select();
-                    }
-                    this.state.focusedIndex = -1;
-                    this._updateFocus(false);
-                    return; // Don't update focus on tab
-                }
-                default:
-                    return;
-            }
-
-            if (newFocusedIndex !== this.state.focusedIndex) {
-                this.state.focusedIndex = newFocusedIndex;
-                this._updateFocus(true);
-            }
-        }
-
-        getFilterValue() {
-            const filterInput = this.element?.querySelector(`.${APPID}-jump-list-filter`);
-            if (filterInput instanceof HTMLInputElement) {
-                return filterInput.value || '';
-            }
-            return '';
-        }
-
-        /** @param {MouseEvent} event */
-        _handleClick(event) {
-            const target = event.target;
-            if (!(target instanceof Element)) return;
-
-            const listItem = target.closest('li');
-            if (!listItem) return;
-
-            const originalIndex = parseInt(listItem.dataset.messageIndex, 10);
-            if (!isNaN(originalIndex) && this.messages[originalIndex]) {
-                this.callbacks.onSelect?.(this.messages[originalIndex]);
-            }
-        }
-    }
-
     class FixedNavigationManager {
         /**
          * @param {object} dependencies
@@ -10361,48 +9759,6 @@
                 .${APPID}-feature-group .${APPID}-submenu-row:first-child {
                     margin-top: 0;
                 }
-
-                /* Toggle Switch Styles */
-                .${APPID}-toggle-switch {
-                    position: relative;
-                    display: inline-block;
-                    width: 40px;
-                    height: 22px;
-                    flex-shrink: 0;
-                }
-                .${APPID}-toggle-switch input {
-                    opacity: 0;
-                    width: 0;
-                    height: 0;
-                }
-                .${APPID}-toggle-slider {
-                    position: absolute;
-                    cursor: pointer;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    background-color: ${styles.toggle_bg_off};
-                    transition: .3s;
-                    border-radius: 22px;
-                }
-                .${APPID}-toggle-slider:before {
-                    position: absolute;
-                    content: "";
-                    height: 16px;
-                    width: 16px;
-                    left: 3px;
-                    bottom: 3px;
-                    background-color: ${styles.toggle_knob};
-                    transition: .3s;
-                    border-radius: 50%;
-                }
-                .${APPID}-toggle-switch input:checked + .${APPID}-toggle-slider {
-                    background-color: ${styles.toggle_bg_on};
-                }
-                .${APPID}-toggle-switch input:checked + .${APPID}-toggle-slider:before {
-                    transform: translateX(18px);
-                }
             `,
             });
             document.head.appendChild(style);
@@ -10412,16 +9768,27 @@
     /**
      * Manages the JSON editing modal by using the CustomModal component.
      */
-    class JsonModalComponent {
+    class JsonModalComponent extends UIComponentBase {
         constructor(callbacks) {
-            this.callbacks = callbacks;
+            super(callbacks);
             this.modal = null; // To hold the CustomModal instance
             this.debouncedUpdateSize = debounce((text) => this._updateSizeDisplay(text), 300, true);
+        }
+
+        /**
+         * @override
+         */
+        render() {
+            // No-op: DOM generation is delegated to CustomModal in open().
+            // Implemented to satisfy UIComponentBase contract.
         }
 
         async open(anchorElement) {
             if (this.modal) return;
             this.callbacks.onModalOpenStateChange?.(true);
+
+            // Inject styles lazily when the modal is opened
+            this._injectStyles();
 
             const p = APPID;
             this.modal = new CustomModal({
@@ -10442,7 +9809,6 @@
                 },
             });
 
-            this._injectStyles(); // This method is empty but kept for structural consistency
             const contentContainer = this.modal.getContentContainer();
             this._createContent(contentContainer);
 
@@ -10474,6 +9840,12 @@
             if (this.modal) {
                 this.modal.close();
             }
+        }
+
+        destroy() {
+            this.debouncedUpdateSize.cancel();
+            this.modal?.destroy();
+            super.destroy();
         }
 
         _createContent(parent) {
@@ -10680,17 +10052,6 @@
                     }
                     .${APPID}-modal-shell-button {
                         min-width: 80px;
-                    }
-                    .-btn-push-right {
-                        margin-left: auto !important;
-                    }
-                    .-btn-primary {
-                        background-color: #1a73e8 !important;
-                        color: #ffffff !important;
-                        border: 1px solid transparent !important;
-                    }
-                    .-btn-primary:hover {
-                        background-color: #1557b0 !important;
                     }
                     .${APPID}-json-status-container {
                         width: 100%;
@@ -10948,12 +10309,16 @@
         }
 
         render() {
-            this._injectStyles();
+            // No-op: DOM generation is delegated to CustomModal in open().
+            // Implemented to satisfy UIComponentBase contract.
         }
 
         async open(selectThemeKey) {
             if (this.modal) return;
             this.callbacks.onModalOpenStateChange?.(true);
+
+            // Inject styles lazily when the modal is opened
+            this._injectStyles();
 
             const initialConfig = await this.callbacks.getCurrentConfig();
             if (!initialConfig) return;
@@ -11026,6 +10391,7 @@
             this.debouncedUpdateAssistantPreview.cancel();
             this.debouncedUpdateInputAreaPreview.cancel();
             this.debouncedUpdateWindowPreview.cancel();
+            this.modal?.destroy();
             super.destroy();
         }
 
@@ -11990,23 +11356,6 @@
                 .${APPID}-theme-modal-shell-box textarea {
                   resize: vertical;
                 }
-                .${APPID}-slider-subgroup-control {
-                  align-items: center;
-                  display: flex;
-                  gap: 8px;
-                }
-                .${APPID}-slider-subgroup-control input[type=range] {
-                  flex-grow: 1;
-                }
-                .${APPID}-slider-subgroup-control span {
-                  color: ${styles.slider_display_text};
-                  font-family: monospace;
-                  min-width: 4em;
-                  text-align: right;
-                }
-                .${APPID}-slider-subgroup-control.is-default span {
-                  color: ${styles.label_text};
-                }
                 .${APPID}-compound-slider-container {
                   display: flex;
                   gap: 16px;
@@ -12087,26 +11436,6 @@
                   width: 280px;
                   z-index: 10;
                 }
-                .${APPID}-modal-button {
-                  background: ${styles.btn_bg};
-                  border: 1px solid ${styles.btn_border};
-                  border-radius: var(--radius-md, ${CONSTANTS.MODAL.BTN_RADIUS}px);
-                  color: ${styles.btn_text};
-                  cursor: pointer;
-                  font-size: ${CONSTANTS.MODAL.BTN_FONT_SIZE}px;
-                  padding: ${CONSTANTS.MODAL.BTN_PADDING};
-                  transition: background 0.12s;
-                  min-width: 80px; /* Unify button width */
-                }
-                .${APPID}-modal-button:hover {
-                  background: ${styles.btn_hover_bg} !important;
-                  border-color: ${styles.btn_border};
-                }
-                .${APPID}-modal-button:disabled {
-                  background: ${styles.btn_bg} !important;
-                  cursor: not-allowed;
-                  opacity: 0.5;
-                }
                 .${APPID}-theme-modal-shell-footer-message.${APPID}-conflict-text {
                     color: ${styles.error_text};
                     display: flex;
@@ -12121,16 +11450,641 @@
                 .${APPID}-text-item.drag-over-bottom {
                   border-bottom: 2px solid ${styles.dnd_indicator_color};
                 }
-                .-btn-primary {
-                    background-color: #1a73e8 !important;
-                    color: #ffffff !important;
-                    border: 1px solid transparent !important;
-                }
-                .-btn-primary:hover {
-                    background-color: #1557b0 !important;
-                }
             `;
             document.head.appendChild(style);
+        }
+    }
+
+    class JumpListComponent extends UIComponentBase {
+        constructor(role, messages, highlightedMessage, callbacks, siteStyles, initialFilterValue = '') {
+            super(callbacks);
+            this.role = role;
+            this.messages = messages;
+            this.siteStyles = siteStyles;
+
+            // Pre-cache the display text for each message to avoid repeated DOM queries during filtering.
+            this.searchableMessages = this.messages.map((msg) => ({
+                element: msg,
+                text: PlatformAdapters.General.getJumpListDisplayText(msg),
+            }));
+
+            // --- Component state ---
+            this.state = {
+                highlightedMessage: highlightedMessage,
+                initialFilterValue: initialFilterValue,
+                filteredMessages: [],
+                scrollTop: 0,
+                focusedIndex: -1,
+                isRendering: false,
+            };
+
+            // --- Virtual scroll properties ---
+            this.itemHeight = 34; // The fixed height of each list item in pixels.
+            this.element = null; // The main component container
+            this.scrollBox = null; // The dedicated scrolling element
+            this.listElement = null; // The inner element that provides the virtual height
+            this.previewTooltip = null;
+            this.hideTimeout = null;
+            this.hoveredItem = null;
+
+            // Bind event handlers
+            this._handleClick = this._handleClick.bind(this);
+            this._handleFilter = this._handleFilter.bind(this);
+            this._handleKeyDown = this._handleKeyDown.bind(this);
+            this._handleFilterKeyDown = this._handleFilterKeyDown.bind(this);
+            this._handleScroll = this._handleScroll.bind(this);
+        }
+
+        render() {
+            // 1. The inner list (ul) acts as a "sizer" or "spacer".
+            // It has no overflow and its height is set to the total virtual height of all items.
+            this.listElement = h(`ul#${APPID}-jump-list`, {
+                style: { position: 'relative', overflow: 'hidden', height: '0px' },
+            });
+
+            // 2. The scrollBox (div) is the "viewport".
+            // It is the element that actually scrolls and has a fixed visible height.
+            this.scrollBox = h(`div.${APPID}-jump-list-scrollbox`, {
+                onkeydown: this._handleKeyDown,
+                tabindex: -1,
+                style: {
+                    overflowY: 'auto',
+                    position: 'relative',
+                    flex: '1 1 auto', // Allows this box to fill the available space in the flex container.
+                },
+            });
+            this.scrollBox.appendChild(this.listElement);
+            this.scrollBox.addEventListener('scroll', this._handleScroll, { passive: true });
+
+            // 3. The filter input container.
+            const filterInput = h('input', {
+                type: 'text',
+                placeholder: 'Filter with text or /pattern/flags',
+                title: 'Filter by plain text or a regular expression.\nEnter text for a simple search.\nUse /regex/flags format for advanced filtering.',
+                className: `${APPID}-jump-list-filter`,
+                value: this.state.initialFilterValue,
+                oninput: this._handleFilter,
+                onkeydown: this._handleFilterKeyDown,
+                onclick: (e) => e.stopPropagation(),
+            });
+            const modeLabel = h('span', { className: `${APPID}-jump-list-mode-label` });
+            const inputContainer = h(`div.${APPID}-jump-list-filter-container`, [filterInput, modeLabel]);
+
+            // 4. The main element (div) handles the overall layout using flexbox.
+            this.element = h(`div#${APPID}-jump-list-container`, {
+                onclick: this._handleClick,
+                style: {
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden', // Important to prevent the main container itself from scrolling.
+                },
+            });
+
+            this.element.append(this.scrollBox, inputContainer);
+            this._createPreviewTooltip();
+            return this.element;
+        }
+
+        show(anchorElement) {
+            if (!this.element) this.render();
+            document.body.appendChild(this.element);
+
+            // Manually trigger the filter once on show to apply the initial value
+            this._handleFilter({ target: this.element.querySelector(`.${APPID}-jump-list-filter`) });
+
+            requestAnimationFrame(() => {
+                const anchorRect = anchorElement.getBoundingClientRect();
+                const viewportHeight = window.innerHeight;
+                const margin = 8;
+                const topLimit = viewportHeight * 0.3;
+
+                this.element.style.left = `${anchorRect.left}px`;
+                this.element.style.bottom = `${viewportHeight - anchorRect.top + 4}px`;
+                this.element.style.width = `360px`;
+
+                const maxHeight = anchorRect.top - topLimit - margin;
+                this.element.style.maxHeight = `${Math.max(100, maxHeight)}px`;
+
+                this.element.classList.add('is-visible');
+                const filterInput = this.element.querySelector(`.${APPID}-jump-list-filter`);
+                if (filterInput instanceof HTMLInputElement) {
+                    filterInput.focus();
+                    filterInput.select();
+                }
+            });
+        }
+
+        destroy() {
+            if (!this.element) return;
+            clearTimeout(this.hideTimeout); // Cancel pending preview revert
+            this._hidePreview();
+            this.previewTooltip?.remove();
+            this.element.remove();
+            this.element = null;
+            this.previewTooltip = null;
+            this.listElement = null; // Ensure references are cleared
+            this.scrollBox = null;
+        }
+
+        updateHighlightedMessage(newMessage) {
+            this.state.highlightedMessage = newMessage;
+            // Re-render visible items to update the '.is-current' class
+            this._renderUI();
+        }
+
+        /**
+         * Checks if a DOM element is contained within the jump list or its preview tooltip.
+         * @param {Node} target The element to check.
+         * @returns {boolean} True if the element is inside the component.
+         */
+        contains(target) {
+            if (!target) return false;
+            // Check if inside the main list element
+            if (this.element?.contains(target)) return true;
+            // Check if inside the preview tooltip (which is attached to body)
+            if (this.previewTooltip?.contains(target)) return true;
+            return false;
+        }
+
+        _createPreviewTooltip() {
+            if (this.previewTooltip) return;
+            this.previewTooltip = h(`div#${APPID}-jump-list-preview`);
+
+            // Prevent clicks and selections inside the tooltip from bubbling up and closing the UI
+            ['pointerdown', 'click', 'mouseup'].forEach((eventType) => {
+                this.previewTooltip.addEventListener(eventType, (e) => e.stopPropagation());
+            });
+
+            this.previewTooltip.addEventListener('mouseenter', () => clearTimeout(this.hideTimeout));
+            this.previewTooltip.addEventListener('mouseleave', (e) => {
+                // Guard: Do not close if the user is dragging (mouse button down)
+                // or if text is currently selected (user might be moving to copy).
+                // e.buttons & 1 checks if the primary (left) button is pressed.
+                const isDragging = e instanceof MouseEvent && (e.buttons & 1) === 1;
+                const hasSelection = window.getSelection()?.toString().length > 0;
+
+                if (isDragging || hasSelection) {
+                    return;
+                }
+                this._revertToFocusedPreview();
+            });
+            document.body.appendChild(this.previewTooltip);
+        }
+
+        _showPreview(index) {
+            if (!this.previewTooltip || index < 0 || index >= this.state.filteredMessages.length) {
+                this._hidePreview();
+                return;
+            }
+
+            const searchableMessage = this.state.filteredMessages[index];
+            if (!searchableMessage) {
+                this._hidePreview();
+                return;
+            }
+
+            const fullText = (searchableMessage.text || '').replace(/\s+/g, ' ').trim();
+            const filterInput = this.element.querySelector(`.${APPID}-jump-list-filter`);
+            const searchTerm = filterInput instanceof HTMLInputElement ? filterInput.value : '';
+
+            const contentFragment = document.createDocumentFragment();
+            contentFragment.appendChild(document.createTextNode(`${this.messages.indexOf(searchableMessage.element) + 1}: `));
+
+            let regex = null;
+            if (searchTerm.trim()) {
+                const regexMatch = searchTerm.match(/^\/(.*)\/([gimsuy]*)$/);
+                if (regexMatch && filterInput?.classList.contains('is-regex-valid')) {
+                    // This will be a valid regex because it's pre-validated in _handleFilter
+                    regex = new RegExp(regexMatch[1], regexMatch[2]);
+                } else {
+                    // Fallback to plain string search for highlighting
+                    regex = new RegExp(escapeRegExp(searchTerm), 'gi');
+                }
+            }
+
+            if (regex) {
+                const parts = fullText.split(regex);
+                const matches = fullText.match(regex) || [];
+                parts.forEach((part, i) => {
+                    contentFragment.appendChild(document.createTextNode(part));
+                    if (i < parts.length - 1) {
+                        contentFragment.appendChild(h('strong', matches[i]));
+                    }
+                });
+            } else {
+                contentFragment.appendChild(document.createTextNode(fullText));
+            }
+
+            this.previewTooltip.textContent = '';
+            this.previewTooltip.appendChild(contentFragment);
+
+            withLayoutCycle({
+                measure: () => {
+                    const listItem = this.listElement.querySelector(`li[data-filtered-index="${index}"]`);
+                    if (!this.element || !this.previewTooltip || !(listItem instanceof HTMLElement)) {
+                        return null;
+                    }
+                    return {
+                        listRect: this.element.getBoundingClientRect(),
+                        itemRect: listItem.getBoundingClientRect(),
+                        tooltipRect: this.previewTooltip.getBoundingClientRect(),
+                        windowWidth: window.innerWidth,
+                        windowHeight: window.innerHeight,
+                    };
+                },
+                mutate: (measured) => {
+                    if (!measured) {
+                        this._hidePreview();
+                        return;
+                    }
+
+                    const { listRect, itemRect, tooltipRect, windowWidth, windowHeight } = measured;
+                    const margin = 12;
+
+                    let top = itemRect.top;
+                    let left = listRect.right + margin;
+
+                    if (left + tooltipRect.width > windowWidth - margin) {
+                        left = listRect.left - tooltipRect.width - margin;
+                    }
+                    if (top + tooltipRect.height > windowHeight - margin) {
+                        top = windowHeight - tooltipRect.height - margin;
+                    }
+                    top = Math.max(margin, top);
+                    left = Math.max(margin, left);
+
+                    this.previewTooltip.style.left = `${left}px`;
+                    this.previewTooltip.style.top = `${top}px`;
+                    this.previewTooltip.classList.add('is-visible');
+                },
+            });
+        }
+
+        _hidePreview() {
+            if (this.previewTooltip) {
+                this.previewTooltip.classList.remove('is-visible');
+            }
+        }
+
+        _revertToFocusedPreview() {
+            if (this.state.focusedIndex > -1) {
+                this._showPreview(this.state.focusedIndex);
+            } else {
+                this._hidePreview();
+            }
+        }
+
+        _createListItem(searchableMessage, index) {
+            const messageElement = searchableMessage.element;
+            const originalIndex = this.messages.indexOf(messageElement);
+            const role = PlatformAdapters.General.getMessageRole(messageElement);
+
+            // Use the adapter to get the appropriate display text, handling platform differences.
+            const textContent = (searchableMessage.text || '').replace(/\s+/g, ' ').trim();
+
+            const displayText = `${originalIndex + 1}: ${textContent}`;
+
+            const item = h(
+                'li',
+                {
+                    dataset: {
+                        messageIndex: originalIndex,
+                        filteredIndex: index,
+                    },
+                    style: {
+                        position: 'absolute',
+                        top: `${index * this.itemHeight}px`,
+                        height: `${this.itemHeight}px`,
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        display: 'flex',
+                        alignItems: 'center',
+                    },
+                    onmouseenter: (e) => {
+                        clearTimeout(this.hideTimeout);
+                        this.hoveredItem = e.currentTarget;
+                        this._showPreview(index);
+                    },
+                    onmouseleave: () => {
+                        this.hoveredItem = null;
+                        this.hideTimeout = setTimeout(() => this._revertToFocusedPreview(), 200);
+                    },
+                },
+                displayText
+            );
+
+            if (this.state.highlightedMessage === messageElement) {
+                item.classList.add('is-current');
+            }
+            if (this.state.focusedIndex === index) {
+                item.classList.add('is-focused');
+            }
+            if (role) {
+                item.classList.add(role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER ? 'user-item' : 'assistant-item');
+            }
+
+            return item;
+        }
+
+        _filterMessages(searchTerm, inputElement) {
+            const modeLabel = this.element.querySelector(`.${APPID}-jump-list-mode-label`);
+            let regex = null;
+
+            inputElement.classList.remove('is-regex-valid');
+            modeLabel.setAttribute('class', `${APPID}-jump-list-mode-label is-string`);
+            modeLabel.textContent = 'Text';
+
+            const regexMatch = searchTerm.match(/^\/(.*)\/([gimsuy]*)$/);
+            if (regexMatch) {
+                try {
+                    regex = new RegExp(regexMatch[1], regexMatch[2]);
+                    inputElement.classList.add('is-regex-valid');
+                    modeLabel.setAttribute('class', `${APPID}-jump-list-mode-label is-regex`);
+                    modeLabel.textContent = 'RegExp';
+                } catch {
+                    // Invalid regex, remains null and will be treated as a plain string.
+                    modeLabel.setAttribute('class', `${APPID}-jump-list-mode-label is-regex-invalid`);
+                    modeLabel.textContent = 'Invalid';
+                }
+            }
+
+            const lowerCaseSearchTerm = searchTerm.toLowerCase();
+
+            return this.searchableMessages.filter((msg) => {
+                const originalItemText = msg.text;
+
+                if (regex) {
+                    // For regex, test against the original, case-preserved text.
+                    // The user controls case-sensitivity with the 'i' flag.
+                    return regex.test(originalItemText);
+                } else {
+                    // For plain text, perform a case-insensitive search.
+                    const lowerCaseItemText = originalItemText.toLowerCase();
+                    return lowerCaseSearchTerm === '' || lowerCaseItemText.includes(lowerCaseSearchTerm);
+                }
+            });
+        }
+
+        _getVisibleRange() {
+            if (!this.scrollBox) return { startIndex: 0, endIndex: -1 };
+
+            const containerHeight = this.scrollBox.clientHeight;
+            const buffer = 5;
+            const startIndex = Math.max(0, Math.floor(this.state.scrollTop / this.itemHeight) - buffer);
+
+            if (containerHeight === 0) {
+                // Initial render, container height not yet known. Render a default batch.
+                const initialBatchSize = 20;
+                const endIndex = Math.min(this.state.filteredMessages.length - 1, initialBatchSize);
+                return { startIndex: 0, endIndex };
+            }
+
+            const endIndex = Math.min(this.state.filteredMessages.length - 1, Math.ceil((this.state.scrollTop + containerHeight) / this.itemHeight) + buffer);
+            return { startIndex, endIndex };
+        }
+
+        _renderUI() {
+            if (!this.listElement || !this.scrollBox) return;
+
+            // Step 1: Update the virtual height immediately to ensure correct layout calculations.
+            this.listElement.style.height = `${this.state.filteredMessages.length * this.itemHeight}px`;
+
+            // Step 2: Determine the new visible range.
+            const { startIndex, endIndex } = this._getVisibleRange();
+            const visibleIndices = new Set();
+            for (let i = startIndex; i <= endIndex; i++) {
+                visibleIndices.add(i);
+            }
+
+            // Step 3: Map existing DOM elements for efficient lookup.
+            const existingElements = new Map(
+                Array.from(this.listElement.children)
+                    .filter((el) => el instanceof HTMLElement)
+                    .map((el) => [parseInt(el.dataset.filteredIndex, 10), el])
+            );
+
+            // Step 4: Reconcile the DOM against the new state.
+            const fragment = document.createDocumentFragment();
+
+            // First, remove any elements that are no longer in the visible range.
+            for (const [index, element] of existingElements.entries()) {
+                if (!visibleIndices.has(index)) {
+                    element.remove();
+                }
+            }
+
+            // Then, add or update elements that should be visible.
+            for (let i = startIndex; i <= endIndex; i++) {
+                const message = this.state.filteredMessages[i];
+                const existingEl = existingElements.get(i);
+
+                if (existingEl) {
+                    // Element exists, just update its state (e.g., current/focused classes).
+                    existingEl.classList.toggle('is-current', this.state.highlightedMessage === message);
+                    existingEl.classList.toggle('is-focused', this.state.focusedIndex === i);
+                } else {
+                    // Element is missing, create it and add to the fragment for batch insertion.
+                    const newItem = this._createListItem(message, i);
+                    fragment.appendChild(newItem);
+                }
+            }
+
+            // Append all new items at once.
+            if (fragment.children.length > 0) {
+                this.listElement.appendChild(fragment);
+            }
+        }
+
+        _updateFocus(shouldScroll = true) {
+            if (!this.scrollBox) return;
+
+            if (shouldScroll && this.state.focusedIndex > -1) {
+                const itemTop = this.state.focusedIndex * this.itemHeight;
+                const itemBottom = itemTop + this.itemHeight;
+                const viewTop = this.scrollBox.scrollTop;
+                const viewBottom = viewTop + this.scrollBox.clientHeight;
+
+                if (itemTop < viewTop) {
+                    this.scrollBox.scrollTop = itemTop;
+                } else if (itemBottom > viewBottom) {
+                    this.scrollBox.scrollTop = itemBottom - this.scrollBox.clientHeight;
+                }
+                // Update state after potential scroll change
+                this.state.scrollTop = this.scrollBox.scrollTop;
+            }
+
+            this._renderUI();
+
+            // Defer the preview update to the next animation frame.
+            // This ensures that the DOM updates from _renderUI have been rendered by the browser,
+            // making the target <li> element available for _showPreview to find.
+            requestAnimationFrame(() => {
+                if (this.state.focusedIndex > -1) {
+                    this._showPreview(this.state.focusedIndex);
+                } else {
+                    this._hidePreview();
+                }
+            });
+        }
+
+        _handleScroll(event) {
+            this.state.scrollTop = event.target.scrollTop;
+            if (!this.state.isRendering) {
+                requestAnimationFrame(() => {
+                    this._renderUI();
+                    this.state.isRendering = false;
+                });
+                this.state.isRendering = true;
+            }
+        }
+
+        _handleFilter(event) {
+            const inputElement = event.target;
+            const searchTerm = inputElement.value;
+
+            if (this.listElement) {
+                this.listElement.textContent = '';
+            }
+
+            // Update state
+            this.state.filteredMessages = this._filterMessages(searchTerm, inputElement);
+            this.state.focusedIndex = -1;
+            this.state.scrollTop = 0;
+            if (this.scrollBox) this.scrollBox.scrollTop = 0;
+
+            this._renderUI();
+            this._hidePreview();
+        }
+
+        _handleFilterKeyDown(event) {
+            if (this.state.filteredMessages.length === 0) return;
+
+            switch (event.key) {
+                case 'ArrowDown':
+                case 'Tab':
+                    if (!event.shiftKey) {
+                        event.preventDefault();
+                        this.state.focusedIndex = 0;
+                        this._updateFocus(true);
+                        this.scrollBox.focus({ preventScroll: true });
+                    }
+                    break;
+                case 'ArrowUp':
+                    event.preventDefault();
+                    this.state.focusedIndex = this.state.filteredMessages.length - 1;
+                    this._updateFocus(true);
+                    this.scrollBox.focus({ preventScroll: true });
+                    break;
+                case 'Enter':
+                    event.preventDefault();
+                    if (this.state.filteredMessages.length > 0) {
+                        this.state.focusedIndex = 0;
+                        this._updateFocus(false);
+                        const targetMessage = this.state.filteredMessages[this.state.focusedIndex].element;
+                        if (targetMessage) this.callbacks.onSelect?.(targetMessage);
+                    }
+                    break;
+            }
+
+            if (event.shiftKey && event.key === 'Tab') {
+                event.preventDefault();
+                this.state.focusedIndex = this.state.filteredMessages.length - 1;
+                this._updateFocus(true);
+                this.scrollBox.focus({ preventScroll: true });
+            }
+        }
+
+        /** @param {KeyboardEvent} event */
+        _handleKeyDown(event) {
+            if (!this.scrollBox || document.activeElement !== this.scrollBox || this.state.filteredMessages.length === 0) return;
+
+            const totalItems = this.state.filteredMessages.length;
+            let newFocusedIndex = this.state.focusedIndex;
+
+            switch (event.key) {
+                case 'ArrowDown': {
+                    event.preventDefault();
+                    newFocusedIndex = newFocusedIndex === -1 ? 0 : (newFocusedIndex + 1) % totalItems;
+                    break;
+                }
+                case 'ArrowUp': {
+                    event.preventDefault();
+                    newFocusedIndex = newFocusedIndex === -1 ? totalItems - 1 : (newFocusedIndex - 1 + totalItems) % totalItems;
+                    break;
+                }
+                case 'Home': {
+                    event.preventDefault();
+                    newFocusedIndex = 0;
+                    break;
+                }
+                case 'End': {
+                    event.preventDefault();
+                    newFocusedIndex = totalItems - 1;
+                    break;
+                }
+                case 'PageDown': {
+                    event.preventDefault();
+                    if (newFocusedIndex === -1) newFocusedIndex = 0;
+                    const itemsPerPage = Math.floor(this.scrollBox.clientHeight / this.itemHeight);
+                    newFocusedIndex = Math.min(totalItems - 1, newFocusedIndex + itemsPerPage);
+                    break;
+                }
+                case 'PageUp': {
+                    event.preventDefault();
+                    if (newFocusedIndex === -1) newFocusedIndex = 0;
+                    const itemsPerPage = Math.floor(this.scrollBox.clientHeight / this.itemHeight);
+                    newFocusedIndex = Math.max(0, newFocusedIndex - itemsPerPage);
+                    break;
+                }
+                case 'Enter': {
+                    event.preventDefault();
+                    if (this.state.focusedIndex > -1) {
+                        const targetMessage = this.state.filteredMessages[this.state.focusedIndex].element;
+                        if (targetMessage) this.callbacks.onSelect?.(targetMessage);
+                    }
+                    return; // Don't update focus on enter
+                }
+                case 'Tab': {
+                    event.preventDefault();
+                    const filterInput = this.element.querySelector(`.${APPID}-jump-list-filter`);
+                    if (filterInput instanceof HTMLInputElement) {
+                        filterInput.focus();
+                        filterInput.select();
+                    }
+                    this.state.focusedIndex = -1;
+                    this._updateFocus(false);
+                    return; // Don't update focus on tab
+                }
+                default:
+                    return;
+            }
+
+            if (newFocusedIndex !== this.state.focusedIndex) {
+                this.state.focusedIndex = newFocusedIndex;
+                this._updateFocus(true);
+            }
+        }
+
+        getFilterValue() {
+            const filterInput = this.element?.querySelector(`.${APPID}-jump-list-filter`);
+            if (filterInput instanceof HTMLInputElement) {
+                return filterInput.value || '';
+            }
+            return '';
+        }
+
+        /** @param {MouseEvent} event */
+        _handleClick(event) {
+            const target = event.target;
+            if (!(target instanceof Element)) return;
+
+            const listItem = target.closest('li');
+            if (!listItem) return;
+
+            const originalIndex = parseInt(listItem.dataset.messageIndex, 10);
+            if (!isNaN(originalIndex) && this.messages[originalIndex]) {
+                this.callbacks.onSelect?.(this.messages[originalIndex]);
+            }
         }
     }
 
@@ -12219,11 +12173,16 @@
         }
 
         init() {
+            this._injectSharedStyles();
             this.settingsButton.render();
             this.repositionSettingsButton();
             this.settingsPanel.init();
             this.settingsPanel.render();
-            this.themeModal.render();
+
+            // Note: themeModal and jsonModal are transient components (Transient Pattern).
+            // Their render() is an empty implementation to satisfy the interface,
+            // and style injection/DOM creation happens lazily in open().
+            // Therefore, we do not call render() here.
             this._subscribe(EVENTS.REOPEN_MODAL, ({ type, key }) => {
                 if (type === 'json') {
                     this.jsonModal.open(this.settingsButton.element);
@@ -12231,6 +12190,7 @@
                     this.themeModal.open(key);
                 }
             });
+
             this._subscribe(EVENTS.UI_REPOSITION, this.scheduleReposition);
             this._subscribe(EVENTS.CONFIG_WARNING_UPDATE, ({ show, message }) => {
                 this.isWarningActive = show;
@@ -12249,6 +12209,117 @@
             this.settingsPanel?.destroy();
             this.jsonModal?.close(); // Modals destroy themselves on close
             this.themeModal?.close();
+            document.getElementById(`${APPID}-shared-styles`)?.remove();
+        }
+
+        _injectSharedStyles() {
+            const styleId = `${APPID}-shared-styles`;
+            if (document.getElementById(styleId)) return;
+
+            // Use the centralized UI palette for consistent styling across components
+            const palette = this.siteStyles.PALETTE;
+
+            const style = h('style', {
+                id: styleId,
+                textContent: `
+                    /* --- Common Modal Buttons --- */
+                    .${APPID}-modal-button {
+                        background: ${palette.btn_bg};
+                        border: 1px solid ${palette.btn_border};
+                        border-radius: var(--radius-md, ${CONSTANTS.MODAL.BTN_RADIUS}px);
+                        color: ${palette.btn_text};
+                        cursor: pointer;
+                        font-size: ${CONSTANTS.MODAL.BTN_FONT_SIZE}px;
+                        padding: ${CONSTANTS.MODAL.BTN_PADDING};
+                        transition: background 0.12s;
+                        min-width: 80px;
+                    }
+                    .${APPID}-modal-button:hover {
+                        background: ${palette.btn_hover_bg} !important;
+                        border-color: ${palette.btn_border};
+                    }
+                    .${APPID}-modal-button:disabled {
+                        background: ${palette.btn_bg} !important;
+                        cursor: not-allowed;
+                        opacity: 0.5;
+                    }
+
+                    /* --- Utility Buttons --- */
+                    .-btn-primary {
+                        background-color: #1a73e8 !important;
+                        color: #ffffff !important;
+                        border: 1px solid transparent !important;
+                    }
+                    .-btn-primary:hover {
+                        background-color: #1557b0 !important;
+                    }
+                    .-btn-push-right {
+                        margin-left: auto !important;
+                    }
+
+                    /* --- Common Sliders --- */
+                    .${APPID}-slider-subgroup-control {
+                        align-items: center;
+                        display: flex;
+                        gap: 8px;
+                    }
+                    .${APPID}-slider-subgroup-control input[type=range] {
+                        flex-grow: 1;
+                    }
+                    .${APPID}-slider-subgroup-control span {
+                        color: ${palette.slider_display_text};
+                        font-family: monospace;
+                        min-width: 4em;
+                        text-align: right;
+                    }
+                    .${APPID}-slider-subgroup-control.is-default span {
+                        color: ${palette.label_text};
+                    }
+
+                    /* --- Toggle Switch --- */
+                    .${APPID}-toggle-switch {
+                        position: relative;
+                        display: inline-block;
+                        width: 40px;
+                        height: 22px;
+                        flex-shrink: 0;
+                    }
+                    .${APPID}-toggle-switch input {
+                        opacity: 0;
+                        width: 0;
+                        height: 0;
+                    }
+                    .${APPID}-toggle-slider {
+                        position: absolute;
+                        cursor: pointer;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        bottom: 0;
+                        background-color: ${palette.toggle_bg_off};
+                        transition: .3s;
+                        border-radius: 22px;
+                    }
+                    .${APPID}-toggle-slider:before {
+                        position: absolute;
+                        content: "";
+                        height: 16px;
+                        width: 16px;
+                        left: 3px;
+                        bottom: 3px;
+                        background-color: ${palette.toggle_knob};
+                        transition: .3s;
+                        border-radius: 50%;
+                    }
+                    .${APPID}-toggle-switch input:checked + .${APPID}-toggle-slider {
+                        background-color: ${palette.toggle_bg_on};
+                    }
+                    .${APPID}-toggle-switch input:checked + .${APPID}-toggle-slider:before {
+                        transform: translateX(18px);
+                    }
+                `,
+            });
+            document.head.appendChild(style);
         }
 
         scheduleReposition() {
@@ -13355,11 +13426,11 @@
         PlatformAdapters.Timestamp.init();
     }
 
-    // Main controller for the entire application.
-    const automator = new ThemeAutomator();
-
     // Singleton instance for observing DOM node insertions.
     const sentinel = new Sentinel(OWNERID);
+
+    // Main controller for the entire application.
+    const automator = new ThemeAutomator();
 
     // Launch application
     automator.launch();
