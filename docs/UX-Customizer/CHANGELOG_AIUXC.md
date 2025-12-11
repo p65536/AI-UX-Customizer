@@ -4,6 +4,14 @@
 > This changelog applies to both **ChatGPT UX Customizer (GPTUX)** and **Gemini UX Customizer (GGGUX)**.
 > Most changes are shared between the two scripts. If a change applies only to one, it will be explicitly marked with a `[GPTUX]` or `[GGGUX]` prefix.
 
+## [2.3.0] - 2025-12-11
+- **Performance & Stability**
+  - **[GGGUX]** Optimized message monitoring logic to target the static chat history container. This prevents the creation of redundant observers during long conversations, improving overall performance.
+  - Refined the internal observation strategy to apply platform-specific settings (deep vs. shallow monitoring). This ensures reliable message detection on Gemini while maintaining efficiency on ChatGPT.
+- **Fixes**
+  - Fixed an issue where changing the "Icon size" in settings resulted in low-quality, blurry images. The script now correctly regenerates the optimized images whenever the size is modified.
+  - **[GPTUX]** Fixed an issue where the "Chat content max width" setting and standing images were not working due to recent ChatGPT UI changes. Updated selectors to target the new DOM structure.
+
 ## [2.2.2] - 2025-12-07
 - **Style Updates**
   - **[GGGUX]** Added support for custom background images on the Gem Manager page by making the container transparent.
