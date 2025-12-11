@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      2.2.2
+// @version      2.3.0
 // @license      MIT
 // @description  Fully customize the chat UI. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=gemini.google.com
@@ -260,6 +260,10 @@
         SENTINEL: {
             PANEL: 'PanelObserver',
         },
+        OBSERVER_OPTIONS: {
+            childList: true,
+            subtree: true,
+        },
         BUTTON_VISIBILITY_THRESHOLD_PX: 128,
         BATCH_PROCESSING_SIZE: 50,
         RETRY: {
@@ -357,7 +361,7 @@
             // --- Message containers ---
             CONVERSATION_UNIT: 'user-query, model-response',
             MESSAGE_ID_HOLDER: '[data-message-id]',
-            MESSAGE_CONTAINER_PARENT: '.conversation-container',
+            MESSAGE_CONTAINER_PARENT: 'div#chat-history',
             MESSAGE_ROOT_NODE: 'user-query, model-response',
             USER_QUERY_CONTAINER: 'user-query-content',
 
@@ -4916,6 +4920,7 @@
             this.currentRequestId = 0;
             /** @type {Map<string, string|null>} */
             this.lastAppliedImageValues = new Map();
+            this.lastAppliedIconSize = 0;
         }
 
         /**
@@ -5126,6 +5131,11 @@
             const rootStyle = document.documentElement.style;
             const imageProcessingPromises = [];
 
+            // Capture current icon size to detect changes that affect icon rendering
+            const currentIconSize = this.configManager.getIconSize();
+            const iconSizeChanged = this.lastAppliedIconSize !== currentIconSize;
+            this.lastAppliedIconSize = currentIconSize;
+
             for (const definition of ALL_STYLE_DEFINITIONS) {
                 if (!definition.cssVar) continue;
 
@@ -5135,9 +5145,11 @@
                 if (isImage) {
                     const val = value ? String(value).trim() : null;
                     const lastVal = this.lastAppliedImageValues.get(definition.cssVar);
+                    const isIcon = definition.configKey.endsWith('icon');
 
-                    // Optimization: If the image definition hasn't changed, skip processing to save resources.
-                    if (val === lastVal) {
+                    // Optimization: Skip if the value hasn't changed.
+                    // Exception: If it's an icon and the global icon size setting has changed, we must re-process it.
+                    if (val === lastVal && (!isIcon || !iconSizeChanged)) {
                         continue;
                     }
 
@@ -5157,11 +5169,9 @@
                             if (val.startsWith('<svg')) {
                                 finalCssValue = `url("${svgToDataUrl(val)}")`;
                             } else if (val.startsWith('http')) {
-                                const isIcon = definition.configKey.endsWith('icon');
                                 let resizeOptions = {};
                                 if (isIcon) {
-                                    const iconSize = this.configManager.getIconSize();
-                                    resizeOptions = { width: iconSize, height: iconSize };
+                                    resizeOptions = { width: currentIconSize, height: currentIconSize };
                                 }
                                 const dataUrl = await this.imageDataManager.getImageAsDataUrl(val, resizeOptions);
                                 finalCssValue = dataUrl ? `url("${dataUrl}")` : 'none';
@@ -5597,7 +5607,7 @@
             }
 
             if (this.mainObserver) {
-                this.mainObserver.observe(container, { childList: true, subtree: false });
+                this.mainObserver.observe(container, CONSTANTS.OBSERVER_OPTIONS);
             }
         }
 

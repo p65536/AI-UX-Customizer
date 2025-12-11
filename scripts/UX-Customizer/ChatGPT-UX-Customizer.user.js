@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      2.2.2
+// @version      2.3.0
 // @license      MIT
 // @description  Fully customize the chat UI. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://chatgpt.com/favicon.ico
@@ -260,6 +260,10 @@
         SENTINEL: {
             PANEL: 'PanelObserver',
         },
+        OBSERVER_OPTIONS: {
+            childList: true,
+            subtree: false,
+        },
         BUTTON_VISIBILITY_THRESHOLD_PX: 128,
         BATCH_PROCESSING_SIZE: 50,
         RETRY: {
@@ -397,9 +401,9 @@
             SIDEBAR_WIDTH_TARGET: 'div[id="stage-slideover-sidebar"]',
             SIDEBAR_STATE_INDICATOR: '#stage-sidebar-tiny-bar',
             RIGHT_SIDEBAR: 'div.bg-token-sidebar-surface-primary.shrink-0:not(#stage-slideover-sidebar)',
-            CHAT_CONTENT_MAX_WIDTH: 'div[class*="--thread-content-max-width"]',
+            CHAT_CONTENT_MAX_WIDTH: '.group\\/turn-messages',
             SCROLL_CONTAINER: 'main#main .flex.h-full.flex-col.overflow-y-auto',
-            STANDING_IMAGE_ANCHOR: 'div[class*="--thread-content-max-width"]',
+            STANDING_IMAGE_ANCHOR: '.group\\/turn-messages',
 
             // --- Site Specific Selectors ---
             BUTTON_SHARE_CHAT: '[data-testid="share-chat-button"]',
@@ -1442,7 +1446,7 @@
                         -webkit-mask-image: none !important;
                     }
                     /* This rule is now conditional on a body class and scoped to the scroll container to avoid affecting other elements. */
-                    body.${APPID}-max-width-active ${CONSTANTS.SELECTORS.SCROLL_CONTAINER} ${CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH} {
+                    body.${APPID}-max-width-active main ${CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH} {
                         max-width: var(--${APPID}-chat-content-max-width) !important;
                     }
                 `;
@@ -5191,6 +5195,7 @@
             this.currentRequestId = 0;
             /** @type {Map<string, string|null>} */
             this.lastAppliedImageValues = new Map();
+            this.lastAppliedIconSize = 0;
         }
 
         /**
@@ -5401,6 +5406,11 @@
             const rootStyle = document.documentElement.style;
             const imageProcessingPromises = [];
 
+            // Capture current icon size to detect changes that affect icon rendering
+            const currentIconSize = this.configManager.getIconSize();
+            const iconSizeChanged = this.lastAppliedIconSize !== currentIconSize;
+            this.lastAppliedIconSize = currentIconSize;
+
             for (const definition of ALL_STYLE_DEFINITIONS) {
                 if (!definition.cssVar) continue;
 
@@ -5410,9 +5420,11 @@
                 if (isImage) {
                     const val = value ? String(value).trim() : null;
                     const lastVal = this.lastAppliedImageValues.get(definition.cssVar);
+                    const isIcon = definition.configKey.endsWith('icon');
 
-                    // Optimization: If the image definition hasn't changed, skip processing to save resources.
-                    if (val === lastVal) {
+                    // Optimization: Skip if the value hasn't changed.
+                    // Exception: If it's an icon and the global icon size setting has changed, we must re-process it.
+                    if (val === lastVal && (!isIcon || !iconSizeChanged)) {
                         continue;
                     }
 
@@ -5432,11 +5444,9 @@
                             if (val.startsWith('<svg')) {
                                 finalCssValue = `url("${svgToDataUrl(val)}")`;
                             } else if (val.startsWith('http')) {
-                                const isIcon = definition.configKey.endsWith('icon');
                                 let resizeOptions = {};
                                 if (isIcon) {
-                                    const iconSize = this.configManager.getIconSize();
-                                    resizeOptions = { width: iconSize, height: iconSize };
+                                    resizeOptions = { width: currentIconSize, height: currentIconSize };
                                 }
                                 const dataUrl = await this.imageDataManager.getImageAsDataUrl(val, resizeOptions);
                                 finalCssValue = dataUrl ? `url("${dataUrl}")` : 'none';
@@ -5872,7 +5882,7 @@
             }
 
             if (this.mainObserver) {
-                this.mainObserver.observe(container, { childList: true, subtree: false });
+                this.mainObserver.observe(container, CONSTANTS.OBSERVER_OPTIONS);
             }
         }
 
