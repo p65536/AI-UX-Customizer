@@ -4,6 +4,10 @@
 > This changelog applies to both **ChatGPT UX Customizer (GPTUX)** and **Gemini UX Customizer (GGGUX)**.
 > Most changes are shared between the two scripts. If a change applies only to one, it will be explicitly marked with a `[GPTUX]` or `[GGGUX]` prefix.
 
+## [2.3.2] - 2025-12-17
+- **Fixes**
+  - **[GPTUX]** Fixed an issue where standing images were not displayed on Project pages.
+
 ## [2.3.1] - 2025-12-16
 - **Fixes**
   - **[GPTUX]** Updated core layout selectors to adapt to recent changes in ChatGPT's website structure, ensuring proper scrolling and theme application.
