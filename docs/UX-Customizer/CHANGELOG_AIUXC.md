@@ -4,6 +4,11 @@
 > This changelog applies to both **ChatGPT UX Customizer (GPTUX)** and **Gemini UX Customizer (GGGUX)**.
 > Most changes are shared between the two scripts. If a change applies only to one, it will be explicitly marked with a `[GPTUX]` or `[GGGUX]` prefix.
 
+## [2.3.1] - 2025-12-16
+- **Fixes**
+  - **[GPTUX]** Updated core layout selectors to adapt to recent changes in ChatGPT's website structure, ensuring proper scrolling and theme application.
+  - Fixed a visual regression where custom background images were scrolling with the chat content. Backgrounds are now correctly fixed in place.
+
 ## [2.3.0] - 2025-12-11
 - **Performance & Stability**
   - **[GGGUX]** Optimized message monitoring logic to target the static chat history container. This prevents the creation of redundant observers during long conversations, improving overall performance.
