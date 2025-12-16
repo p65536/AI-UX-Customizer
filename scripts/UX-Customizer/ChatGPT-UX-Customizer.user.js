@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      2.3.0
+// @version      2.3.1
 // @license      MIT
 // @description  Fully customize the chat UI. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://chatgpt.com/favicon.ico
@@ -356,7 +356,7 @@
         },
         SELECTORS: {
             // --- Main containers ---
-            MAIN_APP_CONTAINER: 'main#main',
+            MAIN_APP_CONTAINER: 'div:has(> main#main)',
             MESSAGE_WRAPPER_FINDER: '.w-full',
             MESSAGE_WRAPPER: 'chat-wrapper',
 
@@ -402,7 +402,7 @@
             SIDEBAR_STATE_INDICATOR: '#stage-sidebar-tiny-bar',
             RIGHT_SIDEBAR: 'div.bg-token-sidebar-surface-primary.shrink-0:not(#stage-slideover-sidebar)',
             CHAT_CONTENT_MAX_WIDTH: '.group\\/turn-messages',
-            SCROLL_CONTAINER: 'main#main .flex.h-full.flex-col.overflow-y-auto',
+            SCROLL_CONTAINER: 'div:has(> main#main)',
             STANDING_IMAGE_ANCHOR: '.group\\/turn-messages',
 
             // --- Site Specific Selectors ---
@@ -3033,7 +3033,8 @@
                 configKey: 'window.backgroundImageUrl',
                 fallbackKey: 'defaultSet.window.backgroundImageUrl',
                 cssVar: `--${APPID}-window-bg-image`,
-                generator: (value) => (value ? `${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} { background-image: var(--${APPID}-window-bg-image)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''),
+                generator: (value) =>
+                    value ? `${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} { background-image: var(--${APPID}-window-bg-image)${SITE_STYLES.CSS_IMPORTANT_FLAG}; background-attachment: fixed${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : '',
             },
             {
                 configKey: 'window.backgroundSize',

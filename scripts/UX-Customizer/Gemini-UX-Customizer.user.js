@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      2.3.0
+// @version      2.3.1
 // @license      MIT
 // @description  Fully customize the chat UI. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=gemini.google.com
@@ -2758,7 +2758,8 @@
                 configKey: 'window.backgroundImageUrl',
                 fallbackKey: 'defaultSet.window.backgroundImageUrl',
                 cssVar: `--${APPID}-window-bg-image`,
-                generator: (value) => (value ? `${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} { background-image: var(--${APPID}-window-bg-image)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''),
+                generator: (value) =>
+                    value ? `${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} { background-image: var(--${APPID}-window-bg-image)${SITE_STYLES.CSS_IMPORTANT_FLAG}; background-attachment: fixed${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : '',
             },
             {
                 configKey: 'window.backgroundSize',
