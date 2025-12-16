@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      2.3.2
+// @version      2.3.3
 // @license      MIT
 // @description  Fully customize the chat UI. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://chatgpt.com/favicon.ico
@@ -1186,7 +1186,7 @@
              * @returns {boolean} True if the page should be excluded, otherwise false.
              */
             isExcludedPage() {
-                const excludedPatterns = [/^\/library/, /^\/codex/, /^\/gpts/];
+                const excludedPatterns = [/^\/library/, /^\/codex/, /^\/gpts/, /^\/images/];
                 const pathname = window.location.pathname;
                 return excludedPatterns.some((pattern) => pattern.test(pathname));
             },
