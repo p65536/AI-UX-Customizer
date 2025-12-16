@@ -4,6 +4,10 @@
 > This changelog applies to both **ChatGPT UX Customizer (GPTUX)** and **Gemini UX Customizer (GGGUX)**.
 > Most changes are shared between the two scripts. If a change applies only to one, it will be explicitly marked with a `[GPTUX]` or `[GGGUX]` prefix.
 
+## [2.3.3] - 2025-12-17
+- **Fixes**
+  - **[GPTUX]** Added the `/images` page to the exclusion list to prevent the script from running on image generation pages.
+
 ## [2.3.2] - 2025-12-17
 - **Fixes**
   - **[GPTUX]** Fixed an issue where standing images were not displayed on Project pages.
