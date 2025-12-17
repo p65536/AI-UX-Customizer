@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      2.3.3
+// @version      2.3.4
 // @license      MIT
 // @description  Fully customize the chat UI. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://chatgpt.com/favicon.ico
@@ -1404,14 +1404,21 @@
                     ${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE} {
                         box-sizing: border-box;
                     }
+                    /* (2025/12/17 updated) Hide borders, shadows, and backgrounds on the header */
                     #page-header {
-                        background: transparent !important;
-                        position: absolute !important;
-                        top: 0;
-                        width: 100%;
-                        /* (2025/12/06) Hide borders and shadows for seamless background integration */
+                        background: none !important;
                         border: none !important;
                         box-shadow: none !important;
+                        outline: none !important;
+                    }
+                    /* Remove pseudo-elements that might create borders or shadows */
+                    #page-header::after,
+                    #page-header::before {
+                        display: none !important;
+                    }
+                    /* Remove standalone border elements */
+                    div[data-edge="true"] {
+                        display: none !important;
                     }
                     ${CONSTANTS.SELECTORS.BUTTON_SHARE_CHAT} {
                         background: transparent;
