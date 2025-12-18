@@ -4,6 +4,10 @@
 > This changelog applies to both **ChatGPT UX Customizer (GPTUX)** and **Gemini UX Customizer (GGGUX)**.
 > Most changes are shared between the two scripts. If a change applies only to one, it will be explicitly marked with a `[GPTUX]` or `[GGGUX]` prefix.
 
+## [2.3.5] - 2025-12-18
+- **Fixes**
+  - **[GPTUX]** Added the `/apps` page to the exclusion list to prevent the script from running on Apps pages.
+
 ## [2.3.4] - 2025-12-17
 - **Fixes**
   - **[GPTUX]** Fixed an issue where the page header would scroll away with the chat content. It now correctly stays fixed at the top of the screen.
