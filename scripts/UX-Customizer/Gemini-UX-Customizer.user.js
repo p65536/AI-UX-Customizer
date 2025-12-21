@@ -1080,6 +1080,7 @@
             },
             fixed_nav_console: {
                 enabled: true,
+                position: 'bottom',
             },
             load_full_history_on_chat_load: {
                 enabled: true,
