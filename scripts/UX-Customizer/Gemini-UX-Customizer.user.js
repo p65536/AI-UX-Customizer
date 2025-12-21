@@ -7093,11 +7093,26 @@
                     if (!measured) return;
 
                     const { formRect, consoleWidth, windowHeight } = measured;
-                    const bottomPosition = `${windowHeight - formRect.top + 8}px`;
                     const formCenter = formRect.left + formRect.width / 2;
 
+                    // Get position setting
+                    const config = this.configManager.get();
+                    const position = config?.features?.fixed_nav_console?.position || 'bottom';
+
                     this.navConsole.style.left = `${formCenter - consoleWidth / 2}px`;
-                    this.navConsole.style.bottom = bottomPosition;
+
+                    if (position === 'top') {
+                        // Top positioning (fixed at top of viewport + margin)
+                        this.navConsole.style.bottom = 'auto';
+                        this.navConsole.style.top = '12px';
+                        this.navConsole.style.transformOrigin = 'top';
+                    } else {
+                        // Bottom positioning (default)
+                        const bottomPosition = `${windowHeight - formRect.top + 8}px`;
+                        this.navConsole.style.top = 'auto';
+                        this.navConsole.style.bottom = bottomPosition;
+                        this.navConsole.style.transformOrigin = 'bottom';
+                    }
                 },
             });
         }
