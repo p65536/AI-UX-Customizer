@@ -9551,7 +9551,7 @@
                 { id: 'features.collapsible_button.enabled', label: 'Collapsible button', title: 'Enables a button to collapse large message bubbles.' },
                 { id: 'features.sequential_nav_buttons.enabled', label: 'Sequential nav buttons', title: 'Enables buttons to jump to the previous/next message.' },
                 { id: 'features.scroll_to_top_button.enabled', label: 'Scroll to top button', title: 'Enables a button to scroll to the top of a message.' },
-                { id: 'features.fixed_nav_console.enabled', label: 'Navigation console', title: 'When enabled, a navigation console with message counters will be displayed next to the text input area.' },
+                // Removed generic fixed_nav_console entry to handle it manually below
             ];
 
             const platformFeatures = PlatformAdapters.SettingsPanel.getPlatformSpecificFeatureToggles().map((f) => ({ ...f, id: f.configKey }));
@@ -9572,6 +9572,30 @@
                         },
                     ],
                 };
+            });
+
+            // Manually add Navigation Console with the Position dropdown
+            featureGroups.push({
+                type: 'container',
+                className: `${APPID}-feature-group`,
+                children: [
+                    {
+                        type: 'container-row',
+                        children: [
+                            { type: 'label', for: `${APPID}-form-features-fixed_nav_console-enabled`, title: 'When enabled, a navigation console with message counters will be displayed.', text: 'Navigation console' },
+                            { type: 'toggle', id: 'features.fixed_nav_console.enabled', configKey: 'features.fixed_nav_console.enabled' },
+                        ],
+                    },
+                    {
+                        type: 'container-row',
+                        // Add a class we can target for visibility toggling
+                        className: `${APPID}-submenu-row ${APPID}-nav-position-row`,
+                        children: [
+                            { type: 'label', for: `${APPID}-form-features-fixed_nav_console-position`, text: 'Console Position:' },
+                            { type: 'select', id: 'features.fixed_nav_console.position', options: ['bottom', 'top'] },
+                        ]
+                    }
+                ],
             });
 
             return [{ type: 'fieldset', legend: 'Features', children: featureGroups }];
