@@ -9606,7 +9606,13 @@
             if (!config || !this.element) return;
 
             populateFormFromSchema(this._getPanelSchema(), this.element, config, this);
-            this._updateDependencies();
+
+            // Manual Visibility Check on Load
+            const navToggle = this.element.querySelector(`#${APPID}-form-features-fixed_nav_console-enabled`);
+            const navPosRow = this.element.querySelector(`.${APPID}-nav-position-row`);
+            if (navToggle && navPosRow) {
+                navPosRow.style.display = navToggle.checked ? 'flex' : 'none';
+            }
         }
 
         async _collectDataFromForm() {
@@ -9666,8 +9672,15 @@
             });
 
             this.element.addEventListener('change', (e) => {
-                if (e.target.matches('input[type="checkbox"]')) {
-                    this._updateDependencies();
+                // Visibility Toggle Logic
+                if (e.target.id === `${APPID}-form-features-fixed_nav_console-enabled`) {
+                    const navPosRow = this.element.querySelector(`.${APPID}-nav-position-row`);
+                    if (navPosRow) {
+                        navPosRow.style.display = e.target.checked ? 'flex' : 'none';
+                    }
+                }
+
+                if (e.target.matches('input[type="checkbox"]') || e.target.matches('select')) {
                     this.debouncedSave();
                 }
             });
