@@ -36,7 +36,7 @@ Currently, it supports the following AI services:
 When you **Hover** (or **Click**, depending on settings) over the button:  
 ![Text Insertion Menu](./images/qtb_open_textlist.webp)
 
-* **Perfect Match:** Works seamlessly with [**UX Customizer**](../UX-Customizer/README.md) to enhance the visual interface and navigation.
+* **Perfect Match:** Works seamlessly with [**AI UX Customizer**](../AI-UX-Customizer/README.md) to enhance the visual interface and navigation.
 
 ### 2. Settings Panel
 

@@ -17,63 +17,47 @@ Each script is developed independently and can be installed separately.
 
 ## Recent Updates
 
+### 2026-01-02
+- 🧪 **Beta Release:** **AI UX Customizer (AIUXC)** has been released as a public beta!
+  - This unified script combines ChatGPT and Gemini customization into one.
+  - I actively invite you to try it out and share your feedback or bug reports on [GitHub Issues](https://github.com/p65536/AI-UX-Customizer/issues).
+  - *Note: The existing standalone scripts (GPTUX/GGGUX) will remain supported until the official release of AIUXC.*
+
 ### 2025-12-22
 - 📢 **Announcement:** Published the plan to unify `ChatGPT UX Customizer` and `Gemini UX Customizer` into a single script: **AI UX Customizer (AIUXC)**.
 
 ### 2025-12-18
 - Updated `ChatGPT UX Customizer` (v2.3.4 -> v2.3.5)
 
-### 2025-12-17
-- Updated `ChatGPT UX Customizer` (v2.3.3 -> v2.3.4)
-- Updated `ChatGPT UX Customizer` (v2.3.2 -> v2.3.3)
-- Updated `ChatGPT UX Customizer` (v2.3.1 -> v2.3.2)
-
----
-
-# [Date TBD] Plan to Unify ChatGPT & Gemini UX Customizers
-
-> ⚠️ **Notice:** I am planning to merge GPTUX and GGGUX into a single new script, **"AI UX Customizer (AIUXC)"**.
->
-> Once the unified version is released, updates for the standalone scripts will cease. I kindly ask all users to migrate to the new script at that time.
-
-If you have any questions or concerns regarding this transition plan, please let me know in the comments/issues.
-
-<details>
-<summary><strong>Click to read details (Benefits, Compatibility, and Migration)</strong></summary>
-
-### 🚀 Benefits of Unification
-* **Shared Theme Settings:** Configure once, use everywhere! You can finally share theme configurations across platforms without repetitive export/import cycles.
-* **Faster Updates:** Bug fixes and new features will be delivered to both platforms simultaneously via a single codebase.
-* **Site-Specific Options:** While themes are shared, functional settings (e.g., Chat Content Max Width) remain independently configurable for each site.
-
-### 🔄 Migration Compatibility
-The new script is designed to be backward compatible:
-* **Merge Support:** You can import configuration files from **both** GPTUX and GGGUX. The script allows you to merge them, preserving themes from both platforms (except default theme).
-* **Theme Conversion:** Your current themes will be imported as distinct themes within the new system.
-* *Note: General panel settings (sliders, toggles) will need to be re-configured manually.*
-
-### 📝 Planned Migration Steps
-Detailed instructions will be provided upon release. Due to structural changes in the settings file, please follow these steps:
-
-1.  **Export** your current settings from GPTUX and GGGUX.
-2.  **Disable** the old scripts.
-3.  **Install** the new **AI UX Customizer**.
-4.  **Migrate Themes (Use "Merge"):**
-    * Open the JSON settings modal in the new script.
-    * **Hold the `Ctrl` key** to change the "Import" button to **"Merge"**.
-    * Click **"Merge"** and select your exported JSON file from GPTUX.
-    * **Repeat this process** for your GGGUX file to combine themes from both platforms.
-5.  **Reconfigure Defaults:**
-    * The Default Theme (`defaultSet`) is now saved separately for each platform. Please re-configure your default styles (e.g., chat width, base colors) manually in the settings panel.
-    * *(Advanced Users Only)* You can manually copy the values from your old `defaultSet` and paste them into the corresponding platform's `defaultSet` section using a text editor.
-
-</details>
-
 ---
 
 ## Scripts in This Project
 
-### 1. ChatGPT UX Customizer / Gemini UX Customizer
+### 1. (Beta) AI UX Customizer
+
+**The new unified script for both ChatGPT and Gemini.** It integrates powerful theme and navigation features into a single codebase, allowing you to share settings across platforms.
+
+> **Status:** **Public Beta**  
+> This script can be installed alongside the existing scripts.  
+> 
+> ⚠️ **Important:** To prevent conflicts, please **disable** `ChatGPT-UX-Customizer` and `Gemini-UX-Customizer` in your userscript manager (e.g., Tampermonkey) when using AIUXC.
+> 
+> **[How to Migrate from Old Scripts](./docs/AI-UX-Customizer/MIGRATION.md)**
+
+| Platform | GitHub | Greasy Fork | Version | Last Updated | Changelog |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **ChatGPT** & **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/AI-UX-Customizer/AI-UX-Customizer.user.js) | (N/A in beta) | 1.0.0-b285 | 2026-01-02 | [View](./docs/AI-UX-Customizer/CHANGELOG_AIUXC.md) |
+
+**[View Detailed Features & Manual for AI UX Customizer](./docs/AI-UX-Customizer/README.md)**
+
+---
+
+### 2. ChatGPT UX Customizer / Gemini UX Customizer
+
+The standalone versions for each platform. These are currently the recommended stable releases for general use.
+
+> ⚠️ **End of Support Notice:**  
+> Maintenance for these standalone versions will cease once **AI UX Customizer** is officially released.
 
 A script that adds powerful theme and navigation features. For each chat, you can flexibly customize speaker names, icons, text colors, bubble styles, backgrounds, and standing images.
 
@@ -93,7 +77,7 @@ Click the gear icon ⚙️ in the input area to open the settings panel.
 
 ---
 
-### 2. Quick Text Buttons
+### 3. Quick Text Buttons
 
 A utility script that adds buttons to quickly insert predefined text or prompts. You can manage frequently used phrases by category and profile.
 

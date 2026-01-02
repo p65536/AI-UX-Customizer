@@ -1,0 +1,377 @@
+# Changelog
+
+## [1.0.0-b285] - 2026-01-02
+
+> Note: This is the first public beta release, consolidating all changes from internal builds v1.0.0-b1 through v1.0.0-b284.
+
+- **Major Changes**
+  - **Unified Script**: Merged `ChatGPT-UX-Customizer` and `Gemini-UX-Customizer` into a single script (**AI-UX-Customizer**). It now automatically detects and adapts to the active platform.
+  - **Storage Overhaul**: Completely restructured how settings are saved. This resolves browser storage quota limits and improves synchronization performance between tabs.
+- **New Features & UX**
+  - **JSON Import**: Added a "Append" mode. You can now hold `Ctrl` while clicking the **Import** button to append new settings with your existing configuration instead of overwriting them.
+  - **Theme Editor**:
+    - Unified separate padding sliders into a single control for simpler adjustment.
+    - Added index numbers to the theme selection list to help track order when moving items.
+  - **Color Picker**: Added support for closing the popup using the `ESC` key.
+- **Core Improvements**
+  - **Performance**: Extensive internal refactoring (Reactive UI, centralized styling, virtual scrolling) to improve responsiveness and reduce memory usage.
+  - **Performance**: Improved the responsiveness of **Jump List** operations on Chromium-based browsers.
+  - **Stability**: Fixed resource leaks and improved reliability when navigating between pages.
+  - **Architecture**: Transitioned the Settings Panel and Modals to a reactive, schema-driven UI architecture.
+  - **Refactoring**: Extensive internal restructuring and modernization of the codebase to enhance maintainability and stability.
+
+---
+
+> The following is the changelog for GPTUX/GGGUX prior to integration.
+
+## [2.3.5] - 2025-12-18
+- **Fixes**
+  - **[GPTUX]** Added the `/apps` page to the exclusion list to prevent the script from running on Apps pages.
+
+## [2.3.4] - 2025-12-17
+- **Fixes**
+  - **[GPTUX]** Fixed an issue where the page header would scroll away with the chat content. It now correctly stays fixed at the top of the screen.
+  - **[GPTUX]** Removed residual border lines and shadows around the header area to ensure a seamless look when using custom background images.
+
+## [2.3.3] - 2025-12-17
+- **Fixes**
+  - **[GPTUX]** Added the `/images` page to the exclusion list to prevent the script from running on image generation pages.
+
+## [2.3.2] - 2025-12-17
+- **Fixes**
+  - **[GPTUX]** Fixed an issue where standing images were not displayed on Project pages.
+
+## [2.3.1] - 2025-12-16
+- **Fixes**
+  - **[GPTUX]** Updated core layout selectors to adapt to recent changes in ChatGPT's website structure, ensuring proper scrolling and theme application.
+  - Fixed a visual regression where custom background images were scrolling with the chat content. Backgrounds are now correctly fixed in place.
+
+## [2.3.0] - 2025-12-11
+- **Performance & Stability**
+  - **[GGGUX]** Optimized message monitoring logic to target the static chat history container. This prevents the creation of redundant observers during long conversations, improving overall performance.
+  - Refined the internal observation strategy to apply platform-specific settings (deep vs. shallow monitoring). This ensures reliable message detection on Gemini while maintaining efficiency on ChatGPT.
+- **Fixes**
+  - Fixed an issue where changing the "Icon size" in settings resulted in low-quality, blurry images. The script now correctly regenerates the optimized images whenever the size is modified.
+  - **[GPTUX]** Fixed an issue where the "Chat content max width" setting and standing images were not working due to recent ChatGPT UI changes. Updated selectors to target the new DOM structure.
+
+## [2.2.2] - 2025-12-07
+- **Style Updates**
+  - **[GGGUX]** Added support for custom background images on the Gem Manager page by making the container transparent.
+- **Fixes**
+  -  Fixed a potential crash that could occur when closing the jump list immediately after hovering over an item.
+- **Core Changes**
+  - Refactored internal UI components and centralized shared styles to improve consistency and maintainability.
+  - Optimized the initialization process and code structure.
+
+## [2.2.1] - 2025-12-06
+- **New Features**
+  - Added a real-time **Configuration Size Indicator** to the JSON settings modal. It monitors config size against recommended (5MB) and hard (10MB) limits, using text colors (yellow/red) to warn of potential storage issues.
+  - Added visual feedback (loading cursor, status messages) and robust error handling during file reading.
+- **Fixes**
+  - Fixed an issue where the text editor would not auto-focus or reset scroll position when opening the JSON settings modal.
+- **Style Updates**
+  - [GPTUX] Added support for custom background images on ChatGPT Project pages by making the header transparent.
+  - [GPTUX] Removed default borders and shadows from the chat header to ensure a seamless appearance when using custom background images.
+
+## [2.2.0] - 2025-12-05
+- **New Features**
+  - **URL Pattern Matching:** You can now apply themes based on the URL path in addition to the page title. URL matches take priority for faster switching.
+    - Example (ChatGPT Project): `/123456abcdef789012ghijklmnopq345/i`
+    - Example (Gemini Gem): `/gem\/abc123456789/i`
+  - Added a **"URL Patterns"** field to the Theme Editor.
+  - **[GPTUX] Auto-collapse User Messages:** Added an option to automatically collapse long user queries upon loading. This saves screen space and requires the "Collapsible button" feature to be enabled.
+- **UI/UX Improvements**
+  - **Responsive Settings UI:** The Settings Panel and Theme Editor now automatically adapt their size and layout for smaller screens.
+    - The Theme Editor switches to a single-column layout on narrower windows to prevent overlap.
+    - Added scroll support to the Settings Panel for better accessibility on small displays.
+- **Core Changes**
+  - Introduced `NavigationMonitor` for faster and more reliable detection of page navigation and URL changes.
+  - Refactored the internal event system to prevent conflicts and ensure smoother operation.
+- **Fixes**
+  - Fixed an issue where clicking the settings button while typing could accidentally submit the chat message.
+  - Fixed the Color Picker popup remaining floating/detached when scrolling the settings panel. It now auto-closes on scroll.
+  - Improved resource cleanup to prevent potential memory leaks from lingering timers or listeners.
+  - **[GGGUX]** Fixed an issue where **Standing Images** failed to reappear when switching between Gems.
+  - **[GPTUX]** Improved theme logic to prevent the default theme from briefly flashing during page transitions.
+  - **[GPTUX]** Fixed an issue where the top toolbar obscured the custom background on project pages, due to recent changes in ChatGPT specifications. It is now transparent, ensuring consistent background visibility.
+
+## [2.1.0] - 2025-12-02
+- **UX Improvements**
+  - Enabled real-time layout updates during message streaming. These updates were previously suppressed to optimize performance, but the restriction has been lifted to ensure the UI remains visually consistent during user interactions.
+- **UI Improvements**
+  - **[Modal Standardization]**
+    - Buttons now follow a consistent order (Cancel, Apply, Save) across all menus.
+    - The "Save" button is now visually highlighted as the primary action.
+    - Enforced uniform button widths for a cleaner look.
+  - **[JSON Settings]** Improved button layout for better usability. File operations (Export, Import) are now separated from dialog actions (Cancel, Save) to prevent accidental clicks.
+- **Core Improvements**
+  - Enhanced internal security and stability, including better compatibility with strict browser security environments (CSP).
+
+## [2.0.0] - 2025-11-28
+- **New Features**
+  - **Interactive Jump List Preview**: The message preview tooltip in the Navigation Console is now interactive. You can select and copy text directly from the preview without the popup closing unexpectedly.
+    - **Tip:** To quickly select all text within the preview, simply **triple-click** the text.
+  - **[GPTUX]** Added support for **Research Panel** and **Activity Panel**. Standing images are now automatically hidden when these panels are open to prevent visual clutter.
+  - **Relocation**: Moved the settings button to the input area for better accessibility and reduced visual clutter.
+  - **Config Storage Increase**: The maximum configuration size has been increased from 4.8MB to 10MB, providing more space for themes and embedded images.
+    - *Note:* As stated in the README, please remember that embedding large local images is intended primarily for temporary layout verification.
+- **Bug Fixes & Improvements**
+  - **[GPTUX] Avatar Logic**: Refactored avatar injection to be turn-based, improving stability and fixing layout issues with dynamic content like "Thinking" processes.
+  - **[GPTUX] Navigation Fix**: Fixed unexpected scrolling jumps when using navigation buttons on image-only messages.
+  - **[GPTUX] Layout Fix**: Fixed an issue where custom avatars overlapped with **Deep Research** result containers; avatars are now hidden on these reports.
+  - **[GPTUX] Timestamp Positioning**: Improved the positioning and stability of message timestamps.
+  - **[GGGUX] Auto Scroll**: Fixed an issue where the **Auto Scroll** feature failed to trigger on certain chats by introducing a grace period for the initial check.
+  - **Theme Editor**:
+    - Copied themes are now inserted immediately below the selected theme.
+    - Deleting a theme now intelligently selects the adjacent theme instead of selecting the 'Default Settings'.
+  - **UI Stability**:
+    - Fixed an issue where theme styles could persist on excluded pages.
+    - Prevented duplicate insertion of navigation buttons (collapsible, sequential nav, etc.).
+    - Settings save errors (e.g., storage full) are now handled gracefully without unhandled console warnings.
+  - **Responsiveness**: Significantly improved the responsiveness of floating UI elements (Settings button, Navigation console, Standing images) during window resizing and panel transitions using frame-synced updates.
+  - **Smooth Transitions**: Implemented smooth visual tracking for panel transitions (Sidebar, Canvas, File panels), eliminating visual jumps.
+  - **History Navigation**: Improved compatibility with other browser extensions by implementing a safer method for restoring history navigation handlers (`pushState`/`replaceState`).
+- **Performance & Internal**
+  - **Refactored Sentinel Library**: The class now enforces a mandatory `prefix` (utilizing `OWNERID`) during initialization. This ensures distinct CSS animation names, allowing multiple scripts to run simultaneously on the same page without interfering with each other's DOM detection logic.
+    - **Performance**: Switched internal implementation to use the `CSSStyleSheet` API (`insertRule`/`deleteRule`) instead of text manipulation, resulting in cleaner and faster style injection.
+  - **Optimized Message Lookup**: Implemented O(1) lookup in `MessageCacheManager` using a `Map`-based cache, improving performance in long chats.
+  - **Efficient Rendering**: Implemented DOM element caching for the Navigation Console to reduce overhead during updates.
+  - **Modernized Core**: Updated utility functions to use modern browser APIs (`structuredClone`, `crypto.randomUUID`) and standardized internal logic.
+  - **Safer Scrolling**: Refactored scrolling to use standard CSS `scroll-margin-top`, eliminating DOM hacks.
+  - **Robust Lifecycle**: Hardened event listener management and improved the shutdown process for cleaner unloading and better stability on excluded pages.
+  - **Refactored Initialization**: Centralized initialization logic in `ThemeAutomator` and simplified the script entry point.
+  - **Style Tweaks**: Increased avatar icon margin for better visual spacing.
+
+## [1.8.0] - 2025-11-16
+- **New Features**
+  - **[GPTUX]** Added a new **Message Timestamp** feature to display the creation time for each message (enabled by default). This feature intercepts API requests to load historical timestamps and records new ones in real-time.
+  - **[GPTUX]** A "Show timestamp" toggle has been added to the settings panel to control this feature.
+- **Core Changes**
+  - Changed the script execution timing (`@run-at`) from `document-idle` to `document-start`. This is a foundational change required for API interception for Timestamps.
+  - Hardened core lifecycle logic (`Sentinel`, `ObserverManager`) to ensure robust operation when running at `document-start`, particularly improving how page navigation completion is detected.
+  - Improved observer performance and isolation by refactoring panel/toolbar observers (like the one for the settings button) to use their own dedicated `Sentinel` instances. This allows for cleaner setup and teardown.
+  - Updated the main `Sentinel` prefix to `OWNERID + APPID` to ensure no conflicts between other scripts.
+- **Fixes & Improvements**
+  - **[GPTUX]** Implemented dynamic repositioning for the settings button. It will now automatically move to the left to avoid overlapping with the ChatGPT header toolbar (e.g., when the 'Share' button appears).
+
+## [1.7.2] - 2025-11-13
+- **Bug Fixes**
+  - Fixed an issue where URL hash changes (e.g., `#settings`) were incorrectly detected as a full page navigation.
+  - **[GPTUX]** This resolves a bug where the layout scan would repeatedly trigger when opening, closing, or navigating within the native ChatGPT settings modal, and fixes the associated UI sluggishness.
+
+## [1.7.1] - 2025-11-13
+- **Bug Fixes**
+  - Fixed an issue in the **JSON Modal** and **Theme Modal** where validation error messages would persist even after correcting the invalid data and resubmitting.
+
+## [1.7.0] - 2025-11-10
+- **New Features**
+  - **[GPTUX]** Added a **Layout Scan** feature specifically for **Firefox** users to mitigate scroll position jumps caused by late-loading messages or images. This includes a new "Scan layout on chat load" toggle in the settings panel and a manual trigger button in the navigation console.
+- **Fixes**
+  - **[GPTUX]** Fixed an issue where the navigation console would not reposition correctly when the text input area was resized.
+  - **[GGGUX]** Fixed a bug where the "Load full history" auto-scroll feature did not trigger correctly on chat load.
+- **Refactoring**
+  - Refactored the internal `Logger` to be class-based and added a new `badge()` method for greatly improved console log readability during debugging.
+  - Other internal code refactorings.
+
+## [1.6.1] - 2025-10-25
+- **Improvements**
+  - **Performance**: [GPTUX/GGGUX] Optimized the creation of frequently repeated UI elements (avatars, bubble navigation buttons, message numbers) by using `cloneNode` instead of creating them from scratch each time. This reduces rendering overhead, especially in long conversations.
+- **Internal**
+  - **Refactoring**: [GPTUX/GGGUX] Refactored the theme editor's live preview update logic for better performance and maintainability. Previews now update granularly only for the relevant section, and the underlying event handling code has been centralized.
+
+## [1.6.0] - 2025-10-19
+- **Features**
+  - **General**: Added a guard to automatically disable the script on unintended pages (e.g., `/gpts` or `/library` on ChatGPT) to prevent unexpected issues.
+  - **Navigation**: Added a "Bulk Collapse/Expand" button to the **right end** of the navigation console to collapse or expand all messages at once (moved from the right of the input area).
+  - **Navigation**: [GGGUX] Added an "Auto-Scroll" button to the **left end** of the navigation console to load the entire chat history. This button is designed to allow you to manually auto-scroll specific chats while normally disabling the `Load full history on chat load` function.
+  - **UX**: [GGGUX] The auto-scroll process can now be canceled by pressing the `ESC` key.
+  - **Navigation**: [GPTUX] Added a function to detect image-only messages and assign message numbers.
+  - **Navigation**: [GPTUX] As a fallback for the above feature, a manual "Rescan DOM" button has been added to the **left end** of the navigation console. Normally, there is no need to use it.
+- **Improvements**
+  - **Performance**:
+    - To enhance UI responsiveness while the AI is generating long responses, most UI processing is now paused during streaming. As a result, elements like the navigation console counters and the message jump list will update only after the response is fully complete. This change significantly reduces lag and stuttering.
+    - Dynamically optimize icon image qualities to improve loading performance in chats with a large number of messages.
+    - Removed the JavaScript-based message height calculation, now handling it with CSS only to significantly reduce rendering overhead.
+  - **Navigation**:
+    - Improved scroll navigation to target individual messages, enabling precise movement to content like images within a turn.
+    - Image-only messages are now displayed as `(Image)` in the jump list for better clarity.
+  - **UI/UX**:
+    - The tooltip for the "Bulk Collapse/Expand" button now dynamically updates to show the next action (e.g., "Collapse all").
+    - Changed the default value display for sliders in the settings panel from "Default" to "Auto".
+- **Fixes**
+  - **UI**: [GPTUX] Fixed an issue where the "message collapse/expand button" was not displayed on Chromium-based browsers.
+  - **Theming**: [GPTUX] Fixed an issue where the input area background color specified in a theme was not applied correctly.
+  - **Layout**: [GPTUX] Fixed an issue where changing the chat width would incorrectly affect the input area width.
+- **Internal**
+  - **Architecture**: Major refactoring to improve performance and maintainability.
+    - Introduced a new rendering pipeline that separates DOM reads and writes (`withLayoutCycle`) and batches UI updates into `requestAnimationFrame` to prevent layout thrashing.
+    - Overhauled the observation logic for better efficiency and reliability.
+    - Refactored the settings panel management to an object-driven architecture based on a declarative UI schema. This change simplifies the addition of new settings, improves maintainability, and ensures more robust synchronization between the UI and the configuration data.
+  - **Config**: Removed the legacy configuration compression feature, standardizing on a human-readable JSON format for storage.
+
+## [1.5.5] - 2025-09-26
+- **Fixes**
+  - **Message Navigation:**
+    - [GPTUX] Due to yet another page structure change in **ChatGPT** (less than a day after the previous fix), message navigation required another adjustment.
+      - Updated the scroll container selector once more to match the latest DOM structure.
+- **Debugging**
+  - Added debug logging to make it easier to detect early when the scroll container selector changes. 
+
+## [1.5.4] - 2025-09-25
+- **Fixes**
+  - **Message Navigation:**
+    - [GPTUX] Fixed broken message navigation caused by recent page structure changes in ChatGPT.
+      - Updated the scroll container selector to the new DOM structure.
+    - Adjusted the target element in `scrollToElement()` to ensure correct scrolling.
+
+## [1.5.3] - 2025-09-13 (private)
+- **Fix**
+  - Fixed message number being displayed at the end of the preview tooltip.
+
+## [1.5.2] - 2025-09-13 (private)
+- **New Feature: Message Number Indicators**
+  - Adds a sequential number indicator to the corner of each message bubble for easy identification.
+  - Makes it simple to cross-reference messages with the counters in the Navigation Console and the Jump List.
+  - The number's position is fixed to the outer corner of the bubble (top-left for assistant, top-right for user), ensuring it expands outwards and does not interfere with other UI elements as the number of digits increases.
+  - Visibility is linked to the "Navigation Console" feature; numbers are only displayed when the console is enabled in the settings.
+
+## [1.5.1] - 2025-09-13
+- **Refactor: Jump List Performance Overhaul**
+  - The Jump List feature has been re-implemented to use virtual scrolling. This ensures high performance and a smooth, responsive experience, even in chats with thousands of messages, while significantly reducing memory usage.
+- **Fix**
+  - The highlighted item in the jump list now correctly synchronizes when navigating messages with the main navigation console buttons.
+  - [GGGUX] The Jump List now correctly extracts the main answer text, ignoring the "Show thought process" section, for both the list items and the preview tooltip.
+
+## [1.5.0] - 2025-09-08
+- **New Feature: Jump List Navigation**
+  - Introduced a "Jump List" feature for instant navigation to any message in the chat.
+  - Click on the "Assistant:", "Total:", or "User:" labels in the navigation console to open the message list.
+  - Features a dynamic filter to search for messages by plain text or regular expressions (e.g., `/pattern/i`).
+  - Hovering over or using arrow keys on a list item displays a full preview of the message content.
+  - Full keyboard support for filtering and list navigation (Arrow keys, Enter, Esc, etc.).
+- **Script Metadata**
+  - Updated the `@description` to include the new navigation capabilities.
+
+## [1.4.0] - 2025-09-05
+- **[GPTUX] Refactoring**
+  - Minor refactoring.
+  - Version alignment with `GGGUX`.
+- **[GGGUX] New feature: Auto-load full chat history**
+  - Added a new feature that automatically loads the entire chat history when opening a chat, eliminating the need to manually scroll up multiple times.
+  - Enabled by default; can be toggled in **Settings Panel → "Load full history on chat load"**.
+  - Provides user feedback with a toast notification (including a *Cancel* button) during loading.
+  - Uses Gemini’s native progress bar to robustly load all messages.
+  - Activates only for chats with more than 20 messages, and scrolls back to the latest message once loading is complete for a seamless experience.
+  - If the auto-load chat history feature terminates too early, edit the script directly and increase the following value to `3000`: Inside `class AutoScrollManager`, change `APPEAR_TIMEOUT_MS: 2000,`
+
+## [1.3.8] - 2025-09-03
+- **UI manager refactoring for stability & performance**
+  - Fixed an issue where the **"Toggle All"** button could incorrectly appear on empty chats after navigation. The visibility state is now managed via the message cache for consistency.
+  - Improved performance by refactoring **AvatarManager** and **StandingImageManager** to use the centralized `MessageCacheManager` instead of redundant DOM queries.
+  - Enhanced code clarity by renaming `ObserverManager._processTurnSingle` to `observeTurnForCompletion` and updating JSDoc documentation.
+
+## [1.3.7] - 2025-08-31
+- **Performance Enhancements**
+  - Made theme application asynchronous: non-image styles (colors, fonts) were applied instantly, while images are loaded in the background with a smooth transition.
+  - Optimized avatar height calculation to run once per message injection instead of recalculating all messages on every update.
+  - Implemented an in-memory cache with an LRU eviction policy and a 10MB size limit to prevent excessive memory usage.
+- **Stability & Bug Fixes**
+  - Re-architected the core event handling model to be fully event-driven using a `Sentinel`, resolving race conditions during SPA navigation.
+  - Removed the old DOM-scanning method (`scanForExistingTurns`) and its related logic in favor of the new event-driven approach.
+  - Hardened UI injection logic by validating target elements before processing.
+  - **Theme Modal**: Fixed a bug where the reserved name **"Default Settings"** could be used for custom themes.
+- **Code Quality & Refactoring**
+  - Standardized all debounced instance method calls to use `.bind(this)` to prevent `this` context errors.
+  - Added a `destroy` method to all manager classes that use the EventBus, and prevented memory leaks by managing and releasing subscriptions as an array.
+  - Moved the main Observer creation process at app startup from `PlatformAdapter` to `ObserverManager`. `PlatformAdapter` now focuses on providing platform-specific processing, and `ObserverManager` clarifies its role as the central orchestrator.
+  - Removed dead code related to the previous sidebar observer.
+  - Improved the robustness of navigation button container creation to prevent duplication.
+  - **Theme Manager**: Decomposed the monolithic `applyThemeStyles` into `_ensureStylesheets`, `_applyNonImageVariables`, and `_applyImageVariables`. This clarified synchronous vs. asynchronous processing and improved maintainability. Also cached the dynamic stylesheet DOM reference to avoid redundant lookups.
+  - **Theme Modal Component**: Introduced `_saveConfigAndHandleFeedback` to consolidate repetitive `try/catch` logic for saving configuration and showing feedback, reducing duplication across multiple handlers.
+  - **Bubble UI Refactoring**: Merged `CollapsibleBubbleManager`, `SequentialNavManager`, and `ScrollToTopManager` into a single, unified `BubbleUIManager`.　Also Moved all platform-specific bubble logic into the `PlatformAdapter`. This simplifies the main controller, reduces code duplication, and improves maintainability.
+
+## [1.3.6] - 2025-08-26
+- **New Features**
+  - **Auto-select Latest Message**: The navigation console now automatically selects the most recent message when a chat is opened.
+- **Bug Fixes**
+  - [GGGUX] **Infinite Scroll Handling**: Fixed an issue where the navigation console index became misaligned after older messages were loaded via infinite scroll.
+- **Improvements & Refactoring**
+  - **Observer Overhaul**: Reduced DOM observation scope to the minimum necessary, with observers now pausing during page transitions and resuming afterward. Added dedicated observers for Canvas and file panel.
+  - **Event Handling Optimization**: Input field changes are now skipped early, and already-processed turns are not re-processed, reducing redundant operations.
+- **For Developers**
+  - **Feature (Logger Extension)**: Added a `debug` log level and support for `time()` / `timeEnd()` for simple performance measurement.
+  - **Feature (PerfMonitor)**: Introduced a lightweight monitor that aggregates and logs function call frequency, useful for diagnosing issues such as excessive observer firing.
+  - **Feature**: Added a `developer` section to the JSON configuration, allowing log level customization.
+  - **Improvement**: Extended functionality of the debug utility `toggleBorders`.
+
+## [1.3.5] - 2025-08-25 (private)
+- Internal development version
+
+## [1.3.4] - 2025-08-23 (private)
+- **Refactoring**
+  - **Observer Initialization**: Centralized all observer startup logic into the `PlatformAdapter` class to improve code structure and maintainability. This change also removed a redundant resize event listener and other obsolete code.
+- **Fixes**
+  - **Stability**: Resolved a potential memory leak in the streaming message observer and fixed a race condition in the avatar injection logic, improving long-term stability.
+  - [GPTUX] **Stability**: Enhanced the robustness of the title and sidebar observers to ensure more reliable change detection.
+
+## [1.3.3] - 2025-08-22
+- **Refactoring**
+  - **Style Management**: Restructured `STYLE_DEFINITIONS` by UI section and introduced `ALL_STYLE_DEFINITIONS` for unified processing, improving readability and maintainability.
+  - **Constants**: Replaced magic numbers for delays and retry counts with constant objects, enhancing clarity.
+  - **Settings Panel**: Reordered feature toggles to match the UI layout for a more intuitive configuration.
+- **Feature Improvements**
+  - **Performance**: Overhauled DOM Observation: Introduced a hybrid system using CSS animation sentinels for high-frequency events and a lightweight, debounced `MutationObserver` for low-frequency updates, eliminating streaming UI lag.
+  - **Performance**: Avatar Handling Optimization: Replaced constant DOM polling with `animationstart`-based reinjection, ensuring avatars remain visible with minimal performance cost.
+- **Bug Fixes**
+  - [GGGUX] Fixed an issue where the file panel was obscured by the standing image. Added an observer to dynamically adjust the z-index when the panel is displayed.
+
+## [1.3.2] - 2025-08-20
+- **Feature Improvements**
+  - **Performance**: Optimized processing during Assistant response streaming, significantly reducing CPU load. (Minimal patch for performance improvements targeted for 1.3.0).
+
+## [1.3.1] - 2025-08-20
+- **Fixed**: Fixed a regression introduced in v1.3.0 where toggles in the settings panel would not apply immediately. The root cause was a performance-oriented refactor of the `ObserverManager`; this logic has been reverted to the stable v1.2.1 implementation.
+- **Improved**: The following improvements from v1.3.0 have been retained:
+  - **Performance**: Optimized the rendering of standing images (`StandingImageManager`) by separating expensive layout calculations from minor UI updates. Layout calculations are now limited to events that directly affect the layout.
+  - **Performance**: Removed a performance-intensive sorting process from the message cache (`MessageCacheManager`) that could cause forced browser reflows, eliminating a performance bottleneck.
+
+## [1.3.0] - 2025-08-18
+- **Improved**
+  - **Performance**: Fundamentally refactored the DOM monitoring logic (`ObserverManager`) to eliminate high CPU usage during AI response streaming. The new system uses targeted, per-element observers instead of a high-frequency polling check, which also resolves avatar display issues more efficiently.
+  - **Performance**: Optimized standing image (`StandingImageManager`) rendering by decoupling expensive layout calculations from minor UI updates, triggering them only on actual layout-changing events.
+  - **Performance**: Removed a performance bottleneck in the message cache (`MessageCacheManager`) by eliminating a sort operation that forced unnecessary and expensive browser reflows.
+- **Changed**
+  - **Architecture**: Refactored the base logic for all bubble UI features (`Collapsible`, `ScrollToTop`, `SequentialNav`). The system is now consistently message-centric (`processElement`), removing the legacy turn-based processing (`processTurn`) for improved code clarity and maintainability.
+  - [GGGUX] **Refactor**: The visibility check logic was refactored to read its state directly from CSS properties instead of a stale JavaScript object for feature parity with the ChatGPT version.
+
+## [1.2.1] - 2025-08-15
+- **Added**: Implemented dynamic UI adjustment to prevent interference when the Canvas feature is active.
+  - **Standing Image:** Now hidden when the Canvas is open.
+  - [GPTUX] **Settings Button:** Automatically repositions to avoid overlapping with the Canvas.
+
+## [1.2.0] - 2025-08-05
+- **New Features**: Added a feature to automatically synchronize settings when the script is used across multiple tabs.
+- **Improvement**: Enhanced the theme preview feature. Unset items now inherit values from the user-defined default theme (`defaultSet`), making the preview more accurate and WYSIWYG.
+- **Improvement**: Improved the UI for changing theme names, allowing for inline editing.
+- Switched from using emojis to SVGs for various icons.
+- Improved the initialization logic to enhance stability.
+- Fixed a bug related to CSS where some settings were not being applied as intended.
+- **Internal Code Improvements**: Other improvements to internal processing.
+
+## [1.1.1] - 2025-07-27
+- [GPTUX] **Stability Improvement:** Fixed a stability issue in Firefox environments where the UI (e.g., settings button) would sometimes fail to display or function correctly on initial page load.
+  - **Cause:** Likely due to a race condition caused by conflicts with the site's UI rendering process.
+  - **Solution:** Revised the initialization logic to ensure the script starts only after the site's UI is fully interactive.
+- [GGGUX] **Stability Improvement:** Proactively applied the stability enhancements from `GPTUX v1.1.1` to `GGGUX`.
+
+## [1.1.0] - 2025-07-26
+- Changed the order of items on the theme settings screen. The order is now `background color` -> `text color` (background color is now listed first in all blocks).
+- Adjusted the "Collapse/Expand All" toggle to ensure the currently highlighted message remains in view.
+- **Implemented and optimized message caching**: Introduced a message caching mechanism to improve the efficiency of retrieving and managing message elements. This enhances overall script performance and makes features such as message collapsing, scrolling, and sequential navigation smoother.
+- **Improved navigation functionality**: Refined the logic for calculating navigation buttons to enable more accurate jumping between messages.
+- **Code Standardization and Improved Maintainability**: Platform-specific logic has been consolidated into the `PlatformAdapter` class.
+- Changed the `@connect` definition from `p65536.github.io` to `raw.githubusercontent.com` (also changed the sample image URL in `project_theme_sample.json`).
+- **Internal code improvements**: Various changes to enhance code readability and robustness.
+
+## [1.0.0] - 2025-07-21
+- First public release
