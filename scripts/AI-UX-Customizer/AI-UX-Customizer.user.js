@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b285
+// @version      1.0.0-b287
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -9626,7 +9626,7 @@
                 if (element) {
                     // Register element for updates if it has an ID
                     // Use a generated internal ID if none provided to track the node
-                    const nodeId = node.id || `_node_${Math.random().toString(36).substr(2, 9)}`;
+                    const nodeId = node.id || `_node_${Math.random().toString(36).slice(2)}`;
                     node._internalId = nodeId;
                     this.elements.set(nodeId, { element, node });
 
@@ -12418,12 +12418,27 @@
             const newName = proposeUniqueName('New Theme', existingNames);
             const newId = generateUniqueId('theme');
 
-            // Use defaultSet as a base to ensure all required properties (ActorConfig, etc.) are present.
+            // Use defaultSet as a template to ensure the correct structure (keys).
             const defaultSet = newConfig.platforms[PLATFORM].defaultSet;
+            const emptyTheme = deepClone(defaultSet);
+
+            // Recursively set all configuration values to null to signify "inherit from default".
+            const nullify = (obj) => {
+                for (const key in obj) {
+                    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                        if (obj[key] && typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
+                            nullify(obj[key]);
+                        } else {
+                            obj[key] = null;
+                        }
+                    }
+                }
+            };
+            nullify(emptyTheme);
 
             /** @type {ThemeSet} */
             const newTheme = {
-                ...deepClone(defaultSet),
+                ...emptyTheme,
                 metadata: {
                     id: newId,
                     name: newName,
