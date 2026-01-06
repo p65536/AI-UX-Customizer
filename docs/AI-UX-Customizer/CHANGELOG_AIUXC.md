@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.0-b287] - 2026-01-06
+- **Fixes**
+  - **Theme Editor**: When creating a new theme, it now initializes as a "blank slate" that dynamically inherits from global default settings, rather than creating a static copy of the current configuration.
+- **Core Changes**
+  - Modernized the internal ID generation logic within the form engine (`slice` instead of `substr`) to align with modern web standards and improve consistency across the codebase.
+
 ## [1.0.0-b285] - 2026-01-02
 
 > Note: This is the first public beta release, consolidating all changes from internal builds v1.0.0-b1 through v1.0.0-b284.
