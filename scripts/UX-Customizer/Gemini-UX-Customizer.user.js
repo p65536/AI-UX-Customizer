@@ -1080,6 +1080,7 @@
             },
             fixed_nav_console: {
                 enabled: true,
+                position: 'bottom',
             },
             load_full_history_on_chat_load: {
                 enabled: true,
@@ -7092,11 +7093,26 @@
                     if (!measured) return;
 
                     const { formRect, consoleWidth, windowHeight } = measured;
-                    const bottomPosition = `${windowHeight - formRect.top + 8}px`;
                     const formCenter = formRect.left + formRect.width / 2;
 
+                    // Get position setting
+                    const config = this.configManager.get();
+                    const position = config?.features?.fixed_nav_console?.position || 'bottom';
+
                     this.navConsole.style.left = `${formCenter - consoleWidth / 2}px`;
-                    this.navConsole.style.bottom = bottomPosition;
+
+                    if (position === 'top') {
+                        // Top positioning (fixed at top of viewport + margin)
+                        this.navConsole.style.bottom = 'auto';
+                        this.navConsole.style.top = '12px';
+                        this.navConsole.style.transformOrigin = 'top';
+                    } else {
+                        // Bottom positioning (default)
+                        const bottomPosition = `${windowHeight - formRect.top + 8}px`;
+                        this.navConsole.style.top = 'auto';
+                        this.navConsole.style.bottom = bottomPosition;
+                        this.navConsole.style.transformOrigin = 'bottom';
+                    }
                 },
             });
         }
@@ -9550,7 +9566,7 @@
                 { id: 'features.collapsible_button.enabled', label: 'Collapsible button', title: 'Enables a button to collapse large message bubbles.' },
                 { id: 'features.sequential_nav_buttons.enabled', label: 'Sequential nav buttons', title: 'Enables buttons to jump to the previous/next message.' },
                 { id: 'features.scroll_to_top_button.enabled', label: 'Scroll to top button', title: 'Enables a button to scroll to the top of a message.' },
-                { id: 'features.fixed_nav_console.enabled', label: 'Navigation console', title: 'When enabled, a navigation console with message counters will be displayed next to the text input area.' },
+                // Removed generic fixed_nav_console entry to handle it manually below
             ];
 
             const platformFeatures = PlatformAdapters.SettingsPanel.getPlatformSpecificFeatureToggles().map((f) => ({ ...f, id: f.configKey }));
@@ -9573,6 +9589,30 @@
                 };
             });
 
+            // Manually add Navigation Console with the Position dropdown
+            featureGroups.push({
+                type: 'container',
+                className: `${APPID}-feature-group`,
+                children: [
+                    {
+                        type: 'container-row',
+                        children: [
+                            { type: 'label', for: `${APPID}-form-features-fixed_nav_console-enabled`, title: 'When enabled, a navigation console with message counters will be displayed.', text: 'Navigation console' },
+                            { type: 'toggle', id: 'features.fixed_nav_console.enabled', configKey: 'features.fixed_nav_console.enabled' },
+                        ],
+                    },
+                    {
+                        type: 'container-row',
+                        // Add a class we can target for visibility toggling
+                        className: `${APPID}-submenu-row ${APPID}-nav-position-row`,
+                        children: [
+                            { type: 'label', for: `${APPID}-form-features-fixed_nav_console-position`, text: 'Console Position:' },
+                            { type: 'select', id: 'features.fixed_nav_console.position', options: ['bottom', 'top'] },
+                        ]
+                    }
+                ],
+            });
+
             return [{ type: 'fieldset', legend: 'Features', children: featureGroups }];
         }
 
@@ -9581,7 +9621,13 @@
             if (!config || !this.element) return;
 
             populateFormFromSchema(this._getPanelSchema(), this.element, config, this);
-            this._updateDependencies();
+
+            // Manual Visibility Check on Load
+            const navToggle = this.element.querySelector(`#${APPID}-form-features-fixed_nav_console-enabled`);
+            const navPosRow = this.element.querySelector(`.${APPID}-nav-position-row`);
+            if (navToggle && navPosRow) {
+                navPosRow.style.display = navToggle.checked ? 'flex' : 'none';
+            }
         }
 
         async _collectDataFromForm() {
@@ -9641,8 +9687,15 @@
             });
 
             this.element.addEventListener('change', (e) => {
-                if (e.target.matches('input[type="checkbox"]')) {
-                    this._updateDependencies();
+                // Visibility Toggle Logic
+                if (e.target.id === `${APPID}-form-features-fixed_nav_console-enabled`) {
+                    const navPosRow = this.element.querySelector(`.${APPID}-nav-position-row`);
+                    if (navPosRow) {
+                        navPosRow.style.display = e.target.checked ? 'flex' : 'none';
+                    }
+                }
+
+                if (e.target.matches('input[type="checkbox"]') || e.target.matches('select')) {
                     this.debouncedSave();
                 }
             });
