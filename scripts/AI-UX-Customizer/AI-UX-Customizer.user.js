@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b287
+// @version      1.0.0-b288
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -9414,6 +9414,11 @@
      * @class ReactiveStore
      * @description A simple reactive store implementing the Pub/Sub pattern.
      * It allows setting and getting values using dot-notation paths and notifies listeners on changes.
+     *
+     * [NOTIFICATION BEHAVIOR]
+     * - Notifications are triggered strictly for the exact path being modified.
+     * - Changes do NOT bubble up to parent paths.
+     * - Subscribers are responsible for determining if a change affects them (e.g., using startsWith checks).
      */
     class ReactiveStore {
         constructor(initialState) {
@@ -9433,7 +9438,6 @@
         /**
          * Sets a value in the store at the specified path.
          * Notifies listeners if the value has effectively changed.
-         * Bubbles notifications up to parent paths.
          * @param {string} path - The dot-notation path to the property.
          * @param {any} value - The new value to set.
          */
