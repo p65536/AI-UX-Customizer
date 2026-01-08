@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.0-b288] - 2026-01-08
+- **[Internal]** Updated `ReactiveStore` documentation to accurately reflect its event notification logic. This change clarifies how state updates are propagated internally and has no impact on user-facing features.
+
 ## [1.0.0-b287] - 2026-01-06
 - **Fixes**
   - **Theme Editor**: When creating a new theme, it now initializes as a "blank slate" that dynamically inherits from global default settings, rather than creating a static copy of the current configuration.
