@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.0-b289] - 2026-01-08
+- **[Stability]** Fixed a potential issue where internal data errors were silently ignored during processing. The system now strictly validates data integrity to prevent unexpected behavior or settings corruption.
+
 ## [1.0.0-b288] - 2026-01-08
 - **[Internal]** Updated `ReactiveStore` documentation to accurately reflect its event notification logic. This change clarifies how state updates are propagated internally and has no impact on user-facing features.
 

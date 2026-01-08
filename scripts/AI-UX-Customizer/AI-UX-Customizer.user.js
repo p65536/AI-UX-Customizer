@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b288
+// @version      1.0.0-b289
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -4375,16 +4375,8 @@
         try {
             return structuredClone(obj);
         } catch (e) {
-            Logger.error('CLONE FAILED', '', 'deepClone failed, falling back to shallow copy.', e);
-            // Fallback strategy: Shallow copy
-            if (Array.isArray(obj)) {
-                return /** @type {any} */ ([...obj]);
-            }
-            if (obj && typeof obj === 'object') {
-                return /** @type {any} */ ({ ...obj });
-            }
-            // Return original if primitive or special type
-            return obj;
+            Logger.error('CLONE FAILED', '', 'deepClone failed. Data contains non-clonable items.', e);
+            throw e;
         }
     }
 
