@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.0-b292] - 2026-01-08
+- **Bug Fixes**
+  - **[Theme Editor]** Fixed a runtime error that occurred when clearing the "Title Patterns" or "URL Patterns" fields.
+  - **[Core]** Improved the reliability of form inputs by adding safeguards against invalid numeric values (NaN) and optimizing event listener handling.
+
+## [1.0.0-b291] - 2026-01-08
+- **Core Changes**
+  - **[Stability]** Improved the handling of numeric inputs (number fields and sliders) to ensure that invalid or incomplete values are safely treated as null, preventing state corruption.
+
 ## [1.0.0-b290] - 2026-01-08
 - **Core Changes**
   - **[Internal]** Optimized the event binding mechanism in the form engine to eliminate redundant listeners and improve runtime efficiency.
