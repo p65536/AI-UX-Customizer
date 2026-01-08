@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b291
+// @version      1.0.0-b292
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -10593,13 +10593,14 @@
                                     tooltip: 'Enter one RegEx pattern per line to automatically apply this theme (e.g., /My Project/i).\nNote: "g" (global) and "y" (sticky) flags are ignored for performance.',
                                     rows: 3,
                                     // Store (Array) <-> UI (String) conversion
-                                    transformValue: (val) => val.split('\n'),
+                                    // Handle null/undefined values safely
+                                    transformValue: (val) => (val ? val.split('\n') : []),
                                     toInputValue: (val) => (Array.isArray(val) ? val.join('\n') : val || ''),
                                 }),
                                 SchemaBuilder.TextArea('metadata.urlPatterns', 'URL Patterns (one per line):', {
                                     tooltip: 'Enter one RegEx pattern per line to match against the decoded URL path.\nExample: /\\/c\\/.*$/i\nNote: "g" (global) and "y" (sticky) flags are ignored for performance.',
                                     rows: 3,
-                                    transformValue: (val) => val.split('\n'),
+                                    transformValue: (val) => (val ? val.split('\n') : []),
                                     toInputValue: (val) => (Array.isArray(val) ? val.join('\n') : val || ''),
                                 }),
                             ],
