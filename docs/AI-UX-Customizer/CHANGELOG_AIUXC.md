@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-b290] - 2026-01-08
+- **Core Changes**
+  - **[Internal]** Optimized the event binding mechanism in the form engine to eliminate redundant listeners and improve runtime efficiency.
+  - **[Stability]** Enhanced the robustness of input element detection and value setting to prevent potential errors with specific input types (e.g., file inputs).
+
 ## [1.0.0-b289] - 2026-01-08
 - **[Stability]** Fixed a potential issue where internal data errors were silently ignored during processing. The system now strictly validates data integrity to prevent unexpected behavior or settings corruption.
 

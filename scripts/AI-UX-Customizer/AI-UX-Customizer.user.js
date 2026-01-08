@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b289
+// @version      1.0.0-b290
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -9667,23 +9667,37 @@
                 input = rootElement;
             }
 
-            // Set initial value
-            const value = this.store.get(node.configKey);
-            this._setElementValue(input, value, node);
+            // Retrieve initial value once
+            const initialValue = this.store.get(node.configKey);
+
+            // Check if input is a file input using selector match (safer than type property)
+            const isFileInput = input.matches('input[type="file"]');
+
+            // Set initial value (skip for file inputs to avoid security errors)
+            if (!isFileInput) {
+                this._setElementValue(input, initialValue, node);
+            }
 
             // Initial UI update (for auxiliary displays like slider values)
             if (component && component.onUpdate) {
-                component.onUpdate(input, value, this.context, node);
+                component.onUpdate(input, initialValue, this.context, node);
             }
 
             // Listen for changes
             const handler = (e) => this._handleInput(e, node);
 
-            input.addEventListener('input', handler);
-            this.boundEventListeners.push({ element: input, type: 'input', handler });
+            // Determine correct event type to avoid double subscription
+            let useChangeEvent = false;
+            if (input.tagName === 'SELECT') {
+                useChangeEvent = true;
+            } else if (input.matches('input[type="checkbox"], input[type="radio"], input[type="file"]')) {
+                useChangeEvent = true;
+            }
 
-            input.addEventListener('change', handler);
-            this.boundEventListeners.push({ element: input, type: 'change', handler });
+            const eventType = useChangeEvent ? 'change' : 'input';
+
+            input.addEventListener(eventType, handler);
+            this.boundEventListeners.push({ element: input, type: eventType, handler });
         }
 
         /**
