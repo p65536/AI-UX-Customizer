@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b293] - 2026-01-10
+- **User Interface**
+  - **[General]** Fixed an issue where the "Settings updated in another tab" warning was hidden in the JSON settings modal. It now displays correctly above the action buttons.
+
 ## [1.0.0-b292] - 2026-01-08
 - **Bug Fixes**
   - **[Theme Editor]** Fixed a runtime error that occurred when clearing the "Title Patterns" or "URL Patterns" fields.
