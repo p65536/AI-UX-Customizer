@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b293
+// @version      1.0.0-b294
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -2099,11 +2099,11 @@
          * Prevents double initialization.
          * @param {...any} args Arguments to pass to the hook method.
          */
-        init(...args) {
+        async init(...args) {
             if (this.isInitialized) return;
             this.isDestroyed = false;
 
-            this._onInit(...args);
+            await this._onInit(...args);
             this.isInitialized = true;
         }
 
@@ -14259,7 +14259,7 @@
             this.scheduleReposition = this.scheduleReposition.bind(this);
         }
 
-        _onInit() {
+        async _onInit() {
             // Initialize components
             this.settingsButton = new CustomSettingsButton(
                 {
@@ -14288,7 +14288,7 @@
             this.repositionSettingsButton(); // Initial placement
 
             // Panels act as managers too
-            this.settingsPanel.init();
+            await this.settingsPanel.init();
             this.settingsPanel.render();
 
             // Subscribe to layout events for the button
@@ -14505,13 +14505,13 @@
             });
         }
 
-        _onInit() {
+        async _onInit() {
             // Initialize global common styles immediately to ensure availability
             StyleManager.request(StyleDefinitions.getCommon);
 
             // Initialize sub-controllers
-            this.widgetController.init();
-            this.modalCoordinator.init();
+            await this.widgetController.init();
+            await this.modalCoordinator.init();
 
             // Subscribe to global UI state events
             this._subscribe(EVENTS.CONFIG_WARNING_UPDATE, ({ show, message }) => {
