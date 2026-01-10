@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.0.0-b296] - 2026-01-10
+- **Core Changes**
+  - Robust initialization process.
+
+## [1.0.0-b295] - 2026-01-10
+- **Core Changes**
+  - Refactored the internal listener registration system to improve code stability and maintainability across supported platforms.
+
+## [1.0.0-b294] - 2026-01-10
+- **Core Changes**
+  - **Initialization Logic**: Refactored the internal startup sequence (`BaseManager`, `UIManager`) to fully support and await asynchronous operations. This change hardens the application against race conditions, ensuring the UI and settings are perfectly synchronized before being interactive.
+
 ## [1.0.0-b293] - 2026-01-10
 - **User Interface**
   - **[General]** Fixed an issue where the "Settings updated in another tab" warning was hidden in the JSON settings modal. It now displays correctly above the action buttons.
