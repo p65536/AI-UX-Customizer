@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b294
+// @version      1.0.0-b295
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -2081,6 +2081,11 @@
         return `${contextName}.${purpose}`;
     }
 
+    // =================================================================================
+    // SECTION: Base Manager
+    // Description: Provides common lifecycle and event subscription management.
+    // =================================================================================
+
     /**
      * @class BaseManager
      * @description Provides common lifecycle and event subscription management capabilities.
@@ -2096,8 +2101,9 @@
 
         /**
          * Initializes the manager.
-         * Prevents double initialization.
+         * Prevents double initialization and supports async hooks.
          * @param {...any} args Arguments to pass to the hook method.
+         * @returns {Promise<void>}
          */
         async init(...args) {
             if (this.isInitialized) return;
@@ -2133,6 +2139,26 @@
         }
 
         /**
+         * Registers a platform-specific listener.
+         * Exposes subscription capability to adapters safely.
+         * @param {string} event
+         * @param {Function} callback
+         */
+        registerPlatformListener(event, callback) {
+            this._subscribe(event, callback);
+        }
+
+        /**
+         * Registers a one-time platform-specific listener.
+         * Exposes single subscription capability to adapters safely.
+         * @param {string} event
+         * @param {Function} callback
+         */
+        registerPlatformListenerOnce(event, callback) {
+            this._subscribeOnce(event, callback);
+        }
+
+        /**
          * Hook method for initialization logic.
          * @protected
          * @param {...any} args
@@ -2152,7 +2178,7 @@
         /**
          * Helper to subscribe to EventBus and track the subscription for cleanup.
          * Appends the listener name and a unique suffix to the key to avoid conflicts.
-         * @public
+         * @protected
          * @param {string} event
          * @param {Function} listener
          */
@@ -2171,7 +2197,7 @@
         /**
          * Helper to subscribe to EventBus once and track the subscription for cleanup.
          * Appends the listener name and a unique suffix to the key to avoid conflicts.
-         * @public
+         * @protected
          * @param {string} event
          * @param {Function} listener
          */
@@ -2195,7 +2221,7 @@
 
         /**
          * Helper to unsubscribe from specific events dynamically.
-         * @public
+         * @protected
          * @param {string} event The event name.
          * @param {string} [keyPrefix] Optional prefix to filter specific listeners (e.g. 'ClassName.purpose').
          */
@@ -16648,7 +16674,7 @@
                         dataset: { [CONSTANTS.DATA_KEYS.ORIGINAL_TITLE]: 'Run layout scan and rescan DOM' },
                         onclick: () => {
                             // 1. Subscribe once to the completion event
-                            fixedNavManagerInstance._subscribeOnce(EVENTS.AUTO_SCROLL_COMPLETE, () => {
+                            fixedNavManagerInstance.registerPlatformListenerOnce(EVENTS.AUTO_SCROLL_COMPLETE, () => {
                                 // 2. Perform the "DOM Rescan" logic *after* scan is complete.
                                 if (fixedNavManagerInstance.messageLifecycleManager) {
                                     fixedNavManagerInstance.messageLifecycleManager.scanForUnprocessedMessages();
@@ -17680,7 +17706,7 @@
             setupEventListeners(instance) {
                 // Gemini-specific: Subscribe to cacheUpdated because this platform's updateVisibility() logic depends on the message count.
                 // Use scheduleUpdate to ensure layout is also recalculated after navigation or DOM updates.
-                instance._subscribe(EVENTS.CACHE_UPDATED, instance.scheduleUpdate);
+                instance.registerPlatformListener(EVENTS.CACHE_UPDATED, instance.scheduleUpdate);
             }
         }
 

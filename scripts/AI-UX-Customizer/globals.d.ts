@@ -255,7 +255,7 @@ interface IFixedNavigationManager {
     messageLifecycleManager: IMessageLifecycleManager;
     setHighlightAndIndices(element: HTMLElement): void;
     updateUI(): void;
-    _subscribeOnce(event: string, listener: Function): void;
+    registerPlatformListenerOnce(event: string, listener: Function): void;
 }
 
 interface IThemeManager {
@@ -272,6 +272,7 @@ interface IStandingImageManager {
     configManager: IConfigManager;
     themeManager: IThemeManager;
     scheduleUpdate(): void;
+    registerPlatformListener(event: string, listener: Function): void;
 }
 
 interface ICustomSettingsButton {
@@ -332,7 +333,11 @@ type Path<T, D extends number = 5> = [D] extends [never] ? never : T extends obj
 
 type PathValue<T, P extends Path<T>> =
     P extends `${infer Key}.${infer Rest}`
-    ? Key extends keyof T ? PathValue<T[Key], Rest> : never
+    ? Key extends keyof T
+    ? Rest extends Path<T[Key]>
+    ? PathValue<T[Key], Rest>
+    : never
+    : never
     : P extends keyof T ? T[P] : never;
 
 declare class ReactiveStore<T> {
@@ -609,15 +614,4 @@ interface PlatformDefinitions {
     CONSTANTS: PlatformConstants;
     SITE_STYLES: SiteStyles;
     PlatformAdapters: PlatformAdapters;
-}
-
-interface StorageManifest {
-    schemaVersion: number;
-    updatedAt: number; // Timestamp for sync detection
-    config: Omit<AppConfig, 'themeSets'>; // All settings excluding themes
-    themeIndex: string[]; // List of stored theme IDs
-}
-
-interface StorageThemeData extends ThemeSet {
-    // Use the ThemeSet structure directly (separated interface for future extensibility)
 }
