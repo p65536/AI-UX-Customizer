@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b301
+// @version      1.0.0-b302
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -1340,6 +1340,11 @@
      * @description Manages timestamp fetching and processing.
      */
     class BaseTimestampAdapter {
+        constructor() {
+            /** @type {Map<string, {chatId: string, timestamps: Map<string, Date>}>} */
+            this.capturedData = new Map();
+        }
+
         /**
          * Initializes timestamp interception logic.
          */
@@ -1360,6 +1365,16 @@
          */
         hasTimestampLogic() {
             return false;
+        }
+
+        /**
+         * Retrieves captured timestamp data and clears the buffer.
+         * @returns {Array<{chatId: string, timestamps: Map<string, Date>}>}
+         */
+        getCapturedData() {
+            const data = Array.from(this.capturedData.values());
+            this.capturedData.clear();
+            return data;
         }
     }
 
@@ -9103,6 +9118,13 @@
             // Subscribe to data events regardless of the feature toggle state.
             this._subscribe(EVENTS.TIMESTAMP_ADDED, (data) => this._handleTimestampAdded(data));
             this._subscribe(EVENTS.TIMESTAMPS_LOADED, (data) => this._loadHistoricalTimestamps(data));
+
+            // Check for buffered data captured before initialization
+            const bufferedData = PlatformAdapters.Timestamp.getCapturedData();
+            if (bufferedData && bufferedData.length > 0) {
+                Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, `Processing ${bufferedData.length} buffered timestamp sets.`);
+                bufferedData.forEach((data) => this._loadHistoricalTimestamps(data));
+            }
         }
 
         /**
@@ -15298,7 +15320,6 @@
             PlatformAdapters.AppController.initializePlatformManagers(this);
 
             if (PlatformAdapters.Timestamp.hasTimestampLogic()) {
-                PlatformAdapters.Timestamp.init();
                 this.timestampManager = new TimestampManager(this.configManager, this.messageCacheManager);
             }
 
@@ -15386,9 +15407,6 @@
         }
 
         _onDestroy() {
-            // Stop network monitoring immediately
-            PlatformAdapters.Timestamp.cleanup();
-
             // Cleanup sentinel listener
             if (this.sentinelCleanup) {
                 this.sentinelCleanup();
@@ -15741,6 +15759,11 @@
 
     // Singleton instance for observing DOM node insertions.
     const sentinel = new Sentinel(OWNERID);
+
+    // Initialize network interception immediately to capture early data, but only if not on an excluded page.
+    if (!PlatformAdapters.General.isExcludedPage()) {
+        PlatformAdapters.Timestamp.init();
+    }
 
     // Initialize lifecycle management to handle app startup and navigation
     const lifecycleManager = new LifecycleManager();
@@ -17054,9 +17077,7 @@
 
             /** @override */
             cleanup() {
-                if (!this.isInitialized) return;
-                unsafeWindow.fetch = this.originalFetch;
-                this.isInitialized = false;
+                // Persistent hook: Do not restore originalFetch to ensure we capture data during navigation/SPA transitions.
             }
 
             /** @override */
@@ -17104,8 +17125,10 @@
                                     // Await the parsed map
                                     const timestamps = await this._processResponse(clonedResponse);
 
-                                    // Event publishing is now the responsibility of fetch
                                     if (timestamps.size > 0) {
+                                        // Store in buffer for late-initialized managers
+                                        this.capturedData.set(chatId, { chatId, timestamps });
+                                        // Event publishing is now the responsibility of fetch
                                         EventBus.publish(EVENTS.TIMESTAMPS_LOADED, { chatId, timestamps });
                                     }
                                 }

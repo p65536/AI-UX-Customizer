@@ -455,6 +455,7 @@ interface TimestampAdapter {
     init(): void;
     cleanup(): void;
     hasTimestampLogic(): boolean;
+    getCapturedData(): Array<{ chatId: string, timestamps: Map<string, Date> }>;
 }
 
 interface UIManagerAdapter {

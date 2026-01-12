@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-b302] - 2026-01-12
+- **Bug Fixes**
+  - **[ChatGPT]** Restored the **Message Timestamp** functionality which stopped working in `b299` update due to lifecycle optimizations.
+  - **[Core]** Improved the reliability of network data interception during page load and navigation to ensure no data is missed before the UI is fully initialized.
+
 ## [1.0.0-b301] - 2026-01-12
 - **Core Improvements**
   - Refactored the **Auto-Scroll** feature (used for layout scanning on ChatGPT and history loading on Gemini) to share a unified base architecture. This improves code maintainability and ensures consistent behavior across platforms.
