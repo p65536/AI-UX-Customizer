@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b298] - 2026-01-12
+- **Fixes**
+  - Hardened the internal `CustomModal` logic to strictly verify the dialog state before display, preventing crashes during rapid or concurrent interactions.
+
 ## [1.0.0-b297] - 2026-01-12
 - **New Features**
   - **Storage Quota Safeguards:** Implemented a comprehensive safety mechanism to prevent data corruption when local storage is full.

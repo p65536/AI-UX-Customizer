@@ -18,7 +18,7 @@ Each script is developed independently and can be installed separately.
 ## Recent Updates
 
 ### 2026-01-10
-- Updated `AI UX Customizer` (b296 -> b297)
+- Updated `AI UX Customizer` (b296 -> b298)
 
 ### 2026-01-10
 - Updated `AI UX Customizer` (b292 -> b296)
