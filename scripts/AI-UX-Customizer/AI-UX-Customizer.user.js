@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b296
+// @version      1.0.0-b297
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -5716,6 +5716,27 @@
         getIconSize() {
             return this.config?.platforms?.[PLATFORM]?.options?.icon_size || CONSTANTS.UI_SPECS.AVATAR.DEFAULT_SIZE;
         }
+
+        /**
+         * Calculates the JSON string size of the configuration object.
+         * Applies sanitization to match the data that will actually be saved.
+         * @param {AppConfig} config
+         * @returns {number} Size in bytes.
+         */
+        getConfigSize(config) {
+            const cleanConfig = sanitizeConfigForSave(config);
+            const json = JSON.stringify(cleanConfig);
+            return new Blob([json]).size;
+        }
+
+        /**
+         * Checks if the given size exceeds the storage limit.
+         * @param {number} size
+         * @returns {boolean}
+         */
+        isSizeExceeded(size) {
+            return size > CONSTANTS.STORAGE_SETTINGS.CONFIG_SIZE_LIMIT_BYTES;
+        }
     }
 
     // =================================================================================
@@ -10083,7 +10104,7 @@
          * @param {string} id
          * @param {string} text
          * @param {(e: Event) => void} [onClick]
-         * @param {CommonOptions & { fullWidth?: boolean }} [options]
+         * @param {CommonOptions & { fullWidth?: boolean, disabledIf?: (data: any) => boolean }} [options]
          */
         Button(id, text, onClick, options = {}) {
             // Button is special; it doesn't bind to store usually, so configKey is omitted
@@ -10821,51 +10842,55 @@
              * @private
              */
             _createOptionsSection(prefix, p, widthConfig) {
-                return SchemaBuilder.Group('Options', [
-                    SchemaBuilder.Slider(`${p}.options.icon_size`, 'Icon size:', 0, CONSTANTS.UI_SPECS.AVATAR.SIZE_OPTIONS.length - 1, {
-                        step: 1,
-                        tooltip: 'Specifies the size of the chat icons in pixels.',
-                        // Transform UI value (index 0-4) to Store value (pixels 64-192)
-                        transformValue: (index) => CONSTANTS.UI_SPECS.AVATAR.SIZE_OPTIONS[index] ?? CONSTANTS.UI_SPECS.AVATAR.DEFAULT_SIZE,
-                        // Transform Store value (pixels 64-192) to UI value (index 0-4)
-                        toInputValue: (pixelVal) => {
-                            const idx = CONSTANTS.UI_SPECS.AVATAR.SIZE_OPTIONS.indexOf(pixelVal);
-                            return idx !== -1 ? idx : 0;
-                        },
-                        // Format display value (receive Store value)
-                        valueLabelFormatter: (val) => `${val}px`,
-                    }),
-                    SchemaBuilder.Slider(`${p}.options.chat_content_max_width`, 'Chat content max width:', widthConfig.MIN, widthConfig.MAX, {
-                        step: 1,
-                        tooltip: `Adjusts the maximum width of the chat content.\nMove slider to the far left for default.\nRange: ${widthConfig.NULL_THRESHOLD}vw to ${widthConfig.MAX}vw.`,
-                        // Transform UI value (number) to Store value (string "XXvw" or null)
-                        transformValue: (val) => {
-                            if (val < widthConfig.NULL_THRESHOLD) return null;
-                            return `${val}vw`;
-                        },
-                        // Transform Store value (string "XXvw" or null) to UI value (number)
-                        toInputValue: (val) => {
-                            if (val === null) return widthConfig.MIN;
-                            return parseInt(val, 10);
-                        },
-                        // Format display value (receive Store value)
-                        valueLabelFormatter: (val) => (!val ? 'Auto' : val),
-                        // Trigger preview on change
-                        onChange: (val) => {
-                            EventBus.publish(EVENTS.WIDTH_PREVIEW, val);
-                        },
-                    }),
-                    SchemaBuilder.Separator({ className: 'submenuSeparator' }),
-                    SchemaBuilder.Row([
-                        SchemaBuilder.Label('Prevent image/avatar overlap:', {
-                            for: `${APPID}-form-${p}-options-respect_avatar_space`.replace(/\./g, '-'), // Manual ID sync for label targeting
-                            title: 'When enabled, adjusts the standing image area to not overlap the avatar icon.\nWhen disabled, the standing image is maximized but may overlap the icon.',
+                return SchemaBuilder.Group(
+                    'Options',
+                    [
+                        SchemaBuilder.Slider(`${p}.options.icon_size`, 'Icon size:', 0, CONSTANTS.UI_SPECS.AVATAR.SIZE_OPTIONS.length - 1, {
+                            step: 1,
+                            tooltip: 'Specifies the size of the chat icons in pixels.',
+                            // Transform UI value (index 0-4) to Store value (pixels 64-192)
+                            transformValue: (index) => CONSTANTS.UI_SPECS.AVATAR.SIZE_OPTIONS[index] ?? CONSTANTS.UI_SPECS.AVATAR.DEFAULT_SIZE,
+                            // Transform Store value (pixels 64-192) to UI value (index 0-4)
+                            toInputValue: (pixelVal) => {
+                                const idx = CONSTANTS.UI_SPECS.AVATAR.SIZE_OPTIONS.indexOf(pixelVal);
+                                return idx !== -1 ? idx : 0;
+                            },
+                            // Format display value (receive Store value)
+                            valueLabelFormatter: (val) => `${val}px`,
                         }),
-                        SchemaBuilder.Toggle(`${p}.options.respect_avatar_space`, '', {
-                            title: 'When enabled, adjusts the standing image area to not overlap the avatar icon.\nWhen disabled, the standing image is maximized but may overlap the icon.',
+                        SchemaBuilder.Slider(`${p}.options.chat_content_max_width`, 'Chat content max width:', widthConfig.MIN, widthConfig.MAX, {
+                            step: 1,
+                            tooltip: `Adjusts the maximum width of the chat content.\nMove slider to the far left for default.\nRange: ${widthConfig.NULL_THRESHOLD}vw to ${widthConfig.MAX}vw.`,
+                            // Transform UI value (number) to Store value (string "XXvw" or null)
+                            transformValue: (val) => {
+                                if (val < widthConfig.NULL_THRESHOLD) return null;
+                                return `${val}vw`;
+                            },
+                            // Transform Store value (string "XXvw" or null) to UI value (number)
+                            toInputValue: (val) => {
+                                if (val === null) return widthConfig.MIN;
+                                return parseInt(val, 10);
+                            },
+                            // Format display value (receive Store value)
+                            valueLabelFormatter: (val) => (!val ? 'Auto' : val),
+                            // Trigger preview on change
+                            onChange: (val) => {
+                                EventBus.publish(EVENTS.WIDTH_PREVIEW, val);
+                            },
                         }),
-                    ]),
-                ]);
+                        SchemaBuilder.Separator({ className: 'submenuSeparator' }),
+                        SchemaBuilder.Row([
+                            SchemaBuilder.Label('Prevent image/avatar overlap:', {
+                                for: `${APPID}-form-${p}-options-respect_avatar_space`.replace(/\./g, '-'), // Manual ID sync for label targeting
+                                title: 'When enabled, adjusts the standing image area to not overlap the avatar icon.\nWhen disabled, the standing image is maximized but may overlap the icon.',
+                            }),
+                            SchemaBuilder.Toggle(`${p}.options.respect_avatar_space`, '', {
+                                title: 'When enabled, adjusts the standing image area to not overlap the avatar icon.\nWhen disabled, the standing image is maximized but may overlap the icon.',
+                            }),
+                        ]),
+                    ],
+                    { disabledIf: (data) => data._system?.isSizeExceeded }
+                );
             },
 
             /**
@@ -10892,7 +10917,7 @@
                     );
                 });
 
-                return SchemaBuilder.Group('Features', featureGroups);
+                return SchemaBuilder.Group('Features', featureGroups, { disabledIf: (data) => data._system?.isSizeExceeded });
             },
         },
         JsonModal: {
@@ -11758,6 +11783,18 @@
      * Manages the settings panel/submenu using ReactiveStore for state management.
      */
     class SettingsPanelComponent extends UIComponentBase {
+        /**
+         * @param {object} callbacks
+         * @param {(config: AppConfig) => Promise<void>} [callbacks.onSave]
+         * @param {() => Promise<AppConfig>} [callbacks.getCurrentConfig]
+         * @param {() => object} [callbacks.getCurrentWarning]
+         * @param {() => ThemeSet} [callbacks.getCurrentThemeSet]
+         * @param {() => void} [callbacks.onShowJsonModal]
+         * @param {function(string=): void} [callbacks.onShowThemeModal]
+         * @param {() => HTMLElement|null} [callbacks.getAnchorElement]
+         * @param {(config: AppConfig) => {size: number, isExceeded: boolean}} [callbacks.checkSize]
+         * @param {() => void} [callbacks.onShow]
+         */
         constructor(callbacks) {
             super(callbacks);
             this.activeThemeSet = null;
@@ -11851,10 +11888,25 @@
             const currentWarning = this.callbacks.getCurrentWarning();
             const { SYSTEM_ROOT, SYSTEM_WARNING } = CONSTANTS.STORE_KEYS;
 
+            // Check size state
+            const sizeInfo = this.callbacks.checkSize(currentConfig);
+            // If size is exceeded, override warning message for the panel context
+            // unless a system warning is already active.
+            let warningState = currentWarning;
+            if (sizeInfo.isExceeded) {
+                warningState = {
+                    show: true,
+                    message: 'Configuration size limit exceeded.\nSome settings are disabled. Please reduce size via JSON or Themes.',
+                };
+            }
+
             // Merge system state into the config for the store
             const storeState = {
                 ...deepClone(currentConfig),
-                [SYSTEM_ROOT]: { [SYSTEM_WARNING]: currentWarning },
+                [SYSTEM_ROOT]: {
+                    [SYSTEM_WARNING]: warningState,
+                    isSizeExceeded: sizeInfo.isExceeded,
+                },
             };
 
             if (this.store) {
@@ -11882,7 +11934,7 @@
                 this.addStoreSubscription(unsub);
             }
 
-            // Re-render content to ensure schema freshness
+            // Re-render content to ensure schema freshness (and update disabled states)
             this._renderContent();
 
             // Update applied theme name display (manual DOM update as it's not in store)
@@ -12067,6 +12119,33 @@
             const sizeUnsub = this.store.subscribe((state, path) => {
                 if (path === 'jsonString') {
                     this.debouncedCalcSize(state.jsonString);
+                }
+                // Update Save button state based on size info
+                if (path === 'sizeInfo' || path === 'jsonString') {
+                    const saveBtn = this.modal?.element?.querySelector(`#${cls.saveBtn}`);
+                    if (saveBtn) {
+                        const isExceeded = state.sizeInfo && state.sizeInfo.color === SITE_STYLES.PALETTE.danger_text;
+                        saveBtn.disabled = isExceeded;
+                        if (isExceeded) {
+                            saveBtn.title = 'Cannot save: Configuration size limit exceeded.';
+                            saveBtn.style.opacity = '0.5';
+                            saveBtn.style.cursor = 'not-allowed';
+                            // Show warning status
+                            this.store.set('status', {
+                                text: 'Size Limit Exceeded: Save disabled.',
+                                color: SITE_STYLES.PALETTE.danger_text,
+                            });
+                        } else {
+                            saveBtn.title = 'Apply changes and close.';
+                            saveBtn.style.opacity = '';
+                            saveBtn.style.cursor = '';
+                            // Clear warning status if it was set by this check
+                            const currentStatus = this.store.get('status');
+                            if (currentStatus && currentStatus.text === 'Size Limit Exceeded: Save disabled.') {
+                                this.store.set('status', { text: '', color: '' });
+                            }
+                        }
+                    }
                 }
             });
             // Register the unsubscribe callback for cleanup
@@ -12668,6 +12747,7 @@
             super(callbacks);
             this.modal = null;
             this.dataConverter = callbacks.dataConverter;
+            this.checkSize = callbacks.checkSize;
             this.store = null;
             this.engine = null;
             this.previewController = null;
@@ -12679,6 +12759,7 @@
                 uiMode: ThemeModalComponent.UI_MODES.NORMAL, // 'NORMAL', 'RENAMING_THEME', 'CONFIRM_DELETE'
                 pendingDeletionKey: null,
                 config: null, // Holds the working copy of the config
+                isSizeExceeded: false,
             };
         }
 
@@ -12701,12 +12782,15 @@
             const initialConfig = await this.callbacks.getCurrentConfig();
             if (!initialConfig) return;
 
+            const { isExceeded } = this.checkSize(initialConfig);
+
             // Initialize state for the new session
             this.state = {
                 activeThemeKey: selectThemeKey || CONSTANTS.THEME_IDS.DEFAULT,
                 uiMode: ThemeModalComponent.UI_MODES.NORMAL,
                 pendingDeletionKey: null,
                 config: deepClone(initialConfig), // Create a deep copy for editing
+                isSizeExceeded: isExceeded,
             };
 
             const primaryBtnClass = this.commonStyle.classes.primaryBtn;
@@ -12731,6 +12815,8 @@
                 async (newConfig) => {
                     // Update internal state with new config
                     this.state.config = deepClone(newConfig);
+                    const sizeInfo = this.checkSize(newConfig);
+                    this.state.isSizeExceeded = sizeInfo.isExceeded;
 
                     // Re-initialize form with current active key (or fallback if deleted)
                     const themeExists = this.state.activeThemeKey === CONSTANTS.THEME_IDS.DEFAULT || this.state.config.themeSets.some((t) => t.metadata.id === this.state.activeThemeKey);
@@ -12802,7 +12888,6 @@
             // Connect Controller to DOM
             this.previewController = new ThemePreviewController(this.modal.element, this.store, initialConfig.platforms[PLATFORM].defaultSet);
             // Sync initial mode.
-            // Note: setIsEditingDefault now triggers an initial render, so manual onStoreUpdate calls are no longer needed here.
             this.previewController.setIsEditingDefault(this.state.activeThemeKey === CONSTANTS.THEME_IDS.DEFAULT);
 
             this.callbacks.onModalOpen?.();
@@ -13009,7 +13094,7 @@
         _renderUI() {
             if (!this.modal) return;
 
-            const { uiMode, activeThemeKey, config } = this.state;
+            const { uiMode, activeThemeKey, config, isSizeExceeded } = this.state;
             const cls = this.style.classes;
             const isDefault = activeThemeKey === CONSTANTS.THEME_IDS.DEFAULT;
             const isRenaming = uiMode === ThemeModalComponent.UI_MODES.RENAMING;
@@ -13056,12 +13141,13 @@
             const isActionInProgress = uiMode !== ThemeModalComponent.UI_MODES.NORMAL;
             const index = config.themeSets.findIndex((t) => t.metadata.id === activeThemeKey);
 
-            headerRow.querySelector(`#${cls.upBtn}`).disabled = isActionInProgress || isDefault || index <= 0;
-            headerRow.querySelector(`#${cls.downBtn}`).disabled = isActionInProgress || isDefault || index >= config.themeSets.length - 1;
-            headerRow.querySelector(`#${cls.deleteBtn}`).disabled = isActionInProgress || isDefault;
-            headerRow.querySelector(`#${cls.newBtn}`).disabled = isActionInProgress;
-            headerRow.querySelector(`#${cls.copyBtn}`).disabled = isActionInProgress;
-            headerRow.querySelector(`#${cls.renameBtn}`).disabled = isActionInProgress || isDefault;
+            // Block structural changes if size is exceeded
+            headerRow.querySelector(`#${cls.upBtn}`).disabled = isActionInProgress || isDefault || index <= 0 || isSizeExceeded;
+            headerRow.querySelector(`#${cls.downBtn}`).disabled = isActionInProgress || isDefault || index >= config.themeSets.length - 1 || isSizeExceeded;
+            headerRow.querySelector(`#${cls.deleteBtn}`).disabled = isActionInProgress || isDefault; // Delete always allowed
+            headerRow.querySelector(`#${cls.newBtn}`).disabled = isActionInProgress || isSizeExceeded;
+            headerRow.querySelector(`#${cls.copyBtn}`).disabled = isActionInProgress || isSizeExceeded;
+            headerRow.querySelector(`#${cls.renameBtn}`).disabled = isActionInProgress || isDefault || isSizeExceeded;
 
             // --- Disable content areas and footer buttons during actions ---
             // Access DOM via engine elements if needed, or query global class
@@ -13071,6 +13157,18 @@
             this.modal.element.querySelector(`#${cls.applyBtn}`).disabled = isActionInProgress;
             this.modal.element.querySelector(`#${cls.saveBtn}`).disabled = isActionInProgress;
             this.modal.element.querySelector(`#${cls.cancelBtn}`).disabled = isActionInProgress;
+
+            // --- Show warning in footer if exceeded ---
+            const footerMessage = this.modal.dom.footerMessage;
+            if (footerMessage) {
+                if (isSizeExceeded) {
+                    footerMessage.textContent = 'Configuration size limit exceeded. Please reduce size via JSON or Delete.';
+                    footerMessage.style.color = SITE_STYLES.PALETTE.error_text;
+                } else if (!footerMessage.classList.contains(this.commonStyle.classes.conflictText)) {
+                    // Clear only if it's not a conflict message
+                    footerMessage.textContent = '';
+                }
+            }
         }
 
         _createHeaderControls() {
@@ -13116,6 +13214,10 @@
             try {
                 await this.callbacks.onSave(newConfig);
                 this.state.config = deepClone(newConfig);
+
+                // Re-calculate size state after successful save (e.g. deletion might remove exceeded state)
+                const sizeInfo = this.checkSize(newConfig);
+                this.state.isSizeExceeded = sizeInfo.isExceeded;
 
                 // Update the preview controller with the latest default set.
                 if (this.previewController) {
@@ -13183,6 +13285,17 @@
             const { config } = this.state;
             const { config: newConfig, newThemeId } = ThemeService.create(config);
 
+            // Check size before proceeding
+            const { isExceeded } = this.checkSize(newConfig);
+            if (isExceeded) {
+                const footerMessage = this.modal?.dom?.footerMessage;
+                if (footerMessage) {
+                    footerMessage.textContent = 'Cannot create new theme: Configuration size limit exceeded.';
+                    footerMessage.style.color = SITE_STYLES.PALETTE.error_text;
+                }
+                return;
+            }
+
             const onSuccess = () => {
                 this.state.activeThemeKey = newThemeId;
                 this.state.uiMode = ThemeModalComponent.UI_MODES.RENAMING;
@@ -13203,6 +13316,17 @@
 
             if (!result) return;
             const { config: newConfig, newThemeId } = result;
+
+            // Check size before proceeding
+            const { isExceeded } = this.checkSize(newConfig);
+            if (isExceeded) {
+                const footerMessage = this.modal?.dom?.footerMessage;
+                if (footerMessage) {
+                    footerMessage.textContent = 'Cannot copy theme: Configuration size limit exceeded.';
+                    footerMessage.style.color = SITE_STYLES.PALETTE.error_text;
+                }
+                return;
+            }
 
             const onSuccess = () => {
                 this.state.activeThemeKey = newThemeId;
@@ -14293,6 +14417,7 @@
          * @param {() => Promise<AppConfig>} callbacks.getCurrentConfig
          * @param {() => object} callbacks.getCurrentWarning
          * @param {() => ThemeSet} callbacks.getCurrentThemeSet
+         * @param {(config: AppConfig) => {size: number, isExceeded: boolean}} callbacks.checkSize
          */
         constructor(callbacks) {
             super();
@@ -14325,6 +14450,7 @@
                 onShowJsonModal: this.callbacks.onShowJsonModal,
                 onShowThemeModal: this.callbacks.onShowThemeModal,
                 getAnchorElement: () => this.getAnchorElement(),
+                checkSize: this.callbacks.checkSize,
                 onShow: () => {}, // Handled internally
             });
 
@@ -14386,6 +14512,7 @@
          * @param {() => object} callbacks.getCurrentWarning
          * @param {DataConverter} callbacks.dataConverter
          * @param {() => HTMLElement|null} callbacks.getAnchorElement
+         * @param {(config: AppConfig) => {size: number, isExceeded: boolean}} callbacks.checkSize
          */
         constructor(callbacks) {
             super();
@@ -14409,6 +14536,7 @@
                 getCurrentConfig: this.callbacks.getCurrentConfig,
                 getCurrentWarning: this.callbacks.getCurrentWarning,
                 dataConverter: this.callbacks.dataConverter,
+                checkSize: this.callbacks.checkSize,
                 onModalOpen: () => {},
             });
 
@@ -14515,8 +14643,9 @@
          * @param {() => Promise<AppConfig>} getCurrentConfigCallback
          * @param {DataConverter} dataConverter
          * @param {() => ThemeSet} getCurrentThemeSetCallback
+         * @param {(config: AppConfig) => {size: number, isExceeded: boolean}} checkSizeCallback
          */
-        constructor(onSaveCallback, getCurrentConfigCallback, dataConverter, getCurrentThemeSetCallback) {
+        constructor(onSaveCallback, getCurrentConfigCallback, dataConverter, getCurrentThemeSetCallback, checkSizeCallback) {
             super();
 
             // Global UI State (Source of Truth)
@@ -14528,6 +14657,7 @@
                 getCurrentConfig: getCurrentConfigCallback,
                 getCurrentWarning: () => ({ show: this.isWarningActive, message: this.warningMessage }),
                 dataConverter: dataConverter,
+                checkSize: checkSizeCallback,
             };
 
             // Initialize Sub-Controllers
@@ -15022,7 +15152,11 @@
                 (newConfig) => this.handleSave(newConfig),
                 () => Promise.resolve(this.configManager.get()),
                 this.dataConverter,
-                () => this.themeManager.getThemeSet() // Pass the callback directly
+                () => this.themeManager.getThemeSet(), // Pass the callback directly
+                (config) => ({
+                    size: this.configManager.getConfigSize(config),
+                    isExceeded: this.configManager.isSizeExceeded(this.configManager.getConfigSize(config)),
+                })
             );
             this.avatarManager = new AvatarManager(this.configManager, this.messageCacheManager);
             this.standingImageManager = new StandingImageManager(this.configManager, this.messageCacheManager, this.themeManager);
@@ -15220,6 +15354,9 @@
                 // 4. Apply Updates
                 await this._applyUiUpdates(newConfig, themeChanged, oldTimestampEnabled);
 
+                // Reset warning state as we have successfully reloaded a valid config
+                EventBus.publish(EVENTS.CONFIG_WARNING_UPDATE, { show: false, message: '' });
+
                 Logger.info('SYNC', LOG_STYLES.TEAL, 'Configuration reloaded from storage.');
             } catch (e) {
                 Logger.error('RELOAD FAILED', LOG_STYLES.RED, 'Failed to reload configuration:', e);
@@ -15355,6 +15492,7 @@
                 await this._applyUiUpdates(completeConfig, themeChanged, oldTimestampEnabled);
             } catch (e) {
                 Logger.error('SAVE FAILED', LOG_STYLES.RED, 'Configuration save failed:', e.message);
+                EventBus.publish(EVENTS.CONFIG_SIZE_EXCEEDED, { message: `Save failed: ${e.message}` });
                 throw e; // Re-throw the error for the UI layer to catch
             }
         }

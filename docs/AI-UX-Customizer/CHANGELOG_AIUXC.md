@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.0-b297] - 2026-01-12
+- **New Features**
+  - **Storage Quota Safeguards:** Implemented a comprehensive safety mechanism to prevent data corruption when local storage is full.
+  - **Visual Warnings:** Added clear warning banners in the Settings Panel, Theme Editor, and JSON Editor to alert users when the configuration size limit is reached.
+  - **Action Blocking:** Operations that increase data size (like "New Theme" or "Copy") are now automatically disabled when storage is full to prevent save errors.
+- **Improvements**
+  - **JSON Editor:** The "Save" button is now properly disabled if the input content exceeds the storage limit.
+  - **Error Handling:** Improved save operations to provide immediate feedback if a storage error occurs, rather than failing silently.
+  - **Sync Logic:** Warning states now automatically clear when a valid, smaller configuration is loaded from another tab.
+
 ## [1.0.0-b296] - 2026-01-10
 - **Core Changes**
   - Robust initialization process.
