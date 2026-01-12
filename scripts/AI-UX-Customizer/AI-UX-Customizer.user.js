@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b299
+// @version      1.0.0-b300
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -2263,6 +2263,70 @@
             this.subscriptions = this.subscriptions.filter((sub) => sub.key !== key);
         }
     }
+
+    /**
+     * @description Helper object to calculate and apply common standing image layout logic.
+     */
+    const StandingImageLayout = {
+        /**
+         * @param {StandingImageManager} instance
+         * @param {object} params
+         * @param {number} params.assistantAvailableWidth - Width available for assistant image before gap.
+         * @param {number} params.userAvailableWidth - Width available for user image before gap.
+         * @param {number} params.assistantImgHeight
+         * @param {number} params.userImgHeight
+         * @param {number} params.windowHeight
+         */
+        apply(instance, params) {
+            const { assistantAvailableWidth, userAvailableWidth, assistantImgHeight, userImgHeight, windowHeight } = params;
+            const v = instance.style.vars;
+            const rootStyle = document.documentElement.style;
+
+            // Config values can be read here as they don't cause reflow.
+            const config = instance.configManager.get();
+            const iconSize = instance.configManager.getIconSize();
+            const respectAvatarSpace = config.platforms[PLATFORM].options.respect_avatar_space;
+
+            // Resolve current icon/name settings based on the active theme
+            const themeSet = instance.themeManager.getThemeSet();
+            const defaultSet = config.platforms[PLATFORM].defaultSet;
+
+            // Helper to resolve property (Theme > Default)
+            const resolveProp = (actor, prop) => {
+                const val = themeSet?.[actor]?.[prop];
+                return val !== undefined ? val : defaultSet?.[actor]?.[prop];
+            };
+
+            // Determine if avatar space should be reserved for each actor
+            const hasUserAvatar = !!resolveProp('user', 'icon') || !!resolveProp('user', 'name');
+            const hasAssistantAvatar = !!resolveProp('assistant', 'icon') || !!resolveProp('assistant', 'name');
+
+            const userAvatarGap = respectAvatarSpace && hasUserAvatar ? iconSize + CONSTANTS.UI_SPECS.AVATAR.MARGIN * 2 : 0;
+            const assistantAvatarGap = respectAvatarSpace && hasAssistantAvatar ? iconSize + CONSTANTS.UI_SPECS.AVATAR.MARGIN * 2 : 0;
+
+            const assistantWidth = Math.max(0, assistantAvailableWidth - assistantAvatarGap);
+            const userWidth = Math.max(0, userAvailableWidth - userAvatarGap);
+
+            rootStyle.setProperty(v.assistantWidth, `${assistantWidth}px`);
+            rootStyle.setProperty(v.userWidth, `${userWidth}px`);
+
+            // Masking
+            const maskThreshold = CONSTANTS.UI_SPECS.STANDING_IMAGE_MASK_THRESHOLD_PX;
+            const maskValue = `linear-gradient(to bottom, transparent 0px, rgb(0 0 0 / 1) 60px, rgb(0 0 0 / 1) 100%)`;
+
+            if (assistantImgHeight >= windowHeight - maskThreshold) {
+                rootStyle.setProperty(v.assistantMask, maskValue);
+            } else {
+                rootStyle.setProperty(v.assistantMask, 'none');
+            }
+
+            if (userImgHeight >= windowHeight - maskThreshold) {
+                rootStyle.setProperty(v.userMask, maskValue);
+            } else {
+                rootStyle.setProperty(v.userMask, 'none');
+            }
+        },
+    };
 
     // =================================================================================
     // SECTION: Style System & Definitions
@@ -16545,8 +16609,6 @@
                         let { chatRect } = measured;
 
                         const config = instance.configManager.get();
-                        const iconSize = instance.configManager.getIconSize();
-                        const respectAvatarSpace = config.platforms[PLATFORM].options.respect_avatar_space;
 
                         // --- Virtual Rect Calculation (if needed) ---
                         if (!chatRect) {
@@ -16567,57 +16629,28 @@
                             const effectiveWidth = Math.min(targetWidth, availableSpace);
 
                             const left = sidebarWidth + (availableSpace - effectiveWidth) / 2;
-                            const right = left + effectiveWidth;
 
                             chatRect = new DOMRect(left, 0, effectiveWidth, 0);
                         }
 
-                        // Resolve current icon/name settings based on the active theme
-                        const themeSet = instance.themeManager.getThemeSet();
-                        const defaultSet = config.platforms[PLATFORM].defaultSet;
-
-                        // Helper to resolve property (Theme > Default)
-                        const resolveProp = (actor, prop) => {
-                            const val = themeSet?.[actor]?.[prop];
-                            return val !== undefined ? val : defaultSet?.[actor]?.[prop];
-                        };
-
-                        // Determine if avatar space should be reserved for each actor
-                        // Space is reserved if:
-                        // 1. respect_avatar_space is TRUE
-                        // 2. Either 'icon' OR 'name' is configured (truthy)
-                        const hasUserAvatar = !!resolveProp('user', 'icon') || !!resolveProp('user', 'name');
-                        const hasAssistantAvatar = !!resolveProp('assistant', 'icon') || !!resolveProp('assistant', 'name');
-
-                        const userAvatarGap = respectAvatarSpace && hasUserAvatar ? iconSize + CONSTANTS.UI_SPECS.AVATAR.MARGIN * 2 : 0;
-                        const assistantAvatarGap = respectAvatarSpace && hasAssistantAvatar ? iconSize + CONSTANTS.UI_SPECS.AVATAR.MARGIN * 2 : 0;
-
                         // Apply right sidebar width for positioning
                         rootStyle.setProperty(v.rightSidebarWidth, '0px');
 
-                        // Assistant (left)
-                        const assistantWidth = Math.max(0, chatRect.left - (sidebarWidth + assistantAvatarGap));
+                        // Set Assistant base position (Platform specific)
                         rootStyle.setProperty(v.assistantLeft, sidebarWidth + 'px');
-                        rootStyle.setProperty(v.assistantWidth, assistantWidth + 'px');
 
-                        // User (right)
-                        const effectiveWindowRight = windowWidth;
-                        const userWidth = Math.max(0, effectiveWindowRight - chatRect.right - userAvatarGap);
-                        rootStyle.setProperty(v.userWidth, userWidth + 'px');
+                        // Calculate available widths
+                        const assistantAvailableWidth = chatRect.left - sidebarWidth;
+                        const userAvailableWidth = windowWidth - chatRect.right;
 
-                        // Masking
-                        const maskThreshold = CONSTANTS.UI_SPECS.STANDING_IMAGE_MASK_THRESHOLD_PX;
-                        const maskValue = `linear-gradient(to bottom, transparent 0px, rgb(0 0 0 / 1) 60px, rgb(0 0 0 / 1) 100%)`;
-                        if (assistantImgHeight >= windowHeight - maskThreshold) {
-                            rootStyle.setProperty(v.assistantMask, maskValue);
-                        } else {
-                            rootStyle.setProperty(v.assistantMask, 'none');
-                        }
-                        if (userImgHeight >= windowHeight - maskThreshold) {
-                            rootStyle.setProperty(v.userMask, maskValue);
-                        } else {
-                            rootStyle.setProperty(v.userMask, 'none');
-                        }
+                        // Delegate common calculation
+                        StandingImageLayout.apply(instance, {
+                            assistantAvailableWidth,
+                            userAvailableWidth,
+                            assistantImgHeight,
+                            userImgHeight,
+                            windowHeight,
+                        });
                     },
                 });
             }
@@ -17862,52 +17895,21 @@
 
                         const { chatRect, messageRect, windowHeight, assistantImgHeight, userImgHeight } = measured;
 
-                        // Config values can be read here as they don't cause reflow.
-                        const config = instance.configManager.get();
-                        const iconSize = instance.configManager.getIconSize();
-                        const respectAvatarSpace = config.platforms[PLATFORM].options.respect_avatar_space;
-
-                        // Resolve current icon/name settings based on the active theme
-                        const themeSet = instance.themeManager.getThemeSet();
-                        const defaultSet = config.platforms[PLATFORM].defaultSet;
-
-                        // Helper to resolve property (Theme > Default)
-                        const resolveProp = (actor, prop) => {
-                            const val = themeSet?.[actor]?.[prop];
-                            return val !== undefined ? val : defaultSet?.[actor]?.[prop];
-                        };
-
-                        // Determine if avatar space should be reserved for each actor
-                        // Space is reserved if:
-                        // 1. respect_avatar_space is TRUE
-                        // 2. Either 'icon' OR 'name' is configured (truthy)
-                        const hasUserAvatar = !!resolveProp('user', 'icon') || !!resolveProp('user', 'name');
-                        const hasAssistantAvatar = !!resolveProp('assistant', 'icon') || !!resolveProp('assistant', 'name');
-
-                        const userAvatarGap = respectAvatarSpace && hasUserAvatar ? iconSize + CONSTANTS.UI_SPECS.AVATAR.MARGIN * 2 : 0;
-                        const assistantAvatarGap = respectAvatarSpace && hasAssistantAvatar ? iconSize + CONSTANTS.UI_SPECS.AVATAR.MARGIN * 2 : 0;
-
-                        const assistantWidth = Math.max(0, messageRect.left - chatRect.left - assistantAvatarGap);
-                        const userWidth = Math.max(0, chatRect.right - messageRect.right - userAvatarGap);
-
+                        // Set Assistant base position (Platform specific)
                         rootStyle.setProperty(v.assistantLeft, `${chatRect.left}px`);
-                        rootStyle.setProperty(v.assistantWidth, `${assistantWidth}px`);
-                        rootStyle.setProperty(v.userWidth, `${userWidth}px`);
 
-                        // Masking
-                        const maskThreshold = CONSTANTS.UI_SPECS.STANDING_IMAGE_MASK_THRESHOLD_PX;
-                        const maskValue = `linear-gradient(to bottom, transparent 0px, rgb(0 0 0 / 1) 60px, rgb(0 0 0 / 1) 100%)`;
-                        if (assistantImgHeight >= windowHeight - maskThreshold) {
-                            rootStyle.setProperty(v.assistantMask, maskValue);
-                        } else {
-                            rootStyle.setProperty(v.assistantMask, 'none');
-                        }
+                        // Calculate available widths
+                        const assistantAvailableWidth = messageRect.left - chatRect.left;
+                        const userAvailableWidth = chatRect.right - messageRect.right;
 
-                        if (userImgHeight >= windowHeight - maskThreshold) {
-                            rootStyle.setProperty(v.userMask, maskValue);
-                        } else {
-                            rootStyle.setProperty(v.userMask, 'none');
-                        }
+                        // Delegate common calculation
+                        StandingImageLayout.apply(instance, {
+                            assistantAvailableWidth,
+                            userAvailableWidth,
+                            assistantImgHeight,
+                            userImgHeight,
+                            windowHeight,
+                        });
                     },
                 });
             }

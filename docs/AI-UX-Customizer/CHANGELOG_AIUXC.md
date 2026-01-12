@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-b300] - 2026-01-12
+- **Core Improvements**
+  - Unified the layout calculation logic for standing images across ChatGPT and Gemini. This internal optimization reduces the script's file size without changing any existing functionality.
+  - Refactored the core logic for calculating standing image dimensions and positioning into a shared helper, improving maintainability.
+
 ## [1.0.0-b299] - 2026-01-12
 - **Core Changes**
   - **[Architecture]** Completely overhauled the application lifecycle management. The script now handles page navigation and state transitions (between active chats and unsupported pages) much more reliably.
