@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b298
+// @version      1.0.0-b299
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -576,12 +576,6 @@
          * @property {AppConfig} detail - The new, complete configuration object.
          */
         CONFIG_UPDATED: `${APPID}:configUpdated`,
-        /**
-         * @description Fired to request a full application shutdown and cleanup.
-         * @event APP_SHUTDOWN
-         * @property {null} detail - No payload.
-         */
-        APP_SHUTDOWN: `${APPID}:appShutdown`,
 
         /**
          * @description (ChatGPT-only) Fired by the polling scanner when it detects new messages.
@@ -1896,6 +1890,8 @@
             EVENTS.INPUT_AREA_RESIZED,
             EVENTS.TIMESTAMP_ADDED,
             EVENTS.CHAT_CONTENT_WIDTH_UPDATED,
+            EVENTS.NAVIGATION,
+            EVENTS.NAVIGATION_START,
         ]),
         _aggregationDelay: 500, // ms
 
@@ -5905,13 +5901,6 @@
                 return;
             }
             this.lastPath = currentPath;
-
-            // Immediate check for excluded pages
-            if (PlatformAdapters.General.isExcludedPage()) {
-                Logger.log('EXCLUDED URL', LOG_STYLES.YELLOW, 'Excluded URL detected. Suspending script functions.');
-                EventBus.publish(EVENTS.APP_SHUTDOWN);
-                return;
-            }
 
             EventBus.publish(EVENTS.NAVIGATION_START);
             this.debouncedNavigation();
@@ -15107,7 +15096,8 @@
             this.syncManager = null;
             this.autoScrollManager = null;
             this.toastManager = null;
-            this.navigationMonitor = new NavigationMonitor();
+            /** @type {(() => void) | null} */
+            this.sentinelCleanup = null;
             this.isConfigSizeExceeded = false;
             this.hasLoadError = false;
             this.configWarningMessage = '';
@@ -15170,6 +15160,7 @@
             PlatformAdapters.AppController.initializePlatformManagers(this);
 
             if (PlatformAdapters.Timestamp.hasTimestampLogic()) {
+                PlatformAdapters.Timestamp.init();
                 this.timestampManager = new TimestampManager(this.configManager, this.messageCacheManager);
             }
 
@@ -15221,7 +15212,6 @@
             }
 
             // Subscribe to app-wide events
-            this._subscribe(EVENTS.APP_SHUTDOWN, () => this.destroy());
             this._subscribe(EVENTS.NAVIGATION_START, () => (this.isNavigating = true));
             this._subscribe(EVENTS.NAVIGATION_END, () => (this.isNavigating = false));
             this._subscribe(EVENTS.NAVIGATION, () => {
@@ -15251,11 +15241,21 @@
 
             // Correctly subscribe with no arguments
             this._subscribe(EVENTS.REMOTE_CONFIG_CHANGED, () => this._handleRemoteConfigChange());
+
+            // Setup Message Processor using Platform Adapter
+            // This connects the low-level Sentinel detection to the high-level EventBus.
+            this.sentinelCleanup = /** @type {() => void} */ (/** @type {unknown} */ (PlatformAdapters.General.initializeSentinel((el) => this.handleRawMessage(el))));
         }
 
         _onDestroy() {
             // Stop network monitoring immediately
             PlatformAdapters.Timestamp.cleanup();
+
+            // Cleanup sentinel listener
+            if (this.sentinelCleanup) {
+                this.sentinelCleanup();
+                this.sentinelCleanup = null;
+            }
 
             // Destroy managers in reverse order of initialization
             // This ensures dependents are cleaned up before their dependencies
@@ -15286,40 +15286,6 @@
         handleRawMessage(contentElement) {
             if (!this.isInitialized) return;
             EventBus.publish(EVENTS.RAW_MESSAGE_ADDED, contentElement);
-        }
-
-        /**
-         * Launches the application.
-         * Sets up hooks, waits for the anchor element, and initializes the main logic.
-         * Note: This method assumes that the global `sentinel` instance has already been created.
-         */
-        launch() {
-            // 1. Setup Hooks
-            this.navigationMonitor.init();
-
-            // 2. Wait for Anchor to Initialize (We use the global sentinel instance here)
-            const initApp = () => {
-                // Guard: Even if the anchor is found, abort if the current page is on the exclusion list.
-                if (PlatformAdapters.General.isExcludedPage()) {
-                    Logger.log('INIT ABORT', LOG_STYLES.YELLOW, 'Target element detected, but the page is on the exclusion list. Initialization aborted.');
-                    return;
-                }
-
-                Logger.log('INIT', LOG_STYLES.GREEN, 'Target element detected. Initializing...');
-                this.init();
-            };
-
-            sentinel.on(CONSTANTS.SELECTORS.INPUT_TEXT_FIELD_TARGET, initApp);
-
-            const existingAnchor = document.querySelector(CONSTANTS.SELECTORS.INPUT_TEXT_FIELD_TARGET);
-            if (existingAnchor) {
-                Logger.debug('INIT', LOG_STYLES.CYAN, 'Target already exists. Triggering immediate init.');
-                initApp();
-            }
-
-            // 3. Setup Message Processor using Platform Adapter
-            // This connects the low-level Sentinel detection to the high-level EventBus.
-            PlatformAdapters.General.initializeSentinel((el) => this.handleRawMessage(el));
         }
 
         async _handleRemoteConfigChange() {
@@ -15526,6 +15492,106 @@
         }
     }
 
+    /**
+     * @class LifecycleManager
+     * @description Manages the application lifecycle, handling URL changes and DOM readiness
+     * to initialize or destroy the AppController.
+     */
+    class LifecycleManager {
+        constructor() {
+            this.navigationMonitor = new NavigationMonitor();
+            this.appController = null;
+            this.anchorListener = null;
+            this.isAnchorListenerActive = false;
+        }
+
+        init() {
+            this.navigationMonitor.init();
+
+            // Use createEventKey for unique subscription keys
+            const startKey = createEventKey(this, EVENTS.NAVIGATION_START);
+            const navKey = createEventKey(this, EVENTS.NAVIGATION);
+
+            // Check for exclusion immediately when navigation starts to stop processes early
+            EventBus.subscribe(EVENTS.NAVIGATION_START, () => this._handleNavigationStart(), startKey);
+
+            // Check for launch eligibility after navigation settles
+            EventBus.subscribe(EVENTS.NAVIGATION, () => this._handleNavigation(), navKey);
+
+            // Initial check
+            this._handleNavigation();
+        }
+
+        _handleNavigationStart() {
+            if (PlatformAdapters.General.isExcludedPage()) {
+                Logger.log('EXCLUDED URL', LOG_STYLES.YELLOW, 'Excluded URL detected. Suspending script functions.');
+                this._shutdown();
+            }
+        }
+
+        _handleNavigation() {
+            if (PlatformAdapters.General.isExcludedPage()) {
+                // Ensure shutdown if not caught by start event (redundant safety)
+                this._shutdown();
+            } else {
+                this._tryLaunch();
+            }
+        }
+
+        _tryLaunch() {
+            // If already running, do nothing
+            if (this.appController) return;
+
+            const anchorSelector = CONSTANTS.SELECTORS.INPUT_TEXT_FIELD_TARGET;
+            const anchor = document.querySelector(anchorSelector);
+
+            if (anchor) {
+                this._launchApp();
+            } else if (!this.isAnchorListenerActive) {
+                // Wait for anchor
+                this.anchorListener = () => {
+                    // Double check exclusion in case URL changed while waiting
+                    if (!PlatformAdapters.General.isExcludedPage()) {
+                        this._launchApp();
+                    }
+                };
+                sentinel.on(anchorSelector, this.anchorListener);
+                this.isAnchorListenerActive = true;
+                Logger.log('LIFECYCLE', LOG_STYLES.YELLOW, 'Waiting for anchor element...');
+            }
+        }
+
+        _launchApp() {
+            // Cleanup anchor listener if active
+            this._cleanupAnchorListener();
+
+            if (!this.appController) {
+                Logger.log('LIFECYCLE', LOG_STYLES.YELLOW, 'Launching AppController...');
+                this.appController = new AppController();
+                this.appController.init();
+            }
+        }
+
+        _shutdown() {
+            this._cleanupAnchorListener();
+
+            if (this.appController) {
+                Logger.log('LIFECYCLE', LOG_STYLES.YELLOW, 'Shutting down AppController (Excluded Page).');
+                this.appController.destroy();
+                this.appController = null;
+            }
+        }
+
+        _cleanupAnchorListener() {
+            if (this.isAnchorListenerActive && this.anchorListener) {
+                const anchorSelector = CONSTANTS.SELECTORS.INPUT_TEXT_FIELD_TARGET;
+                sentinel.off(anchorSelector, this.anchorListener);
+                this.anchorListener = null;
+                this.isAnchorListenerActive = false;
+            }
+        }
+    }
+
     // =================================================================================
     // SECTION: Entry Point
     // =================================================================================
@@ -15535,19 +15601,12 @@
     // Set executed flag if not executed yet
     ExecutionGuard.setExecuted();
 
-    // Initialize network interception immediately at document-start, but only if not on an excluded page.
-    if (!PlatformAdapters.General.isExcludedPage()) {
-        PlatformAdapters.Timestamp.init();
-    }
-
     // Singleton instance for observing DOM node insertions.
     const sentinel = new Sentinel(OWNERID);
 
-    // Main controller for the entire application.
-    const appController = new AppController();
-
-    // Launch application
-    appController.launch();
+    // Initialize lifecycle management to handle app startup and navigation
+    const lifecycleManager = new LifecycleManager();
+    lifecycleManager.init();
 
     // =================================================================================
     // SECTION: Platform Definition Factories
@@ -15902,6 +15961,11 @@
 
                 sentinel.on(userContentSelector, callback);
                 sentinel.on(assistantContentSelector, callback);
+
+                return () => {
+                    sentinel.off(userContentSelector, callback);
+                    sentinel.off(assistantContentSelector, callback);
+                };
             }
 
             /** @override */
@@ -17313,6 +17377,11 @@
                 const assistantBubbleSelector = `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE}`;
                 sentinel.on(userBubbleSelector, callback);
                 sentinel.on(assistantBubbleSelector, callback);
+
+                return () => {
+                    sentinel.off(userBubbleSelector, callback);
+                    sentinel.off(assistantBubbleSelector, callback);
+                };
             }
         }
 

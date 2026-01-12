@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.0-b299] - 2026-01-12
+- **Core Changes**
+  - **[Architecture]** Completely overhauled the application lifecycle management. The script now handles page navigation and state transitions (between active chats and unsupported pages) much more reliably.
+- **Bug Fixes & Optimizations**
+  - **[Memory]** Fixed a potential memory leak where internal event listeners were not being properly removed when switching between chats.
+  - **[Performance]** Improved navigation handling to immediately suspend script operations when visiting excluded URLs, preventing unnecessary background processing and timeout errors.
+
 ## [1.0.0-b298] - 2026-01-12
 - **Fixes**
   - Hardened the internal `CustomModal` logic to strictly verify the dialog state before display, preventing crashes during rapid or concurrent interactions.
