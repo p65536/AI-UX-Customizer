@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-b301] - 2026-01-12
+- **Core Improvements**
+  - Refactored the **Auto-Scroll** feature (used for layout scanning on ChatGPT and history loading on Gemini) to share a unified base architecture. This improves code maintainability and ensures consistent behavior across platforms.
+  - Optimized the initialization process for platform adapters by removing redundant lifecycle calls.
+
 ## [1.0.0-b300] - 2026-01-12
 - **Core Improvements**
   - Unified the layout calculation logic for standing images across ChatGPT and Gemini. This internal optimization reduces the script's file size without changing any existing functionality.

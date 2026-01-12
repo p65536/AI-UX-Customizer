@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b300
+// @version      1.0.0-b301
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -15115,6 +15115,80 @@
     }
 
     // =================================================================================
+    // SECTION: Auto Scroll Manager (Base)
+    // Description: Base class for platform-specific AutoScrollManagers.
+    // =================================================================================
+
+    /**
+     * @class BaseAutoScrollManager
+     * @extends BaseManager
+     */
+    class BaseAutoScrollManager extends BaseManager {
+        /**
+         * @param {ConfigManager} configManager
+         * @param {MessageCacheManager} messageCacheManager
+         */
+        constructor(configManager, messageCacheManager) {
+            super();
+            this.configManager = configManager;
+            this.messageCacheManager = messageCacheManager;
+            this.isEnabled = false;
+            this.isScrolling = false;
+        }
+
+        _onInit() {
+            this.isEnabled = this.configManager.get().platforms[PLATFORM].features.load_full_history_on_chat_load.enabled;
+            this._subscribe(EVENTS.AUTO_SCROLL_REQUEST, () => this.start());
+            this._subscribe(EVENTS.AUTO_SCROLL_CANCEL_REQUEST, () => this.stop(false));
+            this._subscribe(EVENTS.CACHE_UPDATED, () => this._onCacheUpdated());
+            this._subscribe(EVENTS.NAVIGATION, () => this._onNavigation());
+        }
+
+        _onDestroy() {
+            this.stop(false);
+        }
+
+        enable() {
+            this.isEnabled = true;
+        }
+
+        disable() {
+            this.isEnabled = false;
+            this.stop(false);
+        }
+
+        /**
+         * @abstract
+         */
+        start() {
+            // To be implemented by subclasses
+        }
+
+        /**
+         * @abstract
+         * @param {boolean} isNavigation
+         */
+        stop(isNavigation) {
+            // To be implemented by subclasses
+        }
+
+        /**
+         * @abstract
+         * @protected
+         */
+        _onCacheUpdated() {
+            // To be implemented by subclasses
+        }
+
+        /**
+         * @abstract
+         * @protected
+         */
+        _onNavigation() {
+            // To be implemented by subclasses
+        }
+    }
+    // =================================================================================
     // SECTION: App Controller (Main Controller)
     // Description: The central controller that initializes all managers,
     //              handles dependency injection, and orchestrates the application lifecycle.
@@ -16272,9 +16346,9 @@
 
                 /**
                  * @class AutoScrollManager
-                 * @extends BaseManager
+                 * @extends BaseAutoScrollManager
                  */
-                class AutoScrollManager extends BaseManager {
+                class AutoScrollManager extends BaseAutoScrollManager {
                     static CONFIG = {
                         // The minimum number of messages required to trigger the auto-scroll feature.
                         MESSAGE_THRESHOLD: 5, // Lower threshold for GPTUX as it's for layout scanning
@@ -16288,38 +16362,13 @@
                      * @param {MessageLifecycleManager} messageLifecycleManager
                      */
                     constructor(configManager, messageCacheManager, messageLifecycleManager) {
-                        super();
-                        this.configManager = configManager;
-                        this.messageCacheManager = messageCacheManager;
+                        super(configManager, messageCacheManager);
                         this.messageLifecycleManager = messageLifecycleManager;
                         this.scrollContainer = null;
-                        this.isEnabled = false;
-                        this.isScrolling = false;
                         this.isInitialScrollCheckDone = false;
                         this.scanLoopId = null; // Use for setTimeout loop
                         this.boundStop = null;
                         this.isLayoutScanComplete = false;
-                    }
-
-                    _onInit() {
-                        this.isEnabled = this.configManager.get().platforms[PLATFORM].features.load_full_history_on_chat_load.enabled;
-                        this._subscribe(EVENTS.AUTO_SCROLL_REQUEST, () => this.start());
-                        this._subscribe(EVENTS.AUTO_SCROLL_CANCEL_REQUEST, () => this.stop(false));
-                        this._subscribe(EVENTS.CACHE_UPDATED, () => this._onCacheUpdated());
-                        this._subscribe(EVENTS.NAVIGATION, () => this._onNavigation());
-                    }
-
-                    _onDestroy() {
-                        this.stop(false);
-                    }
-
-                    enable() {
-                        this.isEnabled = true;
-                    }
-
-                    disable() {
-                        this.isEnabled = false;
-                        this.stop(false);
                     }
 
                     async start() {
@@ -16427,7 +16476,7 @@
                     }
 
                     /**
-                     * @private
+                     * @override
                      * @description Handles the CACHE_UPDATED event to perform the initial scroll check.
                      */
                     _onCacheUpdated() {
@@ -16451,10 +16500,11 @@
                     }
 
                     /**
-                     * @private
+                     * @override
                      * @description Handles the NAVIGATION event to reset the manager's state.
                      */
                     _onNavigation() {
+                        super._onNavigation();
                         if (this.isScrolling) {
                             // Stop scroll without triggering a UI refresh, as a new page is loading.
                             this.stop(true);
@@ -17547,9 +17597,9 @@
 
                 /**
                  * @class AutoScrollManager
-                 * @extends BaseManager
+                 * @extends BaseAutoScrollManager
                  */
-                class AutoScrollManager extends BaseManager {
+                class AutoScrollManager extends BaseAutoScrollManager {
                     static CONFIG = {
                         // The minimum number of messages required to trigger the auto-scroll feature.
                         MESSAGE_THRESHOLD: 20,
@@ -17566,13 +17616,9 @@
                      * @param {MessageCacheManager} messageCacheManager
                      */
                     constructor(configManager, messageCacheManager) {
-                        super();
-                        this.configManager = configManager;
-                        this.messageCacheManager = messageCacheManager;
+                        super(configManager, messageCacheManager);
                         this.scrollContainer = null;
                         this.observerContainer = null;
-                        this.isEnabled = false;
-                        this.isScrolling = false;
                         this.toastShown = false;
                         this.isInitialScrollCheckDone = false;
                         this.boundStop = null;
@@ -17584,25 +17630,8 @@
                     }
 
                     _onInit() {
-                        this.isEnabled = this.configManager.get().platforms[PLATFORM].features.load_full_history_on_chat_load.enabled;
-                        this._subscribe(EVENTS.AUTO_SCROLL_REQUEST, () => this.start());
-                        this._subscribe(EVENTS.AUTO_SCROLL_CANCEL_REQUEST, () => this.stop(false));
-                        this._subscribe(EVENTS.CACHE_UPDATED, () => this._onCacheUpdated());
-                        this._subscribe(EVENTS.NAVIGATION, () => this._onNavigation());
+                        super._onInit();
                         this._subscribe(EVENTS.STREAMING_START, () => this._onStreamingStart());
-                    }
-
-                    _onDestroy() {
-                        this.stop(false);
-                    }
-
-                    enable() {
-                        this.isEnabled = true;
-                    }
-
-                    disable() {
-                        this.isEnabled = false;
-                        this.stop(false);
                     }
 
                     async start() {
@@ -17746,7 +17775,7 @@
                     }
 
                     /**
-                     * @private
+                     * @override
                      * @description Handles the CACHE_UPDATED event to perform the initial scroll check.
                      */
                     _onCacheUpdated() {
@@ -17787,10 +17816,11 @@
                     }
 
                     /**
-                     * @private
+                     * @override
                      * @description Handles the NAVIGATION event to reset the manager's state.
                      */
                     _onNavigation() {
+                        super._onNavigation();
                         if (this.isScrolling) {
                             // Stop scroll without triggering a UI refresh, as a new page is loading.
                             this.stop(true);
@@ -17800,7 +17830,6 @@
                     }
                 }
                 controller.autoScrollManager = new AutoScrollManager(controller.configManager, controller.messageCacheManager);
-                controller.autoScrollManager.init();
             }
 
             /** @override */
