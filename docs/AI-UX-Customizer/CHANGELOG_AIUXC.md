@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-b303] - 2026-01-13
+- **Refactor / Internal Improvements**
+  - Optimized the configuration loading logic within `ConfigManager` to resolve internal warnings and improve code cleanliness.
+  - Applied general code quality improvements and linting fixes (e.g., standardizing variable declarations) across the codebase.
+
 ## [1.0.0-b302] - 2026-01-12
 - **Bug Fixes**
   - **[ChatGPT]** Restored the **Message Timestamp** functionality which stopped working in `b299` update due to lifecycle optimizations.

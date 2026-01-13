@@ -1,5 +1,3 @@
-// globals.d.ts for AI-UX-Customizer
-
 // --- GM_xmlhttpRequest Types ---
 interface GMXMLHttpRequestResponse<T = any> {
     finalUrl: string;
@@ -41,16 +39,31 @@ interface GMXMLHttpRequestDetails<T = any> {
 }
 
 // --- GM Functions ---
+// Note: GM_* functions (Sync)
 declare function GM_addValueChangeListener(key: string, listener: (name: string, oldValue: any, newValue: any, remote: boolean) => void): number | string;
 declare function GM_removeValueChangeListener(listenerId: number | string): void;
-declare function GM_setValue(key: string, value: any): Promise<void>;
-declare function GM_getValue<T>(key: string, defaultValue?: T): Promise<T>;
-declare function GM_deleteValue(key: string): Promise<void>;
-declare function GM_listValues(): Promise<string[]> | string[]; // Tampermonkey returns array, some engines might be async but usually sync for listValues in TM
+declare function GM_setValue(key: string, value: any): void;
+declare function GM_getValue<T>(key: string, defaultValue?: T): T;
+declare function GM_deleteValue(key: string): void;
+declare function GM_listValues(): string[];
 declare function GM_xmlhttpRequest<T = any>(details: GMXMLHttpRequestDetails<T>): { abort: () => void };
+declare function GM_registerMenuCommand(caption: string, onClick: (event: MouseEvent | KeyboardEvent) => void, accessKey?: string): number | string;
+declare function GM_download(details: { url: string; name?: string; onload?: () => void }): { abort: () => void };
+declare function GM_addStyle(css: string): HTMLStyleElement;
 
-declare const unsafeWindow: Window;
+// --- GM Namespace (Async) ---
+declare const GM: {
+    setValue(key: string, value: any): Promise<void>;
+    getValue<T>(key: string, defaultValue?: T): Promise<T>;
+    deleteValue(key: string): Promise<void>;
+    listValues(): Promise<string[]>;
+    xmlHttpRequest<T = any>(details: GMXMLHttpRequestDetails<T>): { abort: () => void };
+};
+
+// --- Globals ---
+declare const unsafeWindow: Window & typeof globalThis;
 declare function exportFunction(fn: Function, target: object, options?: { defineAs: string }): void;
+declare function cloneInto<T>(obj: T, target: object, options?: { cloneFunctions?: boolean }): T;
 
 // --- Data Structures ---
 

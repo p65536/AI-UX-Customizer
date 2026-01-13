@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b302
+// @version      1.0.0-b303
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -513,7 +513,7 @@
          */
         DEFERRED_LAYOUT_UPDATE: `${APPID}:deferredLayoutUpdate`,
         /**
-         * @description (GPTUX-only) Fired when historical timestamps are loaded from the API.
+         * @description (ChatGPT-only) Fired when historical timestamps are loaded from the API.
          * @event TIMESTAMPS_LOADED
          * @property {object} detail - Contains the chat ID and timestamps map.
          * @property {string} detail.chatId - The ID of the chat.
@@ -5573,7 +5573,8 @@
                     if (updateState) {
                         this._manifestCache = manifestRaw;
                         // Cache content without updatedAt for save comparison
-                        const { updatedAt, ...content } = manifest;
+                        const content = { ...manifest };
+                        delete content.updatedAt;
                         this._lastSavedManifestContent = JSON.stringify(content);
                     }
 
@@ -6567,7 +6568,7 @@
             // Decode URL path to match user expectations
             try {
                 urlPath = decodeURI(urlPath);
-            } catch (e) {
+            } catch {
                 // Keep original if decoding fails
             }
 
@@ -6692,7 +6693,7 @@
                             if (val.startsWith('<svg')) {
                                 finalCssValue = `url("${svgToDataUrl(val)}")`;
                             } else if (val.startsWith('http')) {
-                                let resizeOptions = { signal }; // Inject signal
+                                const resizeOptions = { signal }; // Inject signal
                                 if (isIcon) {
                                     resizeOptions.width = currentIconSize;
                                     resizeOptions.height = currentIconSize;
@@ -12418,7 +12419,7 @@
                 const obj = JSON.parse(text);
                 const minified = JSON.stringify(obj);
                 sizeInBytes = new Blob([minified]).size;
-            } catch (e) {
+            } catch {
                 sizeInBytes = new Blob([text]).size;
                 isRaw = true;
             }
@@ -12529,7 +12530,7 @@
                                         // Append Mode: Use current editor content as base
                                         const currentEditorJson = this.store.get('jsonString');
                                         baseConfig = JSON.parse(currentEditorJson);
-                                    } catch (parseError) {
+                                    } catch {
                                         throw new Error('Cannot append: Editor contains invalid JSON. Please fix it before appending.');
                                     }
                                 } else {
@@ -12561,7 +12562,7 @@
                                             if (!importedTheme.metadata) importedTheme.metadata = {};
                                             if (!importedTheme.metadata.id) importedTheme.metadata.id = generateUniqueId('theme');
 
-                                            let id = importedTheme.metadata.id;
+                                            const id = importedTheme.metadata.id;
                                             // If ID is duplicated within the import file itself, regenerate it
                                             if (processedIds.has(id)) {
                                                 const newId = generateUniqueId('theme');
@@ -13937,7 +13938,7 @@
                     try {
                         // Safe regex creation for highlighting (force 'g' for multiple matches)
                         highlightRegex = new RegExp(parsed.source, parsed.flags + 'g');
-                    } catch (e) {
+                    } catch {
                         highlightRegex = null;
                     }
                 } else {
@@ -14160,7 +14161,7 @@
             if (parsed.mode === 'RegExp' && parsed.isValid) {
                 try {
                     regex = new RegExp(parsed.source, parsed.flags);
-                } catch (e) {
+                } catch {
                     /* ignore, handled by parse */
                 }
             }
@@ -15650,8 +15651,7 @@
 
     /**
      * @class LifecycleManager
-     * @description Manages the application lifecycle, handling URL changes and DOM readiness
-     * to initialize or destroy the AppController.
+     * @description Manages the application lifecycle, handling URL changes and DOM readiness to initialize or destroy the AppController.
      */
     class LifecycleManager {
         constructor() {
@@ -16374,7 +16374,7 @@
                 class AutoScrollManager extends BaseAutoScrollManager {
                     static CONFIG = {
                         // The minimum number of messages required to trigger the auto-scroll feature.
-                        MESSAGE_THRESHOLD: 5, // Lower threshold for GPTUX as it's for layout scanning
+                        MESSAGE_THRESHOLD: 5, // Lower threshold for ChatGPT as it's for layout scanning
                         // Delay between simulated PageUp scrolls (in ms)
                         SCAN_INTERVAL_MS: 30,
                     };
@@ -17103,7 +17103,7 @@
                 let normalizedUrl = url;
                 try {
                     normalizedUrl = new URL(url, location.href).pathname;
-                } catch (e) {
+                } catch {
                     // Ignore URL parsing errors
                 }
                 const chatId = this._getChatIdFromUrl(normalizedUrl);
