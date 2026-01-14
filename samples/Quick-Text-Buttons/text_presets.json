@@ -1,41 +1,60 @@
 {
   "options": {
+    "enable_shortcut": true,
     "insert_before_newline": false,
     "insert_after_newline": false,
-    "insertion_position": "end",
+    "insertion_position": "cursor",
+    "trigger_mode": "click",
     "activeProfileName": "Default"
   },
-  "texts": {
-    "Default": {
-      "Test": [
-        "[TEST MESSAGE] You can ignore this message.",
-        "Tell me something interesting.",
-        "Based on all of our previous conversations, generate an image of me as you imagine. Make it super-realistic. Please feel free to fill in any missing information with your own imagination. Do not ask follow-up questions; generate the image immediately.",
-        "Based on all of our previous conversations, generate an image of my ideal partner (opposite sex) as you imagine. Make it super-realistic. Please feel free to fill in any missing information with your own imagination. Do not ask follow-up questions; generate the image immediately.",
-        "Based on all of our previous conversations, generate an image of a person who is the exact opposite of my ideal partner. Make it super-realistic. Please feel free to fill in any missing information with your own imagination. Do not ask follow-up questions; generate the image immediately."
-      ],
-      "Images": [
-        "For each generated image, include an \"image number\" (e.g., Image 1, Image 2, ...), a title, and an image description.\n\n",
-        "Refer to the body shape and illustration style in the attached images, and draw the same person. Pay special attention to maintaining character consistency.\n\n",
-        "Feel free to illustrate a scene from everyday life. You can choose the composition or situation. If you are depicting consecutive scenes (a story), make sure to keep everything consistent (e.g., do not change clothing for no reason).\n\n"
-      ],
-      "Coding": [
-        "### Code Editing Rules (Apply to the entire chat)\nStrictly follow these rules for all code suggestions, changes, optimizations, and Canvas reflection:\n1. **Do not modify any part of the code that is not being edited.**\n   * This includes blank lines, comments, variable names, order, etc. **Strictly keep all unmodified parts as is.**\n2. **Always leave concise, meaningful comments.**\n   * Limit comments to content that aids understanding or future maintenance. Do not include formal or duplicate notes.\n3. **When proposing or changing code, clearly state the intent and scope.**\n   * Example: \"Improve performance of this function,\" \"Simplify this conditional branch,\" etc.\n4. **Apply the above rules even for Canvas reflection.**\n   * Do not reformat, remove, or reorder content on the GPT side.\n5. **Preserve the overall style of the code (indentation, newlines, etc.).**\n   * Only edited parts should stand out clearly as differences.\n\n",
-        "Optimize the following script according to modern design guidelines. \nWhile maintaining its purpose and function, improve the structure, readability, and extensibility.\nIf there are improvements, clearly indicate them in the code comments and compare Before竊但fter.\n\n```\n```\n\n"
-      ],
-      "Summary": [
-        "STEP 1: For this chat log, do not summarize, but clearly show the structure of the content. Please output in the following format:\n\n- 隼 List of topics (each topic heading and its starting point)\n- ｧｷ List of technical terms / keywords / commands / proper nouns\n- 東 Key statements marking turning points in the discussion (quotes allowed)\n\n[NOTE]\nThe goal is not to summarize, but to \"enumerate and organize the topics.\"\nGive priority to extracting important elements while maintaining context.\n",
-        "STEP 2: For this chat log, enumerate the content as it is, without summarizing or restructuring.\n\nSample output format:\n1. [Start] Consulted about PowerShell script character encoding error\n2. [Proposal] Suggested UTF-8 with BOM save\n3. [Clarification] Clarified misunderstanding about Shift-JIS (e.g., cp932)\n4. [Conclusion] Decided on UTF-8-only approach with PowerShell\n\n[NOTE]\nMaintain the original order of topics. The goal is not to summarize, but to list \"what was discussed\" and \"what conclusions were drawn.\"",
-        "STEP 3: Provide a mid-level summary for each topic in this chat log.\nCompression ratio can be low. Do not omit topics, and keep granularity somewhat fine.\n\nSample output format:\n## Chat title (or date)\n\n### Topic 1: About XXXXX\n- Overview:\n- Main discussion points:\n- Tentative conclusion or direction:\n\n### Topic 2: About YYYYY\n- ...\n\n[NOTE]\nIt's okay to be verbose. Ensure important details are not omitted so that a human can organize them later.",
-        "STEP 4: For each topic in this chat log, add the following indicators:\n\n- [Importance]: High / Medium / Low\n- [Reference recommended]: Yes / No (Is it worth reusing/repurposing?)\n- [Reference keywords]: About 3 search keywords\n\nThe purpose is to provide criteria for organizing or deleting this record in the future."
-      ],
-      "Memory": [
-        "[Memory list output] Please display all currently stored model set context (memory list) for me.\nSeparate by category, output concisely and accurately.",
-        "[Add to memory] Please add the following content to the model set context:\n\n[Category] (e.g., PowerShell)\n[Content]\n- Always unify the log output folder for PowerShell scripts to a \"logs\" subfolder.\n- Internal comments in scripts should be written in Japanese.\n\nPlease consistently refer to this information as context and policy in future conversations.",
-        "[Edit memory] Please edit the following memory content:\n\n[Target category] PowerShell\n[Current text to be edited] The default encoding for PowerShell scripts is \"UTF-8 with BOM.\"\n[New text] The default encoding for PowerShell scripts is \"UTF-8 without BOM.\"\n\nBe sure to discard the old information and replace it with the new information.",
-        "[Delete memory] Please completely delete the following memory content:\n\n[Target category] Image generation (Haruna)\n[Text to be deleted]\n- Always include an image number and situation description (caption) when generating images.\n\nEnsure that this information is completely removed and will not affect future conversations.",
-        "Summarize everything you have learned about our conversation and commit it to the memory update."
+  "developer": {
+    "logger_level": "log"
+  },
+  "texts": [
+    {
+      "name": "Default",
+      "categories": [
+        {
+          "name": "Structured",
+          "items": [
+            "Explain this step by step.",
+            "Summarize this using bullet points.",
+            "Provide the answer in a table format."
+          ]
+        },
+        {
+          "name": "Refine",
+          "items": [
+            "Can you clarify this point with a concrete example?",
+            "Rephrase this in a more concise and technical manner.",
+            "List the assumptions you are making in this explanation."
+          ]
+        },
+        {
+          "name": "Coding",
+          "items": [
+            "Show a minimal reproducible example.",
+            "Explain this from a performance and maintainability perspective.",
+            "Point out potential edge cases or pitfalls."
+          ]
+        },
+        {
+          "name": "Twist",
+          "items": [
+            "Explain this as if you were teaching a beginner.",
+            "Explain this to an expert in one paragraph.",
+            "Give an alternative perspective or unconventional approach."
+          ]
+        },
+        {
+          "name": "Image-gen",
+          "items": [
+            "Based on all of our previous conversations, generate an image of me as you imagine. Make it super-realistic. Please feel free to fill in any missing information with your own imagination. Do not ask follow-up questions; generate the image immediately.",
+            "Based on all of our previous conversations, generate an image of my ideal partner (opposite sex) as you imagine. Make it super-realistic. Please feel free to fill in any missing information with your own imagination. Do not ask follow-up questions; generate the image immediately.",
+            "Based on all of our previous conversations, generate an image of a person who is the exact opposite of my ideal partner. Make it super-realistic. Please feel free to fill in any missing information with your own imagination. Do not ask follow-up questions; generate the image immediately."
+          ]
+        }
       ]
     }
-  }
+  ]
 }

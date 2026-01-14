@@ -1,5 +1,20 @@
 # Changelog
 
+## [3.0.0] - 2026-01-14
+- **New Features**
+  - **[Interaction]** Added full keyboard navigation support for the text list (Arrow keys, Enter, Tab).
+  - **[Shortcut]** Introduced a global keyboard shortcut (`Alt+Q`) to quickly toggle the text list visibility.
+  - **[UI]** Added a profile navigation bar to the text list header, allowing quick profile switching directly within the list view.
+  - **[Help]** Added a "Shortcuts & Controls" cheat sheet modal for quick reference of available key bindings.
+  - **[UI]** Implemented responsive positioning for the text list to intelligently adjust its placement based on available screen space.
+- **Improvements & Changes**
+  - **[Config]** **(Important)** Restructured the internal data format from Objects to Arrays to improve reliability and guarantee item ordering.
+    - **Compatibility:** JSON exported from v2.x *can* be imported into v3.0.0 (auto-migrated), but JSON exported from v3.0.0 is *not* compatible with older versions.
+    - **Action Required:** It is highly recommended to export your settings again after updating to create a fresh backup compatible with v3.0.0.
+  - **[UI]** Refined the Settings Panel layout for better consistency, replacing the custom slider control with standard inputs.
+  - **[System]** Updated the default configuration with improved sample prompts for new users.
+  - **[System]** Added `/apps` to the ChatGPT exclusion list to prevent script execution on incompatible pages.
+
 ## [2.2.0] - 2025-12-03
 - **New Features**
   - Added a **Trigger Mode** option to the settings panel. Users can now choose between "Hover" (default) or "Click" to open the text list.

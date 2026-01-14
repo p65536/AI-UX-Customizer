@@ -20,28 +20,45 @@ The following is a sample to illustrate the JSON structure. **Ready-to-use sampl
     "insert_after_newline": false,
     "insertion_position": "end",
     "trigger_mode": "hover",
+    "enable_shortcut": true,
     "activeProfileName": "Default"
   },
   "developer": {
     "logger_level": "log"
   },
-  "texts": {
-    "Default": {
-      "Greetings": [
-        "Sincerely,",
-        "Best regards,"
-      ],
-      "Prompts": [
-        "Please proofread the following text:\n\n"
+  "texts": [
+    {
+      "name": "Default",
+      "categories": [
+        {
+          "name": "Greetings",
+          "items": [
+            "Sincerely,",
+            "Best regards,"
+          ]
+        },
+        {
+          "name": "Prompts",
+          "items": [
+            "Please proofread the following text:\n\n"
+          ]
+        }
       ]
     },
-    "Work": {
-      "Email Replies": [
-        "Understood. Thank you for your assistance."
+    {
+      "name": "Work",
+      "categories": [
+        {
+          "name": "Email Replies",
+          "items": [
+            "Understood. Thank you for your assistance."
+          ]
+        }
       ]
     }
-  }
+  ]
 }
+
 ```
 
 ---
@@ -49,71 +66,79 @@ The following is a sample to illustrate the JSON structure. **Ready-to-use sampl
 ## Overall Structure
 
 | Item Name | Description |
-| :--- | :--- |
+| --- | --- |
 | `options` | Common settings for script behavior. |
 | `developer` | **Debug and development settings.** |
-| `texts` | An object that stores the text data to be inserted. It can hold multiple profiles. |
+| `texts` | An **array** that stores the text data to be inserted. It holds multiple profile objects. |
 
 ---
 
 ## `"options"` Settings
 
 | Property Name | Description | Example | Notes/Allowed Values |
-| :--- | :--- | :--- | :--- |
+| --- | --- | --- | --- |
 | `insert_before_newline` | Whether to add a newline before inserting text | `false` | `true` / `false` |
 | `insert_after_newline` | Whether to add a newline after inserting text | `false` | `true` / `false` |
 | `insertion_position` | The position where the text is inserted | `"cursor"` | `"start"`: Beginning of the input field<br>`"cursor"`: Current cursor position<br>`"end"`: End of the input field |
 | `trigger_mode` | Determines how the text list is opened | `"hover"` | `"hover"`: Mouse over<br>`"click"`: Click |
-| `activeProfileName` | The name of the currently active profile | `"Default"` | A string specifying a profile name that exists within the `texts` object. |
+| `enable_shortcut` | Whether to enable the keyboard shortcut (Alt+Q) | `true` | `true` / `false` |
+| `activeProfileName` | The name of the currently active profile | `"Default"` | A string matching the `name` of a profile in the `texts` array. |
 
 ---
 
 ## `"developer"` Settings
 
 | Property Name | Description | Example | Notes/Allowed Values |
-| :--- | :--- | :--- | :--- |
+| --- | --- | --- | --- |
 | `logger_level` | Controls the verbosity of browser console logs. | `"log"` | `"error"` / `"warn"` / `"info"` / `"log"` / `"debug"` |
 
------
+---
 
 ## `"texts"` Settings
 
-The `texts` object has a nested structure for managing multiple "profiles".
+The `texts` property is an **array of objects**. Each object represents a "Profile".
 
-```
-"texts": {
-  "Profile Name": {
-    "Category Name": [
-      "Text 1",
-      "Text 2"
+```json
+"texts": [
+  {
+    "name": "Profile Name",
+    "categories": [
+      {
+        "name": "Category Name",
+        "items": [
+          "Text 1",
+          "Text 2"
+        ]
+      }
     ]
   }
-}
+]
+
 ```
 
-### 1. Profile
+### 1. Profile Object
 
-| Level | Description |
-| :--- | :--- |
-| Key of `texts` object | Specifies the **Profile Name** as a string (e.g., `"Default"`, `"Work"`). A profile is a group that contains a set of categories. |
-| Value of `texts` object | An object whose keys are **Category Names** and whose values are **text arrays**. |
+| Property | Description |
+| --- | --- |
+| `name` | The name of the profile (e.g., `"Default"`, `"Work"`). |
+| `categories` | An **array of objects**, where each object represents a category. |
 
-### 2. Category
+### 2. Category Object
 
-| Level | Description |
-| :--- | :--- |
-| Key of Profile object | Specifies the **Category Name** as a string (e.g., `"Greetings"`, `"Prompts"`). A category is a group for classifying texts. |
-| Value of Profile object | An **array of predefined text strings** to be inserted. |
+| Property | Description |
+| --- | --- |
+| `name` | The name of the category (e.g., `"Greetings"`, `"Prompts"`). |
+| `items` | An **array of strings** containing the predefined texts. |
 
-### 3. Text
+### 3. Text Item
 
-| Level | Description |
-| :--- | :--- |
-| Value of Category object | An **array of strings** that will actually be inserted. UI buttons are generated in the order of this array. |
+| Value | Description |
+| --- | --- |
+| (String) | The actual text to be inserted. Elements in the `items` array are generated as buttons in the specified order. |
 
 ---
 
 ## Tips
 
-  * If you want to include a newline within a text in the JSON, insert `\n` at the desired location.
-  * You can easily switch the current set of texts by changing the `activeProfileName` in the `options`.
+* If you want to include a newline within a text in the JSON, insert `\n` at the desired location.
+* You can switch the current set of texts by changing the `activeProfileName` in the `options`.

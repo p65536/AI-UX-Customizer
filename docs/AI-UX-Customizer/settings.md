@@ -18,7 +18,7 @@ You can access the Settings Panel by clicking the **Settings button** (gear icon
 | ChatGPT | Gemini |
 | :--- | :--- |
 | ChatGPT specific settings:<ul><li>Scan layout on chat load (Firefox only)</li><li>Show timestamp</li><li>Auto collapse user message</li></ul> | Gemini specific settings:<ul><li>Load full history on chat load</li></ul> |
-| ![Settings Panel](./images/settings_panel.webp) | ![Settings Panel (Gemini)](./images/settings_panel_gemini.webp) |
+| ![Settings Panel (ChatGPT)](./images/settings_panel_chatgpt.webp) | ![Settings Panel (Gemini)](./images/settings_panel_gemini.webp) |
 
 | Item | Description |
 | :--- | :--- |

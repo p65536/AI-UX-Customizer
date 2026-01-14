@@ -19,7 +19,9 @@ Currently, it supports the following AI services:
 ## Key Features
 
 * **Streamlined UI integrated into the input area**
-* **Intuitive text editing via GUI**
+* **Enhanced Text Editor with Drag & Drop reordering**
+* **Keyboard shortcuts (Alt+Q) and full keyboard navigation support**
+* Real-time settings synchronization across multiple tabs
 * Manage registered text by classifying it into "profiles" and "categories"
 * Switch between profiles (sets of categories) to use text sets tailored for different purposes
 * Specify the insertion position of the text (cursor position / start / end)
@@ -47,12 +49,31 @@ When you Right-click the button:
 
 ![Text Editor Modal](./images/qtb_text_editor.webp)
 
+### 4. Keyboard Shortcuts
+
+![Keyboard Shortcuts](./images/qtb_shortcuts.webp)
+
 ---
 
 ## How to Use
 
-* **Access**: The **Quick Text button** (pen icon) is located at the bottom-left of the chat input field.
-* **Insert Text**: **Hover** (or **Click**, depending on settings) over the button to display the list of registered texts. Clicking an item will insert it into the input field.
+### 1. Access & Navigation
+The **Quick Text button** (pen icon) is located at the bottom-left of the chat input field.  
+**Hover** (or **Click**, depending on settings) over the button to open the list.
+
+![Text List Navigation](./images/qtb_textlist.webp)
+
+* **Text**: Click an item to insert it directly into the input field.
+* **Category**: Switch tabs to view different groups of texts.
+* **Profile**: Switch profiles to load a completely different set of texts.
+
+**Keyboard Shortcuts:**
+* **Alt + Q**: Quickly toggle the text list.
+* **Arrow keys**: Navigate through the list.
+* **Enter/Space/Tab**: Insert the selected text.
+* **Ctrl + Arrow keys**: Switch profiles.
+
+### 2. Settings & Customization
 * **Settings**: **Right-click** the button to open the **Settings Panel**, where you can edit texts, manage profiles, and change options.
 * **Import/Export**: If needed, use the "JSON" button in the settings panel to export your current settings or import sample settings.
 
@@ -60,8 +81,8 @@ When you Right-click the button:
 
 ## Sample Settings
 
-The easiest way to get started is to import the [sample file](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/samples/Quick-Text-Buttons/text_presets.json) and modify its contents to your liking.  
-Please import the sample JSON from the link above via the script's settings screen (JSON modal).
+The easiest way to get started is to download a sample file from the [samples folder](../../samples/Quick-Text-Buttons) and modify its contents to your liking.  
+Please import the sample JSON via the script's settings screen (JSON modal).
 
 ---
 

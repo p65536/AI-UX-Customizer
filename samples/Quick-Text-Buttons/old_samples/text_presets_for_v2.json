@@ -1,0 +1,41 @@
+{
+  "options": {
+    "insert_before_newline": false,
+    "insert_after_newline": false,
+    "insertion_position": "cursor",
+    "trigger_mode": "click",
+    "activeProfileName": "Default"
+  },
+  "developer": {
+    "logger_level": "log"
+  },
+  "texts": {
+    "Default": {
+      "Structured": [
+        "Explain this step by step.",
+        "Summarize this using bullet points.",
+        "Provide the answer in a table format."
+      ],
+      "Refine": [
+        "Can you clarify this point with a concrete example?",
+        "Rephrase this in a more concise and technical manner.",
+        "List the assumptions you are making in this explanation."
+      ],
+      "Coding": [
+        "Show a minimal reproducible example.",
+        "Explain this from a performance and maintainability perspective.",
+        "Point out potential edge cases or pitfalls."
+      ],
+      "Twist": [
+        "Explain this as if you were teaching a beginner.",
+        "Explain this to an expert in one paragraph.",
+        "Give an alternative perspective or unconventional approach."
+      ],
+      "Image-gen": [
+        "Based on all of our previous conversations, generate an image of me as you imagine. Make it super-realistic. Please feel free to fill in any missing information with your own imagination. Do not ask follow-up questions; generate the image immediately.",
+        "Based on all of our previous conversations, generate an image of my ideal partner (opposite sex) as you imagine. Make it super-realistic. Please feel free to fill in any missing information with your own imagination. Do not ask follow-up questions; generate the image immediately.",
+        "Based on all of our previous conversations, generate an image of a person who is the exact opposite of my ideal partner. Make it super-realistic. Please feel free to fill in any missing information with your own imagination. Do not ask follow-up questions; generate the image immediately."
+      ]
+    }
+  }
+}

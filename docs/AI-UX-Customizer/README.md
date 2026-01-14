@@ -124,7 +124,7 @@ Go to the script's **Settings** tab, scroll to **XHR Security**, and add `*` to 
 
 ## Sample Settings
 
-The easiest way to get started is to import the **[sample file](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/samples/AI-UX-Customizer/theme_presets.json)** and modify its theme settings.
+The easiest way to get started is to import the **[sample file](../../samples/AI-UX-Customizer)** and modify its theme settings.
 Please import the sample JSON from the link above via the script's settings screen. Note that the samples use public SVG icons from [Google Fonts](https://fonts.google.com/icons).
 
 After applying the settings, the `defaultSet` configuration from the sample settings should be applied.
