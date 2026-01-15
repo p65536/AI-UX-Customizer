@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b309
+// @version      1.0.0-b310
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -16109,6 +16109,7 @@
                 SCROLL_CONTAINER: 'div:has(> main#main)',
                 STANDING_IMAGE_ANCHOR: '.group\\/turn-messages, div[class*="--thread-content-max-width"].grid',
                 PLACEHOLDER_PREFIX: 'placeholder-request-',
+                SCROLL_TO_BOTTOM_BUTTON: '#thread-bottom-container button.absolute.z-30.rounded-full',
 
                 // --- Site Specific Selectors ---
                 BUTTON_SHARE_CHAT: '[data-testid="share-chat-button"]',
@@ -16468,6 +16469,11 @@
                     /* This rule is now conditional on a body class and scoped to the scroll container to avoid affecting other elements. */
                     body.${cls.maxWidthActive} main ${CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH} {
                         max-width: var(--${APPID}-chat-content-max-width) !important;
+                    }
+                    
+                    /* Hide default scroll-to-bottom button */
+                    ${CONSTANTS.SELECTORS.SCROLL_TO_BOTTOM_BUTTON} {
+                        display: none !important;
                     }
                 `;
             }

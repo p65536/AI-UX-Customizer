@@ -18,7 +18,7 @@ Each script is developed independently and can be installed separately.
 ## Recent Updates
 
 ### 2026-01-15
-- Updated `AI UX Customizer` (b303 -> b309)
+- Updated `AI UX Customizer` (b303 -> b310)
 
 ### 2026-01-14
 - Updated `Quick Text Buttons` (2.2.0 -> 3.0.0)

@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b310] - 2026-01-15
+- **UI/UX Improvements**
+  - **[ChatGPT]** Hidden the native "scroll to bottom" button to reduce UI clutter and prevent redundancy with the Navigation Console.
+
 ## [1.0.0-b309] - 2026-01-15
 - **New Features**
   - **Compact Navigation Console (Experimental)**
