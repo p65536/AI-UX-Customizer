@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b318
+// @version      1.0.0-b319
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -4069,6 +4069,7 @@
                         vertical-align: middle;
                         font-family: monospace;
                         font: inherit;
+                        user-select: none;
                     }
                     #${cls.consoleId} .${cls.btn} {
                         background-color: ${palette.btn_bg};
@@ -8220,6 +8221,7 @@
                 isAutoScrolling: false,
                 activeRole: CONSTANTS.NAV_ROLES.TOTAL,
                 inputMode: CONSTANTS.INPUT_MODES.NORMAL, // 'normal', 'ctrl', 'shift'
+                stickyMode: null, // null | 'ctrl' | 'shift'
                 interactionActive: false, // true if hovered or focused
             };
 
@@ -8234,6 +8236,7 @@
             this._handleDocumentKeyChange = this._handleDocumentKeyChange.bind(this);
             this._handleInteractionStateChange = this._handleInteractionStateChange.bind(this);
             this._handleRoleContextMenu = this._handleRoleContextMenu.bind(this);
+            this._handleModeContextMenu = this._handleModeContextMenu.bind(this);
             this._handleWindowBlur = this._handleWindowBlur.bind(this);
         }
 
@@ -8356,6 +8359,7 @@
                 isAutoScrolling: false,
                 activeRole: CONSTANTS.NAV_ROLES.TOTAL,
                 inputMode: CONSTANTS.INPUT_MODES.NORMAL,
+                stickyMode: null,
                 interactionActive: false,
             };
 
@@ -8614,8 +8618,8 @@
             const counter = h(
                 `span.${cls.counter}`,
                 {
-                    title: 'Click to enter message number to jump\n[Right-Click] Switch role',
-                    oncontextmenu: this._handleRoleContextMenu,
+                    title: 'Click to enter message number to jump\n[Right-Click] Cycle modes (Normal/Ctrl/Shift)',
+                    oncontextmenu: this._handleModeContextMenu,
                 },
                 [h(`span.${cls.counterCurrent}`, '--'), ' / ', h(`span.${cls.counterTotal}`, '--')]
             );
@@ -8717,7 +8721,10 @@
         _renderUI() {
             if (!this.navConsole || !this.uiCache) return;
             const cls = this.styleHandle.classes;
-            const { currentIndices, highlightedMessage, activeRole, inputMode } = this.state;
+            const { currentIndices, highlightedMessage, activeRole, inputMode, stickyMode } = this.state;
+
+            // Determine effective mode: Sticky mode overrides keyboard input mode if set
+            const effectiveMode = stickyMode || inputMode;
 
             // Determine visibility
             const totalMessages = this.messageCacheManager.getTotalMessages();
@@ -8810,11 +8817,11 @@
                 this.state.jumpListComponent.updateHighlightedMessage(highlightedMessage);
             }
 
-            // Update Button Visibility based on Input Mode
+            // Update Button Visibility based on Input Mode (Using Effective Mode)
             const btns = this.uiCache.buttons;
-            const isNormal = inputMode === CONSTANTS.INPUT_MODES.NORMAL;
-            const isCtrl = inputMode === CONSTANTS.INPUT_MODES.CTRL;
-            const isShift = inputMode === CONSTANTS.INPUT_MODES.SHIFT;
+            const isNormal = effectiveMode === CONSTANTS.INPUT_MODES.NORMAL;
+            const isCtrl = effectiveMode === CONSTANTS.INPUT_MODES.CTRL;
+            const isShift = effectiveMode === CONSTANTS.INPUT_MODES.SHIFT;
 
             // Helper to toggle display style without triggering reflow if unchanged
             const toggleDisplay = (el, show) => {
@@ -9256,6 +9263,18 @@
             const nextIndex = (currentIndex + 1) % roles.length;
 
             this.state.activeRole = roles[nextIndex];
+            this._renderUI();
+        }
+
+        _handleModeContextMenu(e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const modes = [null, CONSTANTS.INPUT_MODES.CTRL, CONSTANTS.INPUT_MODES.SHIFT];
+            const currentIndex = modes.indexOf(this.state.stickyMode);
+            const nextIndex = (currentIndex + 1) % modes.length;
+
+            this.state.stickyMode = modes[nextIndex];
             this._renderUI();
         }
 

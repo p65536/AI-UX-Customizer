@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-b319] - 2026-01-15
+- **New Features**
+  - Added a **Sticky Input Mode** to the navigation console. Right-clicking (desktop) or long-pressing (mobile) the message counter now cycles through `Normal`, `Ctrl`, and `Shift` modes.
+    - *Note: This implementation provides a means to access modifier-based actions on mobile devices, but does not imply full mobile support.*
+
 ## [1.0.0-b318] - 2026-01-15
 - **Bug Fixes**
   - **[Fixed Navigation]** Fixed a visual glitch introduced in b312 where the navigation console would briefly appear at incorrect coordinates during chat transitions or initial load. It now remains invisible until correctly positioned.
