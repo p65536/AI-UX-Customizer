@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b317] - 2026-01-15
+- **UI Changes**
+  - The role indicator and message counter now remain visible when holding the **Shift** key, ensuring context is always available.
+
 ## [1.0.0-b316] - 2026-01-15
 - **Performance Improvements**
   - **[Nav Console]** Optimized rendering logic to minimize browser layout recalculations (Reflow) by updating DOM elements only when their values actually change.

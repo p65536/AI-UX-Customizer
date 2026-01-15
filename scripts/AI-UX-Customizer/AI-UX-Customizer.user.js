@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b316
+// @version      1.0.0-b317
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -8858,18 +8858,6 @@
             updateTooltip(btns.first, `First ${roleName}`);
             updateTooltip(btns.last, `Last ${roleName}`);
 
-            // Handle Shift Mode Styling (Gray out center info)
-            // Use visibility:hidden to keep layout size but hide content and disable interaction
-            const visibility = isShift ? 'hidden' : 'visible';
-
-            // Update roleBtn visibility
-            if (this.uiCache.buttons.role.style.visibility !== visibility) {
-                this.uiCache.buttons.role.style.visibility = visibility;
-            }
-            if (this.uiCache.info.counter.style.visibility !== visibility) {
-                this.uiCache.info.counter.style.visibility = visibility;
-            }
-
             // Update bulk collapse button visibility and state
             this._updateBulkCollapseButtonTooltip(btns.fold);
         }
@@ -9181,13 +9169,6 @@
                 newMode = CONSTANTS.INPUT_MODES.CTRL;
             }
 
-            // Only cancel input if entering Shift mode.
-            // Shift mode hides the counters/role, so input must be aborted to prevent hidden focus.
-            // Ctrl mode keeps counters visible, so input should be preserved.
-            if (newMode === CONSTANTS.INPUT_MODES.SHIFT) {
-                this._cancelJumpInput();
-            }
-
             if (this.state.inputMode !== newMode) {
                 // Close jump list immediately on mode change to prevent inconsistencies
                 this._hideJumpList();
@@ -9251,9 +9232,6 @@
             e.preventDefault();
             e.stopPropagation();
 
-            // Disable role switching in Shift mode
-            if (this.state.inputMode === CONSTANTS.INPUT_MODES.SHIFT) return;
-
             // Close jump list immediately to prevent content mismatch
             this._hideJumpList();
 
@@ -9275,9 +9253,6 @@
         }
 
         _toggleJumpList(labelElement) {
-            // Disable toggle in Shift mode
-            if (this.state.inputMode === CONSTANTS.INPUT_MODES.SHIFT) return;
-
             // Use activeRole instead of DOM attribute
             const role = this.state.activeRole;
             if (this.state.jumpListComponent?.role === role) {
