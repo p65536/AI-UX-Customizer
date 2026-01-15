@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b303
+// @version      1.0.0-b309
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -178,6 +178,11 @@
         UI_STATES: {
             EXPANDED: 'expanded',
             COLLAPSED: 'collapsed',
+        },
+        INPUT_MODES: {
+            NORMAL: 'normal',
+            CTRL: 'ctrl',
+            SHIFT: 'shift',
         },
         DATA_KEYS: {
             AVATAR_INJECT_ATTEMPTS: `${APPID}AvatarInjectAttempts`,
@@ -2902,6 +2907,8 @@
                 counterCurrent: `${prefix}-counter-current`,
                 counterTotal: `${prefix}-counter-total`,
                 btn: `${prefix}-btn`,
+                btnAccent: `${prefix}-btn-accent`,
+                btnDanger: `${prefix}-btn-danger`,
                 jumpInput: `${prefix}-jump-input`,
                 highlightMessage: `${prefix}-highlight-message`,
                 highlightTurn: `${prefix}-highlight-turn`,
@@ -4047,12 +4054,10 @@
                     #${cls.bulkCollapseBtnId}[data-state="collapsed"] .icon-expand { display: block; }
                     #${cls.bulkCollapseBtnId}[data-state="collapsed"] .icon-collapse { display: none; }
                     
-                    #${cls.consoleId} .${cls.btn}[data-nav$="-prev"],
-                    #${cls.consoleId} .${cls.btn}[data-nav$="-next"] {
+                    #${cls.consoleId} .${cls.btn}.${cls.btnAccent} {
                         color: ${palette.fixed_nav_btn_accent_text};
                     }
-                    #${cls.consoleId} .${cls.btn}[data-nav="total-first"],
-                    #${cls.consoleId} .${cls.btn}[data-nav="total-last"] {
+                    #${cls.consoleId} .${cls.btn}.${cls.btnDanger} {
                         color: ${palette.fixed_nav_btn_danger_text};
                     }
                     #${cls.autoscrollBtnId}:disabled {
@@ -8166,6 +8171,9 @@
                 lastFilterValue: '',
                 previousTotalMessages: messageCacheManager.getTotalMessages().length,
                 isAutoScrolling: false,
+                activeRole: CONSTANTS.NAV_ROLES.TOTAL,
+                inputMode: CONSTANTS.INPUT_MODES.NORMAL, // 'normal', 'ctrl', 'shift'
+                interactionActive: false, // true if hovered or focused
             };
 
             // Cache for UI elements to avoid repeated querySelector calls
@@ -8176,6 +8184,9 @@
 
             this.handleBodyClick = this.handleBodyClick.bind(this);
             this._handleKeyDown = this._handleKeyDown.bind(this);
+            this._handleDocumentKeyChange = this._handleDocumentKeyChange.bind(this);
+            this._handleInteractionStateChange = this._handleInteractionStateChange.bind(this);
+            this._handleRoleContextMenu = this._handleRoleContextMenu.bind(this);
         }
 
         /**
@@ -8233,15 +8244,36 @@
 
             document.body.removeEventListener('click', this.handleBodyClick, true);
             document.removeEventListener('keydown', this._handleKeyDown, true);
+
+            document.removeEventListener('keydown', this._handleDocumentKeyChange, true);
+            document.removeEventListener('keyup', this._handleDocumentKeyChange, true);
         }
 
-        scheduleReposition() {
-            if (this.isRepositionScheduled) return;
-            this.isRepositionScheduled = true;
-            EventBus.queueUIWork(() => {
-                this.repositionContainers();
-                this.isRepositionScheduled = false;
-            });
+        updateUI() {
+            this._renderUI();
+        }
+
+        hideJumpList() {
+            this._hideJumpList();
+        }
+
+        /**
+         * Selects the last message in the chat and updates the navigation console.
+         */
+        selectLastMessage() {
+            const totalMessages = this.messageCacheManager.getTotalMessages();
+            if (totalMessages.length > 0) {
+                const lastMessage = totalMessages[totalMessages.length - 1];
+                this.navigateToMessage(lastMessage);
+            }
+        }
+
+        navigateToMessage(element) {
+            if (!element) return;
+            // Manual navigation overrides the initial auto-scroll logic.
+            this.state.isInitialSelectionDone = true;
+            this.setHighlightAndIndices(element);
+            this._scrollToMessage(element);
         }
 
         resetState() {
@@ -8271,207 +8303,22 @@
                 lastFilterValue: '',
                 previousTotalMessages: 0,
                 isAutoScrolling: false,
+                activeRole: CONSTANTS.NAV_ROLES.TOTAL,
+                inputMode: CONSTANTS.INPUT_MODES.NORMAL,
+                interactionActive: false,
             };
 
             // Reset filter text
             this.lastFilterValue = '';
 
             // Reset the bulk collapse button to its default state
-            const collapseBtn = this.navConsole?.querySelector(`#${this.styleHandle.classes.bulkCollapseBtnId}`);
+            const collapseBtn = this.uiCache?.buttons?.fold;
             if (collapseBtn instanceof HTMLElement) {
                 DomState.set(collapseBtn, CONSTANTS.DATA_KEYS.STATE, CONSTANTS.UI_STATES.EXPANDED);
             }
 
             // Do not call _renderUI() here.
             // Visibility and correct values will be restored when CACHE_UPDATED fires on the new page.
-        }
-
-        _handlePollingMessagesFound() {
-            this.selectLastMessage();
-        }
-
-        updateUI() {
-            this._renderUI();
-        }
-
-        _handleCacheUpdate() {
-            // Note: MessageCacheManager suppresses cache updates during streaming,
-            // so we don't need to explicitly check for streaming state here.
-
-            // If the jump list is open, a cache update means its data is stale.
-            // Close it to prevent inconsistent state and user confusion.
-            if (this.state.jumpListComponent) {
-                this._hideJumpList();
-                return; // Exit early to prevent further UI changes while the user was interacting.
-            }
-
-            const totalMessages = this.messageCacheManager.getTotalMessages();
-            const newTotal = totalMessages.length;
-            const oldTotal = this.state.previousTotalMessages;
-
-            // Check if new messages were added (e.g., from layout scan) and if we were at the end.
-            if (newTotal > oldTotal && this.state.currentIndices.total === oldTotal - 1 && !this.state.isAutoScrolling) {
-                // We were at the old last message, and new messages appeared.
-                // Re-select the new last message. This will update indices and call _renderUI().
-                this.selectLastMessage();
-                // Update previousTotalMessages here to prevent logic blocks below from running incorrectly
-                this.state.previousTotalMessages = newTotal;
-                // Exit, as selectLastMessage() already handled the UI update.
-                return;
-            }
-
-            // Validate the currently highlighted message.
-            if (this.state.highlightedMessage && !totalMessages.includes(this.state.highlightedMessage)) {
-                Logger.log('NAVIGATION', '', 'Highlighted message was removed from the DOM. Reselecting...');
-                // The highlighted message was deleted. Find the best candidate to re-highlight.
-                const lastKnownIndex = this.state.currentIndices.total;
-                // Try to select the message at the same index, or the new last message if the index is now out of bounds.
-                const newIndex = Math.min(lastKnownIndex, totalMessages.length - 1);
-
-                if (newIndex >= 0) {
-                    this.setHighlightAndIndices(totalMessages[newIndex]);
-                } else {
-                    // Cache is empty, reset state.
-                    this.resetState();
-                }
-            }
-
-            // Select the last message on initial load, but only if auto-scroll is not in progress.
-            if (!this.state.isAutoScrolling && !this.state.isInitialSelectionDone && totalMessages.length > 0) {
-                this.selectLastMessage();
-                this.state.isInitialSelectionDone = true;
-            } else if (!this.state.highlightedMessage && totalMessages.length > 0) {
-                // If initial selection is already done (e.g. re-enabling via settings),
-                // default to the last message instead of the first, but do not scroll.
-                if (this.state.isInitialSelectionDone) {
-                    this.setHighlightAndIndices(totalMessages[totalMessages.length - 1]);
-                } else {
-                    this.setHighlightAndIndices(totalMessages[0]);
-                }
-            }
-
-            PlatformAdapters.FixedNav.handleInfiniteScroll(this, this.state.highlightedMessage, this.state.previousTotalMessages);
-            this.state.previousTotalMessages = totalMessages.length;
-
-            this._renderUI();
-        }
-
-        _renderUI() {
-            if (!this.navConsole || !this.uiCache) return;
-            const cls = this.styleHandle.classes;
-            const { currentIndices, highlightedMessage } = this.state;
-            const userMessages = this.messageCacheManager.getUserMessages();
-            const asstMessages = this.messageCacheManager.getAssistantMessages();
-            const totalMessages = this.messageCacheManager.getTotalMessages();
-
-            // Determine visibility
-            // Hide if it's explicitly a new chat page.
-            // If not a new chat page, only hide if there are NO messages in cache AND no message elements in the DOM.
-            // This prevents the console from disappearing during cache rebuilds or temporary state inconsistencies.
-            const isNewChat = isNewChatPage();
-            const hasCachedMessages = totalMessages.length > 0;
-            const hasDomMessages = !!document.querySelector(CONSTANTS.SELECTORS.MESSAGE_ROOT_NODE);
-
-            if (isNewChat || (!hasCachedMessages && !hasDomMessages)) {
-                this.navConsole.classList.add(cls.hidden);
-            } else {
-                this.navConsole.classList.remove(cls.hidden);
-                // The first time it becomes visible, also remove the initial positioning-guard class.
-                if (this.navConsole.classList.contains(cls.unpositioned)) {
-                    this.navConsole.classList.remove(cls.unpositioned);
-                }
-            }
-
-            // Access elements from cache
-            const { counters } = this.uiCache;
-            const idx = currentIndices;
-            const r = CONSTANTS.NAV_ROLES;
-
-            counters.user.total.textContent = String(userMessages.length ? userMessages.length : '--');
-            counters.assistant.total.textContent = String(asstMessages.length ? asstMessages.length : '--');
-            counters.total.total.textContent = String(totalMessages.length ? totalMessages.length : '--');
-
-            counters.user.current.textContent = String(idx[r.USER] > -1 ? idx[r.USER] + 1 : '--');
-            counters.assistant.current.textContent = String(idx[r.ASSISTANT] > -1 ? idx[r.ASSISTANT] + 1 : '--');
-            counters.total.current.textContent = String(idx[r.TOTAL] > -1 ? idx[r.TOTAL] + 1 : '--');
-
-            document.querySelectorAll(`.${cls.highlightMessage}, .${cls.highlightTurn}`).forEach((el) => {
-                el.classList.remove(cls.highlightMessage);
-                el.classList.remove(cls.highlightTurn);
-            });
-            if (highlightedMessage) {
-                highlightedMessage.classList.add(cls.highlightMessage);
-                PlatformAdapters.FixedNav.applyAdditionalHighlight(highlightedMessage, this.styleHandle);
-            }
-
-            if (this.state.jumpListComponent) {
-                this.state.jumpListComponent.updateHighlightedMessage(highlightedMessage);
-            }
-
-            // Update UI state for the auto-scroll feature.
-            if (this.autoScrollManager && this.uiCache.autoscrollBtn) {
-                const autoscrollBtn = this.uiCache.autoscrollBtn;
-                if (autoscrollBtn instanceof HTMLButtonElement) {
-                    PlatformAdapters.FixedNav.updatePlatformSpecificButtonState(autoscrollBtn, this.state.isAutoScrolling, this.autoScrollManager);
-                }
-            }
-
-            // Update bulk collapse button visibility
-            const config = this.configManager.get();
-            const collapseBtn = this.uiCache.bulkCollapseBtn;
-            if (collapseBtn instanceof HTMLElement) {
-                const collapsibleEnabled = config?.platforms?.[PLATFORM]?.features?.collapsible_button?.enabled ?? false;
-                const shouldShow = collapsibleEnabled && totalMessages.length > 0;
-                collapseBtn.style.display = shouldShow ? 'flex' : 'none';
-                const separator = this.uiCache.bulkCollapseSeparator;
-                if (separator instanceof HTMLElement && separator.classList.contains(cls.separator)) {
-                    separator.style.display = shouldShow ? 'flex' : 'none';
-                }
-                this._updateBulkCollapseButtonTooltip(collapseBtn);
-            }
-
-            this.repositionContainers();
-        }
-
-        _updateBulkCollapseButtonTooltip(button) {
-            if (!button) return;
-            const currentState = DomState.get(button, CONSTANTS.DATA_KEYS.STATE);
-            // Set the tooltip to describe the action that WILL be taken on click.
-            const tooltipText = currentState === CONSTANTS.UI_STATES.EXPANDED ? 'Collapse all messages' : 'Expand all messages';
-            button.title = tooltipText;
-        }
-
-        _toggleAllMessages() {
-            const button = this.navConsole.querySelector(`#${this.styleHandle.classes.bulkCollapseBtnId}`);
-            if (!(button instanceof HTMLElement)) return;
-
-            // Retrieve the dynamic class names
-            const bubbleCls = StyleDefinitions.getBubbleUI().classes;
-            if (!bubbleCls) return;
-
-            const currentState = DomState.get(button, CONSTANTS.DATA_KEYS.STATE);
-            const nextState = currentState === CONSTANTS.UI_STATES.EXPANDED ? CONSTANTS.UI_STATES.COLLAPSED : CONSTANTS.UI_STATES.EXPANDED;
-            DomState.set(button, CONSTANTS.DATA_KEYS.STATE, nextState);
-            this._updateBulkCollapseButtonTooltip(button);
-
-            // Use the correct dynamic class names to find elements and toggle state
-            const messages = document.querySelectorAll(`.${bubbleCls.collapsibleParent}`);
-            const shouldCollapse = nextState === CONSTANTS.UI_STATES.COLLAPSED;
-            const highlightedMessage = this.state.highlightedMessage;
-
-            messages.forEach((msg) => {
-                msg.classList.toggle(bubbleCls.collapsed, shouldCollapse);
-            });
-
-            if (highlightedMessage) {
-                requestAnimationFrame(() => {
-                    document.body.offsetHeight; // Forcing reflow
-
-                    requestAnimationFrame(() => {
-                        this._scrollToMessage(highlightedMessage);
-                    });
-                });
-            }
         }
 
         /**
@@ -8564,19 +8411,359 @@
             return -1; // Fallback if no preceding message is found
         }
 
+        _handleCacheUpdate() {
+            // Note: MessageCacheManager suppresses cache updates during streaming,
+            // so we don't need to explicitly check for streaming state here.
+
+            // If the jump list is open, a cache update means its data is stale.
+            // Close it to prevent inconsistent state and user confusion.
+            if (this.state.jumpListComponent) {
+                this._hideJumpList();
+                return; // Exit early to prevent further UI changes while the user was interacting.
+            }
+
+            const totalMessages = this.messageCacheManager.getTotalMessages();
+            const newTotal = totalMessages.length;
+            const oldTotal = this.state.previousTotalMessages;
+
+            // Check if new messages were added (e.g., from layout scan) and if we were at the end.
+            if (newTotal > oldTotal && this.state.currentIndices.total === oldTotal - 1 && !this.state.isAutoScrolling) {
+                // We were at the old last message, and new messages appeared.
+                // Re-select the new last message. This will update indices and call _renderUI().
+                this.selectLastMessage();
+                // Update previousTotalMessages here to prevent logic blocks below from running incorrectly
+                this.state.previousTotalMessages = newTotal;
+                // Exit, as selectLastMessage() already handled the UI update.
+                return;
+            }
+
+            // Validate the currently highlighted message.
+            if (this.state.highlightedMessage && !totalMessages.includes(this.state.highlightedMessage)) {
+                Logger.log('NAVIGATION', '', 'Highlighted message was removed from the DOM. Reselecting...');
+                // The highlighted message was deleted. Find the best candidate to re-highlight.
+                const lastKnownIndex = this.state.currentIndices.total;
+                // Try to select the message at the same index, or the new last message if the index is now out of bounds.
+                const newIndex = Math.min(lastKnownIndex, totalMessages.length - 1);
+
+                if (newIndex >= 0) {
+                    this.setHighlightAndIndices(totalMessages[newIndex]);
+                } else {
+                    // Cache is empty, reset state.
+                    this.resetState();
+                }
+            }
+
+            // Select the last message on initial load, but only if auto-scroll is not in progress.
+            if (!this.state.isAutoScrolling && !this.state.isInitialSelectionDone && totalMessages.length > 0) {
+                this.selectLastMessage();
+                this.state.isInitialSelectionDone = true;
+            } else if (!this.state.highlightedMessage && totalMessages.length > 0) {
+                // If initial selection is already done (e.g. re-enabling via settings),
+                // default to the last message instead of the first, but do not scroll.
+                if (this.state.isInitialSelectionDone) {
+                    this.setHighlightAndIndices(totalMessages[totalMessages.length - 1]);
+                } else {
+                    this.setHighlightAndIndices(totalMessages[0]);
+                }
+            }
+
+            PlatformAdapters.FixedNav.handleInfiniteScroll(this, this.state.highlightedMessage, this.state.previousTotalMessages);
+            this.state.previousTotalMessages = totalMessages.length;
+
+            this._renderUI();
+        }
+
+        _handlePollingMessagesFound() {
+            this.selectLastMessage();
+        }
+
+        createContainers() {
+            const cls = this.styleHandle.classes;
+            // Check if element exists using new ID from StyleManager
+            if (document.getElementById(cls.consoleId)) return;
+            const navConsole = h(`div#${cls.consoleId}.${cls.unpositioned}`);
+            if (!(navConsole instanceof HTMLElement)) return;
+            this.navConsole = navConsole;
+            document.body.appendChild(this.navConsole);
+
+            this.renderInitialUI();
+            this.attachEventListeners();
+        }
+
+        injectStyle() {
+            if (this.styleHandle) return this.styleHandle;
+            return StyleManager.request(StyleDefinitions.getFixedNav);
+        }
+
+        renderInitialUI() {
+            if (!this.navConsole) return;
+            const cls = this.styleHandle.classes;
+
+            // Buttons configuration
+            const btnBaseClass = cls.btn;
+
+            // Left Slot Buttons
+            const btnPrev = h(
+                `button.${btnBaseClass}.${cls.btnAccent}`,
+                {
+                    title: 'Previous message',
+                    oncontextmenu: (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this._navigateTo(this.state.activeRole, 'first');
+                    },
+                },
+                [createIconFromDef(StyleDefinitions.ICONS.arrowUp)]
+            );
+            const btnFirst = h(`button.${btnBaseClass}.${cls.btnDanger}`, { title: 'First message', style: { display: 'none' } }, [createIconFromDef(StyleDefinitions.ICONS.scrollToFirst)]);
+
+            // Platform specific buttons (Scan) - Shift mode for Left Slot
+            const platformButtons = PlatformAdapters.FixedNav.getPlatformSpecificButtons(this, this.styleHandle);
+            platformButtons.forEach((btn) => {
+                if (btn instanceof HTMLElement) {
+                    btn.style.display = 'none';
+                }
+            });
+
+            // Right Slot Buttons
+            const btnNext = h(
+                `button.${btnBaseClass}.${cls.btnAccent}`,
+                {
+                    title: 'Next message',
+                    oncontextmenu: (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this._navigateTo(this.state.activeRole, 'last');
+                    },
+                },
+                [createIconFromDef(StyleDefinitions.ICONS.arrowDown)]
+            );
+            const btnLast = h(`button.${btnBaseClass}.${cls.btnDanger}`, { title: 'Last message', style: { display: 'none' } }, [createIconFromDef(StyleDefinitions.ICONS.scrollToLast)]);
+
+            const btnFold = h(
+                `button#${cls.bulkCollapseBtnId}.${btnBaseClass}`,
+                {
+                    style: { display: 'none' },
+                    dataset: { [CONSTANTS.DATA_KEYS.STATE]: CONSTANTS.UI_STATES.EXPANDED },
+                },
+                [createIconFromDef(StyleDefinitions.ICONS.bulkCollapse), createIconFromDef(StyleDefinitions.ICONS.bulkExpand)]
+            );
+
+            // Center Info
+            const label = h(
+                `span.${cls.label}`,
+                {
+                    title: 'Right-click to switch role (Total -> Assistant -> User)',
+                    oncontextmenu: this._handleRoleContextMenu,
+                },
+                'Total:'
+            );
+
+            const counter = h(`span.${cls.counter}`, { title: 'Click to enter message number to jump' }, [h(`span.${cls.counterCurrent}`, '--'), ' / ', h(`span.${cls.counterTotal}`, '--')]);
+
+            // Layout Construction
+            const leftSlot = h(`div.${cls.group}`, [btnPrev, btnFirst, ...platformButtons]);
+            const centerSlot = h(`div.${cls.group}`, { style: { margin: '0 4px' } }, [label, counter]);
+            const rightSlot = h(`div.${cls.group}`, [btnNext, btnLast, btnFold]);
+
+            this.navConsole.textContent = '';
+            this.navConsole.appendChild(leftSlot);
+            this.navConsole.appendChild(centerSlot);
+            this.navConsole.appendChild(rightSlot);
+
+            // Cache UI references
+            this.uiCache = {
+                buttons: {
+                    prev: btnPrev,
+                    first: btnFirst,
+                    platformButtons: platformButtons,
+                    next: btnNext,
+                    last: btnLast,
+                    fold: btnFold,
+                },
+                info: {
+                    label: label,
+                    counter: counter,
+                    current: counter.querySelector(`.${cls.counterCurrent}`),
+                    total: counter.querySelector(`.${cls.counterTotal}`),
+                },
+            };
+        }
+
+        attachEventListeners() {
+            document.body.addEventListener('click', this.handleBodyClick, true);
+            document.addEventListener('keydown', this._handleKeyDown, true);
+
+            document.addEventListener('keydown', this._handleDocumentKeyChange, true);
+            document.addEventListener('keyup', this._handleDocumentKeyChange, true);
+
+            if (this.navConsole) {
+                this.navConsole.addEventListener('mouseenter', this._handleInteractionStateChange);
+                this.navConsole.addEventListener('mouseleave', this._handleInteractionStateChange);
+                this.navConsole.addEventListener('focusin', this._handleInteractionStateChange);
+                this.navConsole.addEventListener('focusout', this._handleInteractionStateChange);
+            }
+        }
+
+        scheduleReposition() {
+            if (this.isRepositionScheduled) return;
+            this.isRepositionScheduled = true;
+            EventBus.queueUIWork(() => {
+                this.repositionContainers();
+                this.isRepositionScheduled = false;
+            });
+        }
+
         /**
-         * Handles clicks on the main navigation buttons (prev, next, etc.).
-         * @param {HTMLElement} buttonElement The navigation button element that was clicked.
+         * Repositions the navigation console to align with the main input form.
          * @returns {void}
          */
-        handleButtonClick(buttonElement) {
-            const navCommand = DomState.get(buttonElement, CONSTANTS.DATA_KEYS.NAV_CMD);
-            if (!navCommand) return;
+        repositionContainers() {
+            const inputForm = document.querySelector(CONSTANTS.SELECTORS.FIXED_NAV_INPUT_AREA_TARGET);
+            if (!inputForm || !this.navConsole) return;
 
-            const [role, direction] = navCommand.split('-');
-            if (role && direction) {
-                this._navigateTo(role, direction);
+            // Use withLayoutCycle to prevent layout thrashing
+            withLayoutCycle({
+                measure: () => {
+                    // --- Read Phase ---
+                    return {
+                        formRect: inputForm.getBoundingClientRect(),
+                        consoleWidth: this.navConsole.offsetWidth,
+                        windowHeight: window.innerHeight,
+                    };
+                },
+                mutate: (measured) => {
+                    // --- Write Phase ---
+                    if (!measured) return;
+
+                    const { formRect, consoleWidth, windowHeight } = measured;
+                    const bottomPosition = `${windowHeight - formRect.top + CONSTANTS.UI_SPECS.PANEL_MARGIN}px`;
+                    const formCenter = formRect.left + formRect.width / 2;
+
+                    this.navConsole.style.left = `${formCenter - consoleWidth / 2}px`;
+                    this.navConsole.style.bottom = bottomPosition;
+                },
+            });
+        }
+
+        _renderUI() {
+            if (!this.navConsole || !this.uiCache) return;
+            const cls = this.styleHandle.classes;
+            const { currentIndices, highlightedMessage, activeRole, inputMode } = this.state;
+
+            // Determine visibility
+            // Hide if it's explicitly a new chat page.
+            // If not a new chat page, only hide if there are NO messages in cache AND no message elements in the DOM.
+            // This prevents the console from disappearing during cache rebuilds or temporary state inconsistencies.
+            const totalMessages = this.messageCacheManager.getTotalMessages();
+            const isNewChat = isNewChatPage();
+            const hasCachedMessages = totalMessages.length > 0;
+            const hasDomMessages = !!document.querySelector(CONSTANTS.SELECTORS.MESSAGE_ROOT_NODE);
+
+            if (isNewChat || (!hasCachedMessages && !hasDomMessages)) {
+                this.navConsole.classList.add(cls.hidden);
+            } else {
+                this.navConsole.classList.remove(cls.hidden);
+                // The first time it becomes visible, also remove the initial positioning-guard class.
+                if (this.navConsole.classList.contains(cls.unpositioned)) {
+                    this.navConsole.classList.remove(cls.unpositioned);
+                }
             }
+
+            // Update Counters & Label
+            const roleMap = {
+                [CONSTANTS.NAV_ROLES.TOTAL]: { label: 'Total:', messages: totalMessages, index: currentIndices[CONSTANTS.NAV_ROLES.TOTAL] },
+                [CONSTANTS.NAV_ROLES.ASSISTANT]: { label: 'Asst:', messages: this.messageCacheManager.getAssistantMessages(), index: currentIndices[CONSTANTS.NAV_ROLES.ASSISTANT] },
+                [CONSTANTS.NAV_ROLES.USER]: { label: 'User:', messages: this.messageCacheManager.getUserMessages(), index: currentIndices[CONSTANTS.NAV_ROLES.USER] },
+            };
+
+            const currentData = roleMap[activeRole];
+            this.uiCache.info.label.textContent = currentData.label;
+            this.uiCache.info.current.textContent = String(currentData.index > -1 ? currentData.index + 1 : '--');
+            this.uiCache.info.total.textContent = String(currentData.messages.length ? currentData.messages.length : '--');
+
+            // Access elements from cache and Update Highlight
+            document.querySelectorAll(`.${cls.highlightMessage}, .${cls.highlightTurn}`).forEach((el) => {
+                el.classList.remove(cls.highlightMessage);
+                el.classList.remove(cls.highlightTurn);
+            });
+            if (highlightedMessage) {
+                highlightedMessage.classList.add(cls.highlightMessage);
+                PlatformAdapters.FixedNav.applyAdditionalHighlight(highlightedMessage, this.styleHandle);
+            }
+
+            if (this.state.jumpListComponent) {
+                this.state.jumpListComponent.updateHighlightedMessage(highlightedMessage);
+            }
+
+            // Update Button Visibility based on Input Mode
+            const btns = this.uiCache.buttons;
+            const isNormal = inputMode === CONSTANTS.INPUT_MODES.NORMAL;
+            const isCtrl = inputMode === CONSTANTS.INPUT_MODES.CTRL;
+            const isShift = inputMode === CONSTANTS.INPUT_MODES.SHIFT;
+
+            if (btns.prev instanceof HTMLElement) btns.prev.style.display = isNormal ? '' : 'none';
+            if (btns.next instanceof HTMLElement) btns.next.style.display = isNormal ? '' : 'none';
+
+            if (btns.first instanceof HTMLElement) btns.first.style.display = isCtrl ? '' : 'none';
+            if (btns.last instanceof HTMLElement) btns.last.style.display = isCtrl ? '' : 'none';
+
+            // Handle Platform Buttons
+            const platformButtons = btns.platformButtons || [];
+            platformButtons.forEach((btn) => {
+                if (btn instanceof HTMLElement) {
+                    btn.style.display = isShift ? '' : 'none';
+                    // Update state if visible and manager exists
+                    if (this.autoScrollManager && isShift && btn instanceof HTMLButtonElement) {
+                        PlatformAdapters.FixedNav.updatePlatformSpecificButtonState(btn, this.state.isAutoScrolling, this.autoScrollManager);
+                    }
+                }
+            });
+
+            if (btns.fold instanceof HTMLElement) btns.fold.style.display = isShift ? 'flex' : 'none';
+
+            // Update Tooltips and State
+            const roleName = activeRole === CONSTANTS.NAV_ROLES.TOTAL ? 'message' : activeRole === CONSTANTS.NAV_ROLES.ASSISTANT ? 'assistant message' : 'user message';
+
+            // Determine Shift action text dynamically
+            let shiftActionText = '';
+            if (PLATFORM === PLATFORM_DEFS.GEMINI.NAME) {
+                shiftActionText = '\n[Shift] Load history';
+            } else if (PLATFORM === PLATFORM_DEFS.CHATGPT.NAME) {
+                if (isFirefox()) {
+                    shiftActionText = '\n[Shift] Scan layout';
+                } else {
+                    // For non-Firefox ChatGPT, show description but indicate it might be restricted, or just hide if preferred.
+                    // Based on previous instruction to just hide the text if N/A:
+                    shiftActionText = '';
+                }
+            }
+
+            if (btns.prev instanceof HTMLElement) btns.prev.title = `Previous ${roleName}\n[Ctrl / R-Click] First${shiftActionText}`;
+            if (btns.next instanceof HTMLElement) btns.next.title = `Next ${roleName}\n[Ctrl / R-Click] Last\n[Shift] Fold`;
+
+            if (btns.first instanceof HTMLElement) btns.first.title = `First ${roleName}`;
+            if (btns.last instanceof HTMLElement) btns.last.title = `Last ${roleName}`;
+
+            // Handle Shift Mode Styling (Gray out center info)
+            // Use visibility:hidden to keep layout size but hide content and disable interaction
+            const visibility = isShift ? 'hidden' : 'visible';
+
+            this.uiCache.info.label.style.visibility = visibility;
+            this.uiCache.info.counter.style.visibility = visibility;
+
+            // Update bulk collapse button visibility and state
+            this._updateBulkCollapseButtonTooltip(btns.fold);
+
+            this.repositionContainers();
+        }
+
+        _updateBulkCollapseButtonTooltip(button) {
+            if (!button) return;
+            const currentState = DomState.get(button, CONSTANTS.DATA_KEYS.STATE);
+            // Set the tooltip to describe the action that WILL be taken on click.
+            const tooltipText = currentState === CONSTANTS.UI_STATES.EXPANDED ? 'Collapse all messages' : 'Expand all messages';
+            button.title = tooltipText;
         }
 
         /**
@@ -8622,6 +8809,129 @@
             }
         }
 
+        _scrollToMessage(element) {
+            if (!element) return;
+            const targetToScroll = element;
+            scrollToElement(targetToScroll, { offset: CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV });
+        }
+
+        _toggleAllMessages() {
+            const button = this.navConsole.querySelector(`#${this.styleHandle.classes.bulkCollapseBtnId}`);
+            if (!(button instanceof HTMLElement)) return;
+
+            // Retrieve the dynamic class names
+            const bubbleCls = StyleDefinitions.getBubbleUI().classes;
+            if (!bubbleCls) return;
+
+            const currentState = DomState.get(button, CONSTANTS.DATA_KEYS.STATE);
+            const nextState = currentState === CONSTANTS.UI_STATES.EXPANDED ? CONSTANTS.UI_STATES.COLLAPSED : CONSTANTS.UI_STATES.EXPANDED;
+            DomState.set(button, CONSTANTS.DATA_KEYS.STATE, nextState);
+            this._updateBulkCollapseButtonTooltip(button);
+
+            // Use the correct dynamic class names to find elements and toggle state
+            const messages = document.querySelectorAll(`.${bubbleCls.collapsibleParent}`);
+            const shouldCollapse = nextState === CONSTANTS.UI_STATES.COLLAPSED;
+            const highlightedMessage = this.state.highlightedMessage;
+
+            messages.forEach((msg) => {
+                msg.classList.toggle(bubbleCls.collapsed, shouldCollapse);
+            });
+
+            if (highlightedMessage) {
+                requestAnimationFrame(() => {
+                    document.body.offsetHeight; // Forcing reflow
+
+                    requestAnimationFrame(() => {
+                        this._scrollToMessage(highlightedMessage);
+                    });
+                });
+            }
+        }
+
+        /**
+         * Handles clicks on the document body to delegate actions for the nav console.
+         * @param {MouseEvent} e The click event object.
+         * @returns {void}
+         */
+        handleBodyClick(e) {
+            const target = e.target;
+            if (!(target instanceof Element)) {
+                return;
+            }
+
+            const cls = this.styleHandle.classes;
+
+            // If the click is inside the jump list (including preview), let the component handle it.
+            if (this.state.jumpListComponent?.contains(target)) {
+                return;
+            }
+
+            // Close the jump list if the click is outside both the console and the list itself.
+            if (this.state.jumpListComponent && !this.navConsole?.contains(target)) {
+                this._hideJumpList();
+            }
+
+            const navButton = target.closest(`.${cls.btn}`);
+            if (navButton instanceof HTMLElement && this.navConsole?.contains(navButton)) {
+                this.handleButtonClick(navButton);
+                return;
+            }
+
+            // In the new UI, counters and labels are singleton elements representing the active role.
+            // We no longer filter by role attribute.
+            const counter = target.closest(`.${cls.counter}`);
+            if (counter instanceof HTMLElement && this.navConsole?.contains(counter)) {
+                this.handleCounterClick(e, counter);
+                return;
+            }
+
+            const label = target.closest(`.${cls.label}`);
+            if (label instanceof HTMLElement && this.navConsole?.contains(label)) {
+                this._toggleJumpList(label);
+                return;
+            }
+
+            const messageElement = target.closest(CONSTANTS.SELECTORS.FIXED_NAV_MESSAGE_CONTAINERS);
+            if (messageElement instanceof HTMLElement && !target.closest(`a, button, input, #${cls.consoleId}`)) {
+                this.setHighlightAndIndices(messageElement);
+            }
+        }
+
+        /**
+         * Handles clicks on the main navigation buttons (prev, next, etc.).
+         * @param {HTMLElement} buttonElement The navigation button element that was clicked.
+         * @returns {void}
+         */
+        handleButtonClick(buttonElement) {
+            const btns = this.uiCache.buttons;
+
+            // Handle platform-specific buttons dynamically
+            if (btns.platformButtons && btns.platformButtons.includes(buttonElement)) {
+                return; // Let the button's own event listener handle it
+            }
+
+            switch (buttonElement) {
+                case btns.fold:
+                    this._toggleAllMessages();
+                    break;
+                case btns.prev:
+                    this._navigateTo(this.state.activeRole, 'prev');
+                    break;
+                case btns.next:
+                    this._navigateTo(this.state.activeRole, 'next');
+                    break;
+                case btns.first:
+                    this._navigateTo(this.state.activeRole, 'first');
+                    break;
+                case btns.last:
+                    this._navigateTo(this.state.activeRole, 'last');
+                    break;
+                default:
+                    Logger.warn('NAV ERROR', LOG_STYLES.YELLOW, 'Unknown button clicked:', buttonElement);
+                    break;
+            }
+        }
+
         /**
          * Handles clicks on the navigation counters, allowing the user to jump to a specific message number.
          * @param {MouseEvent} e The click event object.
@@ -8629,8 +8939,18 @@
          * @returns {void}
          */
         handleCounterClick(e, counterSpan) {
+            this._startJumpInputSession(counterSpan);
+        }
+
+        /**
+         * @private
+         * Starts the input session for jumping to a specific message index.
+         * @param {HTMLElement} counterSpan The counter element that initiated the session.
+         */
+        _startJumpInputSession(counterSpan) {
             const cls = this.styleHandle.classes;
-            const role = DomState.get(counterSpan, CONSTANTS.DATA_KEYS.NAV_ROLE);
+            // Use activeRole instead of DOM attribute
+            const role = this.state.activeRole;
             const input = h(`input.${cls.jumpInput}`, { type: 'text' });
             if (!(input instanceof HTMLInputElement)) return;
 
@@ -8645,21 +8965,31 @@
                 isEditing = false;
 
                 if (shouldJump) {
-                    const num = parseInt(input.value, 10);
-                    if (!isNaN(num)) {
+                    const valStr = input.value.trim();
+                    // Validate integer input only (reject decimals)
+                    if (/^-?\d+$/.test(valStr)) {
+                        const num = parseInt(valStr, 10);
                         const roleMap = {
                             [CONSTANTS.NAV_ROLES.USER]: this.messageCacheManager.getUserMessages(),
                             [CONSTANTS.NAV_ROLES.ASSISTANT]: this.messageCacheManager.getAssistantMessages(),
                             [CONSTANTS.NAV_ROLES.TOTAL]: this.messageCacheManager.getTotalMessages(),
                         };
                         const targetArray = roleMap[role];
-                        const index = num - 1;
-                        if (targetArray && index >= 0 && index < targetArray.length) {
+
+                        if (targetArray && targetArray.length > 0) {
+                            // Clamp value between 1 and total length
+                            const clampedNum = Math.max(1, Math.min(num, targetArray.length));
+                            const index = clampedNum - 1;
                             this.navigateToMessage(targetArray[index]);
                         }
                     }
                 }
-                input.remove();
+
+                // Check if the element is still connected to the DOM before removing.
+                if (input.isConnected) {
+                    input.remove();
+                }
+
                 counterSpan.classList.remove(cls.isHidden);
             };
 
@@ -8676,69 +9006,145 @@
             });
         }
 
-        navigateToMessage(element) {
-            if (!element) return;
-            // Manual navigation overrides the initial auto-scroll logic.
-            this.state.isInitialSelectionDone = true;
-            this.setHighlightAndIndices(element);
-            this._scrollToMessage(element);
-        }
+        _cancelJumpInput() {
+            if (!this.navConsole) return;
+            const cls = this.styleHandle.classes;
 
-        _scrollToMessage(element) {
-            if (!element) return;
-            const targetToScroll = element;
-            scrollToElement(targetToScroll, { offset: CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV });
-        }
+            // Instead of manually removing, trigger the standard blur event.
+            // This invokes the existing endEdit logic which handles state cleanup and DOM removal safely.
+            const input = this.navConsole.querySelector(`input.${cls.jumpInput}`);
+            if (input instanceof HTMLElement) {
+                input.blur();
+            }
 
-        /**
-         * Repositions the navigation console to align with the main input form.
-         * @returns {void}
-         */
-        repositionContainers() {
-            const inputForm = document.querySelector(CONSTANTS.SELECTORS.FIXED_NAV_INPUT_AREA_TARGET);
-            if (!inputForm || !this.navConsole) return;
-
-            // Use withLayoutCycle to prevent layout thrashing
-            withLayoutCycle({
-                measure: () => {
-                    // --- Read Phase ---
-                    return {
-                        formRect: inputForm.getBoundingClientRect(),
-                        consoleWidth: this.navConsole.offsetWidth,
-                        windowHeight: window.innerHeight,
-                    };
-                },
-                mutate: (measured) => {
-                    // --- Write Phase ---
-                    if (!measured) return;
-
-                    const { formRect, consoleWidth, windowHeight } = measured;
-                    const bottomPosition = `${windowHeight - formRect.top + CONSTANTS.UI_SPECS.PANEL_MARGIN}px`;
-                    const formCenter = formRect.left + formRect.width / 2;
-
-                    this.navConsole.style.left = `${formCenter - consoleWidth / 2}px`;
-                    this.navConsole.style.bottom = bottomPosition;
-                },
+            // Fallback: Ensure counters are visible if the blur didn't clean them up for some reason
+            // (e.g. input was already detached but counters remained hidden)
+            const hiddenCounters = this.navConsole.querySelectorAll(`.${cls.counter}.${cls.isHidden}`);
+            hiddenCounters.forEach((counter) => {
+                counter.classList.remove(cls.isHidden);
             });
         }
 
-        /**
-         * Selects the last message in the chat and updates the navigation console.
-         */
-        selectLastMessage() {
-            const totalMessages = this.messageCacheManager.getTotalMessages();
-            if (totalMessages.length > 0) {
-                const lastMessage = totalMessages[totalMessages.length - 1];
-                this.navigateToMessage(lastMessage);
+        _handleKeyDown(e) {
+            if (e.key === 'Escape') {
+                // Handle auto-scroll cancellation first.
+                if (this.autoScrollManager?.isScrolling) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    EventBus.publish(EVENTS.AUTO_SCROLL_CANCEL_REQUEST);
+                }
+                // Then handle jump list closure if auto-scroll is not active.
+                else if (this.state.jumpListComponent) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this._hideJumpList();
+                }
             }
         }
 
-        hideJumpList() {
+        _handleDocumentKeyChange(e) {
+            if (e.repeat) return;
+            if (e.key !== 'Control' && e.key !== 'Shift') return;
+
+            // Only update input mode if the user is interacting with the console
+            if (!this.state.interactionActive) return;
+
+            let newMode = CONSTANTS.INPUT_MODES.NORMAL;
+            if (e.shiftKey) {
+                newMode = CONSTANTS.INPUT_MODES.SHIFT;
+            } else if (e.ctrlKey) {
+                newMode = CONSTANTS.INPUT_MODES.CTRL;
+            }
+
+            // Only cancel input if entering Shift mode.
+            // Shift mode hides the counters/role, so input must be aborted to prevent hidden focus.
+            // Ctrl mode keeps counters visible, so input should be preserved.
+            if (newMode === CONSTANTS.INPUT_MODES.SHIFT) {
+                this._cancelJumpInput();
+            }
+
+            if (this.state.inputMode !== newMode) {
+                // Close jump list immediately on mode change to prevent inconsistencies
+                this._hideJumpList();
+                this.state.inputMode = newMode;
+                this._renderUI();
+            }
+        }
+
+        _handleInteractionStateChange(e) {
+            const cls = this.styleHandle.classes;
+
+            // Check if the user is currently editing the jump input
+            const isEditing = document.activeElement && document.activeElement.classList.contains(cls.jumpInput);
+
+            // Force cancel active input ONLY if we are not currently editing it.
+            // This prevents the focus event (triggered by creating the input) from immediately destroying it.
+            if (!isEditing) {
+                this._cancelJumpInput();
+            }
+
+            // Update input mode immediately on entry if modifier keys are pressed
+            if (e.type === 'mouseenter') {
+                if (e.shiftKey) this.state.inputMode = CONSTANTS.INPUT_MODES.SHIFT;
+                else if (e.ctrlKey) this.state.inputMode = CONSTANTS.INPUT_MODES.CTRL;
+                else this.state.inputMode = CONSTANTS.INPUT_MODES.NORMAL;
+            }
+
+            // Delay check to handle focus transition gaps
+            setTimeout(() => {
+                if (!this.navConsole) return;
+                const isHovered = this.navConsole.matches(':hover');
+                const isFocused = this.navConsole.contains(document.activeElement);
+                const isActive = isHovered || isFocused;
+
+                let shouldRender = false;
+
+                if (this.state.interactionActive !== isActive) {
+                    this.state.interactionActive = isActive;
+                    shouldRender = true;
+                }
+
+                // Reset mode to normal when interaction ends to prevent stuck states
+                if (!isActive && this.state.inputMode !== CONSTANTS.INPUT_MODES.NORMAL) {
+                    this.state.inputMode = CONSTANTS.INPUT_MODES.NORMAL;
+                    shouldRender = true;
+                }
+
+                // If entered with modifiers, force render to show correct mode
+                if (isActive && e.type === 'mouseenter') {
+                    shouldRender = true;
+                }
+
+                if (shouldRender) {
+                    this._renderUI();
+                }
+            }, 0);
+        }
+
+        _handleRoleContextMenu(e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Disable role switching in Shift mode
+            if (this.state.inputMode === CONSTANTS.INPUT_MODES.SHIFT) return;
+
+            // Close jump list immediately to prevent content mismatch
             this._hideJumpList();
+
+            const roles = [CONSTANTS.NAV_ROLES.TOTAL, CONSTANTS.NAV_ROLES.ASSISTANT, CONSTANTS.NAV_ROLES.USER];
+            const currentIndex = roles.indexOf(this.state.activeRole);
+            const nextIndex = (currentIndex + 1) % roles.length;
+
+            this.state.activeRole = roles[nextIndex];
+            this._renderUI();
         }
 
         _toggleJumpList(labelElement) {
-            const role = DomState.get(labelElement, CONSTANTS.DATA_KEYS.NAV_ROLE);
+            // Disable toggle in Shift mode
+            if (this.state.inputMode === CONSTANTS.INPUT_MODES.SHIFT) return;
+
+            // Use activeRole instead of DOM attribute
+            const role = this.state.activeRole;
             if (this.state.jumpListComponent?.role === role) {
                 this._hideJumpList();
                 return;
@@ -8778,170 +9184,6 @@
         _handleJumpListSelect(messageElement) {
             this.navigateToMessage(messageElement);
             this._hideJumpList();
-        }
-
-        _handleKeyDown(e) {
-            if (e.key === 'Escape') {
-                // Handle auto-scroll cancellation first.
-                if (this.autoScrollManager?.isScrolling) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    EventBus.publish(EVENTS.AUTO_SCROLL_CANCEL_REQUEST);
-                }
-                // Then handle jump list closure if auto-scroll is not active.
-                else if (this.state.jumpListComponent) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this._hideJumpList();
-                }
-            }
-        }
-
-        /**
-         * Handles clicks on the document body to delegate actions for the nav console.
-         * @param {MouseEvent} e The click event object.
-         * @returns {void}
-         */
-        handleBodyClick(e) {
-            const target = e.target;
-            if (!(target instanceof Element)) {
-                return;
-            }
-
-            const cls = this.styleHandle.classes;
-
-            // If the click is inside the jump list (including preview), let the component handle it.
-            if (this.state.jumpListComponent?.contains(target)) {
-                return;
-            }
-
-            // Close the jump list if the click is outside both the console and the list itself.
-            if (this.state.jumpListComponent && !this.navConsole?.contains(target)) {
-                this._hideJumpList();
-            }
-
-            const navButton = target.closest(`.${cls.btn}`);
-            if (navButton instanceof HTMLElement && this.navConsole?.contains(navButton)) {
-                this.handleButtonClick(navButton);
-                return;
-            }
-
-            const roleAttr = DomState.toAttributeName(CONSTANTS.DATA_KEYS.NAV_ROLE);
-            const counter = target.closest(`.${cls.counter}[${roleAttr}]`);
-            if (counter instanceof HTMLElement) {
-                this.handleCounterClick(e, counter);
-                return;
-            }
-
-            const label = target.closest(`.${cls.label}[${roleAttr}]`);
-            if (label instanceof HTMLElement) {
-                this._toggleJumpList(label);
-                return;
-            }
-
-            const messageElement = target.closest(CONSTANTS.SELECTORS.FIXED_NAV_MESSAGE_CONTAINERS);
-            if (messageElement instanceof HTMLElement && !target.closest(`a, button, input, #${cls.consoleId}`)) {
-                this.setHighlightAndIndices(messageElement);
-            }
-        }
-
-        createContainers() {
-            const cls = this.styleHandle.classes;
-            // Check if element exists using new ID from StyleManager
-            if (document.getElementById(cls.consoleId)) return;
-            const navConsole = h(`div#${cls.consoleId}.${cls.unpositioned}`);
-            if (!(navConsole instanceof HTMLElement)) return;
-            this.navConsole = navConsole;
-            document.body.appendChild(this.navConsole);
-
-            this.renderInitialUI();
-            this.attachEventListeners();
-        }
-
-        renderInitialUI() {
-            if (!this.navConsole) return;
-            const cls = this.styleHandle.classes;
-            const r = CONSTANTS.NAV_ROLES;
-
-            const bulkCollapseBtn = h(
-                `button#${cls.bulkCollapseBtnId}.${cls.btn}`,
-                {
-                    style: { display: 'none' },
-                    dataset: { [CONSTANTS.DATA_KEYS.STATE]: CONSTANTS.UI_STATES.EXPANDED },
-                    onclick: (e) => {
-                        e.stopPropagation();
-                        this._toggleAllMessages();
-                    },
-                },
-                [createIconFromDef(StyleDefinitions.ICONS.bulkCollapse), createIconFromDef(StyleDefinitions.ICONS.bulkExpand)]
-            );
-
-            // Get platform-specific buttons.
-            // Pass styleHandle to allow the adapter to use the correct class names directly.
-            const platformButtons = PlatformAdapters.FixedNav.getPlatformSpecificButtons(this, this.styleHandle);
-
-            const navUI = [
-                ...platformButtons,
-                h(`div.${cls.group}`, [
-                    h(`button.${cls.btn}`, { dataset: { [CONSTANTS.DATA_KEYS.NAV_CMD]: `${r.ASSISTANT}-prev` }, title: 'Previous assistant message' }, [createIconFromDef(StyleDefinitions.ICONS.arrowUp)]),
-                    h(`button.${cls.btn}`, { dataset: { [CONSTANTS.DATA_KEYS.NAV_CMD]: `${r.ASSISTANT}-next` }, title: 'Next assistant message' }, [createIconFromDef(StyleDefinitions.ICONS.arrowDown)]),
-                    h(`span.${cls.label}`, { dataset: { [CONSTANTS.DATA_KEYS.NAV_ROLE]: r.ASSISTANT }, title: 'Show message list' }, 'Assistant:'),
-                    h(`span.${cls.counter}`, { dataset: { [CONSTANTS.DATA_KEYS.NAV_ROLE]: r.ASSISTANT }, title: 'Click to jump to a message' }, [h(`span.${cls.counterCurrent}`, '--'), ' / ', h(`span.${cls.counterTotal}`, '--')]),
-                ]),
-                h(`div.${cls.separator}`),
-                h(`div.${cls.group}`, [
-                    h(`button.${cls.btn}`, { dataset: { [CONSTANTS.DATA_KEYS.NAV_CMD]: `${r.TOTAL}-first` }, title: 'First message' }, [createIconFromDef(StyleDefinitions.ICONS.scrollToFirst)]),
-                    h(`button.${cls.btn}`, { dataset: { [CONSTANTS.DATA_KEYS.NAV_CMD]: `${r.TOTAL}-prev` }, title: 'Previous message' }, [createIconFromDef(StyleDefinitions.ICONS.arrowUp)]),
-                    h(`span.${cls.label}`, { dataset: { [CONSTANTS.DATA_KEYS.NAV_ROLE]: r.TOTAL }, title: 'Show message list' }, 'Total:'),
-                    h(`span.${cls.counter}`, { dataset: { [CONSTANTS.DATA_KEYS.NAV_ROLE]: r.TOTAL }, title: 'Click to jump to a message' }, [h(`span.${cls.counterCurrent}`, '--'), ' / ', h(`span.${cls.counterTotal}`, '--')]),
-                    h(`button.${cls.btn}`, { dataset: { [CONSTANTS.DATA_KEYS.NAV_CMD]: `${r.TOTAL}-next` }, title: 'Next message' }, [createIconFromDef(StyleDefinitions.ICONS.arrowDown)]),
-                    h(`button.${cls.btn}`, { dataset: { [CONSTANTS.DATA_KEYS.NAV_CMD]: `${r.TOTAL}-last` }, title: 'Last message' }, [createIconFromDef(StyleDefinitions.ICONS.scrollToLast)]),
-                ]),
-                h(`div.${cls.separator}`),
-                h(`div.${cls.group}`, [
-                    h(`span.${cls.label}`, { dataset: { [CONSTANTS.DATA_KEYS.NAV_ROLE]: r.USER }, title: 'Show message list' }, 'User:'),
-                    h(`span.${cls.counter}`, { dataset: { [CONSTANTS.DATA_KEYS.NAV_ROLE]: r.USER }, title: 'Click to jump to a message' }, [h(`span.${cls.counterCurrent}`, '--'), ' / ', h(`span.${cls.counterTotal}`, '--')]),
-                    h(`button.${cls.btn}`, { dataset: { [CONSTANTS.DATA_KEYS.NAV_CMD]: `${r.USER}-prev` }, title: 'Previous user message' }, [createIconFromDef(StyleDefinitions.ICONS.arrowUp)]),
-                    h(`button.${cls.btn}`, { dataset: { [CONSTANTS.DATA_KEYS.NAV_CMD]: `${r.USER}-next` }, title: 'Next user message' }, [createIconFromDef(StyleDefinitions.ICONS.arrowDown)]),
-                ]),
-                h(`div.${cls.separator}`),
-                bulkCollapseBtn,
-            ];
-            this.navConsole.textContent = '';
-            navUI.forEach((el) => this.navConsole.appendChild(el));
-
-            // Build the cache for O(1) access during updates
-            // Use querySelector to find elements by their new class structure
-            const roleAttr = DomState.toAttributeName(CONSTANTS.DATA_KEYS.NAV_ROLE);
-            this.uiCache = {
-                autoscrollBtn: this.navConsole.querySelector(`#${cls.autoscrollBtnId}`),
-                bulkCollapseBtn: bulkCollapseBtn,
-                bulkCollapseSeparator: bulkCollapseBtn.previousElementSibling,
-                counters: {
-                    user: {
-                        total: this.navConsole.querySelector(`.${cls.counter}[${roleAttr}="${r.USER}"] .${cls.counterTotal}`),
-                        current: this.navConsole.querySelector(`.${cls.counter}[${roleAttr}="${r.USER}"] .${cls.counterCurrent}`),
-                    },
-                    assistant: {
-                        total: this.navConsole.querySelector(`.${cls.counter}[${roleAttr}="${r.ASSISTANT}"] .${cls.counterTotal}`),
-                        current: this.navConsole.querySelector(`.${cls.counter}[${roleAttr}="${r.ASSISTANT}"] .${cls.counterCurrent}`),
-                    },
-                    total: {
-                        total: this.navConsole.querySelector(`.${cls.counter}[${roleAttr}="${r.TOTAL}"] .${cls.counterTotal}`),
-                        current: this.navConsole.querySelector(`.${cls.counter}[${roleAttr}="${r.TOTAL}"] .${cls.counterCurrent}`),
-                    },
-                },
-            };
-        }
-
-        attachEventListeners() {
-            document.body.addEventListener('click', this.handleBodyClick, true);
-            document.addEventListener('keydown', this._handleKeyDown, true);
-        }
-
-        injectStyle() {
-            if (this.styleHandle) return this.styleHandle;
-            return StyleManager.request(StyleDefinitions.getFixedNav);
         }
     }
 
@@ -16993,9 +17235,6 @@
 
             /** @override */
             getPlatformSpecificButtons(fixedNavManagerInstance, styleHandle) {
-                if (!isFirefox()) {
-                    return [];
-                }
                 const cls = styleHandle.classes;
                 const autoscrollBtn = h(
                     `button#${cls.autoscrollBtnId}.${cls.btn}`,
@@ -17019,7 +17258,7 @@
                     [createIconFromDef(StyleDefinitions.ICONS.scrollToTop)] // Use 'scrollToTop' icon
                 );
 
-                return [autoscrollBtn, h(`div.${cls.separator}`)];
+                return [autoscrollBtn];
             }
 
             /** @override */
@@ -18203,7 +18442,7 @@
                     [createIconFromDef(StyleDefinitions.ICONS.scrollToTop)]
                 );
 
-                return [autoscrollBtn, h(`div.${cls.separator}`)];
+                return [autoscrollBtn];
             }
 
             /** @override */

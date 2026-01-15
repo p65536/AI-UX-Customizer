@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.0-b309] - 2026-01-15
+- **New Features**
+  - **Compact Navigation Console (Experimental)**
+    - Right-click the Role label to cycle through roles (Total / Asst / User).
+    - Holding modifier keys toggles between 3 operation modes:
+      - **Normal:** Navigation buttons function as Prev / Next (Right-click to jump to Top / End).
+      - **Ctrl:** Navigation buttons function as Top / End.
+      - **Shift:** Reveals action buttons (Layout Scan [ChatGPT] / Auto Scroll [Gemini], and Bulk Collapse).
+- **Improvements**
+  - **Navigation Console:** Improved the message jump input logic for better usability.
+    - Entering a number larger than the total message count now jumps to the last message, and numbers less than 1 jump to the first message.
+    - Decimal inputs are now strictly ignored to prevent invalid navigation.
+
 ## [1.0.0-b303] - 2026-01-13
 - **Refactor / Internal Improvements**
   - Optimized the configuration loading logic within `ConfigManager` to resolve internal warnings and improve code cleanliness.

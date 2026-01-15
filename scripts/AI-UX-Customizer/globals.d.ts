@@ -569,6 +569,11 @@ interface PlatformConstants {
         EXPANDED: string;
         COLLAPSED: string;
     };
+    INPUT_MODES: {
+        NORMAL: string;
+        CTRL: string;
+        SHIFT: string;
+    };
     DATA_KEYS: {
         AVATAR_INJECT_ATTEMPTS: string;
         AVATAR_INJECT_FAILED: string;
