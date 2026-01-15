@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.0-b314] - 2026-01-15
+- **UI Improvements**
+  - **[Nav Console]** Standardized the layout spacing within the Fixed Navigation Console. All buttons and element groups now have consistent, uniform gaps for a cleaner visual appearance.
+- **Bug Fixes**
+  - Restore icon definition for `bulkExpand`
+
 ## [1.0.0-b313] - 2026-01-15
 - **Code Maintenance**
   - Removed unused CSS definitions related to QTB's drag-and-drop functionality to clean up the codebase.

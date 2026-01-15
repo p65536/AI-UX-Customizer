@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b313
+// @version      1.0.0-b314
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -2407,7 +2407,7 @@
                 bulkExpand: {
                     tag: 'svg',
                     props: { ...COMMON_PROPS, className: 'icon-expand' },
-                    children: [{ tag: 'path', props: { d: 'M200-200v-240h80v160h160v80H200Zm480-320v160H520v-80h240v240h-80Z' } }],
+                    children: [{ tag: 'path', props: { d: 'M200-200v-240h80v160h160v80H200Zm480-320v-160H520v-80h240v240h-80Z' } }],
                 },
                 list: {
                     tag: 'svg',
@@ -3988,7 +3988,7 @@
                         z-index: ${zIndex};
                         display: flex;
                         align-items: center;
-                        gap: 8px;
+                        gap: 6px;
                         background-color: ${palette.fixed_nav_bg};
                         padding: 4px 8px;
                         border-radius: 8px;
@@ -8618,7 +8618,7 @@
 
             // Layout Construction
             const leftSlot = h(`div.${cls.group}`, [btnPrev, btnFirst, ...platformButtons]);
-            const centerSlot = h(`div.${cls.group}`, { style: { margin: '0 4px' } }, [roleBtn, counter]);
+            const centerSlot = h(`div.${cls.group}`, [roleBtn, counter]);
             const rightSlot = h(`div.${cls.group}`, [btnNext, btnLast, btnFold]);
 
             this.navConsole.textContent = '';
