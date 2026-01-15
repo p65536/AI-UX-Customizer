@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b313] - 2026-01-15
+- **Code Maintenance**
+  - Removed unused CSS definitions related to QTB's drag-and-drop functionality to clean up the codebase.
+
 ## [1.0.0-b312] - 2026-01-15
 - **UI Enhancements (Nav Console)**
   - Replaced text labels with intuitive **icons** for the role switcher to improve visual clarity.

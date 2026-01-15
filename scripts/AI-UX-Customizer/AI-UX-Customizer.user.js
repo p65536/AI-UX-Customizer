@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b312
+// @version      1.0.0-b313
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -2508,10 +2508,6 @@
                 submenuSeparator: `${prefix}-separator`,
                 featureGroup: `${prefix}-feature-group`,
 
-                // D&D Indicators
-                textItemDragOverTop: 'drag-over-top',
-                textItemDragOverBottom: 'drag-over-bottom',
-
                 // Notifications & Banners
                 warningBanner: `${prefix}-warning-banner`,
                 conflictText: `${prefix}-conflict-text`,
@@ -2545,7 +2541,6 @@
                     StyleDefinitions._getColorPickerFieldCss(cls),
                     StyleDefinitions._getPreviewCss(cls),
                     StyleDefinitions._getSubmenuCss(cls),
-                    StyleDefinitions._getDragAndDropCss(cls),
                     StyleDefinitions._getNotificationCss(cls),
                 ].join('\n');
             };
@@ -3587,19 +3582,6 @@
                 }
                 .${cls.featureGroup} .${cls.submenuRow}:first-child {
                     margin-top: 0;
-                }
-            `;
-        }
-
-        static _getDragAndDropCss(cls) {
-            const palette = SITE_STYLES.PALETTE;
-            return `
-                /* --- D&D Indicators --- */
-                .${cls.textItemDragOverTop} {
-                    border-top: 2px solid ${palette.dnd_indicator_color};
-                }
-                .${cls.textItemDragOverBottom} {
-                    border-bottom: 2px solid ${palette.dnd_indicator_color};
                 }
             `;
         }
