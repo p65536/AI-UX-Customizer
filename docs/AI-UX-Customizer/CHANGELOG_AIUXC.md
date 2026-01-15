@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b316] - 2026-01-15
+- **Performance Improvements**
+  - **[Nav Console]** Optimized rendering logic to minimize browser layout recalculations (Reflow) by updating DOM elements only when their values actually change.
+
 ## [1.0.0-b315] - 2026-01-15
 - **Improvements & Fixes**
   - **[Nav Console]** Improved the robustness of modifier key handling to prevent the UI from getting stuck in "Ctrl" or "Shift" mode after switching windows or performing system shortcuts.

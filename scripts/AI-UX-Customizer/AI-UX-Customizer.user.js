@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b315
+// @version      1.0.0-b316
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -8764,11 +8764,21 @@
                 }
 
                 // Update Tooltip
-                roleBtn.title = `Current Role: ${currentData.displayName}\n\nClick: Open Jump List\nRight-Click: Switch Role`;
+                const newTitle = `Current Role: ${currentData.displayName}\n\nClick: Open Jump List\nRight-Click: Switch Role`;
+                if (roleBtn.title !== newTitle) {
+                    roleBtn.title = newTitle;
+                }
             }
 
-            this.uiCache.info.current.textContent = String(currentData.index > -1 ? currentData.index + 1 : '--');
-            this.uiCache.info.total.textContent = String(currentData.messages.length ? currentData.messages.length : '--');
+            const currentText = String(currentData.index > -1 ? currentData.index + 1 : '--');
+            if (this.uiCache.info.current.textContent !== currentText) {
+                this.uiCache.info.current.textContent = currentText;
+            }
+
+            const totalText = String(currentData.messages.length ? currentData.messages.length : '--');
+            if (this.uiCache.info.total.textContent !== totalText) {
+                this.uiCache.info.total.textContent = totalText;
+            }
 
             // Access elements from cache and Update Highlight
             document.querySelectorAll(`.${cls.highlightMessage}, .${cls.highlightTurn}`).forEach((el) => {
@@ -8837,19 +8847,28 @@
                 }
             }
 
-            if (btns.prev instanceof HTMLElement) btns.prev.title = `Previous ${roleName}\n[Ctrl / R-Click] First${shiftActionText}`;
-            if (btns.next instanceof HTMLElement) btns.next.title = `Next ${roleName}\n[Ctrl / R-Click] Last\n[Shift] Fold`;
+            const updateTooltip = (el, text) => {
+                if (el instanceof HTMLElement && el.title !== text) {
+                    el.title = text;
+                }
+            };
 
-            if (btns.first instanceof HTMLElement) btns.first.title = `First ${roleName}`;
-            if (btns.last instanceof HTMLElement) btns.last.title = `Last ${roleName}`;
+            updateTooltip(btns.prev, `Previous ${roleName}\n[Ctrl / R-Click] First${shiftActionText}`);
+            updateTooltip(btns.next, `Next ${roleName}\n[Ctrl / R-Click] Last\n[Shift] Fold`);
+            updateTooltip(btns.first, `First ${roleName}`);
+            updateTooltip(btns.last, `Last ${roleName}`);
 
             // Handle Shift Mode Styling (Gray out center info)
             // Use visibility:hidden to keep layout size but hide content and disable interaction
             const visibility = isShift ? 'hidden' : 'visible';
 
             // Update roleBtn visibility
-            this.uiCache.buttons.role.style.visibility = visibility;
-            this.uiCache.info.counter.style.visibility = visibility;
+            if (this.uiCache.buttons.role.style.visibility !== visibility) {
+                this.uiCache.buttons.role.style.visibility = visibility;
+            }
+            if (this.uiCache.info.counter.style.visibility !== visibility) {
+                this.uiCache.info.counter.style.visibility = visibility;
+            }
 
             // Update bulk collapse button visibility and state
             this._updateBulkCollapseButtonTooltip(btns.fold);
@@ -8860,7 +8879,11 @@
             const currentState = DomState.get(button, CONSTANTS.DATA_KEYS.STATE);
             // Set the tooltip to describe the action that WILL be taken on click.
             const tooltipText = currentState === CONSTANTS.UI_STATES.EXPANDED ? 'Collapse all messages' : 'Expand all messages';
-            button.title = tooltipText;
+
+            // Only update DOM if changed
+            if (button.title !== tooltipText) {
+                button.title = tooltipText;
+            }
         }
 
         /**
