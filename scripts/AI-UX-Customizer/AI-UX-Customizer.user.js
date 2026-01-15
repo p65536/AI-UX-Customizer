@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b311
+// @version      1.0.0-b312
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -2407,7 +2407,37 @@
                 bulkExpand: {
                     tag: 'svg',
                     props: { ...COMMON_PROPS, className: 'icon-expand' },
-                    children: [{ tag: 'path', props: { d: 'M200-200v-240h80v160h160v80H200Zm480-320v-160H520v-80h240v240h-80Z' } }],
+                    children: [{ tag: 'path', props: { d: 'M200-200v-240h80v160h160v80H200Zm480-320v160H520v-80h240v240h-80Z' } }],
+                },
+                list: {
+                    tag: 'svg',
+                    props: { ...COMMON_PROPS },
+                    children: [{ tag: 'path', props: { d: 'M120-240v-80h720v80H120Zm0-200v-80h720v80H120Zm0-200v-80h720v80H120Z' } }],
+                },
+                chatLeft: {
+                    tag: 'svg',
+                    props: { ...COMMON_PROPS },
+                    children: [
+                        {
+                            tag: 'path',
+                            props: {
+                                d: 'M240-400h320v-80H240v80Zm0-120h480v-80H240v80Zm0-120h480v-80H240v80ZM80-80v-720q0-33 23.5-56.5T160-880h640q33 0 56.5 23.5T880-800v480q0 33-23.5 56.5T800-240H240L80-80Zm126-240h594v-480H160v525l46-45Zm-46 0v-480 480Z',
+                            },
+                        },
+                    ],
+                },
+                chatRight: {
+                    tag: 'svg',
+                    props: { ...COMMON_PROPS },
+                    children: [
+                        {
+                            tag: 'path',
+                            props: {
+                                d: 'M240-400h320v-80H240v80Zm0-120h480v-80H240v80Zm0-120h480v-80H240v80ZM80-80v-720q0-33 23.5-56.5T160-880h640q33 0 56.5 23.5T880-800v480q0 33-23.5 56.5T800-240H240L80-80Zm126-240h594v-480H160v525l46-45Zm-46 0v-480 480Z',
+                                transform: 'translate(960, 0) scale(-1, 1)',
+                            },
+                        },
+                    ],
                 },
                 settings: {
                     tag: 'svg',
@@ -2902,16 +2932,21 @@
                 hidden: `${prefix}-hidden`,
                 group: `${prefix}-group`,
                 separator: `${prefix}-separator`,
-                label: `${prefix}-label`,
                 counter: `${prefix}-counter`,
                 counterCurrent: `${prefix}-counter-current`,
                 counterTotal: `${prefix}-counter-total`,
                 btn: `${prefix}-btn`,
                 btnAccent: `${prefix}-btn-accent`,
                 btnDanger: `${prefix}-btn-danger`,
+                roleBtn: `${prefix}-role-btn`,
                 jumpInput: `${prefix}-jump-input`,
                 highlightMessage: `${prefix}-highlight-message`,
                 highlightTurn: `${prefix}-highlight-turn`,
+
+                // Role Colors
+                roleTotal: `${prefix}-role-total`,
+                roleUser: `${prefix}-role-user`,
+                roleAssistant: `${prefix}-role-assistant`,
 
                 // Helpers
                 isHidden: 'is-hidden',
@@ -4000,12 +4035,42 @@
                         height: 20px;
                         background-color: ${palette.fixed_nav_separator_bg};
                     }
-                    #${cls.consoleId} .${cls.label} {
+                    #${cls.consoleId} .${cls.roleBtn} {
                         color: ${palette.fixed_nav_label_text};
                         font-weight: 500;
                         cursor: pointer;
                         user-select: none;
+                        background: transparent;
+                        border: none;
+                        padding: 2px;
+                        border-radius: 4px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        transition: background-color 0.1s;
+                        width: 24px;
+                        height: 24px;
                     }
+                    #${cls.consoleId} .${cls.roleBtn}:hover {
+                        background-color: ${palette.btn_hover_bg};
+                    }
+                    #${cls.consoleId} .${cls.roleBtn} svg {
+                        width: 20px;
+                        height: 20px;
+                        fill: currentColor;
+                    }
+                    
+                    /* Role Colors */
+                    #${cls.consoleId} .${cls.roleTotal} {
+                        color: ${palette.text_secondary} !important;
+                    }
+                    #${cls.consoleId} .${cls.roleUser} {
+                        color: ${palette.accent_text} !important;
+                    }
+                    #${cls.consoleId} .${cls.roleAssistant} {
+                        color: ${palette.fixed_nav_assistant_text} !important;
+                    }
+
                     #${cls.consoleId} .${cls.counter},
                     #${cls.consoleId} .${cls.jumpInput} {
                         box-sizing: border-box;
@@ -8550,13 +8615,14 @@
             );
 
             // Center Info
-            const label = h(
-                `span.${cls.label}`,
+            // Role Button: Icon-based button for switching roles
+            const roleBtn = h(
+                `button.${cls.roleBtn}`,
                 {
-                    title: 'Right-click to switch role (Total -> Assistant -> User)',
+                    title: 'Click: Open Jump List\nRight-Click: Switch Role',
                     oncontextmenu: this._handleRoleContextMenu,
                 },
-                'Total:'
+                [] // Icon will be set in _renderUI
             );
 
             const counter = h(
@@ -8570,7 +8636,7 @@
 
             // Layout Construction
             const leftSlot = h(`div.${cls.group}`, [btnPrev, btnFirst, ...platformButtons]);
-            const centerSlot = h(`div.${cls.group}`, { style: { margin: '0 4px' } }, [label, counter]);
+            const centerSlot = h(`div.${cls.group}`, { style: { margin: '0 4px' } }, [roleBtn, counter]);
             const rightSlot = h(`div.${cls.group}`, [btnNext, btnLast, btnFold]);
 
             this.navConsole.textContent = '';
@@ -8587,9 +8653,9 @@
                     next: btnNext,
                     last: btnLast,
                     fold: btnFold,
+                    role: roleBtn,
                 },
                 info: {
-                    label: label,
                     counter: counter,
                     current: counter.querySelector(`.${cls.counterCurrent}`),
                     total: counter.querySelector(`.${cls.counterTotal}`),
@@ -8659,14 +8725,14 @@
             const { currentIndices, highlightedMessage, activeRole, inputMode } = this.state;
 
             // Determine visibility
-            // Hide if it's explicitly a new chat page.
-            // If not a new chat page, only hide if there are NO messages in cache AND no message elements in the DOM.
-            // This prevents the console from disappearing during cache rebuilds or temporary state inconsistencies.
             const totalMessages = this.messageCacheManager.getTotalMessages();
             const isNewChat = isNewChatPage();
             const hasCachedMessages = totalMessages.length > 0;
             const hasDomMessages = !!document.querySelector(CONSTANTS.SELECTORS.MESSAGE_ROOT_NODE);
 
+            // Hide if it's explicitly a new chat page.
+            // If not a new chat page, only hide if there are NO messages in cache AND no message elements in the DOM.
+            // This prevents the console from disappearing during cache rebuilds or temporary state inconsistencies.
             if (isNewChat || (!hasCachedMessages && !hasDomMessages)) {
                 this.navConsole.classList.add(cls.hidden);
             } else {
@@ -8674,18 +8740,48 @@
                 // The first time it becomes visible, also remove the initial positioning-guard class.
                 if (this.navConsole.classList.contains(cls.unpositioned)) {
                     this.navConsole.classList.remove(cls.unpositioned);
+                    // Force reposition only when becoming visible to avoid loop
+                    this.scheduleReposition();
                 }
             }
 
             // Update Counters & Label
             const roleMap = {
-                [CONSTANTS.NAV_ROLES.TOTAL]: { label: 'Total:', messages: totalMessages, index: currentIndices[CONSTANTS.NAV_ROLES.TOTAL] },
-                [CONSTANTS.NAV_ROLES.ASSISTANT]: { label: 'Asst:', messages: this.messageCacheManager.getAssistantMessages(), index: currentIndices[CONSTANTS.NAV_ROLES.ASSISTANT] },
-                [CONSTANTS.NAV_ROLES.USER]: { label: 'User:', messages: this.messageCacheManager.getUserMessages(), index: currentIndices[CONSTANTS.NAV_ROLES.USER] },
+                [CONSTANTS.NAV_ROLES.TOTAL]: { displayName: 'Total', icon: 'list', colorClass: cls.roleTotal, messages: totalMessages, index: currentIndices[CONSTANTS.NAV_ROLES.TOTAL] },
+                [CONSTANTS.NAV_ROLES.ASSISTANT]: { displayName: 'Assistant', icon: 'chatLeft', colorClass: cls.roleAssistant, messages: this.messageCacheManager.getAssistantMessages(), index: currentIndices[CONSTANTS.NAV_ROLES.ASSISTANT] },
+                [CONSTANTS.NAV_ROLES.USER]: { displayName: 'User', icon: 'chatRight', colorClass: cls.roleUser, messages: this.messageCacheManager.getUserMessages(), index: currentIndices[CONSTANTS.NAV_ROLES.USER] },
             };
 
             const currentData = roleMap[activeRole];
-            this.uiCache.info.label.textContent = currentData.label;
+
+            // Update Icon
+            const roleBtn = this.uiCache.buttons.role;
+            if (roleBtn instanceof HTMLElement) {
+                // Only update DOM if icon type changed
+                const currentIconType = roleBtn.dataset.iconType;
+                if (currentIconType !== currentData.icon) {
+                    roleBtn.textContent = '';
+                    const iconDef = StyleDefinitions.ICONS[currentData.icon];
+                    if (iconDef) {
+                        roleBtn.appendChild(createIconFromDef(iconDef));
+                    }
+                    roleBtn.dataset.iconType = currentData.icon;
+                }
+
+                // Update Colors
+                // Check class list before modifying to avoid style recalc
+                if (!roleBtn.classList.contains(currentData.colorClass)) {
+                    roleBtn.classList.remove(cls.roleTotal, cls.roleUser, cls.roleAssistant);
+                    this.uiCache.info.counter.classList.remove(cls.roleTotal, cls.roleUser, cls.roleAssistant);
+
+                    roleBtn.classList.add(currentData.colorClass);
+                    this.uiCache.info.counter.classList.add(currentData.colorClass);
+                }
+
+                // Update Tooltip
+                roleBtn.title = `Current Role: ${currentData.displayName}\n\nClick: Open Jump List\nRight-Click: Switch Role`;
+            }
+
             this.uiCache.info.current.textContent = String(currentData.index > -1 ? currentData.index + 1 : '--');
             this.uiCache.info.total.textContent = String(currentData.messages.length ? currentData.messages.length : '--');
 
@@ -8709,17 +8805,23 @@
             const isCtrl = inputMode === CONSTANTS.INPUT_MODES.CTRL;
             const isShift = inputMode === CONSTANTS.INPUT_MODES.SHIFT;
 
-            if (btns.prev instanceof HTMLElement) btns.prev.style.display = isNormal ? '' : 'none';
-            if (btns.next instanceof HTMLElement) btns.next.style.display = isNormal ? '' : 'none';
+            // Helper to toggle display style without triggering reflow if unchanged
+            const toggleDisplay = (el, show) => {
+                if (!el) return;
+                const newVal = show ? '' : 'none';
+                if (el.style.display !== newVal) el.style.display = newVal;
+            };
 
-            if (btns.first instanceof HTMLElement) btns.first.style.display = isCtrl ? '' : 'none';
-            if (btns.last instanceof HTMLElement) btns.last.style.display = isCtrl ? '' : 'none';
+            toggleDisplay(btns.prev, isNormal);
+            toggleDisplay(btns.next, isNormal);
+            toggleDisplay(btns.first, isCtrl);
+            toggleDisplay(btns.last, isCtrl);
 
             // Handle Platform Buttons
             const platformButtons = btns.platformButtons || [];
             platformButtons.forEach((btn) => {
                 if (btn instanceof HTMLElement) {
-                    btn.style.display = isShift ? '' : 'none';
+                    toggleDisplay(btn, isShift);
                     // Update state if visible and manager exists
                     if (this.autoScrollManager && isShift && btn instanceof HTMLButtonElement) {
                         PlatformAdapters.FixedNav.updatePlatformSpecificButtonState(btn, this.state.isAutoScrolling, this.autoScrollManager);
@@ -8727,7 +8829,11 @@
                 }
             });
 
-            if (btns.fold instanceof HTMLElement) btns.fold.style.display = isShift ? 'flex' : 'none';
+            // Flex display for fold button
+            const foldDisplay = isShift ? 'flex' : 'none';
+            if (btns.fold instanceof HTMLElement && btns.fold.style.display !== foldDisplay) {
+                btns.fold.style.display = foldDisplay;
+            }
 
             // Update Tooltips and State
             const roleName = activeRole === CONSTANTS.NAV_ROLES.TOTAL ? 'message' : activeRole === CONSTANTS.NAV_ROLES.ASSISTANT ? 'assistant message' : 'user message';
@@ -8756,13 +8862,12 @@
             // Use visibility:hidden to keep layout size but hide content and disable interaction
             const visibility = isShift ? 'hidden' : 'visible';
 
-            this.uiCache.info.label.style.visibility = visibility;
+            // Update roleBtn visibility
+            this.uiCache.buttons.role.style.visibility = visibility;
             this.uiCache.info.counter.style.visibility = visibility;
 
             // Update bulk collapse button visibility and state
             this._updateBulkCollapseButtonTooltip(btns.fold);
-
-            this.repositionContainers();
         }
 
         _updateBulkCollapseButtonTooltip(button) {
@@ -8892,9 +8997,10 @@
                 return;
             }
 
-            const label = target.closest(`.${cls.label}`);
-            if (label instanceof HTMLElement && this.navConsole?.contains(label)) {
-                this._toggleJumpList(label);
+            // Handle Role Button Click
+            const roleBtn = target.closest(`.${cls.roleBtn}`);
+            if (roleBtn instanceof HTMLElement && this.navConsole?.contains(roleBtn)) {
+                this._toggleJumpList(roleBtn);
                 return;
             }
 
@@ -9098,7 +9204,8 @@
             }
 
             // Delay check to handle focus transition gaps
-            setTimeout(() => {
+            // Use requestAnimationFrame instead of setTimeout to prevent forced reflow violations during rapid events
+            requestAnimationFrame(() => {
                 if (!this.navConsole) return;
                 const isHovered = this.navConsole.matches(':hover');
                 const isFocused = this.navConsole.contains(document.activeElement);
@@ -9125,7 +9232,7 @@
                 if (shouldRender) {
                     this._renderUI();
                 }
-            }, 0);
+            });
         }
 
         _handleRoleContextMenu(e) {
@@ -16194,6 +16301,7 @@
             fixed_nav_counter_bg: 'var(--bg-primary)',
             fixed_nav_counter_text: 'var(--text-primary)',
             fixed_nav_counter_border: 'var(--border-accent)',
+            fixed_nav_assistant_text: '#e57373',
             fixed_nav_btn_accent_text: 'var(--text-accent)',
             fixed_nav_btn_danger_text: 'var(--text-danger)',
             fixed_nav_highlight_outline: 'var(--text-accent)',
@@ -17627,6 +17735,7 @@
             fixed_nav_counter_bg: 'var(--gem-sys-color--surface-container-high)',
             fixed_nav_counter_text: 'var(--gem-sys-color--on-surface-variant)',
             fixed_nav_counter_border: 'var(--gem-sys-color--primary)',
+            fixed_nav_assistant_text: '#e57373',
             fixed_nav_btn_accent_text: 'var(--gem-sys-color--primary)',
             fixed_nav_btn_danger_text: 'var(--gem-sys-color--error)',
             fixed_nav_highlight_outline: 'var(--gem-sys-color--primary)',

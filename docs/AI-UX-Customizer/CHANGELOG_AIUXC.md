@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.0-b312] - 2026-01-15
+- **UI Enhancements (Nav Console)**
+  - Replaced text labels with intuitive **icons** for the role switcher to improve visual clarity.
+  - Added **color coding** to role indicators (Gray for Total, Blue for User, Red for Assistant) for quicker recognition.
+  - The role indicator is now a proper button, improving accessibility and click responsiveness.
+- **Performance**
+  - Significantly optimized rendering logic to eliminate UI lag and forced reflows during mouse interactions.
+
 ## [1.0.0-b311] - 2026-01-15
 - **UI/UX Improvements**
   - Added the ability to switch the active role filter (Total / Assistant / User) by right-clicking on the message counter numbers, providing an alternative to clicking the role label.
