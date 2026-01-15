@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-b311] - 2026-01-15
+- **UI/UX Improvements**
+  - Added the ability to switch the active role filter (Total / Assistant / User) by right-clicking on the message counter numbers, providing an alternative to clicking the role label.
+  - Updated the tooltip on the counter to explicitly mention the new right-click functionality.
+
 ## [1.0.0-b310] - 2026-01-15
 - **UI/UX Improvements**
   - **[ChatGPT]** Hidden the native "scroll to bottom" button to reduce UI clutter and prevent redundancy with the Navigation Console.
