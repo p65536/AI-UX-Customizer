@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b314
+// @version      1.0.0-b315
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -8234,6 +8234,7 @@
             this._handleDocumentKeyChange = this._handleDocumentKeyChange.bind(this);
             this._handleInteractionStateChange = this._handleInteractionStateChange.bind(this);
             this._handleRoleContextMenu = this._handleRoleContextMenu.bind(this);
+            this._handleWindowBlur = this._handleWindowBlur.bind(this);
         }
 
         /**
@@ -8294,6 +8295,7 @@
 
             document.removeEventListener('keydown', this._handleDocumentKeyChange, true);
             document.removeEventListener('keyup', this._handleDocumentKeyChange, true);
+            window.removeEventListener('blur', this._handleWindowBlur);
         }
 
         updateUI() {
@@ -8651,6 +8653,7 @@
 
             document.addEventListener('keydown', this._handleDocumentKeyChange, true);
             document.addEventListener('keyup', this._handleDocumentKeyChange, true);
+            window.addEventListener('blur', this._handleWindowBlur);
 
             if (this.navConsole) {
                 this.navConsole.addEventListener('mouseenter', this._handleInteractionStateChange);
@@ -9139,6 +9142,10 @@
 
         _handleDocumentKeyChange(e) {
             if (e.repeat) return;
+            // Guard: Do not change input mode if the Jump List is open.
+            // This prevents the list from closing unexpectedly when typing uppercase letters (Shift+Char).
+            if (this.state.jumpListComponent) return;
+
             if (e.key !== 'Control' && e.key !== 'Shift') return;
 
             // Only update input mode if the user is interacting with the console
@@ -9233,6 +9240,15 @@
 
             this.state.activeRole = roles[nextIndex];
             this._renderUI();
+        }
+
+        _handleWindowBlur() {
+            // Reset input mode to normal when the window loses focus (e.g. Alt+Tab).
+            // This prevents modifier keys (Ctrl/Shift) from getting stuck in the active state.
+            if (this.state.inputMode !== CONSTANTS.INPUT_MODES.NORMAL) {
+                this.state.inputMode = CONSTANTS.INPUT_MODES.NORMAL;
+                this._renderUI();
+            }
         }
 
         _toggleJumpList(labelElement) {

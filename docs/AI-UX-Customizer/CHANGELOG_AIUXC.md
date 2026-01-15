@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-b315] - 2026-01-15
+- **Improvements & Fixes**
+  - **[Nav Console]** Improved the robustness of modifier key handling to prevent the UI from getting stuck in "Ctrl" or "Shift" mode after switching windows or performing system shortcuts.
+  - **[Jump List]** Resolved a usability conflict where using modifier keys in the search input (e.g., for capitalization or IME operations) would inadvertently trigger navigation commands and close the list.
+
 ## [1.0.0-b314] - 2026-01-15
 - **UI Improvements**
   - **[Nav Console]** Standardized the layout spacing within the Fixed Navigation Console. All buttons and element groups now have consistent, uniform gaps for a cleaner visual appearance.
