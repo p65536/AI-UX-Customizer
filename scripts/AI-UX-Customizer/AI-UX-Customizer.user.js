@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b317
+// @version      1.0.0-b318
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -8329,6 +8329,8 @@
             // Hide immediately to prevent flickering of old state
             if (this.navConsole) {
                 this.navConsole.classList.add(this.styleHandle.classes.hidden);
+                // Mark as unpositioned to ensure it stays transparent until the next layout calculation finishes
+                this.navConsole.classList.add(this.styleHandle.classes.unpositioned);
             }
 
             if (this.state.highlightedMessage) {
@@ -8684,8 +8686,13 @@
             withLayoutCycle({
                 measure: () => {
                     // --- Read Phase ---
+                    const formRect = inputForm.getBoundingClientRect();
+                    // Guard: If the anchor is not visible (size 0), abort measurement to prevent invalid positioning.
+                    if (formRect.width === 0 || formRect.height === 0) {
+                        return null;
+                    }
                     return {
-                        formRect: inputForm.getBoundingClientRect(),
+                        formRect: formRect,
                         consoleWidth: this.navConsole.offsetWidth,
                         windowHeight: window.innerHeight,
                     };
@@ -8700,6 +8707,9 @@
 
                     this.navConsole.style.left = `${formCenter - consoleWidth / 2}px`;
                     this.navConsole.style.bottom = bottomPosition;
+
+                    // Reveal the console only after the correct position has been applied
+                    this.navConsole.classList.remove(this.styleHandle.classes.unpositioned);
                 },
             });
         }
@@ -8715,17 +8725,23 @@
             const hasCachedMessages = totalMessages.length > 0;
             const hasDomMessages = !!document.querySelector(CONSTANTS.SELECTORS.MESSAGE_ROOT_NODE);
 
+            // Capture previous hidden state to trigger repositioning on appearance
+            const wasHidden = this.navConsole.classList.contains(cls.hidden);
+
             // Hide if it's explicitly a new chat page.
             // If not a new chat page, only hide if there are NO messages in cache AND no message elements in the DOM.
             // This prevents the console from disappearing during cache rebuilds or temporary state inconsistencies.
             if (isNewChat || (!hasCachedMessages && !hasDomMessages)) {
                 this.navConsole.classList.add(cls.hidden);
+                // Mark as unpositioned to ensure it stays transparent until the next layout calculation finishes
+                this.navConsole.classList.add(cls.unpositioned);
             } else {
                 this.navConsole.classList.remove(cls.hidden);
-                // The first time it becomes visible, also remove the initial positioning-guard class.
-                if (this.navConsole.classList.contains(cls.unpositioned)) {
-                    this.navConsole.classList.remove(cls.unpositioned);
-                    // Force reposition only when becoming visible to avoid loop
+
+                // If previously hidden or currently unpositioned, ensure it's marked as unpositioned (transparent)
+                // and schedule a reposition. It will become visible only after repositionContainers completes.
+                if (wasHidden || this.navConsole.classList.contains(cls.unpositioned)) {
+                    this.navConsole.classList.add(cls.unpositioned);
                     this.scheduleReposition();
                 }
             }

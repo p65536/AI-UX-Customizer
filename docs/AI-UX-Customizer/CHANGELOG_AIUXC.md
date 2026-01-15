@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-b318] - 2026-01-15
+- **Bug Fixes**
+  - **[Fixed Navigation]** Fixed a visual glitch introduced in b312 where the navigation console would briefly appear at incorrect coordinates during chat transitions or initial load. It now remains invisible until correctly positioned.
+  - **[Fixed Navigation]** Improved positioning reliability to prevent the console from being misplaced when the chat input area is momentarily invisible or resizing.
+
 ## [1.0.0-b317] - 2026-01-15
 - **UI Changes**
   - The role indicator and message counter now remain visible when holding the **Shift** key, ensuring context is always available.
