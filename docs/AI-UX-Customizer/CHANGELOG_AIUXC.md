@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.0-b321] - 2026-01-16
+- **Bug Fixes**
+  - **[ChatGPT]** Fixed an issue where timestamps would fail to appear for the initial message when starting a new chat.
+  - **[ChatGPT]** Resolved a bug where timestamps would disappear when navigating back to an existing chat via the sidebar.
+  - **[ChatGPT]** Improved the stability of timestamp data caching to ensure consistent display during page transitions and browser history navigation.
+
 ## [1.0.0-b320] - 2026-01-16
 - **Fixes & Improvements**
   - **[ChatGPT]** Hardened the **Message Timestamp** feature. The underlying API interception logic has been refactored to be more secure and reliable, resolving potential race conditions when loading chat history.

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b320
+// @version      1.0.0-b321
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -9451,9 +9451,9 @@
                 const messageIdHolder = messageElement.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
                 const messageId = PlatformAdapters.General.getMessageId(messageIdHolder);
 
-                // Only publish TIMESTAMP_ADDED (real-time/current time) if we are NOT in the initial page load/navigation phase.
-                // Historical timestamps will be loaded separately via TIMESTAMPS_LOADED event.
-                if (messageId && !this.isNavigating) {
+                // Always publish TIMESTAMP_ADDED when a message is detected.
+                // The TimestampManager will handle buffering (during navigation) or immediate application.
+                if (messageId) {
                     EventBus.publish(EVENTS.TIMESTAMP_ADDED, { messageId: messageId, timestamp: new Date() });
                 }
 
@@ -9488,6 +9488,8 @@
             this.messageCacheManager = messageCacheManager;
             /** @type {Map<string, Date>} */
             this.messageTimestamps = new Map();
+            /** @type {Map<string, Date>} */
+            this.pendingTimestamps = new Map(); // Buffer for timestamps during navigation
             /** @type {Map<HTMLElement, HTMLElement>} */
             this.timestampDomCache = new Map();
             this.styleHandle = null;
@@ -9495,7 +9497,9 @@
             this.timestampSpanTemplate = null;
             this.currentChatId = null;
             this.isEnabled = false; // Add state tracking
+            this.isNavigating = false; // Track navigation state
             this.currentBatchTask = null;
+            this.MAX_CACHE_SIZE = 10000; // Limit for memory protection
         }
 
         _onInit() {
@@ -9503,6 +9507,8 @@
             // Subscribe to navigation events to clear the cache and load new data
             // This must always run, even when disabled, to clear the cache on page change.
             this._subscribe(EVENTS.NAVIGATION, () => this._handleNavigation());
+            this._subscribe(EVENTS.NAVIGATION_START, () => this._handleNavigationStart());
+            this._subscribe(EVENTS.NAVIGATION_END, () => this._handleNavigationEnd());
 
             // Subscribe to data events regardless of the feature toggle state.
             this._subscribe(EVENTS.TIMESTAMP_ADDED, (data) => this._handleTimestampAdded(data));
@@ -9514,6 +9520,59 @@
                 Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, `Processing ${bufferedData.length} buffered timestamp sets.`);
                 bufferedData.forEach((data) => this._loadHistoricalTimestamps(data));
             }
+        }
+
+        /**
+         * @private
+         */
+        _handleNavigationStart() {
+            this.isNavigating = true;
+            this.pendingTimestamps.clear();
+        }
+
+        /**
+         * @private
+         */
+        _handleNavigationEnd() {
+            this.isNavigating = false;
+
+            // Fallback strategy:
+            // Apply pending timestamps only if API didn't provide data for them.
+            // This handles "New Chat" scenarios or API failures/delays.
+            if (this.pendingTimestamps.size > 0) {
+                Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, `Processing ${this.pendingTimestamps.size} pending timestamps.`);
+
+                let addedCount = 0;
+                this.pendingTimestamps.forEach((timestamp, messageId) => {
+                    // Only apply if NOT already present (i.e., not loaded from API)
+                    if (!this.messageTimestamps.has(messageId)) {
+                        this._addTimestampToCache(messageId, timestamp);
+                        addedCount++;
+                    }
+                });
+
+                this.pendingTimestamps.clear();
+
+                if (addedCount > 0 && this.isEnabled) {
+                    Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, `Applied ${addedCount} fallback timestamps.`);
+                    this.updateAllTimestamps();
+                }
+            }
+        }
+
+        /**
+         * @private
+         * Helper to add a timestamp to the main cache with LRU logic.
+         * @param {string} messageId
+         * @param {Date} timestamp
+         */
+        _addTimestampToCache(messageId, timestamp) {
+            // LRU check
+            if (this.messageTimestamps.size >= this.MAX_CACHE_SIZE) {
+                const oldestKey = this.messageTimestamps.keys().next().value;
+                if (oldestKey) this.messageTimestamps.delete(oldestKey);
+            }
+            this.messageTimestamps.set(messageId, timestamp);
         }
 
         /**
@@ -9567,7 +9626,8 @@
          * Clears caches on navigation and prepares for new data.
          */
         _handleNavigation() {
-            this.messageTimestamps.clear();
+            // Keep messageTimestamps to support browser back/forward navigation without API calls.
+            // Only clear the DOM cache as the elements are gone.
             this._clearAllTimestampsDOM();
             this.currentChatId = null;
         }
@@ -9579,15 +9639,25 @@
          * @param {Map<string, Date>} detail.timestamps - The map of historical timestamps.
          */
         _loadHistoricalTimestamps({ chatId, timestamps }) {
-            // If the loaded data is for a different chat (e.g., race condition), clear cache.
+            // Simply merge new data. Do not clear existing cache to support navigation between chats.
             if (chatId !== this.currentChatId) {
-                Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, `New chat detected (${chatId}). Clearing previous timestamp cache.`);
-                this.messageTimestamps.clear();
                 this.currentChatId = chatId;
             }
 
             if (timestamps && timestamps.size > 0) {
                 Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, `Loading ${timestamps.size} historical timestamps from adapter.`);
+
+                // LRU: If adding new items exceeds limit, remove oldest.
+                // Since Map preserves insertion order, keys().next() returns the oldest.
+                if (this.messageTimestamps.size + timestamps.size > this.MAX_CACHE_SIZE) {
+                    const deleteCount = this.messageTimestamps.size + timestamps.size - this.MAX_CACHE_SIZE;
+                    for (let i = 0; i < deleteCount; i++) {
+                        const oldestKey = this.messageTimestamps.keys().next().value;
+                        if (oldestKey) this.messageTimestamps.delete(oldestKey);
+                        else break;
+                    }
+                }
+
                 timestamps.forEach((date, id) => {
                     // Overwrite any existing (likely real-time) timestamp with the historical one
                     this.messageTimestamps.set(id, date);
@@ -9607,9 +9677,22 @@
          * @param {Date} detail.timestamp - The timestamp (Date object) of when the message was processed.
          */
         _handleTimestampAdded({ messageId, timestamp }) {
-            if (messageId && timestamp && !this.messageTimestamps.has(messageId)) {
+            if (!messageId || !timestamp) return;
+
+            // If navigating and NOT a new chat page, buffer the timestamp.
+            // "New Chat" pages don't trigger history load, so we can apply immediately.
+            const isNewChat = PlatformAdapters.General.isNewChatPage();
+
+            if (this.isNavigating && !isNewChat) {
+                this.pendingTimestamps.set(messageId, timestamp);
+                return;
+            }
+
+            // Normal processing (Real-time or New Chat)
+            if (!this.messageTimestamps.has(messageId)) {
                 Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, `Added real-time timestamp for ${messageId}.`);
-                this.messageTimestamps.set(messageId, timestamp);
+
+                this._addTimestampToCache(messageId, timestamp);
 
                 // If enabled, trigger a DOM update for the new real-time timestamp
                 if (this.isEnabled) {
@@ -16289,6 +16372,7 @@
             },
             URL_PATTERNS: {
                 EXCLUDED: [/^\/library/, /^\/codex/, /^\/gpts/, /^\/images/, /^\/apps/],
+                CONVERSATION_ENDPOINT: '/backend-api/conversation',
             },
         };
 
@@ -17503,7 +17587,9 @@
                 // Match .../conversation/[ID] only. Must end with the ID.
                 // The ID must contain at least 4 hyphens.
                 // (e.g., 8-4-4-4-12 format)
-                const match = url.match(/\/backend-api\/conversation\/([^/]*-[^/]*-[^/]*-[^/]*-[^/]+)$/);
+                const endpoint = CONSTANTS.URL_PATTERNS.CONVERSATION_ENDPOINT;
+                const pattern = new RegExp(`${escapeRegExp(endpoint)}\\/([^/]*-[^/]*-[^/]*-[^/]*-[^/]+)$`);
+                const match = url.match(pattern);
                 return match ? match[1] : null;
             }
 
@@ -17553,54 +17639,69 @@
                     // Ignore URL parsing errors
                 }
 
-                const chatId = this._getChatIdFromUrl(normalizedUrl);
-                if (!chatId) return;
+                // Try to get ID from URL first (GET request)
+                let chatId = this._getChatIdFromUrl(normalizedUrl);
+
+                // Only process conversation endpoints
+                if (!normalizedUrl.includes(CONSTANTS.URL_PATTERNS.CONVERSATION_ENDPOINT)) return;
 
                 // Check response status
                 if (!response.ok || response.status !== 200) return;
 
                 Logger.debug('FETCH', LOG_STYLES.ORANGE, 'Target API URL intercepted:', url);
 
-                // Parse the cloned response
-                const timestamps = await this._processResponse(response);
-
-                if (timestamps.size > 0) {
-                    // Store in buffer
-                    this.capturedData.set(chatId, { chatId, timestamps });
-                    // Publish event
-                    EventBus.publish(EVENTS.TIMESTAMPS_LOADED, { chatId, timestamps });
-                }
-            }
-
-            async _processResponse(response) {
-                /** @type {Map<string, Date>} */
-                const newTimestamps = new Map();
                 try {
                     const data = await response.json();
-                    let added = 0;
 
-                    if (data && data.mapping) {
-                        Object.values(data.mapping).forEach((item) => {
-                            if (item && item.message && item.message.id && item.message.create_time) {
-                                // Add to our temporary map. We don't check for existence,
-                                // TimestampManager will handle merging/overwriting.
-                                newTimestamps.set(item.message.id, new Date(item.message.create_time * 1000));
-                                added++;
-                            }
-                        });
+                    // If ID wasn't in URL, try to find it in the response (POST request / New Chat)
+                    if (!chatId && data.conversation_id) {
+                        chatId = data.conversation_id;
+                    }
 
-                        if (added > 0) {
-                            Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, `Parsed ${added} historical timestamps.`);
-                        } else {
-                            Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, 'API response processed, but no valid timestamps were found in data.mapping.');
-                        }
-                    } else {
-                        Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, 'API response processed, but data.mapping was not found or was empty.');
+                    if (!chatId) return;
+
+                    // Parse the JSON data
+                    const timestamps = this._extractTimestamps(data);
+
+                    if (timestamps.size > 0) {
+                        // Store in buffer
+                        this.capturedData.set(chatId, { chatId, timestamps });
+                        // Publish event
+                        EventBus.publish(EVENTS.TIMESTAMPS_LOADED, { chatId, timestamps });
                     }
                 } catch (e) {
                     Logger.error('TIMESTAMP ERROR', LOG_STYLES.RED, 'Failed to parse conversation JSON:', e);
                 }
-                // Always return the map (it might be empty)
+            }
+
+            /**
+             * Extracts timestamps from the parsed JSON object.
+             * @param {object} data - The parsed JSON response.
+             * @returns {Map<string, Date>}
+             */
+            _extractTimestamps(data) {
+                /** @type {Map<string, Date>} */
+                const newTimestamps = new Map();
+                let added = 0;
+
+                if (data && data.mapping) {
+                    Object.values(data.mapping).forEach((item) => {
+                        if (item && item.message && item.message.id && item.message.create_time) {
+                            // Add to our temporary map. We don't check for existence,
+                            // TimestampManager will handle merging/overwriting.
+                            newTimestamps.set(item.message.id, new Date(item.message.create_time * 1000));
+                            added++;
+                        }
+                    });
+
+                    if (added > 0) {
+                        Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, `Parsed ${added} historical timestamps.`);
+                    } else {
+                        Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, 'API response processed, but no valid timestamps were found in data.mapping.');
+                    }
+                } else {
+                    Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, 'API response processed, but data.mapping was not found or was empty.');
+                }
                 return newTimestamps;
             }
         }
