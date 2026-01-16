@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b320] - 2026-01-16
+- **Fixes & Improvements**
+  - **[ChatGPT]** Hardened the **Message Timestamp** feature. The underlying API interception logic has been refactored to be more secure and reliable, resolving potential race conditions when loading chat history.
+
 ## [1.0.0-b319] - 2026-01-15
 - **New Features**
   - Added a **Sticky Input Mode** to the navigation console. Right-clicking (desktop) or long-pressing (mobile) the message counter now cycles through `Normal`, `Ctrl`, and `Shift` modes.

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b319
+// @version      1.0.0-b320
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -15,6 +15,7 @@
 // @grant        GM_addValueChangeListener
 // @grant        GM_removeValueChangeListener
 // @grant        GM_xmlhttpRequest
+// @grant        unsafeWindow
 // @connect      raw.githubusercontent.com
 // @connect      *
 // @run-at       document-start
@@ -17449,26 +17450,47 @@
 
             /** @override */
             init() {
-                if (this.isInitialized) return; // Only run the fetch wrapper once
-                if (unsafeWindow.fetch && unsafeWindow.fetch[this.fetchWrapperSymbol]) {
-                    this.isInitialized = true;
+                if (this.isInitialized) return;
+
+                // Check if unsafeWindow is available and valid
+                if (typeof unsafeWindow === 'undefined' || !unsafeWindow.fetch) {
+                    Logger.error('TIMESTAMP', '', 'unsafeWindow.fetch is unavailable. Adapter disabled.');
                     return;
                 }
 
                 try {
+                    // Backup original fetch from the page context
+                    // Bind to unsafeWindow to ensure correct 'this' context
+                    this.originalFetch = unsafeWindow.fetch.bind(unsafeWindow);
+
+                    // Create the wrapper logic
                     const wrappedFetch = this._wrappedFetch.bind(this);
+
+                    // Mark our wrapper to prevent double-wrapping
                     wrappedFetch[this.fetchWrapperSymbol] = true;
+
+                    // Override the page's fetch
                     unsafeWindow.fetch = wrappedFetch;
+
                     this.isInitialized = true;
+                    Logger.debug('TIMESTAMP', LOG_STYLES.TEAL, 'Successfully intercepted unsafeWindow.fetch');
                 } catch (e) {
                     Logger.error('FETCH WRAP FAILED', LOG_STYLES.RED, 'Could not wrap fetch:', e);
-                    unsafeWindow.fetch = this.originalFetch; // Restore original on failure
+                    // Attempt to restore if partially failed
+                    if (this.originalFetch) {
+                        unsafeWindow.fetch = this.originalFetch;
+                    }
                 }
             }
 
             /** @override */
             cleanup() {
-                // Persistent hook: Do not restore originalFetch to ensure we capture data during navigation/SPA transitions.
+                // Restore the original fetch if we modified it
+                if (this.isInitialized && this.originalFetch) {
+                    unsafeWindow.fetch = this.originalFetch;
+                    this.isInitialized = false;
+                    Logger.debug('TIMESTAMP', LOG_STYLES.TEAL, 'Restored original unsafeWindow.fetch');
+                }
             }
 
             /** @override */
@@ -17486,58 +17508,68 @@
             }
 
             _wrappedFetch(input, init) {
-                // Let the original fetch proceed immediately
-                const responsePromise = this.originalFetch(input, init);
+                // 1. Call the original fetch immediately.
+                // We return this Promise chain to the site code.
+                return this.originalFetch(input, init).then((response) => {
+                    try {
+                        // 2. Clone the response immediately upon resolution.
+                        // This ensures we get a copy before the site's code consumes the stream.
+                        // Wrapped in try-catch to act as a failsafe; if cloning fails (e.g. stream locked),
+                        // we must still return the original response to avoid breaking the site.
+                        const clonedResponse = response.clone();
 
-                // Check if this is the URL we want to intercept
-                const url = typeof input === 'string' ? input : input?.url;
+                        // 3. Process the clone asynchronously (Fire-and-forget).
+                        this._processIntercentedResponse(input, clonedResponse).catch((e) => {
+                            // Rate-limit error logging
+                            const now = Date.now();
+                            if (now - this._lastFetchObserveErrorAt > 60000) {
+                                this._lastFetchObserveErrorAt = now;
+                                Logger.debug('FETCH', LOG_STYLES.ORANGE, 'Internal processing failed:', e);
+                            }
+                        });
+                    } catch (e) {
+                        // Log error but suppress it to protect the main application flow
+                        Logger.debug('FETCH', LOG_STYLES.ORANGE, 'Response cloning failed:', e);
+                    }
+
+                    // 4. Return the ORIGINAL response to the site.
+                    return response;
+                });
+            }
+
+            /**
+             * Processes the intercepted response to extract timestamps.
+             * @param {RequestInfo|URL} input
+             * @param {Response} response
+             */
+            async _processIntercentedResponse(input, response) {
+                // Check URL patterns
+                const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
                 let normalizedUrl = url;
                 try {
+                    // Resolve relative URLs relative to the current page
                     normalizedUrl = new URL(url, location.href).pathname;
                 } catch {
                     // Ignore URL parsing errors
                 }
+
                 const chatId = this._getChatIdFromUrl(normalizedUrl);
+                if (!chatId) return;
 
-                // Only log and process if it matches our target API
-                if (chatId) {
-                    Logger.debug('FETCH', LOG_STYLES.ORANGE, 'Target API URL intercepted:', url);
+                // Check response status
+                if (!response.ok || response.status !== 200) return;
 
-                    // Handle response processing in an async then() block
-                    // to keep the main fetch call synchronous (returning a Promise immediately).
-                    responsePromise
-                        .then(async (response) => {
-                            try {
-                                // Make the callback async
-                                // Only proceed if the response was successful
-                                if (response && response.ok && response.status === 200) {
-                                    // Use response.clone() to create a safe copy for us to read
-                                    const clonedResponse = response.clone();
-                                    // Await the parsed map
-                                    const timestamps = await this._processResponse(clonedResponse);
+                Logger.debug('FETCH', LOG_STYLES.ORANGE, 'Target API URL intercepted:', url);
 
-                                    if (timestamps.size > 0) {
-                                        // Store in buffer for late-initialized managers
-                                        this.capturedData.set(chatId, { chatId, timestamps });
-                                        // Event publishing is now the responsibility of fetch
-                                        EventBus.publish(EVENTS.TIMESTAMPS_LOADED, { chatId, timestamps });
-                                    }
-                                }
-                            } catch (e) {
-                                const now = Date.now();
-                                if (now - this._lastFetchObserveErrorAt > 60000) {
-                                    this._lastFetchObserveErrorAt = now;
-                                    Logger.debug('FETCH', LOG_STYLES.ORANGE, 'Timestamp observe failed:', e);
-                                }
-                            }
-                        })
-                        .catch(() => {
-                            // Ignore fetch errors
-                        });
+                // Parse the cloned response
+                const timestamps = await this._processResponse(response);
+
+                if (timestamps.size > 0) {
+                    // Store in buffer
+                    this.capturedData.set(chatId, { chatId, timestamps });
+                    // Publish event
+                    EventBus.publish(EVENTS.TIMESTAMPS_LOADED, { chatId, timestamps });
                 }
-
-                // Return the original, untouched promise to the caller immediately
-                return responsePromise;
             }
 
             async _processResponse(response) {
