@@ -571,7 +571,6 @@ interface PlatformConstants {
     };
     INPUT_MODES: {
         NORMAL: string;
-        CTRL: string;
         SHIFT: string;
     };
     DATA_KEYS: {

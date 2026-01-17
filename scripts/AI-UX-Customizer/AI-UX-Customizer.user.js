@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b321
+// @version      1.0.0-b322
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -182,7 +182,6 @@
         },
         INPUT_MODES: {
             NORMAL: 'normal',
-            CTRL: 'ctrl',
             SHIFT: 'shift',
         },
         DATA_KEYS: {
@@ -8221,8 +8220,8 @@
                 previousTotalMessages: messageCacheManager.getTotalMessages().length,
                 isAutoScrolling: false,
                 activeRole: CONSTANTS.NAV_ROLES.TOTAL,
-                inputMode: CONSTANTS.INPUT_MODES.NORMAL, // 'normal', 'ctrl', 'shift'
-                stickyMode: null, // null | 'ctrl' | 'shift'
+                inputMode: CONSTANTS.INPUT_MODES.NORMAL, // 'normal', 'shift'
+                stickyMode: null, // null | 'shift'
                 interactionActive: false, // true if hovered or focused
             };
 
@@ -8563,11 +8562,6 @@
                 `button.${btnBaseClass}.${cls.btnAccent}`,
                 {
                     title: 'Previous message',
-                    oncontextmenu: (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        this._navigateTo(this.state.activeRole, 'first');
-                    },
                 },
                 [createIconFromDef(StyleDefinitions.ICONS.arrowUp)]
             );
@@ -8586,11 +8580,6 @@
                 `button.${btnBaseClass}.${cls.btnAccent}`,
                 {
                     title: 'Next message',
-                    oncontextmenu: (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        this._navigateTo(this.state.activeRole, 'last');
-                    },
                 },
                 [createIconFromDef(StyleDefinitions.ICONS.arrowDown)]
             );
@@ -8619,14 +8608,14 @@
             const counter = h(
                 `span.${cls.counter}`,
                 {
-                    title: 'Click to enter message number to jump\n[Right-Click] Cycle modes (Normal/Ctrl/Shift)',
+                    title: 'Click to enter message number to jump\n[Right-Click] Cycle modes (Normal/Shift)',
                     oncontextmenu: this._handleModeContextMenu,
                 },
                 [h(`span.${cls.counterCurrent}`, '--'), ' / ', h(`span.${cls.counterTotal}`, '--')]
             );
 
             // Layout Construction
-            const leftSlot = h(`div.${cls.group}`, [btnPrev, btnFirst, ...platformButtons]);
+            const leftSlot = h(`div.${cls.group}`, [btnFirst, ...platformButtons, btnPrev]);
             const centerSlot = h(`div.${cls.group}`, [roleBtn, counter]);
             const rightSlot = h(`div.${cls.group}`, [btnNext, btnLast, btnFold]);
 
@@ -8820,9 +8809,8 @@
 
             // Update Button Visibility based on Input Mode (Using Effective Mode)
             const btns = this.uiCache.buttons;
-            const isNormal = effectiveMode === CONSTANTS.INPUT_MODES.NORMAL;
-            const isCtrl = effectiveMode === CONSTANTS.INPUT_MODES.CTRL;
             const isShift = effectiveMode === CONSTANTS.INPUT_MODES.SHIFT;
+            const isNormal = !isShift;
 
             // Helper to toggle display style without triggering reflow if unchanged
             const toggleDisplay = (el, show) => {
@@ -8831,12 +8819,15 @@
                 if (el.style.display !== newVal) el.style.display = newVal;
             };
 
-            toggleDisplay(btns.prev, isNormal);
-            toggleDisplay(btns.next, isNormal);
-            toggleDisplay(btns.first, isCtrl);
-            toggleDisplay(btns.last, isCtrl);
+            // Prev/Next are always visible
+            toggleDisplay(btns.prev, true);
+            toggleDisplay(btns.next, true);
 
-            // Handle Platform Buttons
+            // First/Last visible in Normal mode
+            toggleDisplay(btns.first, isNormal);
+            toggleDisplay(btns.last, isNormal);
+
+            // Platform Buttons (Scan) visible in Shift mode (Replaces First)
             const platformButtons = btns.platformButtons || [];
             platformButtons.forEach((btn) => {
                 if (btn instanceof HTMLElement) {
@@ -8848,11 +8839,8 @@
                 }
             });
 
-            // Flex display for fold button
-            const foldDisplay = isShift ? 'flex' : 'none';
-            if (btns.fold instanceof HTMLElement && btns.fold.style.display !== foldDisplay) {
-                btns.fold.style.display = foldDisplay;
-            }
+            // Fold button visible in Shift mode (Replaces Last)
+            toggleDisplay(btns.fold, isShift);
 
             // Update Tooltips and State
             const roleName = activeRole === CONSTANTS.NAV_ROLES.TOTAL ? 'message' : activeRole === CONSTANTS.NAV_ROLES.ASSISTANT ? 'assistant message' : 'user message';
@@ -8865,8 +8853,6 @@
                 if (isFirefox()) {
                     shiftActionText = '\n[Shift] Scan layout';
                 } else {
-                    // For non-Firefox ChatGPT, show description but indicate it might be restricted, or just hide if preferred.
-                    // Based on previous instruction to just hide the text if N/A:
                     shiftActionText = '';
                 }
             }
@@ -8877,10 +8863,10 @@
                 }
             };
 
-            updateTooltip(btns.prev, `Previous ${roleName}\n[Ctrl / R-Click] First${shiftActionText}`);
-            updateTooltip(btns.next, `Next ${roleName}\n[Ctrl / R-Click] Last\n[Shift] Fold`);
-            updateTooltip(btns.first, `First ${roleName}`);
-            updateTooltip(btns.last, `Last ${roleName}`);
+            updateTooltip(btns.first, `First ${roleName}${shiftActionText}`);
+            updateTooltip(btns.prev, `Previous ${roleName}`);
+            updateTooltip(btns.next, `Next ${roleName}`);
+            updateTooltip(btns.last, `Last ${roleName}\n[Shift] Fold`);
 
             // Update bulk collapse button visibility and state
             this._updateBulkCollapseButtonTooltip(btns.fold);
@@ -9181,7 +9167,7 @@
             // This prevents the list from closing unexpectedly when typing uppercase letters (Shift+Char).
             if (this.state.jumpListComponent) return;
 
-            if (e.key !== 'Control' && e.key !== 'Shift') return;
+            if (e.key !== 'Shift') return;
 
             // Only update input mode if the user is interacting with the console
             if (!this.state.interactionActive) return;
@@ -9189,8 +9175,6 @@
             let newMode = CONSTANTS.INPUT_MODES.NORMAL;
             if (e.shiftKey) {
                 newMode = CONSTANTS.INPUT_MODES.SHIFT;
-            } else if (e.ctrlKey) {
-                newMode = CONSTANTS.INPUT_MODES.CTRL;
             }
 
             if (this.state.inputMode !== newMode) {
@@ -9216,7 +9200,6 @@
             // Update input mode immediately on entry if modifier keys are pressed
             if (e.type === 'mouseenter') {
                 if (e.shiftKey) this.state.inputMode = CONSTANTS.INPUT_MODES.SHIFT;
-                else if (e.ctrlKey) this.state.inputMode = CONSTANTS.INPUT_MODES.CTRL;
                 else this.state.inputMode = CONSTANTS.INPUT_MODES.NORMAL;
             }
 
@@ -9271,7 +9254,7 @@
             e.preventDefault();
             e.stopPropagation();
 
-            const modes = [null, CONSTANTS.INPUT_MODES.CTRL, CONSTANTS.INPUT_MODES.SHIFT];
+            const modes = [null, CONSTANTS.INPUT_MODES.SHIFT];
             const currentIndex = modes.indexOf(this.state.stickyMode);
             const nextIndex = (currentIndex + 1) % modes.length;
 
@@ -9281,7 +9264,7 @@
 
         _handleWindowBlur() {
             // Reset input mode to normal when the window loses focus (e.g. Alt+Tab).
-            // This prevents modifier keys (Ctrl/Shift) from getting stuck in the active state.
+            // This prevents modifier keys from getting stuck in the active state.
             if (this.state.inputMode !== CONSTANTS.INPUT_MODES.NORMAL) {
                 this.state.inputMode = CONSTANTS.INPUT_MODES.NORMAL;
                 this._renderUI();

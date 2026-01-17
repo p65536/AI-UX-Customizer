@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b322] - 2026-01-17
+- **UI Improvements**
+  - Simplified the **Navigation Console** interface. The "Top" and "End" buttons are now always visible, removing the need to hold `Ctrl` for basic navigation.
+
 ## [1.0.0-b321] - 2026-01-16
 - **Bug Fixes**
   - **[ChatGPT]** Fixed an issue where timestamps would fail to appear for the initial message when starting a new chat.
