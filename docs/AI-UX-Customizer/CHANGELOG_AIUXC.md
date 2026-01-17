@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.0.0-b329] - 2026-01-17
+- **New Features**
+  - **[Navi Console]** Introduced a **Hybrid Positioning System** for the Navigation Console. You can now choose to embed the console directly into the site header or keep it floating above the input area.
+  - **[Smart Positioning]** Implemented an auto-fallback mechanism for the "Header" position setting. The console will automatically move to the "Input Top" position if the screen is too narrow (under 960px) or if side panels (like Canvas or File Panel) are open. This prevents the navigation controls from overlapping with the site's native toolbar.
+  - **[Settings]** Added a "Console Position" option to the settings panel to switch between **Header** integration and **Input Top** positioning.
+- **Improvements**
+  - **[Jump List]** The Jump List layout now automatically adapts to the console's position, expanding downwards when placed in the header to ensure content remains visible.
+- **Core Changes**
+  - **[UI]** Refactored the core `Select` component to support data-driven option handling and flexible layout configurations.
+  - **[Config]** Implemented a robust **Auto-Repair Mechanism** for user settings. If configuration data (such as options or feature toggles) becomes corrupted or missing due to manual editing or errors, the script now automatically restores safe defaults to prevent crashes.
+  - **[Config]** Enhanced validation logic for the **Navigation Console Position** setting to ensure it always falls back to a valid location ("Input Top") if an invalid value is detected.
+- **Performance & Fixes**
+  - Fixed a memory leak issue where the application became sluggish after importing settings or extensively using the Theme Editor.
+  - Optimized memory usage by ensuring temporary configuration data is immediately released when closing the settings modal, eliminating the need to reload the page to restore performance.
+
 ## [1.0.0-b322] - 2026-01-17
 - **UI Improvements**
   - Simplified the **Navigation Console** interface. The "Top" and "End" buttons are now always visible, removing the need to hold `Ctrl` for basic navigation.

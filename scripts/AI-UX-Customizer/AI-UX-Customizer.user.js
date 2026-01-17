@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b322
+// @version      1.0.0-b329
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -184,6 +184,10 @@
             NORMAL: 'normal',
             SHIFT: 'shift',
         },
+        CONSOLE_POSITIONS: {
+            INPUT_TOP: 'input_top',
+            HEADER: 'header',
+        },
         DATA_KEYS: {
             AVATAR_INJECT_ATTEMPTS: `${APPID}AvatarInjectAttempts`,
             AVATAR_INJECT_FAILED: `${APPID}AvatarInjectFailed`,
@@ -229,7 +233,7 @@
                     auto_collapse_user_message: { enabled: false },
                     sequential_nav_buttons: { enabled: true },
                     scroll_to_top_button: { enabled: true },
-                    fixed_nav_console: { enabled: true },
+                    fixed_nav_console: { enabled: true, position: SHARED_CONSTANTS.CONSOLE_POSITIONS.INPUT_TOP },
                     load_full_history_on_chat_load: { enabled: true },
                     timestamp: { enabled: true },
                 },
@@ -280,7 +284,7 @@
                     auto_collapse_user_message: { enabled: false },
                     sequential_nav_buttons: { enabled: true },
                     scroll_to_top_button: { enabled: true },
-                    fixed_nav_console: { enabled: true },
+                    fixed_nav_console: { enabled: true, position: SHARED_CONSTANTS.CONSOLE_POSITIONS.INPUT_TOP },
                     load_full_history_on_chat_load: { enabled: true },
                     timestamp: { enabled: true },
                 },
@@ -1300,6 +1304,23 @@
      * @description Adapters for the Fixed Navigation Console.
      */
     class BaseFixedNavAdapter {
+        /**
+         * Checks if the header position is available based on the current window state.
+         * @param {number} [navConsoleWidth] Optional width of the console for strict checking.
+         * @returns {boolean} True if header positioning is allowed.
+         */
+        isHeaderPositionAvailable(navConsoleWidth) {
+            return true;
+        }
+
+        /**
+         * Gets the container element in the header/toolbar where the nav console should be embedded.
+         * @returns {HTMLElement | null} The container element, or null if not found.
+         */
+        getNavAnchorContainer() {
+            return null;
+        }
+
         /**
          * Handles logic for infinite scroll state updates.
          * @param {FixedNavigationManager} manager The manager instance.
@@ -2984,6 +3005,7 @@
                 userItem: 'user-item',
                 asstItem: 'assistant-item',
                 visible: 'is-visible',
+                expandDown: 'expand-down',
             };
 
             // prettier-ignore
@@ -3392,7 +3414,8 @@
                 /* Common Inputs */
                 .${cls.formField} input[type="text"], 
                 .${cls.formField} textarea, 
-                .${cls.formField} select {
+                .${cls.formField} select,
+                .${cls.submenuRow} select {
                     background: ${palette.input_bg};
                     border: 1px solid ${palette.border};
                     border-radius: 4px;
@@ -3401,6 +3424,13 @@
                     padding: 6px 8px;
                     width: 100%;
                 }
+                /* Submenu Row Select Specific Sizing */
+                .${cls.submenuRow} select {
+                    width: auto;
+                    min-width: 120px;
+                    max-width: 50%;
+                }
+
                 .${cls.formField} input[type="text"].${cls.invalidInput}, 
                 .${cls.formField} textarea.${cls.invalidInput} {
                     border-color: ${palette.error_text} !important;
@@ -3998,6 +4028,16 @@
                         opacity: 1;
                         transform-origin: bottom;
                     }
+                    /* Embedded Mode (Header Integration) */
+                    #${cls.consoleId}.is-embedded {
+                        position: static !important;
+                        background-color: transparent !important;
+                        border: none !important;
+                        box-shadow: none !important;
+                        padding: 0 8px !important;
+                        height: 100%;
+                        z-index: auto;
+                    }
                     #${cls.consoleId}.${cls.hidden} {
                         display: none !important;
                     }
@@ -4161,9 +4201,14 @@
                         display: flex;
                         flex-direction: column;
                     }
+                    #${cls.containerId}.${cls.expandDown} {
+                        transform-origin: top;
+                        transform: translateY(-10px);
+                    }
                     #${cls.containerId}:focus, #${cls.listId}:focus, .${cls.scrollbox}:focus {
                         outline: none;
                     }
+                    /* Ensure 'visible' overrides the transform to 0 */
                     #${cls.containerId}.${cls.visible} {
                         opacity: 1;
                         transform: translateY(0);
@@ -5446,12 +5491,49 @@
             // 1. Sanitize Platform Specific Options & Collect defaultSets
             const platformDefaultSets = [];
             if (config.platforms) {
-                Object.values(config.platforms).forEach((platformConfig) => {
+                // Use Object.entries to access the platform key (e.g., "ChatGPT") for default lookup
+                Object.entries(config.platforms).forEach(([platformName, platformConfig]) => {
+                    // Define critical sections to check and auto-repair.
+                    // We check not just for existence, but also that they are valid objects.
+                    const criticalSections = ['options', 'features', 'defaultSet'];
+
+                    criticalSections.forEach((section) => {
+                        // If section is missing, null, or not an object (e.g. string/number corrupted)
+                        if (!isObject(platformConfig[section])) {
+                            // Attempt to restore from the source code default constant
+                            const defaultSection = DEFAULT_THEME_CONFIG.platforms[platformName]?.[section];
+                            if (defaultSection) {
+                                // Restoration successful: Deep clone to avoid reference issues
+                                platformConfig[section] = deepClone(defaultSection);
+                                Logger.warn('Config', '', `Restored corrupted section "${section}" for ${platformName} from defaults.`);
+                            }
+                        }
+                    });
+
+                    // Collect defaultSet AFTER potential restoration
                     if (platformConfig.defaultSet) {
                         platformDefaultSets.push(platformConfig.defaultSet);
                     }
 
-                    if (!platformConfig.options) return;
+                    // Validate Features
+                    if (platformConfig.features) {
+                        // Ensure fixed_nav_console feature object is valid before checking position
+                        if (!isObject(platformConfig.features.fixed_nav_console)) {
+                            const defaultFeature = DEFAULT_THEME_CONFIG.platforms[platformName]?.features?.fixed_nav_console;
+                            if (defaultFeature) {
+                                platformConfig.features.fixed_nav_console = deepClone(defaultFeature);
+                            }
+                        }
+
+                        const consoleFeature = platformConfig.features.fixed_nav_console;
+                        // Check position enum if feature exists (it should now, unless default is also missing)
+                        if (consoleFeature) {
+                            const validPositions = Object.values(CONSTANTS.CONSOLE_POSITIONS);
+                            if (!validPositions.includes(consoleFeature.position)) {
+                                consoleFeature.position = CONSTANTS.CONSOLE_POSITIONS.INPUT_TOP;
+                            }
+                        }
+                    }
 
                     // Sanitize icon_size
                     if (!CONSTANTS.UI_SPECS.AVATAR.SIZE_OPTIONS.includes(platformConfig.options.icon_size)) {
@@ -8669,40 +8751,100 @@
         }
 
         /**
-         * Repositions the navigation console to align with the main input form.
+         * Repositions the navigation console.
+         * Handles fixed positioning (near input) and embedded positioning (in header).
          * @returns {void}
          */
         repositionContainers() {
-            const inputForm = document.querySelector(CONSTANTS.SELECTORS.FIXED_NAV_INPUT_AREA_TARGET);
-            if (!inputForm || !this.navConsole) return;
+            if (!this.navConsole) return;
+
+            const config = this.configManager.get();
+            // Default to 'input_top' if not specified
+            const positionSetting = config?.platforms?.[PLATFORM]?.features?.fixed_nav_console?.position || CONSTANTS.CONSOLE_POSITIONS.INPUT_TOP;
+
+            // Resolve anchor container for header mode
+            let headerContainer = null;
+            if (positionSetting === CONSTANTS.CONSOLE_POSITIONS.HEADER) {
+                headerContainer = PlatformAdapters.FixedNav.getNavAnchorContainer();
+            }
 
             // Use withLayoutCycle to prevent layout thrashing
             withLayoutCycle({
                 measure: () => {
                     // --- Read Phase ---
-                    const formRect = inputForm.getBoundingClientRect();
-                    // Guard: If the anchor is not visible (size 0), abort measurement to prevent invalid positioning.
-                    if (formRect.width === 0 || formRect.height === 0) {
-                        return null;
+                    // 1. Determine Target Mode
+                    let targetMode = positionSetting;
+
+                    // Fallback: Check availability and container existence
+                    if (targetMode === CONSTANTS.CONSOLE_POSITIONS.HEADER) {
+                        const adapter = PlatformAdapters.FixedNav;
+                        const isAvailable = adapter.isHeaderPositionAvailable();
+
+                        if (!headerContainer || !isAvailable) {
+                            targetMode = CONSTANTS.CONSOLE_POSITIONS.INPUT_TOP;
+                        }
                     }
-                    return {
-                        formRect: formRect,
-                        consoleWidth: this.navConsole.offsetWidth,
-                        windowHeight: window.innerHeight,
+
+                    // 2. Prepare Data
+                    const result = {
+                        mode: targetMode,
+                        isAlreadyEmbedded: targetMode === CONSTANTS.CONSOLE_POSITIONS.HEADER ? this.navConsole.parentElement === headerContainer : false,
+                        isAlreadyBodyChild: targetMode !== CONSTANTS.CONSOLE_POSITIONS.HEADER ? this.navConsole.parentElement === document.body : false,
+                        headerContainer,
+                        style: {},
                     };
+
+                    // 3. Measure ONLY if needed
+                    if (targetMode === CONSTANTS.CONSOLE_POSITIONS.INPUT_TOP) {
+                        const inputForm = document.querySelector(CONSTANTS.SELECTORS.FIXED_NAV_INPUT_AREA_TARGET);
+                        // Fallback: If input form not found, we can't position properly.
+                        if (!inputForm) return null;
+
+                        const formRect = inputForm.getBoundingClientRect();
+                        const consoleRect = this.navConsole.getBoundingClientRect();
+                        const consoleWidth = consoleRect.width;
+                        const windowHeight = window.innerHeight;
+
+                        const margin = CONSTANTS.UI_SPECS.PANEL_MARGIN;
+                        const bottomPosition = windowHeight - formRect.top + margin;
+                        const formCenter = formRect.left + formRect.width / 2;
+
+                        result.style.left = `${formCenter - consoleWidth / 2}px`;
+                        result.style.bottom = `${bottomPosition}px`;
+                    }
+
+                    return result;
                 },
                 mutate: (measured) => {
                     // --- Write Phase ---
                     if (!measured) return;
 
-                    const { formRect, consoleWidth, windowHeight } = measured;
-                    const bottomPosition = `${windowHeight - formRect.top + CONSTANTS.UI_SPECS.PANEL_MARGIN}px`;
-                    const formCenter = formRect.left + formRect.width / 2;
+                    if (measured.mode === CONSTANTS.CONSOLE_POSITIONS.HEADER) {
+                        // Apply Embedded Mode
+                        if (!measured.isAlreadyEmbedded && measured.headerContainer) {
+                            measured.headerContainer.appendChild(this.navConsole);
+                        }
+                        this.navConsole.classList.add('is-embedded');
 
-                    this.navConsole.style.left = `${formCenter - consoleWidth / 2}px`;
-                    this.navConsole.style.bottom = bottomPosition;
+                        // Reset fixed positioning styles
+                        this.navConsole.style.left = '';
+                        this.navConsole.style.right = '';
+                        this.navConsole.style.bottom = '';
+                        this.navConsole.style.position = '';
+                    } else {
+                        // Apply Fixed Mode
+                        if (!measured.isAlreadyBodyChild) {
+                            document.body.appendChild(this.navConsole);
+                        }
+                        this.navConsole.classList.remove('is-embedded');
 
-                    // Reveal the console only after the correct position has been applied
+                        this.navConsole.style.position = 'fixed';
+                        this.navConsole.style.left = measured.style.left;
+                        this.navConsole.style.right = ''; // Ensure right is cleared
+                        this.navConsole.style.bottom = measured.style.bottom;
+                    }
+
+                    // Reveal the console
                     this.navConsole.classList.remove(this.styleHandle.classes.unpositioned);
                 },
             });
@@ -11013,17 +11155,25 @@
         ComponentRegistry.register('select', {
             render(node, context) {
                 const cls = context.styles;
-                const options = (node.options || []).map((opt) => h('option', { value: opt }, opt));
-                // Add empty option if needed, logic handled by value binding
-                options.unshift(h('option', { value: '' }, '(not set)'));
+                // Map options to elements, converting empty string to "(not set)" for display
+                const options = (node.options || []).map((opt) => {
+                    const text = opt === '' ? '(not set)' : opt;
+                    return h('option', { value: opt }, text);
+                });
 
                 const select = h('select', { dataset: { [CONSTANTS.DATA_KEYS.CONFIG_KEY]: node.configKey } }, options);
 
-                // Use labelRow to accommodate status/error message, aligning with text/color components
-                return h('div', { className: cls.formField }, [
-                    h('div', { className: cls.labelRow }, [h('label', { title: node.tooltip }, node.label), h('span', { className: cls.statusText, dataset: { [CONSTANTS.DATA_KEYS.FORM_ERROR_FOR]: node.configKey } })]),
-                    select,
-                ]);
+                // If label display is requested, wrap in form field structure
+                if (node.showLabel === true) {
+                    // Use labelRow to accommodate status/error message, aligning with text/color components
+                    return h('div', { className: cls.formField }, [
+                        h('div', { className: cls.labelRow }, [h('label', { title: node.tooltip }, node.label), h('span', { className: cls.statusText, dataset: { [CONSTANTS.DATA_KEYS.FORM_ERROR_FOR]: node.configKey } })]),
+                        select,
+                    ]);
+                }
+
+                // Otherwise return raw select element (e.g. for row layouts)
+                return select;
             },
         });
 
@@ -11230,16 +11380,34 @@
                             SchemaBuilder.Text('window.backgroundImageUrl', 'Background image:', { tooltip: 'URL or Data URI for the main background image.', fieldType: 'image' }),
                             SchemaBuilder.Container(
                                 [
-                                    SchemaBuilder.Select('window.backgroundSize', 'Size:', ['auto', 'cover', 'contain'], { tooltip: 'How the background image is sized.' }),
-                                    SchemaBuilder.Select('window.backgroundPosition', 'Position:', ['top left', 'top center', 'top right', 'center left', 'center center', 'center right', 'bottom left', 'bottom center', 'bottom right'], {
-                                        tooltip: 'Position of the background image.',
+                                    SchemaBuilder.Select('window.backgroundSize', 'Size:', ['', 'auto', 'cover', 'contain'], {
+                                        tooltip: 'How the background image is sized.',
+                                        showLabel: true,
                                     }),
+                                    SchemaBuilder.Select(
+                                        'window.backgroundPosition',
+                                        'Position:',
+                                        ['', 'top left', 'top center', 'top right', 'center left', 'center center', 'center right', 'bottom left', 'bottom center', 'bottom right'],
+                                        {
+                                            tooltip: 'Position of the background image.',
+                                            showLabel: true,
+                                        }
+                                    ),
                                 ],
                                 { className: 'compoundFormFieldContainer' }
                             ),
-                            SchemaBuilder.Container([SchemaBuilder.Select('window.backgroundRepeat', 'Repeat:', ['no-repeat', 'repeat'], { tooltip: 'How the background image is repeated.' }), SchemaBuilder.PreviewBackground()], {
-                                className: 'compoundFormFieldContainer',
-                            }),
+                            SchemaBuilder.Container(
+                                [
+                                    SchemaBuilder.Select('window.backgroundRepeat', 'Repeat:', ['', 'no-repeat', 'repeat'], {
+                                        tooltip: 'How the background image is repeated.',
+                                        showLabel: true,
+                                    }),
+                                    SchemaBuilder.PreviewBackground(),
+                                ],
+                                {
+                                    className: 'compoundFormFieldContainer',
+                                }
+                            ),
                         ]),
                         SchemaBuilder.Group('Input area', [
                             SchemaBuilder.Color('inputArea.backgroundColor', 'Background color:', { tooltip: 'Background color of the text input area.' }),
@@ -11431,17 +11599,25 @@
                     SchemaBuilder.Toggle(`${p}.features.collapsible_button.enabled`, 'Collapsible button', { title: 'Enables a button to collapse large message bubbles.' }),
                     SchemaBuilder.Toggle(`${p}.features.sequential_nav_buttons.enabled`, 'Sequential nav buttons', { title: 'Enables buttons to jump to the previous/next message.' }),
                     SchemaBuilder.Toggle(`${p}.features.scroll_to_top_button.enabled`, 'Scroll to top button', { title: 'Enables a button to scroll to the top of a message.' }),
-                    SchemaBuilder.Toggle(`${p}.features.fixed_nav_console.enabled`, 'Navigation console', { title: 'When enabled, a navigation console with message counters will be displayed next to the text input area.' }),
+
+                    // Navigation Console Group
+                    SchemaBuilder.Toggle(`${p}.features.fixed_nav_console.enabled`, 'Navigation console', { title: 'When enabled, a navigation console with message counters will be displayed.' }),
+                    SchemaBuilder.Select(`${p}.features.fixed_nav_console.position`, 'Console Position', [CONSTANTS.CONSOLE_POSITIONS.INPUT_TOP, CONSTANTS.CONSOLE_POSITIONS.HEADER], {
+                        title: 'Choose where to display the navigation console.\nInput Top: Floating above the input area (Default).\nHeader: Embedded in the top toolbar.',
+                        disabledIf: (data) => !getPropertyByPath(data, `${p}.features.fixed_nav_console.enabled`),
+                        showLabel: false,
+                    }),
                 ];
 
                 const platformFeatures = PlatformAdapters.SettingsPanel.getPlatformSpecificFeatureToggles();
 
-                // Wrap each feature in a Row for layout consistency
-                const featureGroups = [...platformFeatures, ...commonFeatures].map((feature) => {
+                // Wrap each feature in a Row.
+                // Note: The console options are visually grouped by the user interface layout logic.
+                const featureGroups = [...platformFeatures, ...commonFeatures].map((/** @type {any} */ feature) => {
                     return SchemaBuilder.Row(
                         [
                             SchemaBuilder.Label(feature.label, { title: feature.title }),
-                            feature, // The toggle itself
+                            feature, // The toggle/select itself
                         ],
                         { className: 'featureGroup' }
                     );
@@ -13390,6 +13566,14 @@
                     this.engine = null;
                     this.store = null;
                     this.modal = null;
+                    // Release memory: Clear the temporary state containing the config copy
+                    this.state = {
+                        activeThemeKey: null,
+                        uiMode: ThemeModalComponent.UI_MODES.NORMAL,
+                        pendingDeletionKey: null,
+                        config: null,
+                        isSizeExceeded: false,
+                    };
                 },
             });
 
@@ -14106,9 +14290,9 @@
             if (!this.element) this.render();
 
             // 1. Measure (Read Phase)
-            // Measure geometry before modifying the DOM to prevent Forced Reflow.
             const anchorRect = anchorElement.getBoundingClientRect();
             const viewportHeight = window.innerHeight;
+            const viewportWidth = window.innerWidth;
 
             // 2. Mutate (Write Phase)
             document.body.appendChild(this.element);
@@ -14118,15 +14302,45 @@
             // Manually trigger the filter immediately to populate the list without delay
             this._executeFilter();
 
-            const margin = 8;
-            const topLimit = viewportHeight * 0.3;
+            const verticalMargin = 8;
+            // Increase horizontal margin to avoid overlapping with browser scrollbar
+            const horizontalMargin = 24;
+            const width = JumpListComponent.DIMENSIONS.WIDTH;
+            const isTopHalf = anchorRect.top < viewportHeight / 2;
 
-            this.element.style.left = `${anchorRect.left}px`;
-            this.element.style.bottom = `${viewportHeight - anchorRect.top + 4}px`;
-            this.element.style.width = `${JumpListComponent.DIMENSIONS.WIDTH}px`;
+            // Horizontal Positioning (Keep on screen)
+            let left = anchorRect.left;
+            if (left + width > viewportWidth - horizontalMargin) {
+                left = viewportWidth - width - horizontalMargin;
+            }
+            // Ensure strictly non-negative left position
+            left = Math.max(horizontalMargin, left);
 
-            const maxHeight = anchorRect.top - topLimit - margin;
-            this.element.style.maxHeight = `${Math.max(100, maxHeight)}px`;
+            this.element.style.left = `${left}px`;
+            this.element.style.width = `${width}px`;
+
+            if (isTopHalf) {
+                // Expand Down (Header Mode / Top Half)
+                this.element.classList.add(cls.expandDown);
+                this.element.style.top = `${anchorRect.bottom + 4}px`;
+                this.element.style.bottom = 'auto';
+
+                const maxHeight = viewportHeight - anchorRect.bottom - verticalMargin * 2;
+                this.element.style.maxHeight = `${Math.max(100, maxHeight)}px`;
+            } else {
+                // Expand Up (Footer Mode / Bottom Half)
+                this.element.classList.remove(cls.expandDown);
+                this.element.style.top = 'auto';
+                this.element.style.bottom = `${viewportHeight - anchorRect.top + 4}px`;
+
+                // Reserve 10% space at the top to avoid covering headers entirely
+                const topLimit = viewportHeight * 0.1;
+                const maxHeight = anchorRect.top - topLimit - verticalMargin;
+                this.element.style.maxHeight = `${Math.max(100, maxHeight)}px`;
+            }
+
+            // Force reflow to ensure start position is applied before transition
+            this.element.getBoundingClientRect();
 
             this.element.classList.add(cls.visible);
 
@@ -16036,6 +16250,7 @@
             } else if (this.fixedNavManager) {
                 // If the manager already exists, tell it to re-render with the new config.
                 this.fixedNavManager.updateUI();
+                this.fixedNavManager.scheduleReposition();
             }
             PlatformAdapters.AppController.applyPlatformSpecificUiUpdates(this, completeConfig);
         }
@@ -16255,6 +16470,10 @@
         // ---- Default Settings & Theme Configuration ----
         const CONSTANTS = {
             ...SHARED_CONSTANTS,
+            UI_SPECS: {
+                ...SHARED_CONSTANTS.UI_SPECS,
+                HEADER_POSITION_MIN_WIDTH: 960,
+            },
             OBSERVER_OPTIONS: {
                 childList: true,
                 subtree: false,
@@ -16327,6 +16546,10 @@
                 BUTTON_SHARE_CHAT: '[data-testid="share-chat-button"]',
                 PAGE_HEADER: '#page-header',
                 TITLE_OBSERVER_TARGET: 'title',
+
+                // --- Header Integration Selectors ---
+                HEADER_ACTIONS: '#conversation-header-actions',
+                HEADER_FALLBACK_SECTION: '#page-header > div:last-child',
 
                 // --- BubbleFeature-specific Selectors ---
                 BUBBLE_FEATURE_MESSAGE_CONTAINERS: 'div[data-message-author-role]',
@@ -17432,6 +17655,40 @@
 
         class ChatGPTFixedNavAdapter extends BaseFixedNavAdapter {
             /** @override */
+            isHeaderPositionAvailable(navConsoleWidth) {
+                // 1. Check for panels that compress the layout (Canvas)
+                if (PlatformAdapters.General.isCanvasModeActive()) {
+                    return false;
+                }
+
+                // 2. Check available width in the main container (accounts for sidebar)
+                const container = document.querySelector(CONSTANTS.SELECTORS.SCROLL_CONTAINER);
+                if (container instanceof HTMLElement) {
+                    return container.offsetWidth >= CONSTANTS.UI_SPECS.HEADER_POSITION_MIN_WIDTH;
+                }
+
+                // Fallback to window width if container not found
+                return window.innerWidth >= CONSTANTS.UI_SPECS.HEADER_POSITION_MIN_WIDTH;
+            }
+
+            /** @override */
+            getNavAnchorContainer() {
+                // Try to find the specific action container first
+                const actionContainer = document.querySelector(CONSTANTS.SELECTORS.HEADER_ACTIONS);
+                if (actionContainer && actionContainer.parentElement) {
+                    return actionContainer.parentElement;
+                }
+
+                // Fallback: If on a new chat page or structure changed, try to find the end of the header
+                // The header usually has 3 main divs (Left, Center, Right). We want the Right one.
+                const rightSection = document.querySelector(CONSTANTS.SELECTORS.HEADER_FALLBACK_SECTION);
+                if (rightSection instanceof HTMLElement) {
+                    return rightSection;
+                }
+                return null;
+            }
+
+            /** @override */
             handleInfiniteScroll(fixedNavManagerInstance, highlightedMessage, previousTotalMessages) {
                 // No-op for ChatGPT as it does not use infinite scrolling for chat history.
                 // This method exists to maintain architectural consistency with the Gemini version.
@@ -17731,6 +17988,10 @@
         // ---- Default Settings & Theme Configuration ----
         const CONSTANTS = {
             ...SHARED_CONSTANTS,
+            UI_SPECS: {
+                ...SHARED_CONSTANTS.UI_SPECS,
+                HEADER_POSITION_MIN_WIDTH: 960,
+            },
             OBSERVER_OPTIONS: {
                 childList: true,
                 subtree: true,
@@ -17835,6 +18096,9 @@
 
                 // --- Auto Scroll ---
                 PROGRESS_BAR: 'mat-progress-bar[role="progressbar"]',
+
+                // --- Header Integration Selectors ---
+                HEADER_RIGHT_SECTION: 'top-bar-actions .right-section',
             },
             URL_PATTERNS: {
                 EXCLUDED: [],
@@ -18687,6 +18951,30 @@
         }
 
         class GeminiFixedNavAdapter extends BaseFixedNavAdapter {
+            /** @override */
+            isHeaderPositionAvailable(navConsoleWidth) {
+                // 1. Check for panels that compress the layout (Canvas or File Panel)
+                if (PlatformAdapters.General.isCanvasModeActive() || PlatformAdapters.General.isFilePanelActive()) {
+                    return false;
+                }
+
+                // 2. Check available width in the main container (accounts for sidebar)
+                const container = document.querySelector(CONSTANTS.SELECTORS.MAIN_APP_CONTAINER);
+                if (container instanceof HTMLElement) {
+                    return container.offsetWidth >= CONSTANTS.UI_SPECS.HEADER_POSITION_MIN_WIDTH;
+                }
+
+                // Fallback to window width if container not found
+                return window.innerWidth >= CONSTANTS.UI_SPECS.HEADER_POSITION_MIN_WIDTH;
+            }
+
+            /** @override */
+            getNavAnchorContainer() {
+                // Target the right section of the top bar actions
+                const el = document.querySelector(CONSTANTS.SELECTORS.HEADER_RIGHT_SECTION);
+                return el instanceof HTMLElement ? el : null;
+            }
+
             /** @override */
             handleInfiniteScroll(fixedNavManagerInstance, highlightedMessage, previousTotalMessages) {
                 const currentTotalMessages = fixedNavManagerInstance.messageCacheManager.getTotalMessages().length;

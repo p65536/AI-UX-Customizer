@@ -125,7 +125,7 @@ interface PlatformSettings {
         collapsible_button: { enabled: boolean };
         scroll_to_top_button: { enabled: boolean };
         sequential_nav_buttons: { enabled: boolean };
-        fixed_nav_console: { enabled: boolean };
+        fixed_nav_console: { enabled: boolean; position?: string };
         load_full_history_on_chat_load?: { enabled: boolean };
         timestamp: { enabled: boolean };
         auto_collapse_user_message: { enabled: boolean };
@@ -458,6 +458,8 @@ interface SettingsPanelAdapter {
 }
 
 interface FixedNavAdapter {
+    isHeaderPositionAvailable(navConsoleWidth?: number): boolean;
+    getNavAnchorContainer(): HTMLElement | null;
     handleInfiniteScroll(manager: IFixedNavigationManager, highlightedMessage: HTMLElement | null, previousTotalMessages: number): void;
     applyAdditionalHighlight(messageElement: HTMLElement, styleHandle: StyleHandle): void;
     getPlatformSpecificButtons(manager: IFixedNavigationManager, styleHandle: StyleHandle): Element[];
@@ -572,6 +574,10 @@ interface PlatformConstants {
     INPUT_MODES: {
         NORMAL: string;
         SHIFT: string;
+    };
+    CONSOLE_POSITIONS: {
+        INPUT_TOP: string;
+        HEADER: string;
     };
     DATA_KEYS: {
         AVATAR_INJECT_ATTEMPTS: string;
