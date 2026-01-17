@@ -23,7 +23,8 @@
           "enabled": true
         },
         "fixed_nav_console": {
-          "enabled": true
+          "enabled": true,
+          "position": "input_top"
         },
         "load_full_history_on_chat_load": {
           "enabled": true

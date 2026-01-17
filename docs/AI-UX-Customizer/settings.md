@@ -36,6 +36,7 @@ You can access the Settings Panel by clicking the **Settings button** (gear icon
 | **Sequential nav buttons** | Adds buttons to each message to jump to the next/previous message by the same speaker (user/assistant). |
 | **Scroll to top button** | Adds a button to each message to scroll to the top of that message. |
 | **Navigation console** | Displays an operation panel above the text input field for quick navigation between messages. |
+| **Console Position** | Choose where to display the navigation console.<br>**Input Top**: Floating above the input area (Default).<br>**Header**: Embedded in the top toolbar. |
 
 ### 3. Theme Settings Screen Items
 

@@ -32,7 +32,7 @@ It also includes convenient UI enhancements such as **message collapsing**, **a 
 - **Advanced Navigation & Readability**
   - **[ChatGPT only] Message Timestamps**: Displays the creation time for each message. It fetches historical timestamps from the API and records new ones in real-time.  
     > (This is not available for Gemini as it's technically difficult to retrieve timestamps.)
-  - **Integrated Navigation Console**: A compact UI above the input field with message counters and quick navigation buttons.
+  - **Integrated Navigation Console**: A compact UI with message counters and quick navigation buttons. It can be positioned **floating above the input field** or **embedded in the header**.
   - **Message Jump List with Search**: Instantly jump to any message in the conversation from a list. You can filter messages by plain text or regular expressions.
   - **Per-Message Navigation**: Adds buttons to each message to jump to the next/previous message by the same speaker (user/assistant) or scroll to the top of the current message.
   - **Collapsible Messages**: Adds a button to collapse long messages, and includes a "Bulk Collapse/Expand" button in the navigation console.
@@ -83,17 +83,38 @@ It also includes convenient UI enhancements such as **message collapsing**, **a 
 
 **Note:** The pencil icon in the input area belongs to [**Quick Text Buttons (QTB)**](../Quick-Text-Buttons/README.md), a separate userscript. It allows you to insert predefined text or prompts with a single click. Using `QTB` alongside `AI-UX-Customizer` provides a highly efficient chat experience.
 
-### 9. Differences between the navigation consoles of ChatGPT and Gemini
+### 9. Navigation Console Modes & Platform Differences
 
-##### ChatGPT
-  - **[Firefox only]** The left end button (visible only on Firefox) is the "Run layout scan and rescan DOM" function.  
-  This is primarily used to mitigate a Firefox-specific bug where the scroll position jumps when images or messages load late. Use this button if you experience that issue, or if message counts appear incorrect.  
-![Navigation Console on ChatGPT](./images/navi_console_chatgpt.webp)
+The Navigation Console functionality changes when you hold the **[Shift]** key.  
+(You can also Right-Click the center counter to toggle "Shift Mode" permanently.)
 
-##### Gemini
-  - The left end button is the "Load full chat history (Auto scroll)" function  
-  This button is designed to allow you to manually auto-scroll specific chats while normally disabling the `Load full history on chat load` function.  
-![Navigation Console on Gemini](./images/navi_console_gemini.webp)
+#### Normal Mode vs. Shift Mode
+
+| Mode | ChatGPT | Gemini |
+| :--- | :--- | :--- |
+| **Normal**<br>(Default) | ![ChatGPT Normal](./images/navi_console_chatgpt_normal.webp) | ![Gemini Normal](./images/navi_console_gemini_normal.webp) |
+| **Shift**<br>(Hold Shift) | ![ChatGPT Shift](./images/navi_console_chatgpt_shift.webp) | ![Gemini Shift](./images/navi_console_gemini_shift.webp) |
+
+- **Normal Mode**: Provides standard navigation buttons (Top, Previous, Next, Bottom).
+- **Shift Mode**: Switches to advanced utility buttons.
+  - **Right Button**: Becomes **"Bulk Collapse/Expand"** button.
+  - **Left Button**: Changes to a platform-specific function (see below).
+
+#### Platform-Specific Functions (Left Button in Shift Mode)
+
+- **ChatGPT**:
+  - **[Firefox only] Layout Scan**: Runs a layout scan to fix scroll position jumps caused by late-loading images. Use this if scrolling feels unstable.
+- **Gemini**:
+  - **Load Full History**: Triggers an auto-scroll sequence to load the entire chat history. Useful for searching or exporting long conversations.
+
+### 10. Hybrid Positioning (Header Mode)
+
+By changing the **Console Position** to `header` in the Settings Panel, the Navigation Console acts as part of the page's top header toolbar.  
+This keeps the input area clean and maximizes the chat display area.
+
+![Header Mode](./images/navi_console_header_mode.webp)
+
+**Note:** If the window width is narrow (e.g., on smaller screens) or specific UI panels are active, the console will automatically fall back to the `Input Top` position to prevent layout overlaps.
 
 ---
 
