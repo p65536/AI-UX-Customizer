@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-b394] - 2026-01-21
+- **Improvements**
+  - **Persistent Image Cache**: Cached images (avatars, standing images, backgrounds) are now preserved when temporarily navigating to pages where the script is disabled (e.g., Library, GPTs). This improves performance and prevents flickering when returning to the chat.
+  - **Network Retry Logic**: Fixed an issue where images that failed to load due to temporary network errors would not retry. Failures are now reset upon session initialization or navigation, allowing for recovery.
+
 ## [1.0.0-b393] - 2026-01-21
 - **UI Changes**
   - Updated the **Settings** button icon to a "Palette" style to better reflect the script's focus on theming and visual customization.

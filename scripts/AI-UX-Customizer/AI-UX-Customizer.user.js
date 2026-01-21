@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b393
+// @version      1.0.0-b394
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -6488,6 +6488,13 @@
                     Logger.log('CACHE', '', `Evicted ${oldestKey} from cache to free up space.`);
                 }
             }
+        }
+
+        /**
+         * Clears the record of failed URLs, allowing retry on next fetch attempt.
+         */
+        clearFailedUrls() {
+            this.failedUrls.clear();
         }
 
         /**
@@ -16608,11 +16615,15 @@
      * @property {any} toastManager
      */
     class AppController extends BaseManager {
-        constructor() {
+        /**
+         * @param {DataConverter} dataConverter
+         * @param {ImageDataManager} imageDataManager
+         */
+        constructor(dataConverter, imageDataManager) {
             super();
-            this.dataConverter = new DataConverter();
+            this.dataConverter = dataConverter;
+            this.imageDataManager = imageDataManager;
             this.configManager = new ConfigManager(this.dataConverter);
-            this.imageDataManager = new ImageDataManager(this.dataConverter);
 
             // Individual references for internal use
             this.uiManager = null;
@@ -16641,6 +16652,9 @@
         }
 
         async _onInit() {
+            // Reset failed URLs state on initialization to allow retrying previously failed images in this new session
+            this.imageDataManager.clearFailedUrls();
+
             // Register UI components before initializing UI managers
             registerComponents();
 
@@ -17050,6 +17064,9 @@
         constructor() {
             super();
             this.appController = null;
+            // Persist data conversion and caching services across app lifecycles (navigations)
+            this.dataConverter = new DataConverter();
+            this.imageDataManager = new ImageDataManager(this.dataConverter);
         }
 
         async _onInit() {
@@ -17131,7 +17148,8 @@
                 Logger.log('LIFECYCLE', LOG_STYLES.YELLOW, 'Launching AppController...');
 
                 // Initialize AppController and register it as a resource
-                this.appController = this.manageFactory(CONSTANTS.RESOURCE_KEYS.APP_CONTROLLER, () => new AppController());
+                // Inject the persistent data/image managers
+                this.appController = this.manageFactory(CONSTANTS.RESOURCE_KEYS.APP_CONTROLLER, () => new AppController(this.dataConverter, this.imageDataManager));
 
                 if (this.appController) {
                     await this.appController.init();
