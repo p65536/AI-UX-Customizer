@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b329
+// @version      1.0.0-b393
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -48,6 +48,66 @@
             NAME: 'Gemini',
             HOST: 'gemini.google.com',
         },
+    };
+
+    /**
+     * @constant CSS_VARS
+     * @description Centralized definition of all CSS variables used in the application.
+     * Keys are derived dynamically using APPID to prevent collisions.
+     */
+    const CSS_VARS = {
+        // Actor: User
+        USER_NAME: `--${APPID}-user-name`,
+        USER_NAME_DISPLAY: `--${APPID}-user-name-display`,
+        USER_ICON: `--${APPID}-user-icon`,
+        USER_ICON_DISPLAY: `--${APPID}-user-icon-display`,
+        USER_STANDING_IMAGE: `--${APPID}-user-standing-image`,
+        USER_TEXT_COLOR: `--${APPID}-user-text-color`,
+        USER_FONT: `--${APPID}-user-font`,
+        USER_BUBBLE_BG: `--${APPID}-user-bubble-bg`,
+        USER_BUBBLE_PADDING: `--${APPID}-user-bubble-padding`,
+        USER_BUBBLE_RADIUS: `--${APPID}-user-bubble-radius`,
+        USER_BUBBLE_MAXWIDTH: `--${APPID}-user-bubble-maxwidth`,
+
+        // Actor: Assistant
+        ASSISTANT_NAME: `--${APPID}-assistant-name`,
+        ASSISTANT_NAME_DISPLAY: `--${APPID}-assistant-name-display`,
+        ASSISTANT_ICON: `--${APPID}-assistant-icon`,
+        ASSISTANT_ICON_DISPLAY: `--${APPID}-assistant-icon-display`,
+        ASSISTANT_STANDING_IMAGE: `--${APPID}-assistant-standing-image`,
+        ASSISTANT_TEXT_COLOR: `--${APPID}-assistant-text-color`,
+        ASSISTANT_FONT: `--${APPID}-assistant-font`,
+        ASSISTANT_BUBBLE_BG: `--${APPID}-assistant-bubble-bg`,
+        ASSISTANT_BUBBLE_PADDING: `--${APPID}-assistant-bubble-padding`,
+        ASSISTANT_BUBBLE_RADIUS: `--${APPID}-assistant-bubble-radius`,
+        ASSISTANT_BUBBLE_MAXWIDTH: `--${APPID}-assistant-bubble-maxwidth`,
+
+        // Window & Input
+        WINDOW_BG_COLOR: `--${APPID}-window-bg-color`,
+        WINDOW_BG_IMAGE: `--${APPID}-window-bg-image`,
+        WINDOW_BG_SIZE: `--${APPID}-window-bg-size`,
+        WINDOW_BG_POS: `--${APPID}-window-bg-pos`,
+        WINDOW_BG_REPEAT: `--${APPID}-window-bg-repeat`,
+        INPUT_BG: `--${APPID}-input-bg`,
+        INPUT_FIELD_BG: `--${APPID}-input-field-bg`,
+        INPUT_COLOR: `--${APPID}-input-color`,
+
+        // Layout & Global Styles
+        CHAT_CONTENT_MAX_WIDTH: `--${APPID}-chat-content-max-width`,
+        MESSAGE_MARGIN_TOP: `--${APPID}-message-margin-top`,
+        ICON_SIZE: `--${APPID}-icon-size`,
+        ICON_MARGIN: `--${APPID}-icon-margin`,
+
+        // Standing Image Layout
+        STANDING_IMG_USER_WIDTH: `--${APPID}-standing-image-user-width`,
+        STANDING_IMG_ASST_WIDTH: `--${APPID}-standing-image-assistant-width`,
+        STANDING_IMG_ASST_LEFT: `--${APPID}-standing-image-assistant-left`,
+        STANDING_IMG_USER_MASK: `--${APPID}-standing-image-user-mask`,
+        STANDING_IMG_ASST_MASK: `--${APPID}-standing-image-assistant-mask`,
+        RIGHT_SIDEBAR_WIDTH: `--${APPID}-right-sidebar-width`,
+
+        // Components
+        COLOR_PICKER_FOCUS: `--${APPID}-color-picker-focus-color`,
     };
 
     /**
@@ -188,12 +248,14 @@
             INPUT_TOP: 'input_top',
             HEADER: 'header',
         },
+        CLASSES: {
+            PROCESSED: `${APPID}-processed`,
+            COMPLETE_FIRED: `${APPID}-complete`,
+        },
         DATA_KEYS: {
             AVATAR_INJECT_ATTEMPTS: `${APPID}AvatarInjectAttempts`,
             AVATAR_INJECT_FAILED: `${APPID}AvatarInjectFailed`,
             UNIQUE_ID: `${APPID}UniqueId`,
-            CONTENT_PROCESSED: `${APPID}ContentProcessed`,
-            MESSAGE_COMPLETE_FIRED: `${APPID}MessageCompleteFired`,
             NAV_CMD: 'nav',
             NAV_ROLE: 'role',
             ORIGINAL_TITLE: 'originalTitle',
@@ -211,6 +273,51 @@
             WARNING_PATH: '_system.warning',
             WARNING_MSG_PATH: '_system.warning.message',
             WARNING_SHOW_PATH: '_system.warning.show',
+        },
+        RESOURCE_KEYS: {
+            // UI Components
+            SETTINGS_BUTTON: 'settingsButton',
+            SETTINGS_PANEL: 'settingsPanel',
+            JSON_MODAL: 'jsonModal',
+            THEME_MODAL: 'themeModal',
+
+            // Sub-controllers
+            WIDGET_CONTROLLER: 'widgetController',
+            MODAL_COORDINATOR: 'modalCoordinator',
+
+            // Managers
+            THEME_MANAGER: 'themeManager',
+            MESSAGE_CACHE_MANAGER: 'messageCacheManager',
+            SYNC_MANAGER: 'syncManager',
+            OBSERVER_MANAGER: 'observerManager',
+            UI_MANAGER: 'uiManager',
+            AVATAR_MANAGER: 'avatarManager',
+            STANDING_IMAGE_MANAGER: 'standingImageManager',
+            BUBBLE_UI_MANAGER: 'bubbleUIManager',
+            MESSAGE_LIFECYCLE_MANAGER: 'messageLifecycleManager',
+            TOAST_MANAGER: 'toastManager',
+            TIMESTAMP_MANAGER: 'timestampManager',
+            FIXED_NAV_MANAGER: 'fixedNavManager',
+            MESSAGE_NUMBER_MANAGER: 'messageNumberManager',
+            AUTO_SCROLL_MANAGER: 'autoScrollManager',
+
+            // Observer Resources
+            MAIN_OBSERVER: 'mainObserver',
+            LAYOUT_RESIZE_OBSERVER: 'layoutResizeObserver',
+            POLLING_SCAN: 'pollingScan',
+
+            // Task Resources
+            BATCH_TASK: 'batchTask',
+            STREAM_CHECK: 'streamCheck',
+            ZERO_MSG_TIMER: 'zeroMsgTimer',
+
+            // Lifecycle Resources
+            NAVIGATION_MONITOR: 'navigationMonitor',
+            APP_CONTROLLER: 'appController',
+            ANCHOR_LISTENER: 'anchorListener',
+
+            // Dynamic UI Resources
+            JUMP_LIST: 'jumpList',
         },
     };
 
@@ -425,7 +532,7 @@
          */
         VISIBILITY_RECHECK: `${APPID}:visibilityRecheck`,
         /**
-         * @description Requests a repositioning of floating UI elements like the settings button.
+         * @description Requests a check to ensure UI elements are correctly placed within their target containers.
          * @event UI_REPOSITION
          * @property {null} detail - No payload.
          */
@@ -837,7 +944,7 @@
                 ${selectors.AVATAR_ASSISTANT} {
                     position: relative !important;
                     overflow: visible !important;
-                    min-height: calc(var(--${APPID}-icon-size) + 3em);
+                    min-height: calc(var(${CSS_VARS.ICON_SIZE}) + 3em);
                 }
 
                 ${selectors.SIDE_AVATAR_CONTAINER} {
@@ -846,15 +953,15 @@
                     display: flex;
                     flex-direction: column;
                     align-items: center;
-                    width: var(--${APPID}-icon-size);
+                    width: var(${CSS_VARS.ICON_SIZE});
                     pointer-events: none;
                     white-space: normal;
                     word-break: break-word;
                 }
 
                 ${selectors.SIDE_AVATAR_ICON} {
-                    width: var(--${APPID}-icon-size);
-                    height: var(--${APPID}-icon-size);
+                    width: var(${CSS_VARS.ICON_SIZE});
+                    height: var(${CSS_VARS.ICON_SIZE});
                     border-radius: 50%;
                     display: block;
                     box-shadow: 0 0 6px rgb(0 0 0 / 0.2);
@@ -878,37 +985,37 @@
                 /* User avatar (Right) */
                 ${selectors.AVATAR_USER} ${selectors.SIDE_AVATAR_CONTAINER} {
                     left: 100%;
-                    margin-left: var(--${APPID}-icon-margin);
+                    margin-left: var(${CSS_VARS.ICON_MARGIN});
                 }
                 /* Assistant avatar (Left) */
                 ${selectors.AVATAR_ASSISTANT} ${selectors.SIDE_AVATAR_CONTAINER} {
                     right: 100%;
-                    margin-right: var(--${APPID}-icon-margin);
+                    margin-right: var(${CSS_VARS.ICON_MARGIN});
                 }
 
                 /* Theme Variables Mapping */
                 ${selectors.AVATAR_USER} ${selectors.SIDE_AVATAR_ICON} {
-                    background-image: var(--${APPID}-user-icon);
-                    display: var(--${APPID}-user-icon-display, none);
+                    background-image: var(${CSS_VARS.USER_ICON});
+                    display: var(${CSS_VARS.USER_ICON_DISPLAY}, none);
                 }
                 ${selectors.AVATAR_USER} ${selectors.SIDE_AVATAR_NAME} {
-                    color: var(--${APPID}-user-textColor);
-                    display: var(--${APPID}-user-name-display, none);
+                    color: var(${CSS_VARS.USER_TEXT_COLOR});
+                    display: var(${CSS_VARS.USER_NAME_DISPLAY}, none);
                 }
                 ${selectors.AVATAR_USER} ${selectors.SIDE_AVATAR_NAME}::after {
-                    content: var(--${APPID}-user-name);
+                    content: var(${CSS_VARS.USER_NAME});
                 }
 
                 ${selectors.AVATAR_ASSISTANT} ${selectors.SIDE_AVATAR_ICON} {
-                    background-image: var(--${APPID}-assistant-icon);
-                    display: var(--${APPID}-assistant-icon-display, none);
+                    background-image: var(${CSS_VARS.ASSISTANT_ICON});
+                    display: var(${CSS_VARS.ASSISTANT_ICON_DISPLAY}, none);
                 }
                 ${selectors.AVATAR_ASSISTANT} ${selectors.SIDE_AVATAR_NAME} {
-                    color: var(--${APPID}-assistant-textColor);
-                    display: var(--${APPID}-assistant-name-display, none);
+                    color: var(${CSS_VARS.ASSISTANT_TEXT_COLOR});
+                    display: var(${CSS_VARS.ASSISTANT_NAME_DISPLAY}, none);
                 }
                 ${selectors.AVATAR_ASSISTANT} ${selectors.SIDE_AVATAR_NAME}::after {
-                    content: var(--${APPID}-assistant-name);
+                    content: var(${CSS_VARS.ASSISTANT_NAME});
                 }
 
                 /* Platform Specific Overrides */
@@ -958,6 +1065,15 @@
          */
         isNewChatPage() {
             throw new Error('isNewChatPage must be implemented by the platform adapter.');
+        }
+
+        /**
+         * Gets the root element that contains all chat messages to limit the search scope.
+         * @returns {HTMLElement} The root element.
+         * @throws {Error} Must be implemented by subclasses.
+         */
+        getMessagesRoot() {
+            throw new Error('getMessagesRoot must be implemented by the platform adapter.');
         }
 
         /**
@@ -1367,8 +1483,9 @@
      */
     class BaseTimestampAdapter {
         constructor() {
-            /** @type {Map<string, {chatId: string, timestamps: Map<string, Date>}>} */
-            this.capturedData = new Map();
+            /** @type {Map<string, Date>} */
+            this.cache = new Map();
+            this.MAX_CACHE_SIZE = 10000;
         }
 
         /**
@@ -1380,6 +1497,7 @@
 
         /**
          * Cleans up timestamp interception logic.
+         * Does NOT clear the data cache to allow persistence across navigation.
          */
         cleanup() {
             // No-op by default
@@ -1394,13 +1512,25 @@
         }
 
         /**
-         * Retrieves captured timestamp data and clears the buffer.
-         * @returns {Array<{chatId: string, timestamps: Map<string, Date>}>}
+         * Adds a timestamp to the persistent cache with LRU logic.
+         * @param {string} id
+         * @param {Date} date
          */
-        getCapturedData() {
-            const data = Array.from(this.capturedData.values());
-            this.capturedData.clear();
-            return data;
+        addTimestamp(id, date) {
+            if (this.cache.size >= this.MAX_CACHE_SIZE) {
+                const oldestKey = this.cache.keys().next().value;
+                this.cache.delete(oldestKey);
+            }
+            this.cache.set(id, date);
+        }
+
+        /**
+         * Retrieves a timestamp from the persistent cache.
+         * @param {string} id
+         * @returns {Date | undefined}
+         */
+        getTimestamp(id) {
+            return this.cache.get(id);
         }
     }
 
@@ -1410,12 +1540,12 @@
      */
     class BaseUIManagerAdapter {
         /**
-         * Repositions the settings button.
+         * Ensures the settings button is correctly placed in the DOM.
          * @param {CustomSettingsButton} settingsButton The button component.
          * @throws {Error} Must be implemented by subclasses.
          */
-        repositionSettingsButton(settingsButton) {
-            throw new Error('repositionSettingsButton must be implemented by the platform adapter.');
+        ensureButtonPlacement(settingsButton) {
+            throw new Error('ensureButtonPlacement must be implemented by the platform adapter.');
         }
     }
 
@@ -1747,161 +1877,131 @@
 
     // =================================================================================
     // SECTION: Declarative Style Mapper
-    // Description: Single source of truth for all theme-driven style generation.
+    // Description: Single source of truth for all theme-driven style definitions.
     // This section contains the mapping definitions between configuration properties
-    // and CSS variables/rules, along with the helper functions used to build them.
-    // The StyleGenerator engine processes these definitions to build the final CSS.
+    // and CSS variables.
+    // The ThemeManager processes these definitions to update CSS variables at runtime.
     // =================================================================================
 
     /**
      * @param {string} actor - 'user' or 'assistant'
-     * @param {object} overrides - Platform-specific overrides.
      * @returns {object[]} An array of style definition objects for the given actor.
      */
-    function createActorStyleDefinitions(actor, overrides) {
+    function createActorStyleDefinitions(actor) {
         const actorUpper = actor.toUpperCase();
-        const important = SITE_STYLES.CSS_IMPORTANT_FLAG;
-
         return [
             {
                 configKey: `${actor}.name`,
                 fallbackKey: `platforms.${PLATFORM}.defaultSet.${actor}.name`,
-                cssVar: `--${APPID}-${actor}-name`,
+                cssVar: CSS_VARS[`${actorUpper}_NAME`],
                 transformer: (value) => (value ? `'${value.replace(/'/g, "\\'")}'` : null),
             },
             // Display control variable for Avatar Name
             {
                 configKey: `${actor}.name`,
                 fallbackKey: `platforms.${PLATFORM}.defaultSet.${actor}.name`,
-                cssVar: `--${APPID}-${actor}-name-display`,
+                cssVar: CSS_VARS[`${actorUpper}_NAME_DISPLAY`],
                 transformer: (value) => (value ? 'block' : 'none'),
             },
             {
                 configKey: `${actor}.icon`,
                 fallbackKey: `platforms.${PLATFORM}.defaultSet.${actor}.icon`,
-                cssVar: `--${APPID}-${actor}-icon`,
+                cssVar: CSS_VARS[`${actorUpper}_ICON`],
             },
             // Display control variable for Avatar Icon
             {
                 configKey: `${actor}.icon`,
                 fallbackKey: `platforms.${PLATFORM}.defaultSet.${actor}.icon`,
-                cssVar: `--${APPID}-${actor}-icon-display`,
+                cssVar: CSS_VARS[`${actorUpper}_ICON_DISPLAY`],
                 transformer: (value) => (value ? 'block' : 'none'),
             },
             {
                 configKey: `${actor}.standingImageUrl`,
                 fallbackKey: `platforms.${PLATFORM}.defaultSet.${actor}.standingImageUrl`,
-                cssVar: `--${APPID}-${actor}-standing-image`,
+                cssVar: CSS_VARS[`${actorUpper}_STANDING_IMAGE`],
             },
             {
                 configKey: `${actor}.textColor`,
                 fallbackKey: `platforms.${PLATFORM}.defaultSet.${actor}.textColor`,
-                cssVar: `--${APPID}-${actor}-textColor`,
-                selector: `${CONSTANTS.SELECTORS[`${actorUpper}_MESSAGE`]} ${CONSTANTS.SELECTORS[`${actorUpper}_TEXT_CONTENT`]}`,
-                property: 'color',
-                generator: (value) => {
-                    if (actor !== 'assistant' || !value) return '';
-                    // This generator is specific to the assistant and is common across platforms.
-                    const childSelectors = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul li', 'ol li', 'ul li::marker', 'ol li::marker', 'strong', 'em', 'blockquote', 'table', 'th', 'td'];
-                    const fullSelectors = childSelectors.map((s) => `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT} ${s}`);
-                    return `${fullSelectors.join(', ')} { color: var(--${APPID}-assistant-textColor); }`;
-                },
+                cssVar: CSS_VARS[`${actorUpper}_TEXT_COLOR`],
             },
             {
                 configKey: `${actor}.font`,
                 fallbackKey: `platforms.${PLATFORM}.defaultSet.${actor}.font`,
-                cssVar: `--${APPID}-${actor}-font`,
-                selector: `${CONSTANTS.SELECTORS[`${actorUpper}_MESSAGE`]} ${CONSTANTS.SELECTORS[`${actorUpper}_TEXT_CONTENT`]}`,
-                property: 'font-family',
+                cssVar: CSS_VARS[`${actorUpper}_FONT`],
             },
             {
                 configKey: `${actor}.bubbleBackgroundColor`,
                 fallbackKey: `platforms.${PLATFORM}.defaultSet.${actor}.bubbleBackgroundColor`,
-                cssVar: `--${APPID}-${actor}-bubble-bg`,
-                selector: `${CONSTANTS.SELECTORS[`${actorUpper}_MESSAGE`]} ${CONSTANTS.SELECTORS[`RAW_${actorUpper}_BUBBLE`]}`,
-                property: 'background-color',
+                cssVar: CSS_VARS[`${actorUpper}_BUBBLE_BG`],
             },
             {
                 configKey: `${actor}.bubblePadding`,
                 fallbackKey: `platforms.${PLATFORM}.defaultSet.${actor}.bubblePadding`,
-                cssVar: `--${APPID}-${actor}-bubble-padding`,
-                selector: `${CONSTANTS.SELECTORS[`${actorUpper}_MESSAGE`]} ${CONSTANTS.SELECTORS[`RAW_${actorUpper}_BUBBLE`]}`,
-                property: 'padding',
+                cssVar: CSS_VARS[`${actorUpper}_BUBBLE_PADDING`],
             },
             {
                 configKey: `${actor}.bubbleBorderRadius`,
                 fallbackKey: `platforms.${PLATFORM}.defaultSet.${actor}.bubbleBorderRadius`,
-                cssVar: `--${APPID}-${actor}-bubble-radius`,
-                selector: `${CONSTANTS.SELECTORS[`${actorUpper}_MESSAGE`]} ${CONSTANTS.SELECTORS[`RAW_${actorUpper}_BUBBLE`]}`,
-                property: 'border-radius',
+                cssVar: CSS_VARS[`${actorUpper}_BUBBLE_RADIUS`],
             },
             {
                 configKey: `${actor}.bubbleMaxWidth`,
                 fallbackKey: `platforms.${PLATFORM}.defaultSet.${actor}.bubbleMaxWidth`,
-                cssVar: `--${APPID}-${actor}-bubble-maxwidth`,
-                generator: (value) => {
-                    if (!value) return '';
-                    const selector = `${CONSTANTS.SELECTORS[`${actorUpper}_MESSAGE`]} ${CONSTANTS.SELECTORS[`RAW_${actorUpper}_BUBBLE`]}`;
-                    const cssVar = `--${APPID}-${actor}-bubble-maxwidth`;
-                    const extraRule = overrides[actor] || '';
-                    return `${selector} { max-width: var(${cssVar})${important};${extraRule} }`;
-                },
+                cssVar: CSS_VARS[`${actorUpper}_BUBBLE_MAXWIDTH`],
             },
         ];
     }
 
     const STYLE_DEFINITIONS = {
-        user: createActorStyleDefinitions('user', PlatformAdapters.ThemeManager.getStyleOverrides()),
-        assistant: createActorStyleDefinitions('assistant', PlatformAdapters.ThemeManager.getStyleOverrides()),
+        user: createActorStyleDefinitions(CONSTANTS.INTERNAL_ROLES.USER),
+        assistant: createActorStyleDefinitions(CONSTANTS.INTERNAL_ROLES.ASSISTANT),
         window: [
             {
                 configKey: 'window.backgroundColor',
                 fallbackKey: `platforms.${PLATFORM}.defaultSet.window.backgroundColor`,
-                cssVar: `--${APPID}-window-bg-color`,
-                selector: CONSTANTS.SELECTORS.MAIN_APP_CONTAINER,
-                property: 'background-color',
+                cssVar: CSS_VARS.WINDOW_BG_COLOR,
             },
             {
                 configKey: 'window.backgroundImageUrl',
                 fallbackKey: `platforms.${PLATFORM}.defaultSet.window.backgroundImageUrl`,
-                cssVar: `--${APPID}-window-bg-image`,
-                generator: (value) =>
-                    value ? `${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} { background-image: var(--${APPID}-window-bg-image)${SITE_STYLES.CSS_IMPORTANT_FLAG}; background-attachment: fixed${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : '',
+                cssVar: CSS_VARS.WINDOW_BG_IMAGE,
+                transformer: (value) => (value ? value : 'none'),
             },
             {
                 configKey: 'window.backgroundSize',
                 fallbackKey: `platforms.${PLATFORM}.defaultSet.window.backgroundSize`,
-                cssVar: `--${APPID}-window-bg-size`,
-                generator: (value) => (value ? `${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} { background-size: var(--${APPID}-window-bg-size)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''),
+                cssVar: CSS_VARS.WINDOW_BG_SIZE,
             },
             {
                 configKey: 'window.backgroundPosition',
                 fallbackKey: `platforms.${PLATFORM}.defaultSet.window.backgroundPosition`,
-                cssVar: `--${APPID}-window-bg-pos`,
-                generator: (value) => (value ? `${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} { background-position: var(--${APPID}-window-bg-pos)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''),
+                cssVar: CSS_VARS.WINDOW_BG_POS,
             },
             {
                 configKey: 'window.backgroundRepeat',
                 fallbackKey: `platforms.${PLATFORM}.defaultSet.window.backgroundRepeat`,
-                cssVar: `--${APPID}-window-bg-repeat`,
-                generator: (value) => (value ? `${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} { background-repeat: var(--${APPID}-window-bg-repeat)${SITE_STYLES.CSS_IMPORTANT_FLAG}; }` : ''),
+                cssVar: CSS_VARS.WINDOW_BG_REPEAT,
             },
         ],
         inputArea: [
             {
                 configKey: 'inputArea.backgroundColor',
                 fallbackKey: `platforms.${PLATFORM}.defaultSet.inputArea.backgroundColor`,
-                cssVar: `--${APPID}-input-bg`,
-                selector: CONSTANTS.SELECTORS.INPUT_AREA_BG_TARGET,
-                property: 'background-color',
-                generator: (value) => (value ? `${CONSTANTS.SELECTORS.INPUT_TEXT_FIELD_TARGET} { background-color: transparent; }` : ''),
+                cssVar: CSS_VARS.INPUT_BG,
+            },
+            {
+                configKey: 'inputArea.backgroundColor',
+                fallbackKey: `platforms.${PLATFORM}.defaultSet.inputArea.backgroundColor`,
+                cssVar: CSS_VARS.INPUT_FIELD_BG,
+                // If background color is set, make the inner field transparent to show it.
+                // Otherwise leave null to keep default styles.
+                transformer: (value) => (value ? 'transparent' : null),
             },
             {
                 configKey: 'inputArea.textColor',
                 fallbackKey: `platforms.${PLATFORM}.defaultSet.inputArea.textColor`,
-                cssVar: `--${APPID}-input-color`,
-                selector: CONSTANTS.SELECTORS.INPUT_TEXT_FIELD_TARGET,
-                property: 'color',
+                cssVar: CSS_VARS.INPUT_COLOR,
             },
         ],
     };
@@ -2124,18 +2224,58 @@
     // =================================================================================
 
     /**
+     * @typedef {() => void} DisposableFn
+     * @typedef {{ dispose: () => void }} DisposableObj
+     * @typedef {{ disconnect: () => void }} DisconnectableObj
+     * @typedef {{ abort: () => void }} AbortableObj
+     * @typedef {{ destroy: () => void }} DestructibleObj
+     * @typedef {DisposableFn | DisposableObj | DisconnectableObj | AbortableObj | DestructibleObj} Disposable
+     */
+
+    /**
      * @class BaseManager
      * @description Provides common lifecycle and event subscription management capabilities.
      * Implements the Template Method pattern for init/destroy cycles.
+     * Manages all resources in a unified Set to ensure strict LIFO disposal and prevent memory leaks.
      */
     class BaseManager {
         constructor() {
-            /** @type {Array<{event: string, key: string}>} */
-            this.subscriptions = [];
+            /**
+             * @type {Set<Disposable>}
+             * Unified storage for all resources. Set preserves insertion order.
+             */
+            this._disposables = new Set();
+
+            /**
+             * @type {Map<string, () => void>}
+             * Map to store dispose functions for keyed resources, allowing replacement by key.
+             */
+            this._keyedDisposables = new Map();
+
             this.isInitialized = false;
             this.isDestroyed = false;
             /** @type {Promise<void>|null} */
             this._initPromise = null;
+            /** @type {AbortController} */
+            this._abortController = new AbortController();
+        }
+
+        /**
+         * Gets the AbortSignal associated with this manager's lifecycle.
+         * Aborted when the manager is destroyed.
+         * @returns {AbortSignal}
+         */
+        get signal() {
+            return this._abortController.signal;
+        }
+
+        /**
+         * Registers a resource to be disposed of when the manager is destroyed.
+         * @param {Disposable} disposable A function or object with dispose/disconnect/abort/destroy method.
+         * @returns {() => void} A function to dispose of the resource early.
+         */
+        addDisposable(disposable) {
+            return this._registerDisposable(disposable);
         }
 
         /**
@@ -2147,19 +2287,25 @@
         async init(...args) {
             if (this.isInitialized) return;
 
-            // Guard against concurrent initialization
             if (this._initPromise) {
                 await this._initPromise;
                 return;
             }
 
             this.isDestroyed = false;
+            if (this._abortController.signal.aborted) {
+                this._abortController = new AbortController();
+            }
 
             this._initPromise = (async () => {
-                await this._onInit(...args);
-                // Check if destroyed during async init
-                if (!this.isDestroyed) {
-                    this.isInitialized = true;
+                try {
+                    await this._onInit(...args);
+                    if (!this.isDestroyed) {
+                        this.isInitialized = true;
+                    }
+                } catch (e) {
+                    this.destroy();
+                    throw e;
                 }
             })();
 
@@ -2179,40 +2325,115 @@
             this.isDestroyed = true;
             this.isInitialized = false;
 
-            // 1. Hook for subclass specific cleanup
-            this._onDestroy();
+            this._abortController.abort();
 
-            // 2. Unsubscribe from all events
-            // Create a snapshot to safely iterate even if unsubscribing modifies the original array
-            const subsToUnsubscribe = [...this.subscriptions];
-            // Immediately clear the array to prevent re-entry or access during cleanup
-            this.subscriptions = [];
+            // 1. Hook for subclass specific cleanup (protected by try-catch)
+            try {
+                this._onDestroy();
+            } catch (e) {
+                Logger.error('BaseManager', '', 'Error in _onDestroy:', e);
+            }
 
-            // Iterate in reverse order (LIFO) to respect dependencies
-            for (let i = subsToUnsubscribe.length - 1; i >= 0; i--) {
-                const { event, key } = subsToUnsubscribe[i];
-                EventBus.unsubscribe(event, key);
+            // 2. Dispose all resources in LIFO order
+            // Convert Set to Array and reverse to ensure correct dependency teardown order.
+            const disposables = Array.from(this._disposables).reverse();
+            this._disposables.clear(); // Clear immediately to prevent double disposal
+            this._keyedDisposables.clear(); // Clear keyed map
+
+            for (const resource of disposables) {
+                this._disposeResource(resource);
             }
         }
 
         /**
          * Registers a platform-specific listener.
-         * Exposes subscription capability to adapters safely.
          * @param {string} event
          * @param {Function} callback
+         * @returns {() => void} A function to unsubscribe.
          */
         registerPlatformListener(event, callback) {
-            this._subscribe(event, callback);
+            return this._subscribe(event, callback);
         }
 
         /**
          * Registers a one-time platform-specific listener.
-         * Exposes single subscription capability to adapters safely.
          * @param {string} event
          * @param {Function} callback
+         * @returns {() => void} A function to unsubscribe (if not already fired).
          */
         registerPlatformListenerOnce(event, callback) {
-            this._subscribeOnce(event, callback);
+            return this._subscribeOnce(event, callback);
+        }
+
+        /**
+         * Manages a dynamic resource by key.
+         * Replaces any existing resource registered with the same key.
+         * If null is passed as the resource, the existing resource (if any) is disposed and the key is removed; no new resource is registered.
+         * @param {string} key Unique identifier.
+         * @param {Disposable | null} resource The new resource. Pass null to remove existing without replacing.
+         * @returns {() => void} A function to dispose of the resource early.
+         */
+        manageResource(key, resource) {
+            // 1. Dispose of existing resource with the same key, if any
+            if (this._keyedDisposables.has(key)) {
+                const oldDispose = this._keyedDisposables.get(key);
+                if (oldDispose) oldDispose();
+                // Ensure it's removed (oldDispose should handle it via wrapper, but for safety)
+                this._keyedDisposables.delete(key);
+            }
+
+            // 2. Register new resource
+            if (resource) {
+                // Register with the main set to handle LIFO disposal on destroy
+                const actualDispose = this._registerDisposable(resource);
+
+                // Create a wrapper that removes the entry from the map when disposed
+                const wrappedDispose = () => {
+                    if (this._keyedDisposables.get(key) === wrappedDispose) {
+                        this._keyedDisposables.delete(key);
+                    }
+                    actualDispose();
+                };
+
+                this._keyedDisposables.set(key, wrappedDispose);
+                return wrappedDispose;
+            }
+            return () => {};
+        }
+
+        /**
+         * Manages a dynamic resource created by a factory function.
+         * @template {Disposable} T
+         * @param {string} key Unique identifier for the resource.
+         * @param {() => T} factory A function that returns the resource.
+         * @returns {T | null} The created resource, or null if destroyed.
+         * @throws {Error} Propagates any error thrown by the factory function.
+         */
+        manageFactory(key, factory) {
+            if (!this.isDestroyed) {
+                // 1. Dispose of existing resource with the same key
+                if (this._keyedDisposables.has(key)) {
+                    const oldDispose = this._keyedDisposables.get(key);
+                    if (oldDispose) oldDispose();
+                    this._keyedDisposables.delete(key);
+                }
+
+                const resource = factory();
+                if (resource) {
+                    const actualDispose = this._registerDisposable(resource);
+
+                    const wrappedDispose = () => {
+                        if (this._keyedDisposables.get(key) === wrappedDispose) {
+                            this._keyedDisposables.delete(key);
+                        }
+                        actualDispose();
+                    };
+
+                    this._keyedDisposables.set(key, wrappedDispose);
+                    return resource;
+                }
+            }
+            return null;
         }
 
         /**
@@ -2233,75 +2454,168 @@
         }
 
         /**
-         * Helper to subscribe to EventBus and track the subscription for cleanup.
-         * Appends the listener name and a unique suffix to the key to avoid conflicts.
+         * Helper to subscribe to EventBus.
          * @protected
          * @param {string} event
          * @param {Function} listener
+         * @returns {() => void} A function to unsubscribe.
          */
         _subscribe(event, listener) {
-            const baseKey = createEventKey(this, event);
-            // Use function name for debugging aid, fallback to 'anonymous'
-            const listenerName = listener.name || 'anonymous';
-            // Generate a short random suffix to guarantee uniqueness even for anonymous functions
-            const uniqueSuffix = Math.random().toString(36).substring(2, 7);
-            const key = `${baseKey}_${listenerName}_${uniqueSuffix}`;
+            if (this.isDestroyed) return () => {};
 
-            EventBus.subscribe(event, listener, key);
-            this.subscriptions.push({ event, key });
-        }
-
-        /**
-         * Helper to subscribe to EventBus once and track the subscription for cleanup.
-         * Appends the listener name and a unique suffix to the key to avoid conflicts.
-         * @protected
-         * @param {string} event
-         * @param {Function} listener
-         */
-        _subscribeOnce(event, listener) {
-            const baseKey = createEventKey(this, event);
-            // Use function name for debugging aid, fallback to 'anonymous'
-            const listenerName = listener.name || 'anonymous';
-            // Generate a short random suffix to guarantee uniqueness even for anonymous functions
-            const uniqueSuffix = Math.random().toString(36).substring(2, 7);
-            const key = `${baseKey}_${listenerName}_${uniqueSuffix}`;
-
-            // Wrapper to cleanup the subscription record after firing
-            const wrappedListener = (...args) => {
-                this._removeSubscriptionRecord(key);
+            // Wrap listener to guard against execution after destruction
+            const guardedListener = (...args) => {
+                if (this.isDestroyed) return;
                 listener(...args);
             };
 
-            EventBus.once(event, wrappedListener, key);
-            this.subscriptions.push({ event, key });
+            const baseKey = createEventKey(this, event);
+            const listenerName = listener.name || 'anonymous';
+            const uniqueSuffix = Math.random().toString(36).substring(2, 7);
+            const key = `${baseKey}_${listenerName}_${uniqueSuffix}`;
+
+            EventBus.subscribe(event, guardedListener, key);
+
+            // Create a cleanup task
+            const cleanup = () => EventBus.unsubscribe(event, key);
+            return this._registerDisposable(cleanup);
         }
 
         /**
-         * Helper to unsubscribe from specific events dynamically.
+         * Helper to subscribe to EventBus once.
          * @protected
-         * @param {string} event The event name.
-         * @param {string} [keyPrefix] Optional prefix to filter specific listeners (e.g. 'ClassName.purpose').
+         * @param {string} event
+         * @param {Function} listener
+         * @returns {() => void} A function to unsubscribe.
          */
-        _unsubscribe(event, keyPrefix) {
-            const fullKeyPrefix = keyPrefix || createEventKey(this, event);
+        _subscribeOnce(event, listener) {
+            if (this.isDestroyed) return () => {};
 
-            // Find matching subscriptions
-            const toRemove = this.subscriptions.filter((sub) => sub.event === event && sub.key.startsWith(fullKeyPrefix));
+            // Wrap listener to guard against execution after destruction
+            const guardedListener = (...args) => {
+                if (this.isDestroyed) return;
+                listener(...args);
+            };
 
-            // Unsubscribe and remove from list
-            toRemove.forEach((sub) => {
-                EventBus.unsubscribe(sub.event, sub.key);
-                this._removeSubscriptionRecord(sub.key);
-            });
+            const baseKey = createEventKey(this, event);
+            const listenerName = listener.name || 'anonymous';
+            const uniqueSuffix = Math.random().toString(36).substring(2, 7);
+            const key = `${baseKey}_${listenerName}_${uniqueSuffix}`;
+
+            // Define cleanup first to establish dependency chain
+            const cleanup = () => EventBus.unsubscribe(event, key);
+
+            // Register disposable immediately to allow using 'const' and avoid TDZ
+            const disposeFn = this._registerDisposable(cleanup);
+
+            // Self-cleaning listener wrapper
+            const wrappedListener = (...args) => {
+                // Execute dispose to remove from manager and avoid memory leaks
+                disposeFn();
+                guardedListener(...args);
+            };
+
+            EventBus.once(event, wrappedListener, key);
+
+            return disposeFn;
         }
 
         /**
-         * Internal helper to remove a subscription record from the array by key.
+         * Internal helper to register a resource into the Set and return a safe dispose function.
          * @private
-         * @param {string} key
+         * @param {Disposable} resource
+         * @returns {() => void} A function that disposes the resource and removes it from the manager.
          */
-        _removeSubscriptionRecord(key) {
-            this.subscriptions = this.subscriptions.filter((sub) => sub.key !== key);
+        _registerDisposable(resource) {
+            if (!resource) return () => {};
+
+            // If already destroyed, dispose immediately and return no-op
+            if (this.isDestroyed) {
+                this._disposeResource(resource);
+                return () => {};
+            }
+
+            this._disposables.add(resource);
+
+            let disposed = false;
+            // Return an idempotent dispose function
+            return () => {
+                if (disposed) return;
+                disposed = true;
+                if (this._disposables.has(resource)) {
+                    this._disposables.delete(resource);
+                    this._disposeResource(resource);
+                }
+            };
+        }
+
+        /**
+         * Helper to safely dispose a resource of various types.
+         * Execution priority:
+         * 1. Function call
+         * 2. AbortController.abort()
+         * 3. Observer.disconnect() (Mutation/Resize/Intersection)
+         * 4. object.dispose()
+         * 5. object.disconnect()
+         * 6. object.abort()
+         * 7. object.destroy()
+         * @private
+         * @param {Disposable} disposable
+         */
+        _disposeResource(disposable) {
+            try {
+                if (typeof disposable === 'function') {
+                    disposable();
+                } else if (disposable instanceof AbortController) {
+                    disposable.abort();
+                } else if (disposable instanceof MutationObserver || disposable instanceof ResizeObserver || (typeof IntersectionObserver !== 'undefined' && disposable instanceof IntersectionObserver)) {
+                    disposable.disconnect();
+                } else if (this._isDisposableObj(disposable)) {
+                    disposable.dispose();
+                } else if (this._isDisconnectableObj(disposable)) {
+                    disposable.disconnect();
+                } else if (this._isAbortableObj(disposable)) {
+                    disposable.abort();
+                } else if (this._isDestructibleObj(disposable)) {
+                    disposable.destroy();
+                }
+            } catch (e) {
+                Logger.warn('BaseManager', '', 'Error disposing resource type:', e);
+            }
+        }
+
+        // --- Type Guards ---
+
+        /**
+         * @param {unknown} obj
+         * @returns {obj is DestructibleObj}
+         */
+        _isDestructibleObj(obj) {
+            return typeof obj === 'object' && obj !== null && 'destroy' in obj && typeof (/** @type {{ destroy: unknown }} */ (obj).destroy) === 'function';
+        }
+
+        /**
+         * @param {unknown} obj
+         * @returns {obj is DisposableObj}
+         */
+        _isDisposableObj(obj) {
+            return typeof obj === 'object' && obj !== null && 'dispose' in obj && typeof (/** @type {any} */ (obj).dispose) === 'function';
+        }
+
+        /**
+         * @param {unknown} obj
+         * @returns {obj is DisconnectableObj}
+         */
+        _isDisconnectableObj(obj) {
+            return typeof obj === 'object' && obj !== null && 'disconnect' in obj && typeof (/** @type {any} */ (obj).disconnect) === 'function';
+        }
+
+        /**
+         * @param {unknown} obj
+         * @returns {obj is AbortableObj}
+         */
+        _isAbortableObj(obj) {
+            return typeof obj === 'object' && obj !== null && 'abort' in obj && typeof (/** @type {any} */ (obj).abort) === 'function';
         }
     }
 
@@ -2376,7 +2690,7 @@
 
     /**
      * @class StyleDefinitions
-     * @description Manages pure style definitions, class names, and CSS generation logic.
+     * @description Manages pure style definitions, class names, and static CSS templates.
      */
     class StyleDefinitions {
         static ICONS = (() => {
@@ -2387,92 +2701,34 @@
                 width: '24px',
                 fill: 'currentColor',
             };
+
+            /**
+             * Helper to generate a standardized SVG icon definition.
+             * @param {string} d - The path data string (d attribute).
+             * @param {object} [options] - Optional settings object.
+             * @param {object} [options.props] - Attributes for the <svg> element (e.g., className). Merged with COMMON_PROPS.
+             * @param {object} [options.pathProps] - Attributes for the inner <path> element (e.g., transform).
+             */
+            const def = (d, options = {}) => ({
+                tag: 'svg',
+                props: { ...COMMON_PROPS, ...options.props },
+                children: [{ tag: 'path', props: { d, ...options.pathProps } }],
+            });
+
+            // prettier-ignore
             return {
-                folder: {
-                    tag: 'svg',
-                    props: { ...COMMON_PROPS },
-                    children: [
-                        { tag: 'path', props: { d: 'M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z' } },
-                    ],
-                },
-                arrowUp: {
-                    tag: 'svg',
-                    props: { ...COMMON_PROPS },
-                    children: [{ tag: 'path', props: { d: 'M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z' } }],
-                },
-                arrowDown: {
-                    tag: 'svg',
-                    props: { ...COMMON_PROPS },
-                    children: [{ tag: 'path', props: { d: 'M480-344 240-584l56-56 184 184 184-184 56 56-240 240Z' } }],
-                },
-                scrollToTop: {
-                    tag: 'svg',
-                    props: { ...COMMON_PROPS },
-                    children: [{ tag: 'path', props: { d: 'M440-160v-480L280-480l-56-56 256-256 256 256-56 56-160-160v480h-80Zm-200-640v-80h400v80H240Z' } }],
-                },
-                scrollToFirst: {
-                    tag: 'svg',
-                    props: { ...COMMON_PROPS },
-                    children: [{ tag: 'path', props: { d: 'm280-280 200-200 200 200-56 56-144-144-144 144-56-56Zm-40-360v-80h480v80H240Z' } }],
-                },
-                scrollToLast: {
-                    tag: 'svg',
-                    props: { ...COMMON_PROPS },
-                    children: [{ tag: 'path', props: { d: 'M240-200v-80h480v80H240Zm240-160L280-560l56-56 144 144 144-144 56 56-200 200Z' } }],
-                },
-                bulkCollapse: {
-                    tag: 'svg',
-                    props: { ...COMMON_PROPS, className: 'icon-collapse' },
-                    children: [{ tag: 'path', props: { d: 'M440-440v240h-80v-160H200v-80h240Zm160-320v160h160v80H520v-240h80Z' } }],
-                },
-                bulkExpand: {
-                    tag: 'svg',
-                    props: { ...COMMON_PROPS, className: 'icon-expand' },
-                    children: [{ tag: 'path', props: { d: 'M200-200v-240h80v160h160v80H200Zm480-320v-160H520v-80h240v240h-80Z' } }],
-                },
-                list: {
-                    tag: 'svg',
-                    props: { ...COMMON_PROPS },
-                    children: [{ tag: 'path', props: { d: 'M120-240v-80h720v80H120Zm0-200v-80h720v80H120Zm0-200v-80h720v80H120Z' } }],
-                },
-                chatLeft: {
-                    tag: 'svg',
-                    props: { ...COMMON_PROPS },
-                    children: [
-                        {
-                            tag: 'path',
-                            props: {
-                                d: 'M240-400h320v-80H240v80Zm0-120h480v-80H240v80Zm0-120h480v-80H240v80ZM80-80v-720q0-33 23.5-56.5T160-880h640q33 0 56.5 23.5T880-800v480q0 33-23.5 56.5T800-240H240L80-80Zm126-240h594v-480H160v525l46-45Zm-46 0v-480 480Z',
-                            },
-                        },
-                    ],
-                },
-                chatRight: {
-                    tag: 'svg',
-                    props: { ...COMMON_PROPS },
-                    children: [
-                        {
-                            tag: 'path',
-                            props: {
-                                d: 'M240-400h320v-80H240v80Zm0-120h480v-80H240v80Zm0-120h480v-80H240v80ZM80-80v-720q0-33 23.5-56.5T160-880h640q33 0 56.5 23.5T880-800v480q0 33-23.5 56.5T800-240H240L80-80Zm126-240h594v-480H160v525l46-45Zm-46 0v-480 480Z',
-                                transform: 'translate(960, 0) scale(-1, 1)',
-                            },
-                        },
-                    ],
-                },
-                settings: {
-                    tag: 'svg',
-                    props: { ...COMMON_PROPS, viewBox: '0 0 24 24' },
-                    children: [
-                        { tag: 'path', props: { d: 'M0 0h24v24H0V0z', fill: 'none' } },
-                        {
-                            tag: 'path',
-                            props: {
-                                d: 'M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.08-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z',
-                            },
-                        },
-                    ],
-                },
+                folder: def('M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z'),
+                arrowUp: def('M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z'),
+                arrowDown: def('M480-344 240-584l56-56 184 184 184-184 56 56-240 240Z'),
+                scrollToTop: def('M440-160v-480L280-480l-56-56 256-256 256 256-56 56-160-160v480h-80Zm-200-640v-80h400v80H240Z'),
+                scrollToFirst: def('m280-280 200-200 200 200-56 56-144-144-144 144-56-56Zm-40-360v-80h480v80H240Z'),
+                scrollToLast: def('M240-200v-80h480v80H240Zm240-160L280-560l56-56 144 144 144-144 56 56-200 200Z'),
+                bulkCollapse: def('M440-440v240h-80v-160H200v-80h240Zm160-320v160h160v80H520v-240h80Z', { props: { className: 'icon-collapse' } }),
+                bulkExpand: def('M200-200v-240h80v160h160v80H200Zm480-320v-160H520v-80h240v240h-80Z', { props: { className: 'icon-expand' } }),
+                list: def('M120-240v-80h720v80H120Zm0-200v-80h720v80H120Zm0-200v-80h720v80H120Z'),
+                chatLeft: def('M240-400h320v-80H240v80Zm0-120h480v-80H240v80Zm0-120h480v-80H240v80ZM80-80v-720q0-33 23.5-56.5T160-880h640q33 0 56.5 23.5T880-800v480q0 33-23.5 56.5T800-240H240L80-80Zm126-240h594v-480H160v525l46-45Zm-46 0v-480 480Z'),
+                chatRight: def('M240-400h320v-80H240v80Zm0-120h480v-80H240v80Zm0-120h480v-80H240v80ZM80-80v-720q0-33 23.5-56.5T160-880h640q33 0 56.5 23.5T880-800v480q0 33-23.5 56.5T800-240H240L80-80Zm126-240h594v-480H160v525l46-45Zm-46 0v-480 480Z', { pathProps: { transform: 'translate(960, 0) scale(-1, 1)' } }),
+                settings: def('M480-80q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 32.5-156t88-127Q256-817 330-848.5T488-880q80 0 151 27.5t124.5 76q53.5 48.5 85 115T880-518q0 115-70 176.5T640-280h-74q-9 0-12.5 5t-3.5 11q0 12 15 34.5t15 51.5q0 50-27.5 74T480-80Zm0-400Zm-220 40q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm120-160q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm200 0q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm120 160q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17ZM480-160q9 0 14.5-5t5.5-13q0-14-15-33t-15-57q0-42 29-67t71-25h70q66 0 113-38.5T800-518q0-121-92.5-201.5T488-800q-136 0-232 93t-96 227q0 133 93.5 226.5T480-160Z'),
             };
         })();
 
@@ -2578,8 +2834,8 @@
             };
 
             const vars = {
-                chatContentMaxWidth: `--${APPID}-chat-content-max-width`,
-                messageMarginTop: `--${APPID}-message-margin-top`,
+                chatContentMaxWidth: CSS_VARS.CHAT_CONTENT_MAX_WIDTH,
+                messageMarginTop: CSS_VARS.MESSAGE_MARGIN_TOP,
             };
 
             const cssGenerator = (cls) => PlatformAdapters.StyleManager.getStaticCss(cls);
@@ -2588,9 +2844,10 @@
         }
 
         static getDynamicRules() {
-            // Only manage ID, so use an empty generator
             const key = 'dynamic-rules';
-            return { key, classes: {}, vars: {}, generator: () => '' };
+            // Generator accepts activeVars set to filter outputs
+            const cssGenerator = (cls, activeVars) => StyleDefinitions._getThemeBaseCss(cls, activeVars);
+            return { key, classes: {}, vars: {}, generator: cssGenerator };
         }
 
         static getModal() {
@@ -3118,15 +3375,15 @@
             };
 
             const vars = {
-                userImage: `--${APPID}-user-standing-image`,
-                assistantImage: `--${APPID}-assistant-standing-image`,
-                userWidth: `--${APPID}-standing-image-user-width`,
-                assistantWidth: `--${APPID}-standing-image-assistant-width`,
-                assistantLeft: `--${APPID}-standing-image-assistant-left`,
-                userMask: `--${APPID}-standing-image-user-mask`,
-                assistantMask: `--${APPID}-standing-image-assistant-mask`,
+                userImage: CSS_VARS.USER_STANDING_IMAGE,
+                assistantImage: CSS_VARS.ASSISTANT_STANDING_IMAGE,
+                userWidth: CSS_VARS.STANDING_IMG_USER_WIDTH,
+                assistantWidth: CSS_VARS.STANDING_IMG_ASST_WIDTH,
+                assistantLeft: CSS_VARS.STANDING_IMG_ASST_LEFT,
+                userMask: CSS_VARS.STANDING_IMG_USER_MASK,
+                assistantMask: CSS_VARS.STANDING_IMG_ASST_MASK,
                 // Specific for ChatGPT layout calculation
-                rightSidebarWidth: `--${APPID}-right-sidebar-width`,
+                rightSidebarWidth: CSS_VARS.RIGHT_SIDEBAR_WIDTH,
             };
 
             const cssGenerator = (cls) => {
@@ -3208,8 +3465,8 @@
 
             // Define CSS variable names centrally
             const vars = {
-                iconSize: `--${APPID}-icon-size`,
-                iconMargin: `--${APPID}-icon-margin`,
+                iconSize: CSS_VARS.ICON_SIZE,
+                iconMargin: CSS_VARS.ICON_MARGIN,
             };
 
             const classes = {
@@ -3979,12 +4236,11 @@
         }
 
         static _getColorPickerControlsCss(cls) {
-            const prefix = `${APPID}-color-picker`;
             const palette = SITE_STYLES.PALETTE;
             return `
                 .${cls.picker} { display: flex;  flex-direction: column; gap: 16px; }
                 .${cls.svPlane} { position: relative;  width: 100%; aspect-ratio: 1 / 1; cursor: crosshair; touch-action: none; border-radius: 4px; overflow: hidden; flex-shrink: 0; }
-                .${cls.svPlane}:focus { outline: 2px solid var(--${prefix}-focus-color, ${palette.accent_text});  }
+                .${cls.svPlane}:focus { outline: 2px solid var(${CSS_VARS.COLOR_PICKER_FOCUS}, ${palette.accent_text});  }
                 .${cls.svPlane} .${cls.gradientWhite}, .${cls.svPlane} .${cls.gradientBlack} { position: absolute;  inset: 0; pointer-events: none; }
                 .${cls.svPlane} .${cls.gradientWhite} { background: linear-gradient(to right, white, transparent);  }
                 .${cls.svPlane} .${cls.gradientBlack} { background: linear-gradient(to top, black, transparent);  }
@@ -3992,13 +4248,13 @@
                 .${cls.sliderGroup} { position: relative;  cursor: pointer; height: 20px; flex-shrink: 0; }
                 .${cls.sliderGroup} .${cls.sliderTrack}, .${cls.sliderGroup} .${cls.alphaCheckerboard} { position: absolute;  top: 50%; transform: translateY(-50%); width: 100%; height: 12px; border-radius: 6px; pointer-events: none;  }
                 .${cls.sliderGroup} .${cls.alphaCheckerboard} { background-image: repeating-conic-gradient(#808080 0% 25%, #c0c0c0 0% 50%);  background-size: 12px 12px; }
-                .${cls.sliderGroup} .${cls.hueTrack} { background: linear-gradient( to right, hsl(0,100%,50%), hsl(60,100%,50%), hsl(120,100%,50%), hsl(180,100%,50%), hsl(240,100%,50%), hsl(300,100%,50%), hsl(360,100%,50%) );  }
+                .${cls.sliderGroup} .${cls.hueTrack} { background: linear-gradient( to right, hsl(0 100% 50%), hsl(60 100% 50%), hsl(120 100% 50%), hsl(180 100% 50%), hsl(240 100% 50%), hsl(300 100% 50%), hsl(360 100% 50%) );  }
                 .${cls.sliderGroup} input[type="range"] { -webkit-appearance: none;  appearance: none; position: relative; width: 100%; height: 100%; margin: 0; padding: 0; background-color: transparent; cursor: pointer;  }
                 .${cls.sliderGroup} input[type="range"]:focus { outline: none;  }
                 .${cls.sliderGroup} input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none;  appearance: none; width: 20px; height: 20px; border: 2px solid white; border-radius: 50%; background-color: #fff;  box-shadow: 0 0 2px 1px rgb(0 0 0 / 0.5);  }
                 .${cls.sliderGroup} input[type="range"]::-moz-range-thumb { width: 20px;  height: 20px; border: 2px solid white; border-radius: 50%; background-color: #fff; box-shadow: 0 0 2px 1px rgb(0 0 0 / 0.5);  }
-                .${cls.sliderGroup} input[type="range"]:focus::-webkit-slider-thumb { outline: 2px solid var(--${prefix}-focus-color, ${palette.accent_text});  outline-offset: 1px; }
-                .${cls.sliderGroup} input[type="range"]:focus::-moz-range-thumb { outline: 2px solid var(--${prefix}-focus-color, ${palette.accent_text});  outline-offset: 1px; }
+                .${cls.sliderGroup} input[type="range"]:focus::-webkit-slider-thumb { outline: 2px solid var(${CSS_VARS.COLOR_PICKER_FOCUS}, ${palette.accent_text});  outline-offset: 1px; }
+                .${cls.sliderGroup} input[type="range"]:focus::-moz-range-thumb { outline: 2px solid var(${CSS_VARS.COLOR_PICKER_FOCUS}, ${palette.accent_text});  outline-offset: 1px; }
             `;
         }
 
@@ -4297,12 +4553,12 @@
                         outline-offset: -2px;
                     }
                     #${cls.listId} li.${cls.userItem} {
-                        background-color: var(--${APPID}-user-bubble-bg, transparent);
-                        color: var(--${APPID}-user-textColor, inherit);
+                        background-color: var(${CSS_VARS.USER_BUBBLE_BG}, transparent);
+                        color: var(${CSS_VARS.USER_TEXT_COLOR}, inherit);
                     }
                     #${cls.listId} li.${cls.asstItem} {
-                        background-color: var(--${APPID}-assistant-bubble-bg, transparent);
-                        color: var(--${APPID}-assistant-textColor, inherit);
+                        background-color: var(${CSS_VARS.ASSISTANT_BUBBLE_BG}, transparent);
+                        color: var(${CSS_VARS.ASSISTANT_TEXT_COLOR}, inherit);
                     }
             `;
         }
@@ -4340,6 +4596,75 @@
                         opacity: 1;
                         visibility: visible;
                     }
+            `;
+        }
+
+        static _getThemeBaseCss(cls, activeVars) {
+            const important = SITE_STYLES.CSS_IMPORTANT_FLAG || '';
+            const overrides = PlatformAdapters.ThemeManager.getStyleOverrides();
+
+            // Helper to generate CSS property only if the variable is active
+            const prop = (propName, varName) => {
+                if (activeVars && !activeVars.has(varName)) return '';
+                return `${propName}: var(${varName})${important};`;
+            };
+
+            // Generate assistant text color selectors for all child elements.
+            const assistantTextSelectors = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul li', 'ol li', 'ul li::marker', 'ol li::marker', 'strong', 'em', 'blockquote', 'table', 'th', 'td']
+                .map((tag) => `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT} ${tag}`)
+                .join(',\n');
+
+            // Generate CSS with conditional properties
+            return `
+                /* --- Window Background --- */
+                ${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} {
+                    ${prop('background-color', CSS_VARS.WINDOW_BG_COLOR)}
+                    ${prop('background-image', CSS_VARS.WINDOW_BG_IMAGE)}
+                    ${prop('background-size', CSS_VARS.WINDOW_BG_SIZE)}
+                    ${prop('background-position', CSS_VARS.WINDOW_BG_POS)}
+                    ${prop('background-repeat', CSS_VARS.WINDOW_BG_REPEAT)}
+                    ${activeVars && activeVars.has(CSS_VARS.WINDOW_BG_IMAGE) ? `background-attachment: fixed${important};` : ''}
+                }
+
+                /* --- Input Area --- */
+                ${CONSTANTS.SELECTORS.INPUT_AREA_BG_TARGET} {
+                    ${prop('background-color', CSS_VARS.INPUT_BG)}
+                }
+                ${CONSTANTS.SELECTORS.INPUT_TEXT_FIELD_TARGET} {
+                    /* Variable --input-field-bg is set to 'transparent' via transformer when bg color is active */
+                    ${prop('background-color', CSS_VARS.INPUT_FIELD_BG)} 
+                    ${prop('color', CSS_VARS.INPUT_COLOR)}
+                }
+
+                /* --- Assistant Bubble & Text --- */
+                ${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE} {
+                    ${prop('background-color', CSS_VARS.ASSISTANT_BUBBLE_BG)}
+                    ${prop('padding', CSS_VARS.ASSISTANT_BUBBLE_PADDING)}
+                    ${prop('border-radius', CSS_VARS.ASSISTANT_BUBBLE_RADIUS)}
+                    ${prop('max-width', CSS_VARS.ASSISTANT_BUBBLE_MAXWIDTH)}
+                    ${overrides.assistant || ''}
+                }
+                ${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT} {
+                    ${prop('color', CSS_VARS.ASSISTANT_TEXT_COLOR)}
+                    ${prop('font-family', CSS_VARS.ASSISTANT_FONT)}
+                }
+                /* Assistant Child Elements Text Color */
+                ${assistantTextSelectors} {
+                    ${prop('color', CSS_VARS.ASSISTANT_TEXT_COLOR)}
+                }
+
+                /* --- User Bubble & Text --- */
+                ${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE} {
+                    ${prop('background-color', CSS_VARS.USER_BUBBLE_BG)}
+                    ${prop('padding', CSS_VARS.USER_BUBBLE_PADDING)}
+                    ${prop('border-radius', CSS_VARS.USER_BUBBLE_RADIUS)}
+                    ${prop('max-width', CSS_VARS.USER_BUBBLE_MAXWIDTH)}
+                    ${overrides.user || ''}
+                }
+                ${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.USER_TEXT_CONTENT} {
+                    ${prop('color', CSS_VARS.USER_TEXT_COLOR)}
+                    ${prop('font-family', CSS_VARS.USER_FONT)}
+                }
             `;
         }
     }
@@ -5270,6 +5595,9 @@
             mutate: (measured) => {
                 // Write phase
 
+                // Guard: Check if the component was destroyed pending the animation frame
+                if (!settingsButton.element) return;
+
                 // Guard: Check for excluded page immediately to prevent zombie UI.
                 if (isExcludedPageFn()) {
                     if (settingsButton.element.isConnected) {
@@ -5966,26 +6294,28 @@
         _onInit() {
             // Initialize the debounced processor with a delay to throttle rapid updates
             this.debouncedProcess = debounce(this._processRemoteChange.bind(this), 300, false);
+            this.addDisposable(this.debouncedProcess.cancel);
 
             // Monitor the Root Key (Manifest) for changes.
             // Any change to the root key (including updatedAt) signals a config update.
-            this.listenerId = GM_addValueChangeListener(CONSTANTS.STORAGE_SETTINGS.ROOT_KEY, (name, oldValue, newValue, remote) => {
+            const listenerId = GM_addValueChangeListener(CONSTANTS.STORAGE_SETTINGS.ROOT_KEY, (name, oldValue, newValue, remote) => {
                 // Only process changes originating from other tabs/windows
                 if (remote) {
                     this.debouncedProcess(newValue);
                 }
             });
+            this.listenerId = listenerId;
+
+            // Register cleanup: remove listener and reset state
+            this.addDisposable(() => {
+                GM_removeValueChangeListener(listenerId);
+                this.listenerId = null;
+                this.debouncedProcess = null;
+            });
         }
 
         _onDestroy() {
-            if (this.listenerId) {
-                GM_removeValueChangeListener(this.listenerId);
-                this.listenerId = null;
-            }
-            if (this.debouncedProcess) {
-                this.debouncedProcess.cancel();
-                this.debouncedProcess = null;
-            }
+            // Cleanup handled by disposables.
         }
 
         /**
@@ -6334,10 +6664,15 @@
                 this.debouncedRebuildCache();
             });
             this._rebuildCache();
+
+            this.addDisposable(this.debouncedRebuildCache.cancel);
         }
 
         _onDestroy() {
-            this.debouncedRebuildCache.cancel();
+            this.userMessages = [];
+            this.assistantMessages = [];
+            this.totalMessages = [];
+            this.elementMap.clear();
         }
 
         _rebuildCache() {
@@ -6353,9 +6688,13 @@
                 }
                 return;
             }
+
+            // Limit search scope to the messages root container
+            const rootContainer = PlatformAdapters.General.getMessagesRoot();
+
             // Filter explicitly for HTMLElements to satisfy TypeScript and allow dataset access later
-            this.userMessages = Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.USER_MESSAGE)).filter((el) => el instanceof HTMLElement);
-            const rawAssistantMessages = Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.ASSISTANT_MESSAGE)).filter((el) => el instanceof HTMLElement);
+            this.userMessages = Array.from(rootContainer.querySelectorAll(CONSTANTS.SELECTORS.USER_MESSAGE)).filter((el) => el instanceof HTMLElement);
+            const rawAssistantMessages = Array.from(rootContainer.querySelectorAll(CONSTANTS.SELECTORS.ASSISTANT_MESSAGE)).filter((el) => el instanceof HTMLElement);
             // Filter out empty, non-functional message containers that might appear in image-only turns.
             this.assistantMessages = rawAssistantMessages.filter((msg) => PlatformAdapters.General.filterMessage(msg));
 
@@ -6474,7 +6813,7 @@
 
     // =================================================================================
     // SECTION: Theme and Style Management
-    // Description: Generates and applies dynamic CSS rules based on the active theme configuration.
+    // Description: Applies theme configuration changes to the DOM via CSS variables.
     // =================================================================================
 
     /**
@@ -6490,39 +6829,6 @@
         return path.split('.').reduce((o, k) => (o === undefined || o === null ? undefined : o[k]), obj);
     }
 
-    class StyleGenerator {
-        /**
-         * Generates all dynamic CSS rules based on the active theme and STYLE_DEFINITIONS.
-         * @param {ThemeSet} currentThemeSet The active theme configuration.
-         * @param {AppConfig} fullConfig The entire configuration object, including defaultSet.
-         * @returns {string[]} An array of CSS rule strings.
-         */
-        generateDynamicCss(currentThemeSet, fullConfig) {
-            const dynamicRules = [];
-            const important = SITE_STYLES.CSS_IMPORTANT_FLAG || '';
-
-            for (const definition of ALL_STYLE_DEFINITIONS) {
-                const value = getPropertyByPath(currentThemeSet, definition.configKey) ?? getPropertyByPath(fullConfig, definition.fallbackKey);
-
-                if (value === null || value === undefined) continue;
-                // Generate rules for direct selector-property mappings
-                if (definition.selector && definition.property) {
-                    const selectors = Array.isArray(definition.selector) ? definition.selector.join(', ') : definition.selector;
-                    dynamicRules.push(`${selectors} { ${definition.property}: var(${definition.cssVar})${important}; }`);
-                }
-
-                // Generate additional complex CSS blocks if a generator function is defined
-                if (typeof definition.generator === 'function') {
-                    const block = definition.generator(value);
-                    if (block) {
-                        dynamicRules.push(block);
-                    }
-                }
-            }
-            return dynamicRules;
-        }
-    }
-
     class ThemeManager extends BaseManager {
         /**
          * @param {ConfigManager} configManager
@@ -6532,7 +6838,6 @@
             super();
             this.configManager = configManager;
             this.imageDataManager = imageDataManager;
-            this.styleGenerator = new StyleGenerator();
             this.themeStyleElem = null;
             this.dynamicRulesStyleElem = null;
             this.staticStyleHandle = null;
@@ -6559,6 +6864,7 @@
         }
 
         _onInit() {
+            this.isLayoutUpdateScheduled = false;
             this._subscribe(EVENTS.NAVIGATION, () => this._onNavigation());
             this._subscribe(EVENTS.TITLE_CHANGED, () => this.debouncedUpdateTheme(false));
             this._subscribe(EVENTS.THEME_UPDATE, () => this.debouncedUpdateTheme(false));
@@ -6591,24 +6897,28 @@
             this.dynamicStyleHandle = StyleManager.request(StyleDefinitions.getDynamicRules);
             this.dynamicRulesStyleElem = document.getElementById(this.dynamicStyleHandle.id);
 
+            // Register cleanup resources
+            this.addDisposable(this.debouncedUpdateTheme.cancel);
+            this.addDisposable(() => this.themeAbortController?.abort());
+            this.addDisposable(() => this._cleanupCssVariables());
+
             // Build initial cache
             this._rebuildPatternCache(this.configManager.get());
         }
 
         _onDestroy() {
-            this.debouncedUpdateTheme.cancel();
+            // Cleanup handled by disposables.
+            // Do NOT nullify style handles here, as they are required for cleanupCssVariables.
 
-            // Abort any pending image fetch requests
-            if (this.themeAbortController) {
-                this.themeAbortController.abort();
-            }
+            // Clear caches to release memory
+            this.patternCache = [];
+            this.lastAppliedImageValues.clear();
+            this.cachedThemeSet = null;
+            this.cachedTitle = null;
 
-            this._cleanupCssVariables();
-
+            // Clear DOM references (optional, but good for GC)
             this.themeStyleElem = null;
             this.dynamicRulesStyleElem = null;
-            this.staticStyleHandle = null;
-            this.dynamicStyleHandle = null;
         }
 
         /**
@@ -6766,7 +7076,7 @@
         }
 
         /**
-         * Applies all theme-related styles to the document by orchestrating helper methods.
+         * Applies all theme-related styles to the document using CSS variables.
          * @param {ThemeSet} currentThemeSet The active theme configuration.
          * @param {AppConfig} fullConfig The entire configuration object, including defaultSet.
          */
@@ -6784,11 +7094,11 @@
             Logger.time('ThemeManager.applyThemeStyles');
             this.lastAppliedThemeSet = currentThemeSet;
 
-            const dynamicRules = this.styleGenerator.generateDynamicCss(currentThemeSet, fullConfig);
-            this.dynamicRulesStyleElem.textContent = dynamicRules.join('\n');
-
             const rootStyle = document.documentElement.style;
             const imageProcessingPromises = [];
+
+            // Track active variables to generate optimized CSS
+            const activeVars = new Set();
 
             // Capture current icon size to detect changes that affect icon rendering
             const currentIconSize = this.configManager.getIconSize();
@@ -6809,16 +7119,17 @@
                     // Optimization: Skip if the value hasn't changed.
                     // Exception: If it's an icon and the global icon size setting has changed, we must re-process it.
                     if (val === lastVal && (!isIcon || !iconSizeChanged)) {
+                        if (val) activeVars.add(definition.cssVar); // Keep existing as active
                         continue;
                     }
 
                     // Invalidation: Immediately remove the current value from cache.
-                    // This ensures that if we switch back to the original theme while this request is pending,
-                    // the value check will correctly identify it as a change (undefined !== val) and re-apply it.
                     this.lastAppliedImageValues.delete(definition.cssVar);
 
                     // Stage 1 (Sync): Immediately set to 'none' to prevent flicker of default images.
                     rootStyle.setProperty(definition.cssVar, 'none');
+                    // Mark as active so the CSS rule includes the property (with 'none' value initially)
+                    activeVars.add(definition.cssVar);
 
                     if (value) {
                         // Stage 2 (Async): Start processing the image in the background.
@@ -6859,20 +7170,39 @@
                     if (value !== null && value !== undefined) {
                         // Apply the transformer function if it exists (e.g., for actor names).
                         const finalValue = typeof definition.transformer === 'function' ? definition.transformer(value, fullConfig) : value;
-                        rootStyle.setProperty(definition.cssVar, finalValue);
+                        // Only set if transformer didn't return null
+                        if (finalValue !== null) {
+                            rootStyle.setProperty(definition.cssVar, finalValue);
+                            activeVars.add(definition.cssVar);
+                        } else {
+                            rootStyle.removeProperty(definition.cssVar);
+                        }
                     } else {
                         rootStyle.removeProperty(definition.cssVar);
                     }
                 }
             }
 
-            // After all image processing promises have resolved, publish the final event.
-            Promise.all(imageProcessingPromises).then(() => {
-                // Guard event publication as well
+            // Update the dynamic style sheet with only the active properties
+            if (this.dynamicRulesStyleElem) {
+                // StyleDefinitions.getDynamicRules().generator accepts activeVars
+                const newCss = StyleDefinitions.getDynamicRules().generator(null, activeVars);
+                if (this.dynamicRulesStyleElem.textContent !== newCss) {
+                    this.dynamicRulesStyleElem.textContent = newCss;
+                }
+            }
+
+            // Await all image processing
+            try {
+                await Promise.all(imageProcessingPromises);
+
+                // Guard event publication
                 if (!this.isDestroyed && this.currentRequestId === myRequestId && !signal.aborted) {
                     EventBus.publish(EVENTS.THEME_APPLIED, { theme: currentThemeSet, config: fullConfig });
                 }
-            });
+            } catch (e) {
+                Logger.error('ThemeManager', '', 'Error applying theme images:', e);
+            }
 
             Logger.timeEnd('ThemeManager.applyThemeStyles');
         }
@@ -6885,6 +7215,7 @@
             if (this.isLayoutUpdateScheduled) return;
             this.isLayoutUpdateScheduled = true;
             EventBus.queueUIWork(() => {
+                if (this.isDestroyed) return;
                 this.applyChatContentMaxWidth();
                 this.isLayoutUpdateScheduled = false;
             });
@@ -6919,6 +7250,8 @@
                 },
                 mutate: (measured) => {
                     // --- Write Phase ---
+                    if (this.isDestroyed) return;
+
                     if (!userMaxWidth) {
                         document.body.classList.remove(activeClass);
                         rootStyle.removeProperty(maxWidthVar);
@@ -6961,6 +7294,49 @@
     // Description: Centralizes DOM monitoring (Mutation/Resize) to react to layout changes and content updates.
     // =================================================================================
 
+    /**
+     * @class PageObserverScope
+     * @description A container for managing the lifecycle of page-specific resources.
+     * Handles LIFO disposal of registered disposables (functions, observers, objects).
+     */
+    class PageObserverScope {
+        constructor() {
+            this.disposables = [];
+        }
+
+        /**
+         * Registers a disposable resource.
+         * @param {Disposable} disposable
+         */
+        add(disposable) {
+            if (disposable) this.disposables.push(disposable);
+        }
+
+        /**
+         * Disposes all registered resources in LIFO order.
+         */
+        dispose() {
+            // LIFO order for safety (reverse iteration)
+            for (let i = this.disposables.length - 1; i >= 0; i--) {
+                const d = this.disposables[i];
+                try {
+                    if (typeof d === 'function') {
+                        d();
+                    } else if (d && typeof d.dispose === 'function') {
+                        d.dispose();
+                    } else if (d && typeof d.disconnect === 'function') {
+                        d.disconnect();
+                    } else if (d && typeof d.abort === 'function') {
+                        d.abort();
+                    }
+                } catch (e) {
+                    Logger.warn('Observer', '', 'Error disposing page resource:', e);
+                }
+            }
+            this.disposables = [];
+        }
+    }
+
     class ObserverManager extends BaseManager {
         /**
          * @param {MessageCacheManager} messageCacheManager
@@ -6968,26 +7344,22 @@
          */
         constructor(messageCacheManager, streamingState) {
             super();
-            // Initialize the MutationObserver with the bound callback immediately.
-            this.mainObserver = new MutationObserver((mutations) => this._handleMainMutations(mutations));
+            // Initialize observers to null; they will be created in _onInit via manageFactory
+            this.mainObserver = null;
             this.mainObserverContainer = null;
-            this.layoutResizeObserver = new ResizeObserver(this._handleResize.bind(this));
+            this.layoutResizeObserver = null;
             this.observedElements = new Map();
             this.processedTurnNodes = new Set();
             this.sentinelTurnListeners = new Map();
             this.debouncedCacheUpdate = debounce(this._publishCacheUpdate.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.CACHE_UPDATE, true);
-            this.activeObservers = [];
-            this.activePageObservers = [];
+            this.pageScopeCleaner = null;
             this.streamingState = streamingState;
-            this.streamCheckInterval = null;
 
             // The debounced visibility check
             this.debouncedVisibilityCheck = debounce(() => EventBus.queueUIWork(this.publishVisibilityRecheck.bind(this)), CONSTANTS.TIMING.DEBOUNCE_DELAYS.VISIBILITY_CHECK, true);
 
             // Add reference to MessageCacheManager
             this.messageCacheManager = messageCacheManager;
-            // Timer for 0-message page grace period
-            this.zeroMessageTimer = null;
             // Bound listener for navigation-related cache updates
             this.boundHandleCacheUpdateForNavigation = this._handleCacheUpdateForNavigation.bind(this);
             // Bound listener for Sentinel main observer setup
@@ -6999,6 +7371,16 @@
          * This method's functionality was previously part of start().
          */
         _onInit() {
+            // Create observers using manageFactory
+            // This ensures they are automatically disconnected when the manager is destroyed.
+            this.mainObserver = this.manageFactory(CONSTANTS.RESOURCE_KEYS.MAIN_OBSERVER, () => {
+                return new MutationObserver((mutations) => this._handleMainMutations(mutations));
+            });
+
+            this.layoutResizeObserver = this.manageFactory(CONSTANTS.RESOURCE_KEYS.LAYOUT_RESIZE_OBSERVER, () => {
+                return new ResizeObserver(this._handleResize.bind(this));
+            });
+
             this._subscribe(EVENTS.SUSPEND_OBSERVERS, () => this.stopMainObserver());
             this._subscribe(EVENTS.RESUME_OBSERVERS_AND_REFRESH, () => {
                 if (this.mainObserverContainer) {
@@ -7009,19 +7391,9 @@
             });
 
             // Start the observers immediately upon initialization
-            this.start();
-        }
-
-        addObserver(observer) {
-            this.activeObservers.push(observer);
-        }
-
-        /**
-         * Starts all platform-specific observers using Sentinel for synchronous registration.
-         */
-        start() {
             // Use Sentinel to detect the main container.
             sentinel.on(CONSTANTS.SELECTORS.MESSAGE_CONTAINER_PARENT, this.boundSetupMainObserver);
+            this.addDisposable(() => sentinel.off(CONSTANTS.SELECTORS.MESSAGE_CONTAINER_PARENT, this.boundSetupMainObserver));
 
             // Immediate check in case the element already exists.
             const existingContainer = document.querySelector(CONSTANTS.SELECTORS.MESSAGE_CONTAINER_PARENT);
@@ -7038,6 +7410,19 @@
             // Subscribe to RAW_MESSAGE_ADDED to trigger cache updates when new messages appear.
             this._subscribe(EVENTS.RAW_MESSAGE_ADDED, () => this.debouncedCacheUpdate());
 
+            // Update debounced visibility check with destroy guards
+            this.debouncedVisibilityCheck = debounce(
+                () => {
+                    if (this.isDestroyed) return;
+                    EventBus.queueUIWork(() => {
+                        if (this.isDestroyed) return;
+                        this.publishVisibilityRecheck();
+                    });
+                },
+                CONSTANTS.TIMING.DEBOUNCE_DELAYS.VISIBILITY_CHECK,
+                true
+            );
+
             // Perform initial setup.
             // This ensures all managers recognize the initial load as a navigation event.
             EventBus.publish(EVENTS.NAVIGATION);
@@ -7046,11 +7431,6 @@
         _onDestroy() {
             this.debouncedCacheUpdate.cancel();
             this.debouncedVisibilityCheck.cancel();
-            this.stopMainObserver();
-            this.stopStreamCheck();
-
-            // Clean up Sentinel listener for main observer
-            sentinel.off(CONSTANTS.SELECTORS.MESSAGE_CONTAINER_PARENT, this.boundSetupMainObserver);
 
             // Clean up any lingering turn completion listeners.
             for (const [selector, callback] of this.sentinelTurnListeners.values()) {
@@ -7058,16 +7438,14 @@
             }
             this.sentinelTurnListeners.clear();
 
-            this.layoutResizeObserver?.disconnect();
-            this.activeObservers.forEach((observer) => observer.disconnect());
-            this.activeObservers = [];
+            // mainObserver and layoutResizeObserver are automatically disconnected by BaseManager
 
-            // Add cleanup for page-specific observers
-            this.activePageObservers.forEach((cleanup) => cleanup());
-            this.activePageObservers = [];
+            // Page-specific observers are automatically disposed by BaseManager via PageObserverScope
 
-            // Clear any pending grace period timers
-            clearTimeout(this.zeroMessageTimer);
+            // Clear element caches to allow GC
+            this.observedElements.clear();
+            this.processedTurnNodes.clear();
+            this.mainObserverContainer = null;
         }
 
         /**
@@ -7271,18 +7649,19 @@
                 this.stopStreamCheck();
                 this.processedTurnNodes.clear();
 
-                // Clean up all resources from the previous page.
-                clearTimeout(this.zeroMessageTimer); // Stop any pending 0-message timers
+                // Clean up all resources from the previous page using the scope cleaner.
+                // This disposes the previous PageObserverScope and removes it from BaseManager.
+                if (this.pageScopeCleaner) {
+                    this.pageScopeCleaner();
+                    this.pageScopeCleaner = null;
+                }
 
-                // Safely cleanup all active page observers
-                this.activePageObservers.forEach((cleanup) => {
-                    try {
-                        cleanup();
-                    } catch (e) {
-                        Logger.warn('Observer', '', 'Error during observer cleanup:', e);
-                    }
-                });
-                this.activePageObservers = [];
+                this.manageResource(CONSTANTS.RESOURCE_KEYS.ZERO_MSG_TIMER, null); // Stop any pending 0-message timers
+
+                // Create a new scope for the current page
+                const scope = new PageObserverScope();
+                // Register the scope with BaseManager (auto-cleanup on destroy) and keep the cleaner
+                this.pageScopeCleaner = this.addDisposable(scope);
 
                 this.stopMainObserver();
 
@@ -7304,7 +7683,8 @@
                 // Subscribe to CACHE_UPDATED to manage the NAVIGATION_END lifecycle.
                 const cacheEventKey = createEventKey(this, EVENTS.CACHE_UPDATED);
                 EventBus.subscribe(EVENTS.CACHE_UPDATED, this.boundHandleCacheUpdateForNavigation, cacheEventKey);
-                this.activePageObservers.push(() => EventBus.unsubscribe(EVENTS.CACHE_UPDATED, cacheEventKey));
+                // Add unsubscribe to the page scope
+                scope.add(() => EventBus.unsubscribe(EVENTS.CACHE_UPDATED, cacheEventKey));
 
                 // Trigger an initial cache update immediately. This will start the navigation end detection.
                 this.debouncedCacheUpdate();
@@ -7320,7 +7700,7 @@
                         startGenericInputAreaObserver: this.startGenericInputAreaObserver.bind(this),
                     });
                     if (typeof cleanup === 'function') {
-                        this.activePageObservers.push(cleanup);
+                        scope.add(cleanup);
                     }
                 }
             } catch (e) {
@@ -7333,10 +7713,7 @@
          * Stops the polling interval for streaming completion.
          */
         stopStreamCheck() {
-            if (this.streamCheckInterval) {
-                clearInterval(this.streamCheckInterval);
-                this.streamCheckInterval = null;
-            }
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.STREAM_CHECK, null);
         }
 
         /**
@@ -7366,7 +7743,7 @@
 
                 // Start backup polling to detect completion in case Sentinel fails
                 this.stopStreamCheck(); // Safety clear
-                this.streamCheckInterval = setInterval(() => {
+                const id = setInterval(() => {
                     const completionElement = document.querySelector(CONSTANTS.SELECTORS.TURN_COMPLETE_SELECTOR);
                     if (completionElement) {
                         Logger.debug('STREAM_POLL', LOG_STYLES.GRAY, 'Completion detected via polling. Cleaning up.');
@@ -7378,6 +7755,8 @@
                         this.debouncedCacheUpdate();
                     }
                 }, CONSTANTS.TIMING.POLLING.STREAM_COMPLETION_CHECK_MS);
+
+                this.manageResource(CONSTANTS.RESOURCE_KEYS.STREAM_CHECK, () => clearInterval(id));
             }
         }
 
@@ -7388,7 +7767,7 @@
          */
         _handleCacheUpdateForNavigation() {
             // Stop any pending 0-message confirmation timer.
-            clearTimeout(this.zeroMessageTimer);
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.ZERO_MSG_TIMER, null);
 
             if (this.messageCacheManager && this.messageCacheManager.getTotalMessages().length > 0) {
                 // --- Case A: Messages Found ---
@@ -7402,7 +7781,8 @@
                 // This could be a "true 0-message page" OR "history is still loading".
                 // Start a timer to give messages time to load.
                 Logger.debug('CACHE', LOG_STYLES.TEAL, `Cache update has 0 messages. Starting ${CONSTANTS.TIMING.TIMEOUTS.ZERO_MESSAGE_GRACE_PERIOD}ms grace period...`);
-                this.zeroMessageTimer = setTimeout(() => {
+
+                const id = setTimeout(() => {
                     // If the timer finishes *without* being canceled by another cache update,
                     // we are definitively on a 0-message page. Navigation is complete.
                     Logger.debug('CACHE', LOG_STYLES.TEAL, 'Grace period ended. Assuming 0-message page. Firing NAVIGATION_END.');
@@ -7410,6 +7790,8 @@
                     // Unsubscribe self, as navigation is complete.
                     EventBus.unsubscribe(EVENTS.CACHE_UPDATED, createEventKey(this, EVENTS.CACHE_UPDATED));
                 }, CONSTANTS.TIMING.TIMEOUTS.ZERO_MESSAGE_GRACE_PERIOD);
+
+                this.manageResource(CONSTANTS.RESOURCE_KEYS.ZERO_MSG_TIMER, () => clearTimeout(id));
             }
         }
 
@@ -7595,15 +7977,9 @@
             this._injectionQueue = [];
             // A debounced function to process the queue in a single batch.
             this._debouncedProcessQueue = debounce(this._processInjectionQueue.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.AVATAR_INJECTION, true);
-            this._handleAvatarDisappearance = (element) => {
-                if (element instanceof HTMLElement) {
-                    this.queueForInjection(element);
-                }
-            };
 
             // Create an avatar template once to be cloned later for performance.
             this.avatarTemplate = h(`div${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER}`, [h(`span${CONSTANTS.SELECTORS.SIDE_AVATAR_ICON}`), h(`div${CONSTANTS.SELECTORS.SIDE_AVATAR_NAME}`)]);
-            this.currentBatchTask = null;
         }
 
         /**
@@ -7614,25 +7990,17 @@
             // Instead of processing immediately, queue the element for batch processing.
             this._subscribe(EVENTS.AVATAR_INJECT, (elem) => this.queueForInjection(elem));
 
-            // Use the Sentinel class to detect when an avatar has been removed from a processed element.
-            // This is a highly performant self-healing mechanism.
-            const processedClass = this.style.classes.processed;
-            const disappearanceSelector = `.${processedClass}:not(:has(${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER}))`;
-            sentinel.on(disappearanceSelector, this._handleAvatarDisappearance);
+            this.addDisposable(this._debouncedProcessQueue.cancel);
         }
 
         _onDestroy() {
-            this._debouncedProcessQueue.cancel();
-            this.currentBatchTask?.cancel();
+            // Cleanup handled by disposables.
+            // Do NOT set this.style to null here, as it may be used by pending disposables.
+            this._injectionQueue = [];
+            this.avatarTemplate = null;
 
-            // Clean up the listener from the Sentinel instance.
-            if (this.style) {
-                const processedClass = this.style.classes.processed;
-                const disappearanceSelector = `.${processedClass}:not(:has(${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER}))`;
-                sentinel.off(disappearanceSelector, this._handleAvatarDisappearance);
-
-                this.style = null;
-            }
+            // Remove all avatar containers from the DOM
+            document.querySelectorAll(CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER).forEach((el) => el.remove());
         }
 
         /**
@@ -7677,7 +8045,7 @@
 
             const processedClass = this.style.classes.processed;
 
-            this.currentBatchTask = processInBatches(
+            const task = processInBatches(
                 messagesToProcess,
                 (msgElem) => {
                     const role = PlatformAdapters.General.getMessageRole(msgElem);
@@ -7698,6 +8066,7 @@
                 },
                 CONSTANTS.PROCESSING.BATCH_SIZE
             );
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, () => task.cancel());
         }
 
         /**
@@ -7743,8 +8112,19 @@
          * Initializes the manager by injecting styles and subscribing to events.
          */
         _onInit() {
+            this.isUpdateScheduled = false;
             this.injectStyles(); // Inject styles first to generate IDs
             this.createContainers(); // Create containers using generated IDs
+
+            // Register cleanup for the created DOM elements
+            this.addDisposable(() => {
+                if (this.style) {
+                    const cls = this.style.classes;
+                    document.getElementById(cls.userImageId)?.remove();
+                    document.getElementById(cls.assistantImageId)?.remove();
+                }
+            });
+
             this._subscribe(EVENTS.WINDOW_RESIZED, this.scheduleUpdate);
             this._subscribe(EVENTS.SIDEBAR_LAYOUT_CHANGED, this.scheduleUpdate);
             this._subscribe(EVENTS.THEME_APPLIED, this.scheduleUpdate);
@@ -7759,32 +8139,25 @@
             this.anchorSelectors = CONSTANTS.SELECTORS.STANDING_IMAGE_ANCHOR.split(',').map((s) => s.trim());
             this.anchorSelectors.forEach((selector) => {
                 sentinel.on(selector, this.scheduleUpdate);
+                this.addDisposable(() => sentinel.off(selector, this.scheduleUpdate));
             });
 
             PlatformAdapters.StandingImage.setupEventListeners(this);
         }
 
         _onDestroy() {
-            // Cleanup Sentinel listeners
-            if (this.anchorSelectors) {
-                this.anchorSelectors.forEach((selector) => {
-                    sentinel.off(selector, this.scheduleUpdate);
-                });
-            }
-
-            if (this.style) {
-                const cls = this.style.classes;
-                document.getElementById(cls.userImageId)?.remove();
-                document.getElementById(cls.assistantImageId)?.remove();
-            }
+            // Cleanup handled by disposables.
+            // Do NOT set this.style to null here, as it is required for container removal.
         }
 
         scheduleUpdate() {
+            if (this.isDestroyed) return;
             if (this.isUpdateScheduled) return;
             this.isUpdateScheduled = true;
-            EventBus.queueUIWork(() => {
+            EventBus.queueUIWork(async () => {
+                if (this.isDestroyed) return;
                 this.updateVisibility();
-                this.recalculateStandingImagesLayout();
+                await this.recalculateStandingImagesLayout();
                 this.isUpdateScheduled = false;
             });
         }
@@ -7815,7 +8188,7 @@
          * @returns {Promise<void>}
          */
         async recalculateStandingImagesLayout() {
-            PlatformAdapters.StandingImage.recalculateLayout(this);
+            return PlatformAdapters.StandingImage.recalculateLayout(this);
         }
     }
 
@@ -7953,7 +8326,6 @@
             this.autoCollapseProcessedIds = new Set();
             this.styleHandle = null;
             this.featureTemplates = {}; // Initialized in init
-            this.currentBatchTask = null;
 
             /**
              * @private
@@ -7979,25 +8351,29 @@
         }
 
         /**
-         * Cleans up all event listeners and clears caches.
+         * Removes injected UI elements from the DOM and clears caches.
          */
         _onDestroy() {
-            this.currentBatchTask?.cancel();
-            if (this.styleHandle) {
-                this.styleHandle = null;
-            }
+            // Remove DOM elements to prevent artifacts
+            this.navContainers.forEach((container) => container.remove());
             this.navContainers.clear();
+
+            this.featureElementsCache.forEach((element) => element.remove());
             this.featureElementsCache.clear();
+
+            this.autoCollapseProcessedIds.clear();
+            // Do NOT set this.styleHandle to null here.
+
+            this.featureTemplates = {};
         }
 
         /**
          * Forces a re-processing of all visible messages, typically after a config change.
          */
         updateAll() {
-            this.currentBatchTask?.cancel();
             this._syncCaches();
             const allMessages = this.messageCacheManager.getTotalMessages();
-            this.currentBatchTask = processInBatches(
+            const task = processInBatches(
                 allMessages,
                 (messageElement) => {
                     this.processElement(messageElement);
@@ -8008,6 +8384,7 @@
                     this._updateNavButtonStates();
                 }
             );
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, () => task.cancel());
         }
 
         /**
@@ -8284,6 +8661,7 @@
             this.configManager = configManager;
             this.autoScrollManager = autoScrollManager; // May be null
             this.messageLifecycleManager = messageLifecycleManager;
+            this.options = options; // Keep reference for re-initialization
 
             // Handle to the styles and classes
             this.styleHandle = null;
@@ -8327,6 +8705,27 @@
          * @returns {Promise<void>}
          */
         async _onInit() {
+            // Re-initialize state if it was destroyed (null)
+            if (!this.state) {
+                this.state = {
+                    currentIndices: {
+                        [CONSTANTS.NAV_ROLES.USER]: -1,
+                        [CONSTANTS.NAV_ROLES.ASSISTANT]: -1,
+                        [CONSTANTS.NAV_ROLES.TOTAL]: -1,
+                    },
+                    highlightedMessage: null,
+                    isInitialSelectionDone: !!this.options.isReEnabling,
+                    jumpListComponent: null,
+                    lastFilterValue: '',
+                    previousTotalMessages: this.messageCacheManager.getTotalMessages().length,
+                    isAutoScrolling: false,
+                    activeRole: CONSTANTS.NAV_ROLES.TOTAL,
+                    inputMode: CONSTANTS.INPUT_MODES.NORMAL,
+                    stickyMode: null,
+                    interactionActive: false,
+                };
+            }
+
             this.styleHandle = this.injectStyle();
             // Pre-inject JumpList styles to avoid overhead on toggle
             this.jumpListStyleHandle = StyleManager.request(StyleDefinitions.getJumpList);
@@ -8367,20 +8766,25 @@
          * @returns {void}
          */
         _onDestroy() {
-            if (this.state.highlightedMessage) {
-                this.state.highlightedMessage.classList.remove(this.styleHandle.classes.highlightMessage);
+            this.isRepositionScheduled = false;
+
+            // Perform cleanup that requires state before clearing it
+            if (this.state) {
+                // jumpListComponent is managed by BaseManager and will be destroyed automatically.
+
+                if (this.state.highlightedMessage && this.styleHandle) {
+                    this.state.highlightedMessage.classList.remove(this.styleHandle.classes.highlightMessage);
+                }
             }
 
-            this.state.jumpListComponent?.destroy();
             this.navConsole?.remove();
+
+            // UI cleanup is handled by disposables registered in _onInit and createContainers
+            this.uiCache = null;
             this.navConsole = null;
-
-            document.body.removeEventListener('click', this.handleBodyClick, true);
-            document.removeEventListener('keydown', this._handleKeyDown, true);
-
-            document.removeEventListener('keydown', this._handleDocumentKeyChange, true);
-            document.removeEventListener('keyup', this._handleDocumentKeyChange, true);
-            window.removeEventListener('blur', this._handleWindowBlur);
+            this.state = null;
+            this.styleHandle = null;
+            this.jumpListStyleHandle = null;
         }
 
         updateUI() {
@@ -8411,6 +8815,9 @@
         }
 
         resetState() {
+            // Guard against execution after destruction
+            if (this.isDestroyed || !this.state) return;
+
             // Hide immediately to prevent flickering of old state
             if (this.navConsole) {
                 this.navConsole.classList.add(this.styleHandle.classes.hidden);
@@ -8422,10 +8829,8 @@
                 this.state.highlightedMessage.classList.remove(this.styleHandle.classes.highlightMessage);
             }
 
-            // Ensure the jump list component is properly destroyed to prevent UI ghosts
-            if (this.state.jumpListComponent) {
-                this.state.jumpListComponent.destroy();
-            }
+            // Ensure the jump list component is properly destroyed via manager
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.JUMP_LIST, null);
 
             this.state = {
                 currentIndices: {
@@ -8623,6 +9028,12 @@
             this.navConsole = navConsole;
             document.body.appendChild(this.navConsole);
 
+            // Register cleanup for the container immediately after creation
+            this.addDisposable(() => {
+                this.navConsole?.remove();
+                this.navConsole = null;
+            });
+
             this.renderInitialUI();
             this.attachEventListeners();
         }
@@ -8727,17 +9138,34 @@
 
         attachEventListeners() {
             document.body.addEventListener('click', this.handleBodyClick, true);
+            this.addDisposable(() => document.body.removeEventListener('click', this.handleBodyClick, true));
+
             document.addEventListener('keydown', this._handleKeyDown, true);
+            this.addDisposable(() => document.removeEventListener('keydown', this._handleKeyDown, true));
 
             document.addEventListener('keydown', this._handleDocumentKeyChange, true);
+            this.addDisposable(() => document.removeEventListener('keydown', this._handleDocumentKeyChange, true));
+
             document.addEventListener('keyup', this._handleDocumentKeyChange, true);
+            this.addDisposable(() => document.removeEventListener('keyup', this._handleDocumentKeyChange, true));
+
             window.addEventListener('blur', this._handleWindowBlur);
+            this.addDisposable(() => window.removeEventListener('blur', this._handleWindowBlur));
 
             if (this.navConsole) {
                 this.navConsole.addEventListener('mouseenter', this._handleInteractionStateChange);
                 this.navConsole.addEventListener('mouseleave', this._handleInteractionStateChange);
                 this.navConsole.addEventListener('focusin', this._handleInteractionStateChange);
                 this.navConsole.addEventListener('focusout', this._handleInteractionStateChange);
+
+                this.addDisposable(() => {
+                    if (this.navConsole) {
+                        this.navConsole.removeEventListener('mouseenter', this._handleInteractionStateChange);
+                        this.navConsole.removeEventListener('mouseleave', this._handleInteractionStateChange);
+                        this.navConsole.removeEventListener('focusin', this._handleInteractionStateChange);
+                        this.navConsole.removeEventListener('focusout', this._handleInteractionStateChange);
+                    }
+                });
             }
         }
 
@@ -8745,6 +9173,7 @@
             if (this.isRepositionScheduled) return;
             this.isRepositionScheduled = true;
             EventBus.queueUIWork(() => {
+                if (this.isDestroyed) return;
                 this.repositionContainers();
                 this.isRepositionScheduled = false;
             });
@@ -8817,6 +9246,7 @@
                 },
                 mutate: (measured) => {
                     // --- Write Phase ---
+                    if (this.isDestroyed) return;
                     if (!measured) return;
 
                     if (measured.mode === CONSTANTS.CONSOLE_POSITIONS.HEADER) {
@@ -9413,7 +9843,7 @@
             }
         }
 
-        _toggleJumpList(labelElement) {
+        async _toggleJumpList(labelElement) {
             // Use activeRole instead of DOM attribute
             const role = this.state.activeRole;
             if (this.state.jumpListComponent?.role === role) {
@@ -9431,7 +9861,7 @@
             const messages = roleMap[role];
             if (!messages || messages.length === 0) return;
 
-            this.state.jumpListComponent = new JumpListComponent(
+            const jumpList = new JumpListComponent(
                 role,
                 messages,
                 this.state.highlightedMessage,
@@ -9442,13 +9872,24 @@
                 // Fallback to empty string as initialFilterValue is mandatory
                 this.state.lastFilterValue || ''
             );
+
+            // Register as managed resource to ensure safe destruction
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.JUMP_LIST, jumpList);
+
+            await jumpList.init();
+
+            // Keep reference in state for logic
+            this.state.jumpListComponent = jumpList;
+
             this.state.jumpListComponent.show(labelElement);
         }
 
         _hideJumpList() {
             if (!this.state.jumpListComponent) return;
             this.state.lastFilterValue = this.state.jumpListComponent.getFilterValue();
-            this.state.jumpListComponent.destroy();
+
+            // Dispose resource (calls destroy internally) and clear reference
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.JUMP_LIST, null);
             this.state.jumpListComponent = null;
         }
 
@@ -9471,25 +9912,25 @@
         constructor(messageCacheManager) {
             super();
             this.messageCacheManager = messageCacheManager;
-            this.scanIntervalId = null;
             this.scanAttempts = 0;
             this.boundStopPollingScan = this.stopPollingScan.bind(this);
-            this.isNavigating = true;
+            // Define options once to ensure consistency between add/remove listeners
+            // Cast to any to suppress TS error on removeEventListener (which accepts EventListenerOptions but ignores extra props like passive/once)
+            /** @type {any} */
+            this.scanOptions = { once: true, passive: true };
         }
 
         _onInit() {
             this._subscribe(EVENTS.RAW_MESSAGE_ADDED, (elem) => this.processRawMessage(elem));
             this._subscribe(EVENTS.NAVIGATION_END, () => {
                 PlatformAdapters.General.onNavigationEnd?.(this);
-                this.isNavigating = false;
             });
-            this._subscribe(EVENTS.NAVIGATION_START, () => {
-                this.isNavigating = true;
-            });
+
+            this.addDisposable(() => this.stopPollingScan());
         }
 
         _onDestroy() {
-            this.stopPollingScan();
+            // Cleanup handled by disposables.
         }
 
         /**
@@ -9504,7 +9945,7 @@
 
             Logger.log('', '', 'Starting polling scan for unprocessed messages.');
 
-            this.scanIntervalId = setInterval(() => {
+            const id = setInterval(() => {
                 this.scanAttempts++;
                 Logger.log('', '', `Executing polling scan (Attempt ${this.scanAttempts}/${MAX_ATTEMPTS})...`);
                 const newItemsFound = this.scanForUnprocessedMessages();
@@ -9522,23 +9963,26 @@
                 }
             }, INTERVAL_MS);
 
+            // Register the interval cleanup
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.POLLING_SCAN, () => clearInterval(id));
+
             // Stop polling immediately on user interaction
-            window.addEventListener('wheel', this.boundStopPollingScan, { once: true, passive: true });
-            window.addEventListener('keydown', this.boundStopPollingScan, { once: true, passive: true });
+            window.addEventListener('wheel', this.boundStopPollingScan, this.scanOptions);
+            window.addEventListener('keydown', this.boundStopPollingScan, this.scanOptions);
         }
 
         /**
          * @description Stops the polling scan and cleans up associated listeners.
          */
         stopPollingScan() {
-            if (this.scanIntervalId) {
-                clearInterval(this.scanIntervalId);
-                this.scanIntervalId = null;
-                Logger.debug('', '', 'Polling scan stopped.');
-            }
+            // Dispose of the polling resource (clears interval)
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.POLLING_SCAN, null);
+
+            Logger.debug('', '', 'Polling scan stopped.');
+
             // Clean up interaction listeners regardless
-            window.removeEventListener('wheel', this.boundStopPollingScan);
-            window.removeEventListener('keydown', this.boundStopPollingScan);
+            window.removeEventListener('wheel', this.boundStopPollingScan, this.scanOptions);
+            window.removeEventListener('keydown', this.boundStopPollingScan, this.scanOptions);
         }
 
         /**
@@ -9551,11 +9995,11 @@
         }
 
         processRawMessage(contentElement) {
-            // Flag the specific content piece as processed to avoid re-triggering from the same element.
-            if (DomState.has(contentElement, CONSTANTS.DATA_KEYS.CONTENT_PROCESSED)) {
+            // Check for class-based flag
+            if (contentElement.classList.contains(CONSTANTS.CLASSES.PROCESSED)) {
                 return;
             }
-            DomState.mark(contentElement, CONSTANTS.DATA_KEYS.CONTENT_PROCESSED);
+            contentElement.classList.add(CONSTANTS.CLASSES.PROCESSED);
 
             let messageElement = PlatformAdapters.General.findMessageElement(contentElement);
 
@@ -9588,8 +10032,8 @@
                 // Fire message complete event for other managers.
                 // Use a different flag to ensure this only fires once per message container,
                 // even if it has multiple content parts detected (e.g. text and images).
-                if (!DomState.has(messageElement, CONSTANTS.DATA_KEYS.MESSAGE_COMPLETE_FIRED)) {
-                    DomState.mark(messageElement, CONSTANTS.DATA_KEYS.MESSAGE_COMPLETE_FIRED);
+                if (!messageElement.classList.contains(CONSTANTS.CLASSES.COMPLETE_FIRED)) {
+                    messageElement.classList.add(CONSTANTS.CLASSES.COMPLETE_FIRED);
                     EventBus.publish(EVENTS.MESSAGE_COMPLETE, messageElement);
                 }
             }
@@ -9612,8 +10056,6 @@
             this.configManager = configManager;
             this.messageCacheManager = messageCacheManager;
             /** @type {Map<string, Date>} */
-            this.messageTimestamps = new Map();
-            /** @type {Map<string, Date>} */
             this.pendingTimestamps = new Map(); // Buffer for timestamps during navigation
             /** @type {Map<HTMLElement, HTMLElement>} */
             this.timestampDomCache = new Map();
@@ -9622,13 +10064,17 @@
             this.timestampSpanTemplate = null;
             this.currentChatId = null;
             this.isEnabled = false; // Add state tracking
-            this.isNavigating = false; // Track navigation state
-            this.currentBatchTask = null;
-            this.MAX_CACHE_SIZE = 10000; // Limit for memory protection
+            this.isNavigating = true; // Track navigation state (Initialize as true to buffer initial page load)
+            /** @type {(() => void) | null} */
+            this._cacheUpdateUnsub = null;
         }
 
         _onInit() {
             this.injectStyle();
+
+            // Register automatic cleanup of UI and listeners when destroyed
+            this.addDisposable(() => this.disable());
+
             // Subscribe to navigation events to clear the cache and load new data
             // This must always run, even when disabled, to clear the cache on page change.
             this._subscribe(EVENTS.NAVIGATION, () => this._handleNavigation());
@@ -9638,13 +10084,15 @@
             // Subscribe to data events regardless of the feature toggle state.
             this._subscribe(EVENTS.TIMESTAMP_ADDED, (data) => this._handleTimestampAdded(data));
             this._subscribe(EVENTS.TIMESTAMPS_LOADED, (data) => this._loadHistoricalTimestamps(data));
+        }
 
-            // Check for buffered data captured before initialization
-            const bufferedData = PlatformAdapters.Timestamp.getCapturedData();
-            if (bufferedData && bufferedData.length > 0) {
-                Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, `Processing ${bufferedData.length} buffered timestamp sets.`);
-                bufferedData.forEach((data) => this._loadHistoricalTimestamps(data));
-            }
+        /**
+         * Unsubscribes from events and clears DOM elements.
+         * Called when the feature is disabled.
+         */
+        _onDestroy() {
+            // disable() is called via disposable.
+            this.pendingTimestamps.clear();
         }
 
         /**
@@ -9670,8 +10118,8 @@
                 let addedCount = 0;
                 this.pendingTimestamps.forEach((timestamp, messageId) => {
                     // Only apply if NOT already present (i.e., not loaded from API)
-                    if (!this.messageTimestamps.has(messageId)) {
-                        this._addTimestampToCache(messageId, timestamp);
+                    if (!PlatformAdapters.Timestamp.getTimestamp(messageId)) {
+                        PlatformAdapters.Timestamp.addTimestamp(messageId, timestamp);
                         addedCount++;
                     }
                 });
@@ -9686,21 +10134,6 @@
         }
 
         /**
-         * @private
-         * Helper to add a timestamp to the main cache with LRU logic.
-         * @param {string} messageId
-         * @param {Date} timestamp
-         */
-        _addTimestampToCache(messageId, timestamp) {
-            // LRU check
-            if (this.messageTimestamps.size >= this.MAX_CACHE_SIZE) {
-                const oldestKey = this.messageTimestamps.keys().next().value;
-                if (oldestKey) this.messageTimestamps.delete(oldestKey);
-            }
-            this.messageTimestamps.set(messageId, timestamp);
-        }
-
-        /**
          * Subscribes to events and performs an initial load and render.
          * Called when the feature is enabled.
          */
@@ -9708,8 +10141,10 @@
             Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, 'Enabling...');
             this.isEnabled = true;
 
-            // Subscribe to cache updates (e.g., deletions)
-            this._subscribe(EVENTS.CACHE_UPDATED, () => this.updateAllTimestamps());
+            // Subscribe to cache updates (e.g., deletions) using the new return-based pattern
+            if (!this._cacheUpdateUnsub) {
+                this._cacheUpdateUnsub = this._subscribe(EVENTS.CACHE_UPDATED, () => this.updateAllTimestamps());
+            }
 
             // Initial render
             // This will render any data that was collected while the setting was OFF.
@@ -9719,31 +10154,20 @@
         /**
          * Unsubscribes from events and clears DOM elements.
          * Called when the feature is disabled.
-         * Does NOT clear the internal timestamp cache.
          */
         disable() {
             Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, 'Disabling...');
             this.isEnabled = false;
-            this.currentBatchTask?.cancel();
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
 
             // Unsubscribe from events that trigger DOM updates
-            // Use standard BaseManager functionality
-            this._unsubscribe(EVENTS.CACHE_UPDATED);
+            if (this._cacheUpdateUnsub) {
+                this._cacheUpdateUnsub();
+                this._cacheUpdateUnsub = null;
+            }
 
             // Clear all visible timestamps from the DOM
             this._clearAllTimestampsDOM();
-        }
-
-        /**
-         * Unsubscribes from events and clears DOM elements.
-         * Called when the feature is disabled.
-         * Does NOT clear the internal timestamp cache.
-         */
-        _onDestroy() {
-            this.disable(); // Unsubscribe from active UI events
-
-            this.messageTimestamps.clear(); // Clear internal cache
-            this._clearAllTimestampsDOM(); // Ensure DOM is clean
         }
 
         /**
@@ -9751,7 +10175,6 @@
          * Clears caches on navigation and prepares for new data.
          */
         _handleNavigation() {
-            // Keep messageTimestamps to support browser back/forward navigation without API calls.
             // Only clear the DOM cache as the elements are gone.
             this._clearAllTimestampsDOM();
             this.currentChatId = null;
@@ -9764,29 +10187,13 @@
          * @param {Map<string, Date>} detail.timestamps - The map of historical timestamps.
          */
         _loadHistoricalTimestamps({ chatId, timestamps }) {
-            // Simply merge new data. Do not clear existing cache to support navigation between chats.
             if (chatId !== this.currentChatId) {
                 this.currentChatId = chatId;
             }
 
+            // Data is already stored in Adapter by the time this event fires.
             if (timestamps && timestamps.size > 0) {
-                Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, `Loading ${timestamps.size} historical timestamps from adapter.`);
-
-                // LRU: If adding new items exceeds limit, remove oldest.
-                // Since Map preserves insertion order, keys().next() returns the oldest.
-                if (this.messageTimestamps.size + timestamps.size > this.MAX_CACHE_SIZE) {
-                    const deleteCount = this.messageTimestamps.size + timestamps.size - this.MAX_CACHE_SIZE;
-                    for (let i = 0; i < deleteCount; i++) {
-                        const oldestKey = this.messageTimestamps.keys().next().value;
-                        if (oldestKey) this.messageTimestamps.delete(oldestKey);
-                        else break;
-                    }
-                }
-
-                timestamps.forEach((date, id) => {
-                    // Overwrite any existing (likely real-time) timestamp with the historical one
-                    this.messageTimestamps.set(id, date);
-                });
+                Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, `Notified of ${timestamps.size} historical timestamps.`);
             }
 
             // If enabled, trigger a DOM update now that historical data is loaded
@@ -9814,10 +10221,10 @@
             }
 
             // Normal processing (Real-time or New Chat)
-            if (!this.messageTimestamps.has(messageId)) {
+            if (!PlatformAdapters.Timestamp.getTimestamp(messageId)) {
                 Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, `Added real-time timestamp for ${messageId}.`);
 
-                this._addTimestampToCache(messageId, timestamp);
+                PlatformAdapters.Timestamp.addTimestamp(messageId, timestamp);
 
                 // If enabled, trigger a DOM update for the new real-time timestamp
                 if (this.isEnabled) {
@@ -9831,7 +10238,7 @@
          * @returns {Date | undefined} The Date object for the message, or undefined if not found.
          */
         getTimestamp(messageId) {
-            return this.messageTimestamps.get(messageId);
+            return PlatformAdapters.Timestamp.getTimestamp(messageId);
         }
 
         /**
@@ -9874,7 +10281,6 @@
          * Creates the timestamp element if it doesn't exist.
          */
         updateAllTimestamps() {
-            this.currentBatchTask?.cancel();
             // 1. Sync cache and remove deleted DOM nodes
             this._syncCache();
 
@@ -9891,7 +10297,7 @@
             }
 
             // 3. Run a single-pass batch operation to create/update all
-            this.currentBatchTask = processInBatches(
+            const task = processInBatches(
                 allMessages,
                 (message) => {
                     // Pass the feature flag to the update function
@@ -9899,6 +10305,7 @@
                 },
                 CONSTANTS.PROCESSING.BATCH_SIZE
             );
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, () => task.cancel());
         }
 
         /**
@@ -9984,7 +10391,6 @@
             this.numberSpanCache = new Map();
             this.styleHandle = null;
             this.numberSpanTemplate = null;
-            this.currentBatchTask = null;
         }
 
         /**
@@ -10000,10 +10406,12 @@
         }
 
         /**
-         * Cleans up event listeners.
+         * Removes all message number elements from the DOM and clears the cache.
          */
         _onDestroy() {
-            this.currentBatchTask?.cancel();
+            this.numberSpanCache.forEach((span) => {
+                span.remove();
+            });
             this.numberSpanCache.clear();
         }
 
@@ -10027,7 +10435,6 @@
          * Creates the number element if it doesn't exist.
          */
         updateAllMessageNumbers() {
-            this.currentBatchTask?.cancel();
             this._syncCache();
             const config = this.configManager.get();
             if (!config) return;
@@ -10049,7 +10456,7 @@
 
             // --- Mutate Phase (in batches) ---
             const createSpans = () => {
-                this.currentBatchTask = processInBatches(
+                const task = processInBatches(
                     toCreate,
                     ({ message, anchor }) => {
                         anchor.classList.add(cls.parent);
@@ -10067,10 +10474,11 @@
                     CONSTANTS.PROCESSING.BATCH_SIZE,
                     updateNumbers // Chain to the next step
                 );
+                this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, () => task.cancel());
             };
 
             const updateNumbers = () => {
-                this.currentBatchTask = processInBatches(
+                const task = processInBatches(
                     allMessages,
                     (message, index) => {
                         const numberSpan = this.numberSpanCache.get(message);
@@ -10081,6 +10489,7 @@
                     },
                     CONSTANTS.PROCESSING.BATCH_SIZE
                 );
+                this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, () => task.cancel());
             };
 
             createSpans(); // Start the chain
@@ -10286,22 +10695,23 @@
 
     /**
      * @class FormEngine
+     * @extends BaseManager
      * @description A reactive form engine that binds a schema to a ReactiveStore.
      * Handles DOM generation, event binding, and dynamic property updates.
      */
-    class FormEngine {
+    class FormEngine extends BaseManager {
         /**
          * @param {ReactiveStore} store - The data store.
          * @param {Array<object>|object} schema - The UI schema.
          * @param {object} context - Context object containing styles, etc.
          */
         constructor(store, schema, context) {
+            super();
             this.store = store;
             this.schema = Array.isArray(schema) ? schema : [schema];
             this.context = context;
             this.elements = new Map(); // Map<schemaId, HTMLElement>
-            this.unsubscribers = [];
-            this.boundEventListeners = [];
+            this.isRendered = false;
 
             // Bind methods
             this._handleInput = this._handleInput.bind(this);
@@ -10313,11 +10723,17 @@
          * @returns {DocumentFragment}
          */
         render() {
+            if (this.isRendered) {
+                Logger.warn('FormEngine', '', 'render() called multiple times on the same instance. Ignoring.');
+                return document.createDocumentFragment();
+            }
+            this.isRendered = true;
+
             const fragment = document.createDocumentFragment();
             this._renderRecursive(this.schema, fragment);
 
             // Setup reactivity after rendering
-            this.unsubscribers.push(this.store.subscribe(this._handleStoreUpdate));
+            this.addDisposable(this.store.subscribe(this._handleStoreUpdate));
 
             // Initial evaluation of dynamic properties
             this._evaluateDynamicProperties(this.store.getData());
@@ -10325,16 +10741,12 @@
             return fragment;
         }
 
-        destroy() {
-            this.unsubscribers.forEach((unsub) => unsub());
-            this.unsubscribers = [];
-
-            // Clean up event listeners explicitly to prevent memory leaks
-            this.boundEventListeners.forEach(({ element, type, handler }) => {
-                element.removeEventListener(type, handler);
-            });
-            this.boundEventListeners = [];
-
+        /**
+         * Lifecycle hook for cleanup.
+         * @protected
+         * @override
+         */
+        _onDestroy() {
             // Execute component-specific cleanup logic
             for (const { element, node } of this.elements.values()) {
                 const component = ComponentRegistry.get(node.type);
@@ -10442,7 +10854,7 @@
             const eventType = useChangeEvent ? 'change' : 'input';
 
             input.addEventListener(eventType, handler);
-            this.boundEventListeners.push({ element: input, type: eventType, handler });
+            this.addDisposable(() => input.removeEventListener(eventType, handler));
         }
 
         /**
@@ -11316,6 +11728,48 @@
     }
 
     /**
+     * @class SchemaHelpers
+     * @description Helper functions for schema generation, specifically for value transformations.
+     */
+    const SchemaHelpers = {
+        /**
+         * Creates transformation logic for pixel-based sliders with an 'Auto' state.
+         * @param {number} min - The minimum value on the slider.
+         * @param {number} nullThreshold - Values below this threshold are treated as null (Auto).
+         * @returns {object} Options object containing transformValue, toInputValue, and valueLabelFormatter.
+         */
+        pxTransformer: (min, nullThreshold) => ({
+            transformValue: (val) => (val < nullThreshold ? null : `${val}px`),
+            toInputValue: (val) => {
+                if (typeof val === 'string' && val.endsWith('px')) {
+                    const match = String(val).match(/^(-?\d+)/);
+                    if (match) return parseInt(match[1], 10);
+                    return min;
+                }
+                if (typeof val === 'number') return val;
+                return min; // null/undefined -> min
+            },
+            valueLabelFormatter: (val) => (val === null ? 'Auto' : val),
+        }),
+
+        /**
+         * Creates transformation logic for percentage-based sliders with an 'Auto' state.
+         * @param {number} min - The minimum value on the slider.
+         * @param {number} nullThreshold - Values below this threshold are treated as null (Auto).
+         * @returns {object} Options object containing transformValue, toInputValue, and valueLabelFormatter.
+         */
+        percentTransformer: (min, nullThreshold) => ({
+            transformValue: (val) => (val < nullThreshold ? null : `${val}%`),
+            toInputValue: (val) => {
+                if (typeof val === 'string' && val.endsWith('%')) return parseInt(val, 10);
+                if (typeof val === 'number') return val;
+                return min; // null -> min
+            },
+            valueLabelFormatter: (val) => (val === null ? 'Auto' : val),
+        }),
+    };
+
+    /**
      * Factory to generate UI schema definitions.
      */
     const UISchemaFactory = {
@@ -11371,131 +11825,171 @@
                     visibleIf: isNotDefault,
                 });
 
+                // Generate fields using metadata
                 const gridContent = SchemaBuilder.Grid(
                     [
                         this._createActor(prefix, 'assistant'),
                         this._createActor(prefix, 'user'),
-                        SchemaBuilder.Group('Background', [
-                            SchemaBuilder.Color('window.backgroundColor', 'Background color:', { tooltip: 'Main background color of the chat window.' }),
-                            SchemaBuilder.Text('window.backgroundImageUrl', 'Background image:', { tooltip: 'URL or Data URI for the main background image.', fieldType: 'image' }),
-                            SchemaBuilder.Container(
-                                [
-                                    SchemaBuilder.Select('window.backgroundSize', 'Size:', ['', 'auto', 'cover', 'contain'], {
-                                        tooltip: 'How the background image is sized.',
-                                        showLabel: true,
-                                    }),
-                                    SchemaBuilder.Select(
-                                        'window.backgroundPosition',
-                                        'Position:',
-                                        ['', 'top left', 'top center', 'top right', 'center left', 'center center', 'center right', 'bottom left', 'bottom center', 'bottom right'],
-                                        {
-                                            tooltip: 'Position of the background image.',
-                                            showLabel: true,
-                                        }
-                                    ),
-                                ],
-                                { className: 'compoundFormFieldContainer' }
-                            ),
-                            SchemaBuilder.Container(
-                                [
-                                    SchemaBuilder.Select('window.backgroundRepeat', 'Repeat:', ['', 'no-repeat', 'repeat'], {
-                                        tooltip: 'How the background image is repeated.',
-                                        showLabel: true,
-                                    }),
-                                    SchemaBuilder.PreviewBackground(),
-                                ],
-                                {
-                                    className: 'compoundFormFieldContainer',
-                                }
-                            ),
-                        ]),
-                        SchemaBuilder.Group('Input area', [
-                            SchemaBuilder.Color('inputArea.backgroundColor', 'Background color:', { tooltip: 'Background color of the text input area.' }),
-                            SchemaBuilder.Color('inputArea.textColor', 'Text color:', { tooltip: 'Color of the text you type.' }),
-                            SchemaBuilder.Separator({ className: 'separator' }),
-                            SchemaBuilder.PreviewInput(),
-                        ]),
+                        SchemaBuilder.Group('Background', this._generateFields('window', this._getWindowFieldDefinitions())),
+                        SchemaBuilder.Group('Input area', this._generateFields('inputArea', this._getInputFieldDefinitions())),
                     ],
                     { className: 'grid' }
                 );
 
                 return [SchemaBuilder.Container([generalSettings, separator, gridContent], { className: 'scrollableArea' })];
             },
-            /**
-             * @param {string} prefix
-             * @param {string} actor
-             */
+
             _createActor(prefix, actor) {
+                const fields = this._getActorFieldDefinitions(actor);
+                const title = actor.charAt(0).toUpperCase() + actor.slice(1);
+                return SchemaBuilder.Group(title, this._generateFields(actor, fields));
+            },
+
+            /**
+             * Generates schema nodes from metadata definitions.
+             * @param {string} prefix - The config key prefix (e.g., 'user', 'window').
+             * @param {Array} definitions - Array of field definition objects.
+             * @returns {Array} Array of SchemaBuilder nodes.
+             */
+            _generateFields(prefix, definitions) {
+                return definitions.map((def) => {
+                    // Handle nested layouts (Container, etc.)
+                    if (def.layout) {
+                        const children = def.children ? this._generateFields(prefix, def.children) : [];
+                        const args = def.args || [];
+                        return SchemaBuilder[def.layout](...args, children, def.options || {});
+                    }
+
+                    // Handle standard controls
+                    const key = def.keySuffix ? `${prefix}${def.keySuffix}` : null;
+                    const args = def.args || [];
+
+                    // Combine transform options if provided (e.g. from SchemaHelpers)
+                    const options = { ...def.options };
+
+                    // Handle special cases without config keys (e.g. Preview, Separator)
+                    if (!key) {
+                        return SchemaBuilder[def.type](...args, options);
+                    }
+
+                    return SchemaBuilder[def.type](key, def.label, ...args, options);
+                });
+            },
+
+            _getActorFieldDefinitions(actor) {
                 const bubbleWidthConfig = CONSTANTS.SLIDER_CONFIGS.BUBBLE_MAX_WIDTH;
-                return SchemaBuilder.Group(actor.charAt(0).toUpperCase() + actor.slice(1), [
-                    SchemaBuilder.Text(`${actor}.name`, 'Name:', { tooltip: `The name displayed for the ${actor}.`, fieldType: 'name' }),
-                    SchemaBuilder.Text(`${actor}.icon`, 'Icon:', { tooltip: `URL, Data URI, or <svg> for the ${actor}'s icon.`, fieldType: 'icon' }),
-                    SchemaBuilder.Text(`${actor}.standingImageUrl`, 'Standing image:', { tooltip: `URL or Data URI for the character's standing image.`, fieldType: 'image' }),
-                    SchemaBuilder.Group('Bubble Settings', [
-                        SchemaBuilder.Color(`${actor}.bubbleBackgroundColor`, 'Background color:', { tooltip: 'Background color of the message bubble.' }),
-                        SchemaBuilder.Color(`${actor}.textColor`, 'Text color:', { tooltip: 'Color of the text inside the bubble.' }),
-                        SchemaBuilder.Text(`${actor}.font`, 'Font:', { tooltip: 'Font family for the text.\nFont names with spaces must be quoted (e.g., "Times New Roman").' }),
+                return [
+                    { type: 'Text', keySuffix: '.name', label: 'Name:', options: { tooltip: `The name displayed for the ${actor}.`, fieldType: 'name' } },
+                    { type: 'Text', keySuffix: '.icon', label: 'Icon:', options: { tooltip: `URL, Data URI, or <svg> for the ${actor}'s icon.`, fieldType: 'icon' } },
+                    { type: 'Text', keySuffix: '.standingImageUrl', label: 'Standing image:', options: { tooltip: `URL or Data URI for the character's standing image.`, fieldType: 'image' } },
+                    {
+                        layout: 'Group',
+                        args: ['Bubble Settings'], // Layout args usually go to first param
+                        children: [
+                            { type: 'Color', keySuffix: '.bubbleBackgroundColor', label: 'Background color:', options: { tooltip: 'Background color of the message bubble.' } },
+                            { type: 'Color', keySuffix: '.textColor', label: 'Text color:', options: { tooltip: 'Color of the text inside the bubble.' } },
+                            { type: 'Text', keySuffix: '.font', label: 'Font:', options: { tooltip: 'Font family for the text.\nFont names with spaces must be quoted (e.g., "Times New Roman").' } },
 
-                        // Row 1: Padding and Radius side-by-side using Flexbox (compoundSliderContainer)
-                        SchemaBuilder.Container(
-                            [
-                                SchemaBuilder.Slider(`${actor}.bubblePadding`, 'Padding:', -1, 30, {
-                                    step: 1,
-                                    tooltip: 'Adjusts padding for all sides.\nSet to the far left for (auto).',
-                                    containerClass: 'sliderSubgroup', // Use flex child class
-                                    // Transform UI value (number) to Store value (string "XXpx" or null)
-                                    transformValue: (val) => (val < 0 ? null : `${val}px`),
-                                    // Transform Store value (string "XXpx" or null) to UI value (number)
-                                    toInputValue: (val) => {
-                                        if (typeof val === 'string' && val.endsWith('px')) {
-                                            const match = String(val).match(/^(-?\d+)/);
-                                            if (match) return parseInt(match[1], 10);
-                                            return -1;
-                                        }
-                                        if (typeof val === 'number') return val;
-                                        return -1; // null/undefined -> -1
+                            // Row 1: Padding and Radius side-by-side using Flexbox (compoundSliderContainer)
+                            {
+                                layout: 'Container',
+                                options: { className: 'compoundSliderContainer' }, // Use Flexbox container
+                                children: [
+                                    {
+                                        type: 'Slider',
+                                        keySuffix: '.bubblePadding',
+                                        label: 'Padding:',
+                                        args: [-1, 30],
+                                        options: {
+                                            step: 1,
+                                            tooltip: 'Adjusts padding for all sides.\nSet to the far left for (auto).',
+                                            containerClass: 'sliderSubgroup',
+                                            ...SchemaHelpers.pxTransformer(-1, 0),
+                                        },
                                     },
-                                    // Store value is already "10px" or null.
-                                    valueLabelFormatter: (val) => (val === null ? 'Auto' : val),
-                                }),
-                                SchemaBuilder.Slider(`${actor}.bubbleBorderRadius`, 'Radius:', -1, 50, {
-                                    step: 1,
-                                    tooltip: 'Corner roundness of the bubble (e.g., 10px).\nSet to the far left for (auto).',
-                                    containerClass: 'sliderSubgroup', // Use flex child class
-                                    // String "XXpx" <-> Number conversion
-                                    transformValue: (val) => (val < 0 ? null : `${val}px`),
-                                    toInputValue: (val) => {
-                                        if (typeof val === 'string' && val.endsWith('px')) return parseInt(val, 10);
-                                        if (typeof val === 'number') return val; // fallback
-                                        return -1; // null or undefined -> -1
+                                    {
+                                        type: 'Slider',
+                                        keySuffix: '.bubbleBorderRadius',
+                                        label: 'Radius:',
+                                        args: [-1, 50],
+                                        options: {
+                                            step: 1,
+                                            tooltip: 'Corner roundness of the bubble (e.g., 10px).\nSet to the far left for (auto).',
+                                            containerClass: 'sliderSubgroup',
+                                            ...SchemaHelpers.pxTransformer(-1, 0),
+                                        },
                                     },
-                                    // Store value is already "10px" or null
-                                    valueLabelFormatter: (val) => (val === null ? 'Auto' : val),
-                                }),
-                            ],
-                            { className: 'compoundSliderContainer' } // Use Flexbox container
-                        ),
-
-                        // Row 2: Max Width on its own line
-                        SchemaBuilder.Slider(`${actor}.bubbleMaxWidth`, 'max Width:', bubbleWidthConfig.MIN, bubbleWidthConfig.MAX, {
-                            step: 1,
-                            tooltip: 'Maximum width of the bubble.\nSet to the far left for (auto).',
-                            containerClass: 'sliderContainer',
-                            // String "XX%" <-> Number conversion
-                            transformValue: (val) => (val < bubbleWidthConfig.NULL_THRESHOLD ? null : `${val}%`),
-                            toInputValue: (val) => {
-                                if (typeof val === 'string' && val.endsWith('%')) return parseInt(val, 10);
-                                if (typeof val === 'number') return val;
-                                return bubbleWidthConfig.MIN; // null -> min
+                                ],
                             },
-                            // Store value is already "50%" or null
-                            valueLabelFormatter: (val) => (val === null ? 'Auto' : val),
-                        }),
 
-                        SchemaBuilder.Separator({ className: 'separator' }),
-                        SchemaBuilder.Preview(actor),
-                    ]),
-                ]);
+                            // Row 2: Max Width on its own line
+                            {
+                                type: 'Slider',
+                                keySuffix: '.bubbleMaxWidth',
+                                label: 'max Width:',
+                                args: [bubbleWidthConfig.MIN, bubbleWidthConfig.MAX],
+                                options: {
+                                    step: 1,
+                                    tooltip: 'Maximum width of the bubble.\nSet to the far left for (auto).',
+                                    containerClass: 'sliderContainer',
+                                    ...SchemaHelpers.percentTransformer(bubbleWidthConfig.MIN, bubbleWidthConfig.NULL_THRESHOLD),
+                                },
+                            },
+                            { type: 'Separator', options: { className: 'separator' } },
+                            { type: 'Preview', args: [actor] },
+                        ],
+                    },
+                ];
+            },
+
+            _getWindowFieldDefinitions() {
+                return [
+                    { type: 'Color', keySuffix: '.backgroundColor', label: 'Background color:', options: { tooltip: 'Main background color of the chat window.' } },
+                    { type: 'Text', keySuffix: '.backgroundImageUrl', label: 'Background image:', options: { tooltip: 'URL or Data URI for the main background image.', fieldType: 'image' } },
+                    {
+                        layout: 'Container',
+                        options: { className: 'compoundFormFieldContainer' },
+                        children: [
+                            {
+                                type: 'Select',
+                                keySuffix: '.backgroundSize',
+                                label: 'Size:',
+                                args: [['', 'auto', 'cover', 'contain']],
+                                options: { tooltip: 'How the background image is sized.', showLabel: true },
+                            },
+                            {
+                                type: 'Select',
+                                keySuffix: '.backgroundPosition',
+                                label: 'Position:',
+                                args: [['', 'top left', 'top center', 'top right', 'center left', 'center center', 'center right', 'bottom left', 'bottom center', 'bottom right']],
+                                options: { tooltip: 'Position of the background image.', showLabel: true },
+                            },
+                        ],
+                    },
+                    {
+                        layout: 'Container',
+                        options: { className: 'compoundFormFieldContainer' },
+                        children: [
+                            {
+                                type: 'Select',
+                                keySuffix: '.backgroundRepeat',
+                                label: 'Repeat:',
+                                args: [['', 'no-repeat', 'repeat']],
+                                options: { tooltip: 'How the background image is repeated.', showLabel: true },
+                            },
+                            { type: 'PreviewBackground' },
+                        ],
+                    },
+                ];
+            },
+
+            _getInputFieldDefinitions() {
+                return [
+                    { type: 'Color', keySuffix: '.backgroundColor', label: 'Background color:', options: { tooltip: 'Background color of the text input area.' } },
+                    { type: 'Color', keySuffix: '.textColor', label: 'Text color:', options: { tooltip: 'Color of the text you type.' } },
+                    { type: 'Separator', options: { className: 'separator' } },
+                    { type: 'PreviewInput' },
+                ];
             },
         },
         SettingsPanel: {
@@ -12214,7 +12708,7 @@
             const { h, s, v, a } = this.state;
             const { svPlane, svThumb, hueSlider, alphaSlider, alphaTrack } = this.dom;
             const { r, g, b } = CustomColorPicker.hsvToRgb(h, s, v);
-            svPlane.style.backgroundColor = `hsl(${h}, 100%, 50%)`;
+            svPlane.style.backgroundColor = `hsl(${h} 100% 50%)`;
             svThumb.style.left = `${s}%`;
             svThumb.style.top = `${100 - v}%`;
             svThumb.style.backgroundColor = `rgb(${r} ${g} ${b})`;
@@ -12540,16 +13034,13 @@
                     this.store.set(CONSTANTS.STORE_KEYS.WARNING_PATH, payload);
                 }
             });
+
+            this.addDisposable(this.debouncedSave.cancel);
+            // Ensure listeners are removed and panel is hidden on destroy
+            this.addDisposable(() => this.hide());
         }
 
         _onDestroy() {
-            this.debouncedSave.cancel();
-            document.removeEventListener('click', this._handleDocumentClick, true);
-            document.removeEventListener('keydown', this._handleDocumentKeydown, true);
-
-            // Cleanup Store subscriptions before nullifying the store reference
-            this.clearStoreSubscriptions();
-
             this.engine?.destroy();
             this.store = null;
 
@@ -12581,7 +13072,9 @@
         }
 
         hide() {
-            this.element.style.display = 'none';
+            if (this.element) {
+                this.element.style.display = 'none';
+            }
             document.removeEventListener('click', this._handleDocumentClick, true);
             document.removeEventListener('keydown', this._handleDocumentKeydown, true);
         }
@@ -12593,6 +13086,8 @@
         async show() {
             // Initialize or refresh store with the latest config
             const currentConfig = await this.callbacks.getCurrentConfig();
+            if (this.isDestroyed) return;
+
             const currentWarning = this.callbacks.getCurrentWarning();
             const { SYSTEM_ROOT, SYSTEM_WARNING } = CONSTANTS.STORE_KEYS;
 
@@ -12783,6 +13278,14 @@
             WIDTH: 'min(440px, 95vw)',
         };
 
+        static RESOURCE_KEYS = {
+            DEBOUNCE_CALC: 'debounceCalc',
+            LISTENERS: 'listeners',
+            MODAL: 'modal',
+            ENGINE: 'engine',
+            FILE_READER: 'fileReader',
+        };
+
         constructor(callbacks) {
             super(callbacks);
             this.modal = null;
@@ -12790,8 +13293,14 @@
             this.store = null;
             this.engine = null;
 
-            // Debounce the size calculation to avoid heavy operations on every keystroke
+            // Debounced calculator is initialized in _onInit
+        }
+
+        _onInit() {
+            // Initialize the debounced size calculator as a managed resource
             this.debouncedCalcSize = debounce(this._calculateAndSetSize.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.SIZE_CALCULATION, true);
+            // Debounce the size calculation to avoid heavy operations on every keystroke
+            this.manageResource(JsonModalComponent.RESOURCE_KEYS.DEBOUNCE_CALC, this.debouncedCalcSize.cancel);
         }
 
         render() {
@@ -12812,6 +13321,10 @@
 
             // Initialize Data
             const currentConfig = await this.callbacks.getCurrentConfig();
+
+            // Guard: Stop if component was destroyed during await
+            if (this.isDestroyed) return;
+
             const initialJson = JSON.stringify(currentConfig, null, 2);
             const currentWarning = this.callbacks.getCurrentWarning();
             const { SYSTEM_ROOT, SYSTEM_WARNING } = CONSTANTS.STORE_KEYS;
@@ -12822,6 +13335,19 @@
                 sizeInfo: { text: 'Checking...', color: '' },
                 [SYSTEM_ROOT]: { [SYSTEM_WARNING]: currentWarning },
             });
+
+            // Prepare Listener Keys
+            const warningListenerKey = createEventKey(this, EVENTS.CONFIG_WARNING_UPDATE);
+            const configUpdateListenerKey = createEventKey(this, EVENTS.CONFIG_UPDATED);
+
+            // Register cleanup for listeners
+            const cleanupListeners = () => {
+                this.clearStoreSubscriptions();
+                EventBus.unsubscribe(EVENTS.CONFIG_WARNING_UPDATE, warningListenerKey);
+                EventBus.unsubscribe(EVENTS.CONFIG_UPDATED, configUpdateListenerKey);
+                this._cleanupListeners();
+            };
+            this.manageResource(JsonModalComponent.RESOURCE_KEYS.LISTENERS, cleanupListeners);
 
             // Subscribe to jsonString changes to update size info
             const sizeUnsub = this.store.subscribe((state, path) => {
@@ -12860,7 +13386,6 @@
             this.addStoreSubscription(sizeUnsub);
 
             // Subscribe to warning updates
-            const warningListenerKey = createEventKey(this, EVENTS.CONFIG_WARNING_UPDATE);
             EventBus.subscribe(
                 EVENTS.CONFIG_WARNING_UPDATE,
                 (payload) => {
@@ -12872,7 +13397,6 @@
             );
 
             // Subscribe to remote configuration updates to support "Reload UI" functionality
-            const configUpdateListenerKey = createEventKey(this, EVENTS.CONFIG_UPDATED);
             EventBus.subscribe(
                 EVENTS.CONFIG_UPDATED,
                 async (newConfig) => {
@@ -12906,20 +13430,21 @@
                     { text: 'Save', id: cls.saveBtn, className: `${btnClass} ${primaryBtnClass}`, title: 'Apply changes and close.', onClick: () => this._handleSave() },
                 ],
                 onDestroy: () => {
-                    this.debouncedCalcSize.cancel();
+                    // When the modal is closed (by user or code), ensure all temporary resources are disposed via the manager.
+                    // Passing null removes them from the manager's active list and triggers their disposal logic.
+                    this.manageResource(JsonModalComponent.RESOURCE_KEYS.MODAL, null);
+                    this.manageResource(JsonModalComponent.RESOURCE_KEYS.ENGINE, null);
+                    this.manageResource(JsonModalComponent.RESOURCE_KEYS.LISTENERS, null);
+                    this.manageResource(JsonModalComponent.RESOURCE_KEYS.FILE_READER, null);
 
-                    // Cleanup Store subscriptions
-                    this.clearStoreSubscriptions();
-
-                    EventBus.unsubscribe(EVENTS.CONFIG_WARNING_UPDATE, warningListenerKey);
-                    EventBus.unsubscribe(EVENTS.CONFIG_UPDATED, configUpdateListenerKey);
-                    this._cleanupListeners();
-                    this.engine?.destroy();
-                    this.engine = null;
                     this.store = null;
                     this.modal = null;
+                    this.engine = null;
                 },
             });
+
+            // Register Modal as a managed resource
+            this.manageResource(JsonModalComponent.RESOURCE_KEYS.MODAL, this.modal);
 
             this._setupKeyboardListeners(cls, primaryBtnClass);
 
@@ -12936,6 +13461,8 @@
             };
 
             this.engine = new FormEngine(this.store, schema, context);
+            this.manageResource(JsonModalComponent.RESOURCE_KEYS.ENGINE, this.engine);
+
             contentContainer.style.padding = '8px';
             contentContainer.appendChild(this.engine.render());
 
@@ -12962,9 +13489,11 @@
         }
 
         _onDestroy() {
-            this.debouncedCalcSize.cancel();
-            this.modal?.destroy();
+            // BaseManager handles disposal of MODAL, ENGINE, LISTENERS, FILE_READER and DEBOUNCE_CALC via managed resources.
             this.styleHandle = null;
+            this.store = null;
+            this.modal = null;
+            this.engine = null;
             super._onDestroy();
         }
 
@@ -13140,11 +13669,24 @@
                     if (!file) return;
 
                     const reader = new FileReader();
+
+                    // Register FileReader as a managed resource to allow auto-abort on destroy/re-run
+                    this.manageResource(JsonModalComponent.RESOURCE_KEYS.FILE_READER, reader);
+
                     reader.onload = async (e) => {
+                        // Guard: Check if destroyed during file read
+                        if (this.isDestroyed || !this.store) return;
+
                         this.store.set('status', { text: 'Processing...', color: '' });
                         document.body.style.cursor = 'wait';
 
                         requestAnimationFrame(async () => {
+                            // Guard: Check if destroyed during animation frame
+                            if (this.isDestroyed || !this.store) {
+                                document.body.style.cursor = '';
+                                return;
+                            }
+
                             try {
                                 const result = e.target?.result;
                                 if (typeof result !== 'string') throw new Error('Invalid file');
@@ -13236,6 +13778,8 @@
                                 });
                             } finally {
                                 document.body.style.cursor = '';
+                                // Clean up the file reader resource
+                                this.manageResource(JsonModalComponent.RESOURCE_KEYS.FILE_READER, null);
                             }
                         });
                     };
@@ -13451,6 +13995,13 @@
             WIDTH: 'min(880px, 95vw)',
         };
 
+        static RESOURCE_KEYS = {
+            MODAL: 'modal',
+            ENGINE: 'engine',
+            PREVIEW_CTRL: 'previewCtrl',
+            LISTENERS: 'listeners',
+        };
+
         constructor(callbacks) {
             super(callbacks);
             this.modal = null;
@@ -13488,6 +14039,9 @@
             this.pickerStyle = StyleManager.request(StyleDefinitions.getColorPicker);
 
             const initialConfig = await this.callbacks.getCurrentConfig();
+
+            // Guard: Stop if component was destroyed during await
+            if (this.isDestroyed) return;
             if (!initialConfig) return;
 
             const { isExceeded } = this.checkSize(initialConfig);
@@ -13504,8 +14058,19 @@
             const primaryBtnClass = this.commonStyle.classes.primaryBtn;
             const cls = this.style.classes;
 
-            // Subscribe to warning updates
+            // Prepare Listener Keys
             const warningListenerKey = createEventKey(this, EVENTS.CONFIG_WARNING_UPDATE);
+            const configUpdateListenerKey = createEventKey(this, EVENTS.CONFIG_UPDATED);
+
+            // Register cleanup for listeners
+            const cleanupListeners = () => {
+                this.clearStoreSubscriptions();
+                EventBus.unsubscribe(EVENTS.CONFIG_WARNING_UPDATE, warningListenerKey);
+                EventBus.unsubscribe(EVENTS.CONFIG_UPDATED, configUpdateListenerKey);
+            };
+            this.manageResource(ThemeModalComponent.RESOURCE_KEYS.LISTENERS, cleanupListeners);
+
+            // Subscribe to warning updates
             EventBus.subscribe(
                 EVENTS.CONFIG_WARNING_UPDATE,
                 (payload) => {
@@ -13517,7 +14082,6 @@
             );
 
             // Subscribe to remote configuration updates to support "Reload UI" functionality
-            const configUpdateListenerKey = createEventKey(this, EVENTS.CONFIG_UPDATED);
             EventBus.subscribe(
                 EVENTS.CONFIG_UPDATED,
                 async (newConfig) => {
@@ -13558,14 +14122,16 @@
                     { text: 'Save', id: cls.saveBtn, className: primaryBtnClass, title: 'Save changes and close the modal.', onClick: () => this._handleThemeAction(true) },
                 ],
                 onDestroy: () => {
-                    EventBus.unsubscribe(EVENTS.CONFIG_WARNING_UPDATE, warningListenerKey);
-                    EventBus.unsubscribe(EVENTS.CONFIG_UPDATED, configUpdateListenerKey);
-                    this.previewController?.destroy();
-                    this.engine?.destroy();
-                    this.previewController = null;
-                    this.engine = null;
+                    // When the modal is closed (by user or code), ensure all temporary resources are disposed via the manager.
+                    this.manageResource(ThemeModalComponent.RESOURCE_KEYS.MODAL, null);
+                    this.manageResource(ThemeModalComponent.RESOURCE_KEYS.ENGINE, null);
+                    this.manageResource(ThemeModalComponent.RESOURCE_KEYS.PREVIEW_CTRL, null);
+                    this.manageResource(ThemeModalComponent.RESOURCE_KEYS.LISTENERS, null);
+
                     this.store = null;
                     this.modal = null;
+                    this.engine = null;
+                    this.previewController = null;
                     // Release memory: Clear the temporary state containing the config copy
                     this.state = {
                         activeThemeKey: null,
@@ -13576,6 +14142,9 @@
                     };
                 },
             });
+
+            // Register Modal as a managed resource
+            this.manageResource(ThemeModalComponent.RESOURCE_KEYS.MODAL, this.modal);
 
             const headerControls = this._createHeaderControls();
             const mainContent = this._createMainContent();
@@ -13603,6 +14172,8 @@
 
             // Connect Controller to DOM
             this.previewController = new ThemePreviewController(this.modal.element, this.store, initialConfig.platforms[PLATFORM].defaultSet);
+            this.manageResource(ThemeModalComponent.RESOURCE_KEYS.PREVIEW_CTRL, this.previewController);
+
             // Sync initial mode.
             this.previewController.setIsEditingDefault(this.state.activeThemeKey === CONSTANTS.THEME_IDS.DEFAULT);
 
@@ -13618,7 +14189,11 @@
         }
 
         _onDestroy() {
-            this.modal?.destroy();
+            // BaseManager handles disposal of managed resources.
+            // Only non-managed references need explicit clearing here.
+            this.style = null;
+            this.commonStyle = null;
+            this.pickerStyle = null;
             super._onDestroy();
         }
 
@@ -13635,6 +14210,9 @@
         }
 
         async _initFormWithTheme(themeKey) {
+            // Guard: Check if destroyed before proceeding (especially if called after async op)
+            if (this.isDestroyed || !this.state.config) return;
+
             const initialTheme = this._getCurrentThemeData(this.state.config, themeKey);
             const currentWarning = this.callbacks.getCurrentWarning();
             const { SYSTEM_ROOT, SYSTEM_WARNING } = CONSTANTS.STORE_KEYS;
@@ -13673,6 +14251,8 @@
                 };
 
                 this.engine = new FormEngine(this.store, schema, context);
+                this.manageResource(ThemeModalComponent.RESOURCE_KEYS.ENGINE, this.engine);
+
                 // Append rendered form to the content area
                 const contentArea = this.modal.element.querySelector(`.${this.style.classes.content}`);
                 if (contentArea) {
@@ -13771,6 +14351,9 @@
                     const options = this._getImageOptions(targetKey, this.state.config);
                     const dataUrl = await this.dataConverter.imageToOptimizedDataUrl(file, options);
 
+                    // Guard: Check if destroyed or closed after async op
+                    if (this.isDestroyed || !this.store) return;
+
                     if (this.store) {
                         this.store.set(targetKey, dataUrl);
                     }
@@ -13779,6 +14362,9 @@
                         callbacks.onSuccess();
                     }
                 } catch (error) {
+                    // Check abort condition before logging
+                    if (this.isDestroyed || !this.store) return;
+
                     Logger.error('IMAGE PROC FAILED', LOG_STYLES.RED, 'Image processing failed:', error);
                     if (callbacks && callbacks.onError) {
                         callbacks.onError(`Error: ${error.message}`);
@@ -13923,12 +14509,18 @@
         }
 
         async _saveConfigAndHandleFeedback(newConfig, onSuccessCallback) {
-            if (!this.modal) return false;
+            // Guard: Check if destroyed before proceeding (modal might be closed)
+            if (!this.modal || this.isDestroyed) return false;
+
             const footerMessage = this.modal.dom.footerMessage;
             if (footerMessage) footerMessage.textContent = '';
 
             try {
                 await this.callbacks.onSave(newConfig);
+
+                // Guard: Check if destroyed during await
+                if (!this.modal || this.isDestroyed) return false;
+
                 this.state.config = deepClone(newConfig);
 
                 // Re-calculate size state after successful save (e.g. deletion might remove exceeded state)
@@ -13943,7 +14535,8 @@
                 if (onSuccessCallback) await onSuccessCallback();
                 return true;
             } catch (e) {
-                if (footerMessage) {
+                // Check if still valid before updating UI
+                if (this.modal && footerMessage) {
                     footerMessage.textContent = e.message;
                     footerMessage.style.color = SITE_STYLES.PALETTE.error_text;
                 }
@@ -14131,6 +14724,10 @@
             WIDTH: 360,
         };
 
+        static RESOURCE_KEYS = {
+            RESIZE_OBSERVER: 'resizeObserver',
+        };
+
         constructor(role, messages, highlightedMessage, callbacks, styleHandle, initialFilterValue) {
             super(callbacks);
             this.role = role;
@@ -14200,20 +14797,23 @@
 
             // --- Resize Observer ---
             // Monitors size changes without polling or forced reflows
-            this.resizeObserver = new ResizeObserver((entries) => {
-                let needsUpdate = false;
-                for (const entry of entries) {
-                    if (entry.target === this.scrollBox) {
-                        // Only trigger render if metrics actually changed
-                        if (this.state.containerHeight !== this.scrollBox.clientHeight) {
-                            this.state.containerHeight = this.scrollBox.clientHeight;
-                            needsUpdate = true;
+            // Managed by BaseManager for automatic cleanup
+            this.resizeObserver = this.manageFactory(JumpListComponent.RESOURCE_KEYS.RESIZE_OBSERVER, () => {
+                return new ResizeObserver((entries) => {
+                    let needsUpdate = false;
+                    for (const entry of entries) {
+                        if (entry.target === this.scrollBox) {
+                            // Only trigger render if metrics actually changed
+                            if (this.state.containerHeight !== this.scrollBox.clientHeight) {
+                                this.state.containerHeight = this.scrollBox.clientHeight;
+                                needsUpdate = true;
+                            }
                         }
                     }
-                }
-                if (needsUpdate) {
-                    this._requestRender();
-                }
+                    if (needsUpdate) {
+                        this._requestRender();
+                    }
+                });
             });
 
             // Bind handlers
@@ -14351,19 +14951,43 @@
             }
         }
 
+        _onInit() {
+            this.isRenderScheduled = false;
+            this.isPreviewUpdateScheduled = false;
+        }
+
         _onDestroy() {
-            this.resizeObserver.disconnect();
-            this._cancelScheduledPreview(); // Clear any pending preview updates
-            this._cancelScheduledFilter(); // Clear any pending filter updates
+            // ResizeObserver is automatically disconnected by BaseManager
+            this.resizeObserver = null;
+
+            this._cancelScheduledPreview();
+            this._cancelScheduledFilter();
             this._hidePreview();
             if (this.scrollEndTimer) clearTimeout(this.scrollEndTimer);
             if (this.renderRafId) cancelAnimationFrame(this.renderRafId);
 
             this.previewTooltip?.remove();
             this.previewTooltip = null;
+
+            // Break circular references from DOM elements to this instance via bound event handlers
+            const cleanupItem = (item) => {
+                item.onmouseenter = null;
+                item.onmouseleave = null;
+            };
+            this.renderedItems.forEach((item) => {
+                cleanupItem(item);
+                item.remove();
+            });
             this.renderedItems.clear();
+            this.itemPool.forEach(cleanupItem);
             this.itemPool = [];
-            this.listElement = null; // Ensure references are cleared
+
+            // Explicitly release large data structures
+            this.messages = null;
+            this.searchableMessages = null;
+            this.state = null; // Important: Clear state containing filteredMessages references
+
+            this.listElement = null;
             this.scrollBox = null;
             super._onDestroy();
         }
@@ -15173,51 +15797,65 @@
             this.isRepositionScheduled = false;
 
             // Bind methods
-            this.scheduleReposition = this.scheduleReposition.bind(this);
+            this.scheduleButtonPlacement = this.scheduleButtonPlacement.bind(this);
         }
 
         async _onInit() {
+            this.isRepositionScheduled = false;
             // Initialize components
-            this.settingsButton = new CustomSettingsButton(
-                {
-                    onClick: () => this.settingsPanel.toggle(),
-                },
-                {
-                    id: `${APPID}-settings-button`,
-                    title: `Settings (${APPNAME})`,
-                }
+            this.settingsButton = this.manageFactory(
+                CONSTANTS.RESOURCE_KEYS.SETTINGS_BUTTON,
+                () =>
+                    new CustomSettingsButton(
+                        {
+                            onClick: () => this.settingsPanel.toggle(),
+                        },
+                        {
+                            id: `${APPID}-settings-button`,
+                            title: `Settings (${APPNAME})`,
+                        }
+                    )
             );
 
-            this.settingsPanel = new SettingsPanelComponent({
-                onSave: this.callbacks.onSave,
-                getCurrentConfig: this.callbacks.getCurrentConfig,
-                getCurrentWarning: this.callbacks.getCurrentWarning,
-                getCurrentThemeSet: this.callbacks.getCurrentThemeSet,
-                onShowJsonModal: this.callbacks.onShowJsonModal,
-                onShowThemeModal: this.callbacks.onShowThemeModal,
-                getAnchorElement: () => this.getAnchorElement(),
-                checkSize: this.callbacks.checkSize,
-                onShow: () => {}, // Handled internally
-            });
+            this.settingsPanel = this.manageFactory(
+                CONSTANTS.RESOURCE_KEYS.SETTINGS_PANEL,
+                () =>
+                    new SettingsPanelComponent({
+                        onSave: this.callbacks.onSave,
+                        getCurrentConfig: this.callbacks.getCurrentConfig,
+                        getCurrentWarning: this.callbacks.getCurrentWarning,
+                        getCurrentThemeSet: this.callbacks.getCurrentThemeSet,
+                        onShowJsonModal: this.callbacks.onShowJsonModal,
+                        onShowThemeModal: this.callbacks.onShowThemeModal,
+                        getAnchorElement: () => this.getAnchorElement(),
+                        checkSize: this.callbacks.checkSize,
+                        onShow: () => {}, // Handled internally
+                    })
+            );
 
             // Render and initialize components
             // Note: UI components don't use 'init' in the same way, but 'render'
-            this.settingsButton.render();
-            this.repositionSettingsButton(); // Initial placement
+            if (this.settingsButton) {
+                await this.settingsButton.init();
+                this.settingsButton.render();
+                this.ensureButtonPlacement(); // Initial placement
+            }
 
             // Panels act as managers too
-            await this.settingsPanel.init();
-            this.settingsPanel.render();
+            if (this.settingsPanel) {
+                await this.settingsPanel.init();
+                if (this.isDestroyed) return;
+
+                this.settingsPanel.render();
+            }
 
             // Subscribe to layout events for the button
-            this._subscribe(EVENTS.UI_REPOSITION, this.scheduleReposition);
-            this._subscribe(EVENTS.DEFERRED_LAYOUT_UPDATE, this.scheduleReposition);
-            this._subscribe(EVENTS.NAVIGATION_END, this.scheduleReposition);
+            this._subscribe(EVENTS.UI_REPOSITION, this.scheduleButtonPlacement);
+            this._subscribe(EVENTS.DEFERRED_LAYOUT_UPDATE, this.scheduleButtonPlacement);
+            this._subscribe(EVENTS.NAVIGATION_END, this.scheduleButtonPlacement);
         }
 
         _onDestroy() {
-            this.settingsButton?.destroy();
-            this.settingsPanel?.destroy();
             this.settingsButton = null;
             this.settingsPanel = null;
         }
@@ -15231,18 +15869,19 @@
             return this.settingsButton?.element || null;
         }
 
-        scheduleReposition() {
+        scheduleButtonPlacement() {
             if (this.isRepositionScheduled) return;
             this.isRepositionScheduled = true;
             EventBus.queueUIWork(() => {
-                this.repositionSettingsButton();
+                if (this.isDestroyed) return;
+                this.ensureButtonPlacement();
                 this.isRepositionScheduled = false;
             });
         }
 
-        repositionSettingsButton() {
+        ensureButtonPlacement() {
             if (!this.settingsButton?.element) return;
-            PlatformAdapters.UIManager.repositionSettingsButton(this.settingsButton);
+            PlatformAdapters.UIManager.ensureButtonPlacement(this.settingsButton);
         }
     }
 
@@ -15267,38 +15906,49 @@
             this.themeModal = null;
         }
 
-        _onInit() {
+        async _onInit() {
             // Initialize transient components
             // They are instantiated here but only render DOM when open() is called
-            this.jsonModal = new JsonModalComponent({
-                onSave: this.callbacks.onSave,
-                getCurrentConfig: this.callbacks.getCurrentConfig,
-                getCurrentWarning: this.callbacks.getCurrentWarning,
-                onModalOpen: () => {},
-            });
+            this.jsonModal = this.manageFactory(
+                CONSTANTS.RESOURCE_KEYS.JSON_MODAL,
+                () =>
+                    new JsonModalComponent({
+                        onSave: this.callbacks.onSave,
+                        getCurrentConfig: this.callbacks.getCurrentConfig,
+                        getCurrentWarning: this.callbacks.getCurrentWarning,
+                        onModalOpen: () => {},
+                    })
+            );
 
-            this.themeModal = new ThemeModalComponent({
-                onSave: this.callbacks.onSave,
-                getCurrentConfig: this.callbacks.getCurrentConfig,
-                getCurrentWarning: this.callbacks.getCurrentWarning,
-                dataConverter: this.callbacks.dataConverter,
-                checkSize: this.callbacks.checkSize,
-                onModalOpen: () => {},
-            });
+            this.themeModal = this.manageFactory(
+                CONSTANTS.RESOURCE_KEYS.THEME_MODAL,
+                () =>
+                    new ThemeModalComponent({
+                        onSave: this.callbacks.onSave,
+                        getCurrentConfig: this.callbacks.getCurrentConfig,
+                        getCurrentWarning: this.callbacks.getCurrentWarning,
+                        dataConverter: this.callbacks.dataConverter,
+                        checkSize: this.callbacks.checkSize,
+                        onModalOpen: () => {},
+                    })
+            );
+
+            // Initialize components to ensure their lifecycle hooks (_onInit) are executed.
+            // This is critical for initializing resources like debounced functions.
+            if (this.jsonModal) await this.jsonModal.init();
+            if (this.themeModal) await this.themeModal.init();
 
             this._subscribe(EVENTS.REOPEN_MODAL, ({ type, key }) => {
                 const anchor = this.callbacks.getAnchorElement?.();
                 if (type === 'json') {
-                    this.jsonModal.open(anchor);
+                    this.jsonModal?.open(anchor);
                 } else if (type === 'theme') {
-                    this.themeModal.open(key);
+                    this.themeModal?.open(key);
                 }
             });
         }
 
         _onDestroy() {
-            this.jsonModal?.destroy(); // destroy() calls close() internally if open
-            this.themeModal?.destroy();
             this.jsonModal = null;
             this.themeModal = null;
         }
@@ -15398,42 +16048,62 @@
             this.isWarningActive = false;
             this.warningMessage = '';
 
-            const commonCallbacks = {
+            this.commonCallbacks = {
                 onSave: onSaveCallback,
                 getCurrentConfig: getCurrentConfigCallback,
                 getCurrentWarning: () => ({ show: this.isWarningActive, message: this.warningMessage }),
                 dataConverter: dataConverter,
                 checkSize: checkSizeCallback,
             };
+            this.getCurrentThemeSetCallback = getCurrentThemeSetCallback;
 
-            // Initialize Sub-Controllers
-            this.widgetController = new SettingsWidgetController({
-                ...commonCallbacks,
-                getCurrentThemeSet: getCurrentThemeSetCallback,
-                // Wiring: Widget -> Modal Actions
-                onShowJsonModal: () => {
-                    const anchor = this.widgetController.getAnchorElement();
-                    this.modalCoordinator.openJsonModal(anchor);
-                },
-                onShowThemeModal: (themeKey) => {
-                    this.modalCoordinator.openThemeModal(themeKey);
-                },
-            });
-
-            this.modalCoordinator = new ModalCoordinator({
-                ...commonCallbacks,
-                // Wiring: Modal -> Widget Anchor Access
-                getAnchorElement: () => this.widgetController.getAnchorElement(),
-            });
+            // Individual references for internal use
+            this.widgetController = null;
+            this.modalCoordinator = null;
         }
 
         async _onInit() {
             // Initialize global common styles immediately to ensure availability
             StyleManager.request(StyleDefinitions.getCommon);
 
+            // Initialize Sub-Controllers
+            this.widgetController = this.manageFactory(
+                CONSTANTS.RESOURCE_KEYS.WIDGET_CONTROLLER,
+                () =>
+                    new SettingsWidgetController({
+                        ...this.commonCallbacks,
+                        getCurrentThemeSet: this.getCurrentThemeSetCallback,
+                        // Wiring: Widget -> Modal Actions
+                        onShowJsonModal: () => {
+                            const anchor = this.widgetController.getAnchorElement();
+                            this.modalCoordinator.openJsonModal(anchor);
+                        },
+                        onShowThemeModal: (themeKey) => {
+                            this.modalCoordinator.openThemeModal(themeKey);
+                        },
+                    })
+            );
+
+            this.modalCoordinator = this.manageFactory(
+                CONSTANTS.RESOURCE_KEYS.MODAL_COORDINATOR,
+                () =>
+                    new ModalCoordinator({
+                        ...this.commonCallbacks,
+                        // Wiring: Modal -> Widget Anchor Access
+                        getAnchorElement: () => this.widgetController.getAnchorElement(),
+                    })
+            );
+
             // Initialize sub-controllers
-            await this.widgetController.init();
-            await this.modalCoordinator.init();
+            if (this.widgetController) {
+                await this.widgetController.init();
+                if (this.isDestroyed) return;
+            }
+
+            if (this.modalCoordinator) {
+                await this.modalCoordinator.init();
+                if (this.isDestroyed) return;
+            }
 
             // Subscribe to global UI state events
             this._subscribe(EVENTS.CONFIG_WARNING_UPDATE, ({ show, message }) => {
@@ -15443,8 +16113,8 @@
         }
 
         _onDestroy() {
-            this.widgetController?.destroy();
-            this.modalCoordinator?.destroy();
+            this.widgetController = null;
+            this.modalCoordinator = null;
         }
 
         // --- Delegate Methods for AppController compatibility ---
@@ -15474,24 +16144,6 @@
          */
         clearConflictNotification(modalComponent) {
             this.modalCoordinator.clearConflictNotification(modalComponent);
-        }
-
-        /**
-         * Triggers a reposition of the settings button.
-         * Delegated to SettingsWidgetController.
-         * Used by PlatformAdapters.
-         */
-        repositionSettingsButton() {
-            this.widgetController.repositionSettingsButton();
-        }
-
-        /**
-         * Schedules a reposition of the settings button.
-         * Delegated to SettingsWidgetController.
-         * Used by AppController (via DEFERRED_LAYOUT_UPDATE).
-         */
-        scheduleReposition() {
-            this.widgetController.scheduleReposition();
         }
     }
 
@@ -15741,6 +16393,8 @@
         constructor() {
             super();
             this.toastElement = null;
+            this.activeTimers = new Set();
+            this.activeRafs = new Set();
         }
 
         _onInit() {
@@ -15752,7 +16406,24 @@
         }
 
         _onDestroy() {
-            this.hide();
+            // Cancel all pending timers and animation frames
+            this.activeTimers.forEach((id) => clearTimeout(id));
+            this.activeTimers.clear();
+            this.activeRafs.forEach((id) => cancelAnimationFrame(id));
+            this.activeRafs.clear();
+
+            // Immediately remove the element from DOM to prevent visual artifacts
+            if (this.toastElement) {
+                this.toastElement.remove();
+                this.toastElement = null;
+            }
+
+            // Also remove any fading-out elements that might still be in the DOM
+            // (e.g. from a hide() call that was interrupted by destroy)
+            if (this.styleHandle) {
+                const cls = this.styleHandle.classes;
+                document.querySelectorAll(`.${cls.container}`).forEach((el) => el.remove());
+            }
         }
 
         _renderToast(message, showCancelButton) {
@@ -15783,10 +16454,14 @@
             this.toastElement = this._renderToast(message, showCancelButton);
             document.body.appendChild(this.toastElement);
 
-            // Trigger the transition
-            setTimeout(() => {
-                this.toastElement?.classList.add(cls.visible);
-            }, CONSTANTS.TIMING.ANIMATIONS.TOAST_ENTER_DELAY);
+            // Use double requestAnimationFrame to ensure the element is rendered
+            // and the browser registers the initial state before adding the class.
+            // This guarantees the CSS transition will fire.
+            this._requestAnimationFrame(() => {
+                this._requestAnimationFrame(() => {
+                    this.toastElement?.classList.add(cls.visible);
+                });
+            });
         }
 
         hide() {
@@ -15796,12 +16471,39 @@
             const el = this.toastElement;
             el.classList.remove(cls.visible);
 
-            // Remove from DOM after transition ends
-            setTimeout(() => {
+            // Remove from DOM after transition ends using managed timer
+            this._setTimeout(() => {
                 el.remove();
             }, CONSTANTS.TIMING.ANIMATIONS.TOAST_LEAVE_DURATION);
 
             this.toastElement = null;
+        }
+
+        /**
+         * @private
+         * Wrapper for setTimeout that ensures cleanup on destroy.
+         * @param {Function} callback
+         * @param {number} delay
+         */
+        _setTimeout(callback, delay) {
+            const id = setTimeout(() => {
+                this.activeTimers.delete(id);
+                callback();
+            }, delay);
+            this.activeTimers.add(id);
+        }
+
+        /**
+         * @private
+         * Wrapper for requestAnimationFrame that ensures cleanup on destroy.
+         * @param {Function} callback
+         */
+        _requestAnimationFrame(callback) {
+            const id = requestAnimationFrame(() => {
+                this.activeRafs.delete(id);
+                callback();
+            });
+            this.activeRafs.add(id);
         }
     }
 
@@ -15833,10 +16535,12 @@
             this._subscribe(EVENTS.AUTO_SCROLL_CANCEL_REQUEST, () => this.stop(false));
             this._subscribe(EVENTS.CACHE_UPDATED, () => this._onCacheUpdated());
             this._subscribe(EVENTS.NAVIGATION, () => this._onNavigation());
+
+            this.addDisposable(() => this.stop(false));
         }
 
         _onDestroy() {
-            this.stop(false);
+            // Cleanup handled by disposables.
         }
 
         enable() {
@@ -15941,6 +16645,7 @@
             registerComponents();
 
             await this.configManager.load(true);
+            if (this.isDestroyed) return;
 
             // Check for load errors and display warning
             if (this.configManager.loadErrors.length > 0) {
@@ -15963,47 +16668,57 @@
 
             // --- Manager Instantiation ---
             // Create managers that other managers depend on
-            this.themeManager = new ThemeManager(this.configManager, this.imageDataManager);
-            this.messageCacheManager = new MessageCacheManager(sharedStreamingState);
-            this.syncManager = new SyncManager();
+            this.themeManager = this.manageFactory(CONSTANTS.RESOURCE_KEYS.THEME_MANAGER, () => new ThemeManager(this.configManager, this.imageDataManager));
+            this.messageCacheManager = this.manageFactory(CONSTANTS.RESOURCE_KEYS.MESSAGE_CACHE_MANAGER, () => new MessageCacheManager(sharedStreamingState));
+            this.syncManager = this.manageFactory(CONSTANTS.RESOURCE_KEYS.SYNC_MANAGER, () => new SyncManager());
 
             // Create the rest of the managers, injecting their dependencies
-            this.observerManager = new ObserverManager(this.messageCacheManager, sharedStreamingState);
-            this.uiManager = new UIManager(
-                (newConfig) => this.handleSave(newConfig),
-                () => Promise.resolve(this.configManager.get()),
-                this.dataConverter,
-                () => this.themeManager.getThemeSet(), // Pass the callback directly
-                (config) => ({
-                    size: this.configManager.getConfigSize(config),
-                    isExceeded: this.configManager.isSizeExceeded(this.configManager.getConfigSize(config)),
-                })
+            this.observerManager = this.manageFactory(CONSTANTS.RESOURCE_KEYS.OBSERVER_MANAGER, () => new ObserverManager(this.messageCacheManager, sharedStreamingState));
+            this.uiManager = this.manageFactory(
+                CONSTANTS.RESOURCE_KEYS.UI_MANAGER,
+                () =>
+                    new UIManager(
+                        (newConfig) => this.handleSave(newConfig),
+                        () => Promise.resolve(this.configManager.get()),
+                        this.dataConverter,
+                        () => this.themeManager.getThemeSet(), // Pass the callback directly
+                        (config) => ({
+                            size: this.configManager.getConfigSize(config),
+                            isExceeded: this.configManager.isSizeExceeded(this.configManager.getConfigSize(config)),
+                        })
+                    )
             );
-            this.avatarManager = new AvatarManager(this.configManager, this.messageCacheManager);
-            this.standingImageManager = new StandingImageManager(this.configManager, this.messageCacheManager, this.themeManager);
-            this.bubbleUIManager = new BubbleUIManager(this.configManager, this.messageCacheManager);
-            this.messageLifecycleManager = new MessageLifecycleManager(this.messageCacheManager);
-            this.toastManager = new ToastManager();
+            this.avatarManager = this.manageFactory(CONSTANTS.RESOURCE_KEYS.AVATAR_MANAGER, () => new AvatarManager(this.configManager, this.messageCacheManager));
+            this.standingImageManager = this.manageFactory(CONSTANTS.RESOURCE_KEYS.STANDING_IMAGE_MANAGER, () => new StandingImageManager(this.configManager, this.messageCacheManager, this.themeManager));
+            this.bubbleUIManager = this.manageFactory(CONSTANTS.RESOURCE_KEYS.BUBBLE_UI_MANAGER, () => new BubbleUIManager(this.configManager, this.messageCacheManager));
+            this.messageLifecycleManager = this.manageFactory(CONSTANTS.RESOURCE_KEYS.MESSAGE_LIFECYCLE_MANAGER, () => new MessageLifecycleManager(this.messageCacheManager));
+            this.toastManager = this.manageFactory(CONSTANTS.RESOURCE_KEYS.TOAST_MANAGER, () => new ToastManager());
 
             // Initialize platform-specific managers, which depend on core managers (like messageLifecycleManager)
-            PlatformAdapters.AppController.initializePlatformManagers(this);
+            if (!this.isDestroyed) {
+                PlatformAdapters.AppController.initializePlatformManagers(this);
+            }
 
             if (PlatformAdapters.Timestamp.hasTimestampLogic()) {
-                this.timestampManager = new TimestampManager(this.configManager, this.messageCacheManager);
+                this.timestampManager = this.manageFactory(CONSTANTS.RESOURCE_KEYS.TIMESTAMP_MANAGER, () => new TimestampManager(this.configManager, this.messageCacheManager));
             }
 
             if (config.platforms[PLATFORM].features.fixed_nav_console.enabled) {
-                this.fixedNavManager = new FixedNavigationManager(
-                    {
-                        messageCacheManager: this.messageCacheManager,
-                        configManager: this.configManager,
-                        autoScrollManager: this.autoScrollManager,
-                        messageLifecycleManager: this.messageLifecycleManager,
-                    },
-                    { isReEnabling: false }
+                this.fixedNavManager = this.manageFactory(
+                    CONSTANTS.RESOURCE_KEYS.FIXED_NAV_MANAGER,
+                    () =>
+                        new FixedNavigationManager(
+                            {
+                                messageCacheManager: this.messageCacheManager,
+                                configManager: this.configManager,
+                                autoScrollManager: this.autoScrollManager,
+                                messageLifecycleManager: this.messageLifecycleManager,
+                            },
+                            { isReEnabling: false }
+                        )
                 );
             }
-            this.messageNumberManager = new MessageNumberManager(this.configManager, this.messageCacheManager);
+            this.messageNumberManager = this.manageFactory(CONSTANTS.RESOURCE_KEYS.MESSAGE_NUMBER_MANAGER, () => new MessageNumberManager(this.configManager, this.messageCacheManager));
 
             // --- Manager Registration ---
             // The order determines the initialization order.
@@ -16030,6 +16745,7 @@
                 if (manager.init && typeof manager.init === 'function') {
                     // Handle async init if necessary, though most are sync
                     await manager.init();
+                    if (this.isDestroyed) return;
                 }
             }
 
@@ -16043,6 +16759,7 @@
             this._subscribe(EVENTS.NAVIGATION_START, () => (this.isNavigating = true));
             this._subscribe(EVENTS.NAVIGATION_END, () => (this.isNavigating = false));
             this._subscribe(EVENTS.NAVIGATION, () => {
+                sentinel.resume(); // Ensure Sentinel is active after navigation (fixes potential suspend state from AutoScroll)
                 PerfMonitor.reset();
             });
             this._subscribe(EVENTS.CONFIG_SIZE_EXCEEDED, ({ message }) => {
@@ -16073,33 +16790,31 @@
             // Setup Message Processor using Platform Adapter
             // This connects the low-level Sentinel detection to the high-level EventBus.
             this.sentinelCleanup = /** @type {() => void} */ (/** @type {unknown} */ (PlatformAdapters.General.initializeSentinel((el) => this.handleRawMessage(el))));
+            this.addDisposable(this.sentinelCleanup);
         }
 
         _onDestroy() {
-            // Cleanup sentinel listener
-            if (this.sentinelCleanup) {
-                this.sentinelCleanup();
-                this.sentinelCleanup = null;
-            }
+            // Ensure global Sentinel is resumed if it was suspended
+            sentinel.resume();
 
-            // Destroy managers in reverse order of initialization
-            // This ensures dependents are cleaned up before their dependencies
-            for (let i = this.managers.length - 1; i >= 0; i--) {
-                const manager = this.managers[i];
-                try {
-                    manager.destroy();
-                } catch (e) {
-                    Logger.error('APP', '', 'Error destroying manager:', e);
-                }
-
-                // Dynamically find and reset the property reference for this manager
-                // This prevents zombie references and simplifies maintenance
-                const propKey = Object.keys(this).find((key) => this[key] === manager);
-                if (propKey) {
-                    this[propKey] = null;
-                }
-            }
             this.managers = [];
+            this.sentinelCleanup = null;
+
+            // Release references to all managers to allow GC
+            this.uiManager = null;
+            this.observerManager = null;
+            this.messageCacheManager = null;
+            this.avatarManager = null;
+            this.standingImageManager = null;
+            this.themeManager = null;
+            this.bubbleUIManager = null;
+            this.messageLifecycleManager = null;
+            this.timestampManager = null;
+            this.fixedNavManager = null;
+            this.messageNumberManager = null;
+            this.syncManager = null;
+            this.autoScrollManager = null;
+            this.toastManager = null;
 
             Logger.log('APP', '', 'AppController destroyed.');
         }
@@ -16140,6 +16855,7 @@
 
                 // 2. Load latest from storage (updates ConfigManager state)
                 const newConfig = await this.configManager.load(true);
+                if (this.isDestroyed) return;
 
                 // 3. Detect changes
                 const { themeChanged } = this._detectConfigChanges(oldConfig, newConfig);
@@ -16228,20 +16944,26 @@
             // Handle FixedNavigationManager lifecycle
             const navConsoleEnabled = completeConfig.platforms[PLATFORM].features.fixed_nav_console.enabled;
             if (navConsoleEnabled && !this.fixedNavManager) {
-                this.fixedNavManager = new FixedNavigationManager(
-                    {
-                        messageCacheManager: this.messageCacheManager,
-                        configManager: this.configManager,
-                        autoScrollManager: this.autoScrollManager,
-                        messageLifecycleManager: this.messageLifecycleManager,
-                    },
-                    { isReEnabling: true }
+                this.fixedNavManager = this.manageFactory(
+                    CONSTANTS.RESOURCE_KEYS.FIXED_NAV_MANAGER,
+                    () =>
+                        new FixedNavigationManager(
+                            {
+                                messageCacheManager: this.messageCacheManager,
+                                configManager: this.configManager,
+                                autoScrollManager: this.autoScrollManager,
+                                messageLifecycleManager: this.messageLifecycleManager,
+                            },
+                            { isReEnabling: true }
+                        )
                 );
                 // Register the new manager to the lifecycle list
-                this.managers.push(this.fixedNavManager);
-                await this.fixedNavManager.init();
-                // Explicitly notify the new instance with the current cache state
-                this.messageCacheManager.notify();
+                if (this.fixedNavManager) {
+                    this.managers.push(this.fixedNavManager);
+                    await this.fixedNavManager.init();
+                    // Explicitly notify the new instance with the current cache state
+                    this.messageCacheManager.notify();
+                }
             } else if (!navConsoleEnabled && this.fixedNavManager) {
                 this.fixedNavManager.destroy();
                 // Remove from the lifecycle list
@@ -16264,6 +16986,7 @@
                 const completeConfig = this._prepareConfig(newConfig);
 
                 await this.configManager.save(completeConfig);
+                if (this.isDestroyed) return;
 
                 // Check changes between the *original* config and the *newly saved* config
                 const { themeChanged } = this._detectConfigChanges(oldConfig, completeConfig);
@@ -16320,31 +17043,35 @@
 
     /**
      * @class LifecycleManager
+     * @extends BaseManager
      * @description Manages the application lifecycle, handling URL changes and DOM readiness to initialize or destroy the AppController.
      */
-    class LifecycleManager {
+    class LifecycleManager extends BaseManager {
         constructor() {
-            this.navigationMonitor = new NavigationMonitor();
+            super();
             this.appController = null;
-            this.anchorListener = null;
-            this.isAnchorListenerActive = false;
         }
 
-        init() {
-            this.navigationMonitor.init();
-
-            // Use createEventKey for unique subscription keys
-            const startKey = createEventKey(this, EVENTS.NAVIGATION_START);
-            const navKey = createEventKey(this, EVENTS.NAVIGATION);
+        async _onInit() {
+            // Initialize NavigationMonitor as a managed resource
+            this.manageFactory(CONSTANTS.RESOURCE_KEYS.NAVIGATION_MONITOR, () => {
+                const monitor = new NavigationMonitor();
+                monitor.init();
+                return monitor;
+            });
 
             // Check for exclusion immediately when navigation starts to stop processes early
-            EventBus.subscribe(EVENTS.NAVIGATION_START, () => this._handleNavigationStart(), startKey);
+            this._subscribe(EVENTS.NAVIGATION_START, () => this._handleNavigationStart());
 
             // Check for launch eligibility after navigation settles
-            EventBus.subscribe(EVENTS.NAVIGATION, () => this._handleNavigation(), navKey);
+            this._subscribe(EVENTS.NAVIGATION, () => this._handleNavigation());
 
             // Initial check
             this._handleNavigation();
+        }
+
+        _onDestroy() {
+            this.appController = null;
         }
 
         _handleNavigationStart() {
@@ -16367,52 +17094,63 @@
             // If already running, do nothing
             if (this.appController) return;
 
+            // Enable Timestamp monitoring immediately upon valid URL detection.
+            // This ensures we catch early API calls even before the DOM is ready.
+            PlatformAdapters.Timestamp.init();
+
             const anchorSelector = CONSTANTS.SELECTORS.INPUT_TEXT_FIELD_TARGET;
             const anchor = document.querySelector(anchorSelector);
 
             if (anchor) {
                 this._launchApp();
-            } else if (!this.isAnchorListenerActive) {
-                // Wait for anchor
-                this.anchorListener = () => {
+            } else {
+                // Define the listener logic
+                const listener = () => {
                     // Double check exclusion in case URL changed while waiting
                     if (!PlatformAdapters.General.isExcludedPage()) {
                         this._launchApp();
                     }
                 };
-                sentinel.on(anchorSelector, this.anchorListener);
-                this.isAnchorListenerActive = true;
+
+                // Start listening
+                sentinel.on(anchorSelector, listener);
                 Logger.log('LIFECYCLE', LOG_STYLES.YELLOW, 'Waiting for anchor element...');
+
+                // Register the cleanup function
+                this.manageResource(CONSTANTS.RESOURCE_KEYS.ANCHOR_LISTENER, () => {
+                    sentinel.off(anchorSelector, listener);
+                });
             }
         }
 
-        _launchApp() {
-            // Cleanup anchor listener if active
-            this._cleanupAnchorListener();
+        async _launchApp() {
+            // Cleanup anchor listener as we are launching
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.ANCHOR_LISTENER, null);
 
             if (!this.appController) {
                 Logger.log('LIFECYCLE', LOG_STYLES.YELLOW, 'Launching AppController...');
-                this.appController = new AppController();
-                this.appController.init();
+
+                // Initialize AppController and register it as a resource
+                this.appController = this.manageFactory(CONSTANTS.RESOURCE_KEYS.APP_CONTROLLER, () => new AppController());
+
+                if (this.appController) {
+                    await this.appController.init();
+                }
             }
         }
 
         _shutdown() {
-            this._cleanupAnchorListener();
+            // Cleanup anchor listener
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.ANCHOR_LISTENER, null);
+
+            PlatformAdapters.Timestamp.cleanup(); // Disable Timestamp monitoring
 
             if (this.appController) {
                 Logger.log('LIFECYCLE', LOG_STYLES.YELLOW, 'Shutting down AppController (Excluded Page).');
-                this.appController.destroy();
+                // Dispose the resource (calls destroy())
+                this.manageResource(CONSTANTS.RESOURCE_KEYS.APP_CONTROLLER, null);
+                // Explicitly clear reference to prevent double-launch issues
                 this.appController = null;
-            }
-        }
-
-        _cleanupAnchorListener() {
-            if (this.isAnchorListenerActive && this.anchorListener) {
-                const anchorSelector = CONSTANTS.SELECTORS.INPUT_TEXT_FIELD_TARGET;
-                sentinel.off(anchorSelector, this.anchorListener);
-                this.anchorListener = null;
-                this.isAnchorListenerActive = false;
             }
         }
     }
@@ -16494,6 +17232,8 @@
                 MAIN_APP_CONTAINER: 'div:has(> main#main)',
                 MESSAGE_WRAPPER_FINDER: '.w-full',
                 MESSAGE_WRAPPER: 'chat-wrapper',
+                // Root container for message search optimization
+                MESSAGES_ROOT: 'main',
 
                 // --- Message containers ---
                 CONVERSATION_UNIT: 'article[data-testid^="conversation-turn-"]',
@@ -16665,6 +17405,12 @@
             }
 
             /** @override */
+            getMessagesRoot() {
+                const root = document.querySelector(CONSTANTS.SELECTORS.MESSAGES_ROOT);
+                return root instanceof HTMLElement ? root : document.body;
+            }
+
+            /** @override */
             getMessageId(element) {
                 if (!element) return null;
                 return element.getAttribute(CONSTANTS.ATTRIBUTES.MESSAGE_ID);
@@ -16788,42 +17534,54 @@
 
             /** @override */
             initializeSentinel(callback) {
+                // Create exclusion selector for processed items to reduce browser load
+                const notProcessed = `:not(.${CONSTANTS.CLASSES.PROCESSED})`;
+
                 // prettier-ignore
                 const userContentSelector = [
-                    `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE}`,
-                    `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_IMAGE_BUBBLE}`,
+                    `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE}${notProcessed}`,
+                    `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_IMAGE_BUBBLE}${notProcessed}`,
                 ].join(', ');
 
                 // prettier-ignore
                 const assistantContentSelector = [
-                    `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE}`,
-                    CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE,
+                    `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE}${notProcessed}`,
+                    `${CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE}${notProcessed}`,
                 ].join(', ');
 
-                sentinel.on(userContentSelector, callback);
-                sentinel.on(assistantContentSelector, callback);
+                const combinedSelector = `${userContentSelector}, ${assistantContentSelector}`;
+
+                sentinel.on(combinedSelector, callback);
 
                 return () => {
-                    sentinel.off(userContentSelector, callback);
-                    sentinel.off(assistantContentSelector, callback);
+                    sentinel.off(combinedSelector, callback);
                 };
             }
 
             /** @override */
             performInitialScan(lifecycleManager) {
-                Logger.debug('SCAN', LOG_STYLES.CYAN, 'Performing initial scan for unprocessed image messages.');
-                // This selector specifically targets generated images which are the primary source of this issue.
-                const imageSelector = CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE;
-                const unprocessedSelector = `${imageSelector}:not(${DomState.getSelector(CONSTANTS.DATA_KEYS.CONTENT_PROCESSED, 'true')})`;
-                const unprocessedImages = document.querySelectorAll(unprocessedSelector);
+                Logger.debug('SCAN', LOG_STYLES.CYAN, 'Performing initial scan for message elements.');
 
-                if (unprocessedImages.length > 0) {
-                    Logger.log('', '', `Found ${unprocessedImages.length} unprocessed image(s) on initial scan.`);
-                    unprocessedImages.forEach((imgElement) => {
-                        lifecycleManager.processRawMessage(imgElement);
-                    });
+                // prettier-ignore
+                const selectors = [
+                        CONSTANTS.SELECTORS.RAW_USER_BUBBLE,
+                        CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE,
+                        CONSTANTS.SELECTORS.RAW_USER_IMAGE_BUBBLE,
+                        CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE
+                    ];
+
+                const notProcessed = `:not(.${CONSTANTS.CLASSES.PROCESSED})`;
+                const selector = selectors.map((s) => `${s}${notProcessed}`).join(', ');
+
+                const nodes = document.querySelectorAll(selector);
+                nodes.forEach((node) => {
+                    lifecycleManager.processRawMessage(node);
+                });
+
+                if (nodes.length > 0) {
+                    Logger.log('', '', `Found ${nodes.length} unprocessed item(s) on initial scan.`);
                 }
-                return unprocessedImages.length;
+                return nodes.length;
             }
 
             /** @override */
@@ -16841,7 +17599,7 @@
             getStaticCss(cls) {
                 return `
                     :root {
-                        --${APPID}-message-margin-top: 24px;
+                        ${CSS_VARS.MESSAGE_MARGIN_TOP}: 24px;
                     }
                     ${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} {
                         transition: background-image 0.3s ease-in-out;
@@ -16849,7 +17607,7 @@
                     /* Add margin between messages to prevent overlap */
                     ${CONSTANTS.SELECTORS.USER_MESSAGE},
                     ${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} {
-                        margin-top: var(--${APPID}-message-margin-top);
+                        margin-top: var(${CSS_VARS.MESSAGE_MARGIN_TOP});
                     }
                     ${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE},
                     ${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE} {
@@ -16905,7 +17663,7 @@
                     }
                     /* This rule is now conditional on a body class and scoped to the scroll container to avoid affecting other elements. */
                     body.${cls.maxWidthActive} main ${CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH} {
-                        max-width: var(--${APPID}-chat-content-max-width) !important;
+                        max-width: var(${CSS_VARS.CHAT_CONTENT_MAX_WIDTH}) !important;
                     }
                     
                     /* Hide default scroll-to-bottom button */
@@ -17079,6 +17837,15 @@
                         this.isLayoutScanComplete = false;
                     }
 
+                    /**
+                     * @override
+                     * @description Handles the CACHE_UPDATED event to perform the initial scroll check.
+                     */
+                    _onInit() {
+                        super._onInit();
+                        this.isLayoutScanComplete = false;
+                    }
+
                     async start() {
                         if (!isFirefox()) return;
                         if (this.isScrolling || this.isLayoutScanComplete) return;
@@ -17221,7 +17988,7 @@
                         this.isLayoutScanComplete = false;
                     }
                 }
-                controller.autoScrollManager = new AutoScrollManager(controller.configManager, controller.messageCacheManager, controller.messageLifecycleManager);
+                controller.autoScrollManager = controller.manageFactory(CONSTANTS.RESOURCE_KEYS.AUTO_SCROLL_MANAGER, () => new AutoScrollManager(controller.configManager, controller.messageCacheManager, controller.messageLifecycleManager));
             }
 
             /** @override */
@@ -17361,6 +18128,7 @@
                     },
                     mutate: (measured) => {
                         // --- Write Phase ---
+                        if (instance.isDestroyed) return;
                         if (!measured) return;
 
                         const { sidebarWidth, windowWidth, windowHeight, assistantImgHeight, userImgHeight } = measured;
@@ -17815,6 +18583,7 @@
                     this.isInitialized = false;
                     Logger.debug('TIMESTAMP', LOG_STYLES.TEAL, 'Restored original unsafeWindow.fetch');
                 }
+                // Data cache is preserved (BaseTimestampAdapter behavior)
             }
 
             /** @override */
@@ -17869,6 +18638,8 @@
              * @param {Response} response
              */
             async _processIntercentedResponse(input, response) {
+                if (!this.isInitialized) return;
+
                 // Check URL patterns
                 const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
                 let normalizedUrl = url;
@@ -17904,8 +18675,8 @@
                     const timestamps = this._extractTimestamps(data);
 
                     if (timestamps.size > 0) {
-                        // Store in buffer
-                        this.capturedData.set(chatId, { chatId, timestamps });
+                        // Store in persistent cache
+                        timestamps.forEach((date, id) => this.addTimestamp(id, date));
                         // Publish event
                         EventBus.publish(EVENTS.TIMESTAMPS_LOADED, { chatId, timestamps });
                     }
@@ -17948,7 +18719,7 @@
 
         class ChatGPTUIManagerAdapter extends BaseUIManagerAdapter {
             /** @override */
-            repositionSettingsButton(settingsButton) {
+            ensureButtonPlacement(settingsButton) {
                 ensureSettingsButtonPlacement(settingsButton, CONSTANTS.SELECTORS.INSERTION_ANCHOR, PlatformAdapters.General.isExcludedPage);
             }
         }
@@ -18012,6 +18783,8 @@
                 CHAT_WINDOW: 'chat-window',
                 CHAT_HISTORY_MAIN: 'div#chat-history',
                 INPUT_CONTAINER: 'input-container',
+                // Root container for message search optimization
+                MESSAGES_ROOT: 'div#chat-history',
 
                 // --- Message containers ---
                 CONVERSATION_UNIT: 'user-query, model-response',
@@ -18079,6 +18852,7 @@
 
                 // --- Canvas ---
                 CANVAS_CONTAINER: 'immersive-panel',
+                CANVAS_CLOSE_BUTTON: 'button[data-test-id="close-button"]',
 
                 // --- File Panel ---
                 FILE_PANEL_CONTAINER: 'context-sidebar',
@@ -18194,6 +18968,12 @@
             }
 
             /** @override */
+            getMessagesRoot() {
+                const root = document.querySelector(CONSTANTS.SELECTORS.MESSAGES_ROOT);
+                return root instanceof HTMLElement ? root : document.body;
+            }
+
+            /** @override */
             getMessageId(element) {
                 if (!element) return null;
                 return element.getAttribute(CONSTANTS.ATTRIBUTES.MESSAGE_ID);
@@ -18251,14 +19031,26 @@
 
             /** @override */
             initializeSentinel(callback) {
-                const userBubbleSelector = `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE}`;
-                const assistantBubbleSelector = `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE}`;
-                sentinel.on(userBubbleSelector, callback);
-                sentinel.on(assistantBubbleSelector, callback);
+                const notProcessed = `:not(.${CONSTANTS.CLASSES.PROCESSED})`;
+
+                // prettier-ignore
+                const userContentSelector = [
+                    `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE}${notProcessed}`,
+                    `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_IMAGE_BUBBLE}${notProcessed}`,
+                ].join(', ');
+
+                // prettier-ignore
+                const assistantContentSelector = [
+                    `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE}${notProcessed}`,
+                    `${CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE}${notProcessed}`, // Assistant images are direct children usually
+                ].join(', ');
+
+                const combinedSelector = `${userContentSelector}, ${assistantContentSelector}`;
+
+                sentinel.on(combinedSelector, callback);
 
                 return () => {
-                    sentinel.off(userBubbleSelector, callback);
-                    sentinel.off(assistantBubbleSelector, callback);
+                    sentinel.off(combinedSelector, callback);
                 };
             }
         }
@@ -18272,7 +19064,7 @@
                     }
                     /* This rule is now conditional on a body class, which is toggled by applyChatContentMaxWidth. */
                     body.${cls.maxWidthActive} ${CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH}{
-                        max-width: var(--${APPID}-chat-content-max-width) !important;
+                        max-width: var(${CSS_VARS.CHAT_CONTENT_MAX_WIDTH}) !important;
                         margin-inline: auto !important;
                     }
 
@@ -18404,14 +19196,18 @@
                         DISAPPEAR_TIMEOUT_MS: 5000,
                         // The grace period (in ms) after navigation to allow messages to load before deciding not to scroll.
                         GRACE_PERIOD_MS: 2000,
+                        // The maximum time (in ms) to wait for Canvas to close before aborting scroll.
+                        CANVAS_CLOSE_TIMEOUT_MS: 1000,
                     };
 
                     /**
                      * @param {ConfigManager} configManager
                      * @param {MessageCacheManager} messageCacheManager
+                     * @param {ToastManager} toastManager
                      */
-                    constructor(configManager, messageCacheManager) {
+                    constructor(configManager, messageCacheManager, toastManager) {
                         super(configManager, messageCacheManager);
+                        this.toastManager = toastManager;
                         this.scrollContainer = null;
                         this.observerContainer = null;
                         this.toastShown = false;
@@ -18424,13 +19220,50 @@
                         this.navigationStartTime = 0;
                     }
 
+                    /**
+                     * @override
+                     * @description Initializes the manager and subscribes to streaming events.
+                     */
                     _onInit() {
                         super._onInit();
                         this._subscribe(EVENTS.STREAMING_START, () => this._onStreamingStart());
+                        this.isInitialScrollCheckDone = false;
                     }
 
                     async start() {
                         if (this.isScrolling) return;
+
+                        // Canvas (Immersive Panel) Handling
+                        // If Canvas is open, it changes the DOM structure and causes freezing during scroll.
+                        // We must close it before starting the scroll process.
+                        const canvas = document.querySelector(CONSTANTS.SELECTORS.CANVAS_CONTAINER);
+                        if (canvas) {
+                            Logger.debug('AUTOSCROLL', LOG_STYLES.CYAN, 'Canvas detected. Attempting to close...');
+
+                            // Scope the search strictly within the canvas container to avoid false positives
+                            const closeBtn = canvas.querySelector(CONSTANTS.SELECTORS.CANVAS_CLOSE_BUTTON);
+
+                            if (closeBtn instanceof HTMLElement) {
+                                closeBtn.click();
+                                // Notify user about the action
+                                if (this.toastManager) {
+                                    this.toastManager.show('Canvas closed for auto-scroll', false);
+                                }
+
+                                // Wait for Canvas to disappear from DOM
+                                const startWait = Date.now();
+                                while (document.querySelector(CONSTANTS.SELECTORS.CANVAS_CONTAINER)) {
+                                    if (Date.now() - startWait > AutoScrollManager.CONFIG.CANVAS_CLOSE_TIMEOUT_MS) {
+                                        Logger.warn('AUTOSCROLL', LOG_STYLES.YELLOW, 'Timed out waiting for Canvas to close. Aborting scroll.');
+                                        return;
+                                    }
+                                    await new Promise((r) => requestAnimationFrame(r));
+                                }
+                            } else {
+                                Logger.warn('AUTOSCROLL', LOG_STYLES.YELLOW, 'Canvas active but close button not found. Aborting scroll to prevent freeze.');
+                                return;
+                            }
+                        }
 
                         // Set the flag immediately to prevent re-entrancy from other events.
                         this.isScrolling = true;
@@ -18624,7 +19457,8 @@
                         this.navigationStartTime = Date.now();
                     }
                 }
-                controller.autoScrollManager = new AutoScrollManager(controller.configManager, controller.messageCacheManager);
+                // Inject toastManager into the constructor
+                controller.autoScrollManager = controller.manageFactory(CONSTANTS.RESOURCE_KEYS.AUTO_SCROLL_MANAGER, () => new AutoScrollManager(controller.configManager, controller.messageCacheManager, controller.toastManager));
             }
 
             /** @override */
@@ -18709,6 +19543,7 @@
                     },
                     mutate: (measured) => {
                         // --- Write Phase ---
+                        if (instance.isDestroyed) return;
                         const rootStyle = document.documentElement.style;
 
                         if (!measured) {
@@ -19020,7 +19855,7 @@
 
         class GeminiUIManagerAdapter extends BaseUIManagerAdapter {
             /** @override */
-            repositionSettingsButton(settingsButton) {
+            ensureButtonPlacement(settingsButton) {
                 ensureSettingsButtonPlacement(settingsButton, CONSTANTS.SELECTORS.INSERTION_ANCHOR, PlatformAdapters.General.isExcludedPage);
             }
         }

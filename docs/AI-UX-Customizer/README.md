@@ -120,7 +120,7 @@ This keeps the input area clean and maximizes the chat display area.
 
 ## How to Use
 
-- Click the **gear icon** ⚙️ in the input area to **open the settings panel**.
+- Click the **palette icon** 🎨 in the input area to **open the settings panel**.
 - From the Settings Panel, you can change various options or **open the Theme Editor (GUI) to create and edit themes**.
 - In the navigation console above the input field, **click on the "Assistant:", "Total:", or "User:" labels** to open the message **Jump List**.
 - If needed, use the "JSON" button to export your current settings or import sample settings.

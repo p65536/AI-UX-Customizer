@@ -1,5 +1,39 @@
 # Changelog
 
+## [1.0.0-b393] - 2026-01-21
+- **UI Changes**
+  - Updated the **Settings** button icon to a "Palette" style to better reflect the script's focus on theming and visual customization.
+- **Core Improvements**
+  - **Memory Safety**: Completely refactored the internal resource manager (`BaseManager`) to prevent memory leaks. It now enforces a strict cleanup order for event listeners, observers, and timers across all features.
+  - **Stability**: Enhanced application lifecycle reliability. The script now handles initialization sequences and page navigation cleanup more robustly, ensuring smooth transitions between chats without lingering background processes.
+- **Performance Improvements**
+  - Optimized the theming engine to use native CSS variables. This improves rendering performance when applying themes or resizing the window.
+  - Optimized DOM observation (Sentinel) for both ChatGPT and Gemini to ignore already processed messages, significantly reducing processing overhead during chat updates.
+  - Disabled the redundant "self-healing" monitor for avatars to decrease observer load.
+  - Migrated internal state tracking for messages from data attributes to CSS classes. This reduces style calculation overhead and improves responsiveness in long conversations.
+  - Optimized the DOM observation engine (`Sentinel`) by consolidating selector rules, reducing the number of injected CSS animation rules by 50%.
+  - Optimized the message discovery process by restricting the search scope to the specific chat container (`main` or `#chat-history`). This prevents unnecessary scanning of the entire page (e.g., sidebars, settings), improving efficiency during cache rebuilds.
+- **Bug Fixes**
+  - **[Gemini]** Fixed a critical issue where the browser would freeze if **Auto-Scroll** (Load full history) was triggered while the **Canvas (Immersive Panel)** was active.
+    - To prevent layout conflicts, the script now automatically closes the Canvas panel before starting the scroll process and displays a toast notification ("Canvas closed for auto-scroll") to keep you informed.
+  - Fixed an issue where inconsistent variable naming could prevent certain theme text colors from being applied correctly.
+  - Fixed an issue where **Message Timestamps** could potentially be lost when using the browser's Back/Forward buttons or navigating between chats.
+  - Resolved a critical bug where UI customizations (avatars, buttons) would stop functioning if navigation occurred while auto-scrolling.
+  - Improved the reliability of timestamp data collection to ensure early API requests are captured correctly during page load.
+  - Prevented redundant "real-time" timestamp logging when loading existing chat history.
+- **Refactor / Internal Improvements**
+  - Refactored the internal theme application logic to ensure more reliable loading of styles and custom images, preventing potential race conditions.
+  - Refactored the settings UI generation logic to be metadata-driven, reducing code duplication.
+  - Refactored the settings button positioning logic (`ensureButtonPlacement`) to better align internal method names with their actual behavior.
+  - Removed unused legacy code from the `UIManager` to improve project maintainability and reduce complexity.
+  - Removed legacy attribute management logic to simplify the message processing pipeline and ensure code consistency.
+  - Refactored the internal management of CSS variables to improve code stability and maintainability.
+  - Hardened the internal event handling logic to ensure listeners are cleaned up reliably, preventing potential conflicts during page navigation.
+  - Added robust safeguards to prevent errors during asynchronous UI updates and page transitions.
+  - Added safeguards to the settings UI engine to prevent errors caused by duplicate rendering attempts.
+  - Refactored internal icon definitions using a factory pattern to reduce code redundancy.
+  - Refactored notification toasts to use browser-synchronized animations, ensuring smoother transitions and reliable cleanup of resources when closed.
+
 ## [1.0.0-b329] - 2026-01-17
 - **New Features**
   - **[Navi Console]** Introduced a **Hybrid Positioning System** for the Navigation Console. You can now choose to embed the console directly into the site header or keep it floating above the input area.

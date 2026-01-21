@@ -9,7 +9,7 @@ To customize visual themes (colors, backgrounds, standing images), use the **The
 
 ### 1. Accessing the Settings
 
-You can access the Settings Panel by clicking the **Settings button** (gear icon ⚙️) located **inside the text input area**.
+You can access the Settings Panel by clicking the **Settings button** (palette icon 🎨) located **inside the text input area**.
 
 ![Settings button](./images/settings_button.webp)
 

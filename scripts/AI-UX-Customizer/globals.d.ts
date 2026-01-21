@@ -369,6 +369,8 @@ interface GeneralAdapter {
     isExcludedPage(): boolean;
     isFilePanelActive(): boolean;
     isNewChatPage(): boolean;
+    getMessagesRoot(): HTMLElement | null;
+    getMessageId(element: Element | null): string | null;
     getMessageRole(element: Element): string | null;
     getChatTitle(): string | null;
     getJumpListDisplayText(element: HTMLElement): string;
@@ -378,7 +380,6 @@ interface GeneralAdapter {
     initializeSentinel(callback: (element: HTMLElement) => void): void;
     performInitialScan(lifecycleManager: IMessageLifecycleManager): number;
     onNavigationEnd(lifecycleManager: IMessageLifecycleManager): void;
-    getMessageId(element: Element | null): string | null;
 }
 
 interface StyleManagerAdapter {
@@ -470,11 +471,12 @@ interface TimestampAdapter {
     init(): void;
     cleanup(): void;
     hasTimestampLogic(): boolean;
-    getCapturedData(): Array<{ chatId: string, timestamps: Map<string, Date> }>;
+    addTimestamp(id: string, date: Date): void;
+    getTimestamp(id: string): Date | undefined;
 }
 
 interface UIManagerAdapter {
-    repositionSettingsButton(settingsButton: ICustomSettingsButton): void;
+    ensureButtonPlacement(settingsButton: ICustomSettingsButton): void;
 }
 
 // --- Platform Definitions ---
@@ -579,12 +581,14 @@ interface PlatformConstants {
         INPUT_TOP: string;
         HEADER: string;
     };
+    CLASSES: {
+        PROCESSED: string;
+        COMPLETE_FIRED: string;
+    },
     DATA_KEYS: {
         AVATAR_INJECT_ATTEMPTS: string;
         AVATAR_INJECT_FAILED: string;
         UNIQUE_ID: string;
-        CONTENT_PROCESSED: string;
-        MESSAGE_COMPLETE_FIRED: string;
         NAV_CMD: string;
         NAV_ROLE: string;
         ORIGINAL_TITLE: string;
@@ -602,6 +606,39 @@ interface PlatformConstants {
         WARNING_PATH: string;
         WARNING_MSG_PATH: string;
         WARNING_SHOW_PATH: string;
+    };
+    RESOURCE_KEYS: {
+        SETTINGS_BUTTON: string;
+        SETTINGS_PANEL: string;
+        JSON_MODAL: string;
+        THEME_MODAL: string;
+        WIDGET_CONTROLLER: string;
+        MODAL_COORDINATOR: string;
+        THEME_MANAGER: string;
+        MESSAGE_CACHE_MANAGER: string;
+        SYNC_MANAGER: string;
+        OBSERVER_MANAGER: string;
+        UI_MANAGER: string;
+        AVATAR_MANAGER: string;
+        STANDING_IMAGE_MANAGER: string;
+        BUBBLE_UI_MANAGER: string;
+        MESSAGE_LIFECYCLE_MANAGER: string;
+        TOAST_MANAGER: string;
+        TIMESTAMP_MANAGER: string;
+        FIXED_NAV_MANAGER: string;
+        MESSAGE_NUMBER_MANAGER: string;
+        AUTO_SCROLL_MANAGER: string;
+        MAIN_OBSERVER: string;
+        LAYOUT_RESIZE_OBSERVER: string;
+        POLLING_SCAN: string;
+        BATCH_TASK: string;
+        STREAM_CHECK: string;
+        ZERO_MSG_TIMER: string;
+        NAVIGATION_MONITOR: string;
+        APP_CONTROLLER: string;
+        ANCHOR_LISTENER: string;
+        JUMP_LIST: string;
+
     };
     // Platform specific additions
     OBSERVER_OPTIONS?: MutationObserverInit;

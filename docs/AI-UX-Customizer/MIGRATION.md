@@ -38,7 +38,7 @@ Install the new unified script.
 This is the most critical step. You will add your old themes into the new script without breaking the new configuration structure.
 
 1.  Open ChatGPT or Gemini with **AI-UX-Customizer** enabled.
-2.  Click the gear icon ⚙️ to open the settings panel.
+2.  Click the Palette icon 🎨 to open the settings panel.
 3.  Click the **"JSON..."** button to open the editor.
 4.  **Hover over the "Import" button** and hold down the **`Ctrl` key**.
     * Notice that the button changes to an **"Append"** button.
