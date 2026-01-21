@@ -513,6 +513,7 @@ interface PlatformConstants {
         POLLING: {
             MESSAGE_DISCOVERY_MS: number;
             STREAM_COMPLETION_CHECK_MS: number;
+            IDLE_INDEXING_MS: number;
         };
         PERF_MONITOR_THROTTLE: number;
     };

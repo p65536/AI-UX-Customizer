@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b395] - 2026-01-21
+- **Performance**
+  - **[Jumplist]** Improved the performance of the **Jump List**, especially in long conversations. Message text is now indexed in the background (idle time) to prevent the browser from freezing when opening the list.
+
 ## [1.0.0-b394] - 2026-01-21
 - **Improvements**
   - **Persistent Image Cache**: Cached images (avatars, standing images, backgrounds) are now preserved when temporarily navigating to pages where the script is disabled (e.g., Library, GPTs). This improves performance and prevents flickering when returning to the chat.

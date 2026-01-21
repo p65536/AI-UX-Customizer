@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b394
+// @version      1.0.0-b395
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -171,6 +171,7 @@
             POLLING: {
                 MESSAGE_DISCOVERY_MS: 750, // Interval for scanning the DOM to discover messages that weren't caught by observers
                 STREAM_COMPLETION_CHECK_MS: 2000, // Interval for checking if a streaming response has completed (fallback mechanism)
+                IDLE_INDEXING_MS: 1000, // Interval for background text indexing task
             },
             PERF_MONITOR_THROTTLE: 1000,
         },
@@ -8733,6 +8734,13 @@
                 };
             }
 
+            // --- Performance Optimization: Search Cache ---
+            /** @type {Map<HTMLElement, {displayText: string, lowerText: string, roleClass: string}>} */
+            this.searchCache = new Map();
+            /** @type {HTMLElement[]} */
+            this.indexingQueue = [];
+            this.indexingTask = null;
+
             this.styleHandle = this.injectStyle();
             // Pre-inject JumpList styles to avoid overhead on toggle
             this.jumpListStyleHandle = StyleManager.request(StyleDefinitions.getJumpList);
@@ -8839,6 +8847,11 @@
             // Ensure the jump list component is properly destroyed via manager
             this.manageResource(CONSTANTS.RESOURCE_KEYS.JUMP_LIST, null);
 
+            // Clear performance caches to release memory
+            if (this.searchCache) this.searchCache.clear();
+            this.indexingQueue = [];
+            // Pending idle tasks are cleared implicitly as they check the queue length
+
             this.state = {
                 currentIndices: {
                     [CONSTANTS.NAV_ROLES.USER]: -1,
@@ -8868,6 +8881,72 @@
 
             // Do not call _renderUI() here.
             // Visibility and correct values will be restored when CACHE_UPDATED fires on the new page.
+        }
+
+        /**
+         * Synchronizes the search cache with the current message list.
+         * Removes stale entries and schedules indexing for new messages.
+         * @private
+         */
+        _syncSearchCache() {
+            const totalMessages = this.messageCacheManager.getTotalMessages();
+            const currentSet = new Set(totalMessages);
+
+            // 1. Cleanup: Remove messages that are no longer in the DOM
+            for (const msg of this.searchCache.keys()) {
+                if (!currentSet.has(msg)) {
+                    this.searchCache.delete(msg);
+                }
+            }
+
+            // 2. Queueing: Find messages not yet cached
+            this.indexingQueue = [];
+            for (const msg of totalMessages) {
+                if (!this.searchCache.has(msg)) {
+                    this.indexingQueue.push(msg);
+                }
+            }
+
+            // 3. Schedule Idle Indexing
+            if (this.indexingQueue.length > 0) {
+                this._runIdleIndexing();
+            }
+        }
+
+        /**
+         * Processes the indexing queue during browser idle periods.
+         * @private
+         */
+        _runIdleIndexing() {
+            if (this.indexingQueue.length === 0) return;
+
+            // Use runWhenIdle utility
+            runWhenIdle((deadline) => {
+                const cls = this.jumpListStyleHandle.classes;
+
+                while (this.indexingQueue.length > 0 && deadline.timeRemaining() > 1) {
+                    const msg = this.indexingQueue.shift();
+                    // Double check if still valid and not cached
+                    if (msg && msg.isConnected && !this.searchCache.has(msg)) {
+                        const role = PlatformAdapters.General.getMessageRole(msg);
+                        const roleClass = role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER ? cls.userItem : role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT ? cls.asstItem : null;
+
+                        const rawText = PlatformAdapters.General.getJumpListDisplayText(msg);
+                        const displayText = (rawText || '').replace(/\s+/g, ' ').trim();
+
+                        this.searchCache.set(msg, {
+                            displayText: displayText,
+                            lowerText: displayText.toLowerCase(),
+                            roleClass: roleClass,
+                        });
+                    }
+                }
+
+                // If items remain, schedule next batch
+                if (this.indexingQueue.length > 0) {
+                    this._runIdleIndexing();
+                }
+            }, CONSTANTS.TIMING.POLLING.IDLE_INDEXING_MS);
         }
 
         /**
@@ -8963,6 +9042,9 @@
         _handleCacheUpdate() {
             // Note: MessageCacheManager suppresses cache updates during streaming,
             // so we don't need to explicitly check for streaming state here.
+
+            // Sync search cache immediately on update
+            this._syncSearchCache();
 
             // If the jump list is open, a cache update means its data is stale.
             // Close it to prevent inconsistent state and user confusion.
@@ -9868,6 +9950,13 @@
             const messages = roleMap[role];
             if (!messages || messages.length === 0) return;
 
+            // Force refresh the last message in the cache to ensure latest text content.
+            // This is critical for streaming messages where content changes but element identity remains.
+            const lastMessage = messages[messages.length - 1];
+            if (lastMessage && this.searchCache.has(lastMessage)) {
+                this.searchCache.delete(lastMessage);
+            }
+
             const jumpList = new JumpListComponent(
                 role,
                 messages,
@@ -9877,7 +9966,8 @@
                 },
                 this.jumpListStyleHandle,
                 // Fallback to empty string as initialFilterValue is mandatory
-                this.state.lastFilterValue || ''
+                this.state.lastFilterValue || '',
+                this.searchCache // Pass the shared cache
             );
 
             // Register as managed resource to ensure safe destruction
@@ -14735,27 +14825,41 @@
             RESIZE_OBSERVER: 'resizeObserver',
         };
 
-        constructor(role, messages, highlightedMessage, callbacks, styleHandle, initialFilterValue) {
+        constructor(role, messages, highlightedMessage, callbacks, styleHandle, initialFilterValue, searchCache) {
             super(callbacks);
             this.role = role;
             this.messages = messages;
             this.styleHandle = styleHandle;
 
-            // Pre-cache the display text for each message to avoid repeated DOM queries during filtering.
+            // Use the shared cache to build the searchable list efficiently.
+            // If a message is not yet in the cache (e.g. indexing incomplete), verify and add it on the fly.
             const cls = this.styleHandle.classes;
             this.searchableMessages = this.messages.map((msg, originalIndex) => {
-                const role = PlatformAdapters.General.getMessageRole(msg);
-                const roleClass = role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER ? cls.userItem : role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT ? cls.asstItem : null;
+                let cachedData = searchCache.get(msg);
 
-                const rawText = PlatformAdapters.General.getJumpListDisplayText(msg);
-                const displayText = (rawText || '').replace(/\s+/g, ' ').trim();
+                if (!cachedData) {
+                    // Fallback: Generate data synchronously for uncached items
+                    const role = PlatformAdapters.General.getMessageRole(msg);
+                    const roleClass = role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER ? cls.userItem : role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT ? cls.asstItem : null;
+
+                    const rawText = PlatformAdapters.General.getJumpListDisplayText(msg);
+                    const displayText = (rawText || '').replace(/\s+/g, ' ').trim();
+
+                    cachedData = {
+                        displayText: displayText,
+                        lowerText: displayText.toLowerCase(),
+                        roleClass: roleClass,
+                    };
+                    // Update cache to prevent future re-calculation
+                    searchCache.set(msg, cachedData);
+                }
 
                 return {
                     element: msg,
                     originalIndex: originalIndex,
-                    displayText: displayText,
-                    lowerText: displayText.toLowerCase(),
-                    roleClass: roleClass,
+                    displayText: cachedData.displayText,
+                    lowerText: cachedData.lowerText,
+                    roleClass: cachedData.roleClass,
                 };
             });
 
