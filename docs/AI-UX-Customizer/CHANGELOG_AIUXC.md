@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.0-b396] - 2026-01-21
+- **UI Improvements**
+  - **[Jumplist]** Enforced a strict layout constraint to display exactly 20 messages at a time, ensuring consistent appearance across different browsers and platforms.
+- **Performance**
+  - **[Jumplist]** Optimized the virtual scrolling buffer size to align with the new 20-item display limit, ensuring smooth rendering performance during immediate scrolling.
+
 ## [1.0.0-b395] - 2026-01-21
 - **Performance**
   - **[Jumplist]** Improved the performance of the **Jump List**, especially in long conversations. Message text is now indexed in the background (idle time) to prevent the browser from freezing when opening the list.

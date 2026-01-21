@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b395
+// @version      1.0.0-b396
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -14819,6 +14819,9 @@
         static DIMENSIONS = {
             ITEM_HEIGHT: 34,
             WIDTH: 360,
+            MAX_VISIBLE_ITEMS: 20,
+            INITIAL_BATCH_SIZE: 30, // Number of items to render initially (20 visible + 10 buffer)
+            SCROLL_BUFFER: 5, // Number of extra items to render above/below the visible area
         };
 
         static RESOURCE_KEYS = {
@@ -15019,6 +15022,12 @@
             const width = JumpListComponent.DIMENSIONS.WIDTH;
             const isTopHalf = anchorRect.top < viewportHeight / 2;
 
+            // Strict List Height Calculation:
+            // Apply max-height directly to the scrollBox to enforce exactly 20 items.
+            // This decouples the list size from the filter input size (which varies by OS/Browser).
+            const listMaxHeight = JumpListComponent.DIMENSIONS.MAX_VISIBLE_ITEMS * this.itemHeight;
+            this.scrollBox.style.maxHeight = `${listMaxHeight}px`;
+
             // Horizontal Positioning (Keep on screen)
             let left = anchorRect.left;
             if (left + width > viewportWidth - horizontalMargin) {
@@ -15036,18 +15045,20 @@
                 this.element.style.top = `${anchorRect.bottom + 4}px`;
                 this.element.style.bottom = 'auto';
 
-                const maxHeight = viewportHeight - anchorRect.bottom - verticalMargin * 2;
-                this.element.style.maxHeight = `${Math.max(100, maxHeight)}px`;
+                // Viewport Constraint for the Outer Container
+                const availableHeight = viewportHeight - anchorRect.bottom - verticalMargin * 2;
+                this.element.style.maxHeight = `${Math.max(100, availableHeight)}px`;
             } else {
                 // Expand Up (Footer Mode / Bottom Half)
                 this.element.classList.remove(cls.expandDown);
                 this.element.style.top = 'auto';
                 this.element.style.bottom = `${viewportHeight - anchorRect.top + 4}px`;
 
+                // Viewport Constraint for the Outer Container
                 // Reserve 10% space at the top to avoid covering headers entirely
                 const topLimit = viewportHeight * 0.1;
-                const maxHeight = anchorRect.top - topLimit - verticalMargin;
-                this.element.style.maxHeight = `${Math.max(100, maxHeight)}px`;
+                const availableHeight = anchorRect.top - topLimit - verticalMargin;
+                this.element.style.maxHeight = `${Math.max(100, availableHeight)}px`;
             }
 
             // Force reflow to ensure start position is applied before transition
@@ -15604,13 +15615,13 @@
             // Use cached metrics for height, but state.scrollTop is accurate
             const scrollTop = this.state.scrollTop;
             const containerHeight = this.state.containerHeight;
-            const buffer = 5;
+            const buffer = JumpListComponent.DIMENSIONS.SCROLL_BUFFER;
 
             const startIndex = Math.max(0, Math.floor(scrollTop / this.itemHeight) - buffer);
 
             if (containerHeight <= 0) {
                 // Initial render, container height not yet known. Render a default batch.
-                const initialBatchSize = 20;
+                const initialBatchSize = JumpListComponent.DIMENSIONS.INITIAL_BATCH_SIZE;
                 // Fix off-by-one: endIndex should be valid index bound
                 const endIndex = Math.min(total - 1, initialBatchSize);
                 return { startIndex: 0, endIndex };
