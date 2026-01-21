@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.0-b397] - 2026-01-22
+- **New Features**
+  - Added a **visual loading indicator** to the settings button. The icon now spins and highlights (default: orange) to indicate background activity during page initialization, theme updates, and auto-scrolling.
+- **Fixes**
+  - Improved page type detection logic to correctly identify pages without active conversation history, ensuring proper script initialization.
+
 ## [1.0.0-b396] - 2026-01-21
 - **UI Improvements**
   - **[Jumplist]** Enforced a strict layout constraint to display exactly 20 messages at a time, ensuring consistent appearance across different browsers and platforms.

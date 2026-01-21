@@ -369,6 +369,7 @@ interface GeneralAdapter {
     isExcludedPage(): boolean;
     isFilePanelActive(): boolean;
     isNewChatPage(): boolean;
+    isChatPage(): boolean;
     getMessagesRoot(): HTMLElement | null;
     getMessageId(element: Element | null): string | null;
     getMessageRole(element: Element): string | null;

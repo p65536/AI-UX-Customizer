@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b396
+// @version      1.0.0-b397
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -1066,6 +1066,15 @@
          */
         isNewChatPage() {
             throw new Error('isNewChatPage must be implemented by the platform adapter.');
+        }
+
+        /**
+         * Checks if the current page is an active chat page with history.
+         * @returns {boolean} True if it is a chat page.
+         * @throws {Error} Must be implemented by subclasses.
+         */
+        isChatPage() {
+            throw new Error('isChatPage must be implemented by the platform adapter.');
         }
 
         /**
@@ -2875,8 +2884,13 @@
             const cssGenerator = (cls) => {
                 const zIndex = SITE_STYLES.Z_INDICES.SETTINGS_BUTTON;
                 const palette = SITE_STYLES.PALETTE;
+                const animationName = `${prefix}-spin`;
 
                 return `
+                @keyframes ${animationName} {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
                 #${cls.buttonId} {
                     z-index: ${zIndex};
                     background: transparent;
@@ -2893,7 +2907,7 @@
                     font-size: 16px;
                     cursor: pointer;
                     box-shadow: var(--drop-shadow-xs, 0 1px 1px #0000000d);
-                    transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
+                    transition: background 0.12s, border-color 0.12s, box-shadow 0.12s, color 0.2s ease;
                     display: flex;
                     align-items: center;
                     justify-content: center;
@@ -2903,6 +2917,12 @@
                 #${cls.buttonId}:hover {
                     background: ${palette.settings_btn_hover_bg};
                     border-color: transparent;
+                }
+                #${cls.buttonId}.is-loading {
+                    color: ${palette.loading_spinner};
+                }
+                #${cls.buttonId}.is-loading svg {
+                    animation: ${animationName} 1.5s linear infinite;
                 }
             `;
             };
@@ -7080,6 +7100,11 @@
             if (themeShouldUpdate) {
                 this.applyThemeStyles(currentThemeSet, config);
                 this.applyChatContentMaxWidth();
+            } else {
+                // Even if no update is needed, publish the event to signal completion.
+                // This is critical for clearing loading states (e.g. settings button animation)
+                // that were triggered by the update request.
+                EventBus.publish(EVENTS.THEME_APPLIED, { theme: currentThemeSet, config: config });
             }
         }
 
@@ -13076,6 +13101,16 @@
             this.styleHandle = null;
             super._onDestroy();
         }
+
+        /**
+         * Toggles the loading animation state of the button.
+         * @param {boolean} isLoading
+         */
+        setLoading(isLoading) {
+            if (this.element) {
+                this.element.classList.toggle('is-loading', isLoading);
+            }
+        }
     }
 
     /**
@@ -15918,6 +15953,11 @@
             this.settingsPanel = null;
             this.isRepositionScheduled = false;
 
+            // Loading state flags
+            this.isPageLoading = true;
+            this.isThemeLoading = false;
+            this.isAutoScrolling = false;
+
             // Bind methods
             this.scheduleButtonPlacement = this.scheduleButtonPlacement.bind(this);
         }
@@ -15961,6 +16001,7 @@
                 await this.settingsButton.init();
                 this.settingsButton.render();
                 this.ensureButtonPlacement(); // Initial placement
+                this._updateButtonLoadingState(); // Apply initial state
             }
 
             // Panels act as managers too
@@ -15974,12 +16015,68 @@
             // Subscribe to layout events for the button
             this._subscribe(EVENTS.UI_REPOSITION, this.scheduleButtonPlacement);
             this._subscribe(EVENTS.DEFERRED_LAYOUT_UPDATE, this.scheduleButtonPlacement);
-            this._subscribe(EVENTS.NAVIGATION_END, this.scheduleButtonPlacement);
+            this._subscribe(EVENTS.NAVIGATION_END, () => {
+                this.scheduleButtonPlacement();
+                // Defer the loading state update to the next UI cycle.
+                EventBus.queueUIWork(() => {
+                    if (this.isDestroyed) return;
+                    this.isPageLoading = false;
+                    this._updateButtonLoadingState();
+                });
+            });
+
+            // Subscribe to events for loading state control
+            this._subscribe(EVENTS.NAVIGATION_START, () => {
+                // Only wait for message loading on active chat pages.
+                // For non-chat pages (New Chat, Lists), skip the wait to prevent infinite loading.
+                if (PlatformAdapters.General.isChatPage()) {
+                    this.isPageLoading = true;
+                } else {
+                    this.isPageLoading = false;
+                }
+                this._updateButtonLoadingState();
+            });
+            this._subscribe(EVENTS.THEME_UPDATE, () => {
+                this.isThemeLoading = true;
+                this._updateButtonLoadingState();
+            });
+            this._subscribe(EVENTS.THEME_APPLIED, () => {
+                this.isThemeLoading = false;
+                this._updateButtonLoadingState();
+            });
+            this._subscribe(EVENTS.AUTO_SCROLL_START, () => {
+                this.isAutoScrolling = true;
+                this._updateButtonLoadingState();
+            });
+            this._subscribe(EVENTS.AUTO_SCROLL_COMPLETE, () => {
+                this.isAutoScrolling = false;
+                this._updateButtonLoadingState();
+            });
+            this._subscribe(EVENTS.CONFIG_WARNING_UPDATE, (data) => {
+                // If an error occurs (warning shown), disable loading animation to prevent infinite spinning
+                if (data && data.show) {
+                    this.isPageLoading = false;
+                    this.isThemeLoading = false;
+                    this._updateButtonLoadingState();
+                }
+            });
         }
 
         _onDestroy() {
             this.settingsButton = null;
             this.settingsPanel = null;
+        }
+
+        /**
+         * Updates the loading state of the settings button based on internal flags.
+         * @private
+         */
+        _updateButtonLoadingState() {
+            if (!this.settingsButton) return;
+
+            const effectivePageLoading = PlatformAdapters.General.isChatPage() && this.isPageLoading;
+            const isLoading = effectivePageLoading || this.isThemeLoading || this.isAutoScrolling;
+            this.settingsButton.setLoading(isLoading);
         }
 
         /**
@@ -17473,6 +17570,7 @@
             toggle_knob: 'var(--text-primary)',
             danger_text: 'var(--text-danger)',
             accent_text: 'var(--text-accent)',
+            loading_spinner: '#ffca28',
             // Shared properties
             slider_display_text: 'var(--text-primary)',
             label_text: 'var(--text-secondary)',
@@ -17534,7 +17632,15 @@
 
             /** @override */
             isNewChatPage() {
-                return window.location.pathname === '/';
+                const path = window.location.pathname;
+                // Main new chat page or GPT/Project top page (no conversation ID)
+                return path === '/' || (path.startsWith('/g/') && !path.includes('/c/'));
+            }
+
+            /** @override */
+            isChatPage() {
+                // Any URL containing '/c/' is a conversation page
+                return window.location.pathname.includes('/c/');
             }
 
             /** @override */
@@ -19030,6 +19136,7 @@
             toggle_knob: 'var(--gem-sys-color--on-primary-container)',
             danger_text: 'var(--gem-sys-color--error)',
             accent_text: 'var(--gem-sys-color--primary)',
+            loading_spinner: '#ffca28',
             // Shared properties
             slider_display_text: 'var(--gem-sys-color--on-surface)',
             label_text: 'var(--gem-sys-color--on-surface-variant)',
@@ -19096,8 +19203,19 @@
 
             /** @override */
             isNewChatPage() {
-                const p = window.location.pathname;
-                return p === '/app' || p === '/';
+                const path = window.location.pathname;
+                // 1. /app (Standard New Chat)
+                // 2. /gems/view (Gems List)
+                // 3. /gem/[GemID] (Gem Top - no ChatID)
+                return /^\/app\/?$/.test(path) || /^\/gems\/view\/?$/.test(path) || /^\/gem\/[^/]+\/?$/.test(path);
+            }
+
+            /** @override */
+            isChatPage() {
+                const path = window.location.pathname;
+                // 1. /app/[ChatID] (Standard Chat)
+                // 2. /gem/[GemID]/[ChatID] (Gem Chat)
+                return /^\/app\/[^/]+/.test(path) || /^\/gem\/[^/]+\/[^/]+/.test(path);
             }
 
             /** @override */
