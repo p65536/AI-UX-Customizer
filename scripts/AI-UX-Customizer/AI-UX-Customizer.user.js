@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b397
+// @version      1.0.0-b398
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -7777,7 +7777,7 @@
                 // Start backup polling to detect completion in case Sentinel fails
                 this.stopStreamCheck(); // Safety clear
                 const id = setInterval(() => {
-                    const completionElement = document.querySelector(CONSTANTS.SELECTORS.TURN_COMPLETE_SELECTOR);
+                    const completionElement = turnNode.querySelector(CONSTANTS.SELECTORS.TURN_COMPLETE_SELECTOR);
                     if (completionElement) {
                         Logger.debug('STREAM_POLL', LOG_STYLES.GRAY, 'Completion detected via polling. Cleaning up.');
                         // Logic similar to the sentinel callback
@@ -17459,7 +17459,7 @@
             },
             SELECTORS: {
                 // --- Main containers ---
-                MAIN_APP_CONTAINER: 'div:has(> main#main)',
+                MAIN_APP_CONTAINER: 'div[data-scroll-root="true"]',
                 MESSAGE_WRAPPER_FINDER: '.w-full',
                 MESSAGE_WRAPPER: 'chat-wrapper',
                 // Root container for message search optimization
@@ -17476,7 +17476,7 @@
                 ASSISTANT_MESSAGE: 'div[data-message-author-role="assistant"]',
 
                 // --- Selectors for finding elements to tag ---
-                RAW_USER_BUBBLE: 'div:has(> .whitespace-pre-wrap)',
+                RAW_USER_BUBBLE: 'div.user-message-bubble-color',
                 RAW_ASSISTANT_BUBBLE: 'div:has(> .markdown)',
                 RAW_USER_IMAGE_BUBBLE: 'div.overflow-hidden:has(img)',
                 RAW_ASSISTANT_IMAGE_BUBBLE: 'div.group\\/imagegen-image',
@@ -17507,7 +17507,7 @@
                 SIDEBAR_STATE_INDICATOR: '#stage-sidebar-tiny-bar',
                 RIGHT_SIDEBAR: 'div.bg-token-sidebar-surface-primary.shrink-0:not(#stage-slideover-sidebar)',
                 CHAT_CONTENT_MAX_WIDTH: '.group\\/turn-messages, div[class*="--thread-content-max-width"].grid',
-                SCROLL_CONTAINER: 'div:has(> main#main)',
+                SCROLL_CONTAINER: 'div[data-scroll-root="true"]',
                 STANDING_IMAGE_ANCHOR: '.group\\/turn-messages, div[class*="--thread-content-max-width"].grid',
                 PLACEHOLDER_PREFIX: 'placeholder-request-',
                 SCROLL_TO_BOTTOM_BUTTON: '#thread-bottom-container button.absolute.z-30.rounded-full',
@@ -17533,7 +17533,7 @@
                 FIXED_NAV_ROLE_ASSISTANT: 'assistant',
 
                 // --- Turn Completion Selector ---
-                TURN_COMPLETE_SELECTOR: 'div.flex.justify-start:has(button[data-testid="copy-turn-action-button"])',
+                TURN_COMPLETE_SELECTOR: 'button[data-testid="copy-turn-action-button"]',
 
                 // --- Canvas ---
                 CANVAS_CONTAINER: 'section.popover button',

@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.0-b398] - 2026-01-22
+- **Performance Improvements**
+  - **[ChatGPT]** Optimized internal CSS selectors by removing complex queries (`:has`). This significantly reduces browser load, resulting in smoother scrolling and better responsiveness during long chat sessions.
+- **Bug Fixes**
+  - Fixed a logic issue in stream detection where message completion signals could be misread. The script now strictly scopes checks to the active conversation turn, ensuring UI elements trigger reliably after a response finishes.
+
 ## [1.0.0-b397] - 2026-01-22
 - **New Features**
   - Added a **visual loading indicator** to the settings button. The icon now spins and highlights (default: orange) to indicate background activity during page initialization, theme updates, and auto-scrolling.
