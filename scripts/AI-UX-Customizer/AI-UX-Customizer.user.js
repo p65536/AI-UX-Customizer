@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b400
+// @version      1.0.0-b401
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -17522,6 +17522,11 @@
 
                 // --- Deep Research ---
                 DEEP_RESEARCH_RESULT: '.deep-research-result',
+
+                // --- Style Optimization Selectors (JS-based :has replacement) ---
+                PROJECT_PAGE_CLASS: `${APPID}-project-page`,
+                PROJECT_TITLE_INPUT: '[name="project-title"]',
+                CONTENT_FADE_TOP: '.content-fade-top',
             },
             URL_PATTERNS: {
                 EXCLUDED: [/^\/library/, /^\/codex/, /^\/gpts/, /^\/images/, /^\/apps/],
@@ -17891,9 +17896,9 @@
                         background: none !important;
                     }
                     /* (2025/12/06) Project page top fade fix: Remove top gradient and mask only for project headers. */
-                    main .content-fade-top:has([name="project-title"]),
-                    main .content-fade-top:has([name="project-title"])::before,
-                    main .content-fade-top:has([name="project-title"])::after {
+                    main ${CONSTANTS.SELECTORS.CONTENT_FADE_TOP}.${CONSTANTS.SELECTORS.PROJECT_PAGE_CLASS},
+                    main ${CONSTANTS.SELECTORS.CONTENT_FADE_TOP}.${CONSTANTS.SELECTORS.PROJECT_PAGE_CLASS}::before,
+                    main ${CONSTANTS.SELECTORS.CONTENT_FADE_TOP}.${CONSTANTS.SELECTORS.PROJECT_PAGE_CLASS}::after {
                         background: none !important;
                         mask-image: none !important;
                         -webkit-mask-image: none !important;
@@ -18631,6 +18636,40 @@
                 });
             }
 
+            /**
+             * @private
+             * @description Optimizes style application by detecting DOM elements via JS instead of using expensive CSS :has().
+             * Specifically handles the Project Page top gradient removal by adding a class to the container when the project title input is present.
+             * @param {object} dependencies
+             * @returns {() => void} A cleanup function.
+             */
+            startStyleOptimizationObserver(dependencies) {
+                const triggerSelector = CONSTANTS.SELECTORS.PROJECT_TITLE_INPUT;
+                const targetSelector = CONSTANTS.SELECTORS.CONTENT_FADE_TOP;
+                const className = CONSTANTS.SELECTORS.PROJECT_PAGE_CLASS;
+
+                const listener = (element) => {
+                    // Find the parent/ancestor container to apply the class to
+                    const target = element.closest(targetSelector);
+                    if (target instanceof HTMLElement) {
+                        target.classList.add(className);
+                    }
+                };
+
+                // Use Sentinel to efficiently detect the input element
+                sentinel.on(triggerSelector, listener);
+
+                // Initial check in case it's already present
+                const existing = document.querySelector(triggerSelector);
+                if (existing) {
+                    listener(existing);
+                }
+
+                return () => {
+                    sentinel.off(triggerSelector, listener);
+                };
+            }
+
             /** @override */
             getPlatformObserverStarters() {
                 // prettier-ignore
@@ -18641,6 +18680,7 @@
                     this.startRightSidebarObserver,
                     this.startResearchPanelObserver,
                     this.startInputAreaObserver,
+                    this.startStyleOptimizationObserver,
                 ];
             }
 

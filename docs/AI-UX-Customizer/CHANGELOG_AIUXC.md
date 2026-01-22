@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b401] - 2026-01-23
+- **Performance Improvements**
+  - **[ChatGPT]** Optimized styling logic for Project pages. Replaced expensive CSS selectors (`:has`) with efficient JavaScript class injection to reduce browser rendering overhead and improve responsiveness.
+
 ## [1.0.0-b400] - 2026-01-22
 - **Bug Fixes**
   - Fixed a potential issue where the loading animation might persist under specific navigation scenarios (e.g., visiting pages without chat messages).
