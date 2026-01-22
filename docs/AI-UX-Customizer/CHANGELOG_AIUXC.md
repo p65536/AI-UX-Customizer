@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-b400] - 2026-01-22
+- **Bug Fixes**
+  - Fixed a potential issue where the loading animation might persist under specific navigation scenarios (e.g., visiting pages without chat messages).
+  - Resolved a rare edge case where the application theoretically could remain in a "loading" state if a theme failed to apply due to network errors.
+
 ## [1.0.0-b399] - 2026-01-22
 - **Performance Improvements**
   - **[ChatGPT]** Optimized internal CSS selectors to reduce browser resource usage, resulting in smoother scrolling and faster response times, especially in long conversations.
