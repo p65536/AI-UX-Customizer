@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-b399] - 2026-01-22
+- **Performance Improvements**
+  - **[ChatGPT]** Optimized internal CSS selectors to reduce browser resource usage, resulting in smoother scrolling and faster response times, especially in long conversations.
+  - Refactored the internal scrolling mechanism to ensure consistent and stable behavior across different platforms.
+
 ## [1.0.0-b398] - 2026-01-22
 - **Performance Improvements**
   - **[ChatGPT]** Optimized internal CSS selectors by removing complex queries (`:has`). This significantly reduces browser load, resulting in smoother scrolling and better responsiveness during long chat sessions.

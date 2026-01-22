@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b398
+// @version      1.0.0-b399
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -1178,6 +1178,18 @@
          */
         onNavigationEnd(lifecycleManager) {
             // No-op by default
+        }
+
+        /**
+         * Scrolls to a target element using platform-specific logic.
+         * @param {HTMLElement} element The target element.
+         * @param {object} options Scrolling options.
+         * @param {number} [options.offset] A pixel offset to apply above the target element.
+         * @param {boolean} [options.smooth] Whether to use smooth scrolling.
+         * @throws {Error} Must be implemented by subclasses.
+         */
+        scrollTo(element, options) {
+            throw new Error('scrollTo must be implemented by the platform adapter.');
         }
     }
 
@@ -5374,8 +5386,7 @@
 
     /**
      * @description Scrolls to a target element, with an optional pixel offset.
-     * It's platform-aware. For platforms with a dedicated scroll container (like ChatGPT), it uses the reliable `scrollTo` method.
-     * For others (like Gemini), it falls back to `scrollIntoView` with `scroll-margin-top` for offset handling.
+     * Delegates the actual scrolling logic to the platform-specific adapter.
      * @param {HTMLElement} element The target element to scroll to.
      * @param {object} options - Scrolling options.
      * @param {number} [options.offset] - A pixel offset to apply above the target element.
@@ -5383,40 +5394,7 @@
      */
     function scrollToElement(element, options) {
         if (!element) return;
-        const { offset = 0, smooth = false } = options || {};
-        const behavior = smooth ? 'smooth' : 'auto';
-
-        const scrollContainerSelector = CONSTANTS.SELECTORS.SCROLL_CONTAINER;
-        const scrollContainer = scrollContainerSelector ? document.querySelector(scrollContainerSelector) : null;
-
-        if (scrollContainer) {
-            // Case 1: Container is known (ChatGPT). Use strict math, no DOM styling changes.
-            Logger.debug('SCROLL', LOG_STYLES.CYAN, 'Using scroll container method.');
-
-            // Find the actual bubble element to be used as the scroll target
-            const bubbleSelector = `${CONSTANTS.SELECTORS.RAW_USER_BUBBLE}, ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE}`;
-            const scrollTargetElement = element.querySelector(bubbleSelector) || element;
-            const targetScrollTop = scrollContainer.scrollTop + scrollTargetElement.getBoundingClientRect().top - scrollContainer.getBoundingClientRect().top - offset;
-            scrollContainer.scrollTo({
-                top: targetScrollTop,
-                behavior,
-            });
-        } else {
-            // Case 2: Container is unknown (Gemini). Use scrollIntoView + scroll-margin-top.
-            Logger.debug('SCROLL', LOG_STYLES.CYAN, '(Scroll container not found): Using scrollIntoView() with scroll-margin-top.');
-
-            // Use scroll-margin-top to handle the offset without modifying the DOM structure.
-            const originalScrollMargin = element.style.scrollMarginTop;
-            element.style.scrollMarginTop = `${offset}px`;
-
-            element.scrollIntoView({ behavior, block: 'start' });
-
-            // Clean up after a delay to restore the original state.
-            // The delay ensures the smooth scroll has finished before removing the margin.
-            setTimeout(() => {
-                element.style.scrollMarginTop = originalScrollMargin;
-            }, CONSTANTS.TIMING.TIMEOUTS.SCROLL_OFFSET_CLEANUP);
-        }
+        PlatformAdapters.General.scrollTo(element, options);
     }
 
     /**
@@ -17478,6 +17456,7 @@
                 // --- Selectors for finding elements to tag ---
                 RAW_USER_BUBBLE: 'div.user-message-bubble-color',
                 RAW_ASSISTANT_BUBBLE: 'div:has(> .markdown)',
+                ASSISTANT_MESSAGE_CONTENT: 'div.markdown.prose',
                 RAW_USER_IMAGE_BUBBLE: 'div.overflow-hidden:has(img)',
                 RAW_ASSISTANT_IMAGE_BUBBLE: 'div.group\\/imagegen-image',
 
@@ -17784,7 +17763,8 @@
 
                 // prettier-ignore
                 const assistantContentSelector = [
-                    `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE}${notProcessed}`,
+                    // Use lightweight selector for assistant content to avoid :has() cost in Sentinel
+                    `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE_CONTENT}${notProcessed}`,
                     `${CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE}${notProcessed}`,
                 ].join(', ');
 
@@ -17804,7 +17784,7 @@
                 // prettier-ignore
                 const selectors = [
                         CONSTANTS.SELECTORS.RAW_USER_BUBBLE,
-                        CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE,
+                        CONSTANTS.SELECTORS.ASSISTANT_MESSAGE_CONTENT,
                         CONSTANTS.SELECTORS.RAW_USER_IMAGE_BUBBLE,
                         CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE
                     ];
@@ -17829,6 +17809,26 @@
                 if (!isFirefox() && !isNewChatPage()) {
                     Logger.log('', '', 'Non-Firefox browser and existing chat detected, starting polling scan.');
                     lifecycleManager.startPollingScan();
+                }
+            }
+
+            /** @override */
+            scrollTo(element, options) {
+                const { offset = 0, smooth = false } = options || {};
+                const behavior = smooth ? 'smooth' : 'auto';
+
+                const scrollContainerSelector = CONSTANTS.SELECTORS.SCROLL_CONTAINER;
+                const scrollContainer = scrollContainerSelector ? document.querySelector(scrollContainerSelector) : null;
+
+                if (scrollContainer) {
+                    // Find the actual bubble element to be used as the scroll target.
+                    const bubbleSelector = `${CONSTANTS.SELECTORS.RAW_USER_BUBBLE}, ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE}`;
+                    const scrollTargetElement = element.querySelector(bubbleSelector) || element;
+                    const targetScrollTop = scrollContainer.scrollTop + scrollTargetElement.getBoundingClientRect().top - scrollContainer.getBoundingClientRect().top - offset;
+                    scrollContainer.scrollTo({
+                        top: targetScrollTop,
+                        behavior,
+                    });
                 }
             }
         }
@@ -17990,14 +17990,22 @@
             /** @override */
             getNavPositioningParent(messageElement) {
                 // 1. Handle text content first (most common case)
-                const textBubbleParent = messageElement.querySelector(CONSTANTS.SELECTORS.RAW_USER_BUBBLE)?.parentElement || messageElement.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE)?.parentElement;
-                if (textBubbleParent instanceof HTMLElement) {
-                    return textBubbleParent;
+                const role = PlatformAdapters.General.getMessageRole(messageElement);
+
+                if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT) {
+                    const contentEl = messageElement.querySelector(CONSTANTS.SELECTORS.ASSISTANT_MESSAGE_CONTENT);
+                    // Structure: Row (positioningParent) > Bubble > Content (contentEl)
+                    if (contentEl && contentEl.parentElement && contentEl.parentElement.parentElement instanceof HTMLElement) {
+                        return contentEl.parentElement.parentElement;
+                    }
+                } else {
+                    const textBubbleParent = messageElement.querySelector(CONSTANTS.SELECTORS.RAW_USER_BUBBLE)?.parentElement;
+                    if (textBubbleParent instanceof HTMLElement) {
+                        return textBubbleParent;
+                    }
                 }
 
                 // 2. If no text, it might be an image-only message element.
-                const role = PlatformAdapters.General.getMessageRole(messageElement);
-
                 if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER) {
                     // Find the image within this specific user message element
                     const userImageContainer = messageElement.querySelector(CONSTANTS.SELECTORS.RAW_USER_IMAGE_BUBBLE);
@@ -18023,7 +18031,17 @@
                 if (!(msgWrapper instanceof HTMLElement)) return null;
 
                 const role = messageElement.getAttribute(CONSTANTS.ATTRIBUTES.MESSAGE_ROLE);
-                const bubbleElement = role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER ? messageElement.querySelector(CONSTANTS.SELECTORS.RAW_USER_BUBBLE) : messageElement.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE);
+                let bubbleElement = null;
+
+                if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER) {
+                    bubbleElement = messageElement.querySelector(CONSTANTS.SELECTORS.RAW_USER_BUBBLE);
+                } else {
+                    const contentEl = messageElement.querySelector(CONSTANTS.SELECTORS.ASSISTANT_MESSAGE_CONTENT);
+                    if (contentEl) {
+                        bubbleElement = contentEl.parentElement;
+                    }
+                }
+
                 if (!(bubbleElement instanceof HTMLElement)) return null;
 
                 const positioningParent = bubbleElement.parentElement;
@@ -19303,6 +19321,22 @@
                 return () => {
                     sentinel.off(combinedSelector, callback);
                 };
+            }
+
+            /** @override */
+            scrollTo(element, options) {
+                const { offset = 0, smooth = false } = options || {};
+                const behavior = smooth ? 'smooth' : 'auto';
+
+                // Use scrollIntoView + scroll-margin-top logic
+                const originalScrollMargin = element.style.scrollMarginTop;
+                element.style.scrollMarginTop = `${offset}px`;
+
+                element.scrollIntoView({ behavior, block: 'start' });
+
+                setTimeout(() => {
+                    element.style.scrollMarginTop = originalScrollMargin;
+                }, CONSTANTS.TIMING.TIMEOUTS.SCROLL_OFFSET_CLEANUP);
             }
         }
 

@@ -381,6 +381,7 @@ interface GeneralAdapter {
     initializeSentinel(callback: (element: HTMLElement) => void): void;
     performInitialScan(lifecycleManager: IMessageLifecycleManager): number;
     onNavigationEnd(lifecycleManager: IMessageLifecycleManager): void;
+    scrollTo(element: HTMLElement, options?: { offset?: number; smooth?: boolean }): void;
 }
 
 interface StyleManagerAdapter {
