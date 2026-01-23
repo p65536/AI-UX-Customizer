@@ -411,9 +411,22 @@ interface AppControllerAdapter {
     applyPlatformSpecificUiUpdates(controller: IAppController, newConfig: AppConfig): void;
 }
 
+interface AvatarMeasurement {
+    shouldInject: boolean;
+    targetElement: HTMLElement | null;
+    processedTarget: HTMLElement | null;
+    exclusionKey: HTMLElement | null;
+    originalElement: HTMLElement;
+}
+
 interface AvatarAdapter {
     getCss(): string;
-    addAvatarToMessage(msgElem: HTMLElement, avatarContainer: HTMLElement, processedClass: string): void;
+    measureAvatarTarget(msgElem: HTMLElement): AvatarMeasurement | null;
+    injectAvatar(
+        measurement: AvatarMeasurement,
+        avatarContainer: HTMLElement | null,
+        processedClass: string
+    ): void;
 }
 
 interface StandingImageAdapter {

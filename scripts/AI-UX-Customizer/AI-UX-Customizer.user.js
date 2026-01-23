@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b402
+// @version      1.0.0-b403
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -1354,14 +1354,26 @@
         }
 
         /**
-         * Injects the avatar container into the message element.
-         * @param {HTMLElement} msgElem The message element.
-         * @param {HTMLElement} avatarContainer The avatar container to inject.
+         * Measures the target message element to determine if and where an avatar should be injected.
+         * Performs READ operations only.
+         * @param {HTMLElement} msgElem The message element to process.
+         * @returns {AvatarMeasurement | null} The measurement result or null if processing should stop.
+         * @throws {Error} Must be implemented by subclasses.
+         */
+        measureAvatarTarget(msgElem) {
+            throw new Error('measureAvatarTarget must be implemented by the platform adapter.');
+        }
+
+        /**
+         * Injects the avatar container into the DOM based on the measurement context.
+         * Performs WRITE operations only.
+         * @param {AvatarMeasurement} measurement The measurement result returned by measureAvatarTarget.
+         * @param {HTMLElement | null} avatarContainer The avatar container to inject (null if shouldInject is false).
          * @param {string} processedClass The class to mark as processed.
          * @throws {Error} Must be implemented by subclasses.
          */
-        addAvatarToMessage(msgElem, avatarContainer, processedClass) {
-            throw new Error('addAvatarToMessage must be implemented by the platform adapter.');
+        injectAvatar(measurement, avatarContainer, processedClass) {
+            throw new Error('injectAvatar must be implemented by the platform adapter.');
         }
     }
 
@@ -7999,6 +8011,12 @@
             // Instead of processing immediately, queue the element for batch processing.
             this._subscribe(EVENTS.AVATAR_INJECT, (elem) => this.queueForInjection(elem));
 
+            // Clear queue and cancel pending tasks on navigation to prevent memory leaks and errors on stale elements.
+            this._subscribe(EVENTS.NAVIGATION, () => {
+                this._injectionQueue = [];
+                this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
+            });
+
             this.addDisposable(this._debouncedProcessQueue.cancel);
         }
 
@@ -8040,7 +8058,7 @@
 
         /**
          * Processes all queued avatar injection requests in a batch to optimize performance.
-         * This method separates DOM writes from reads to prevent layout thrashing.
+         * Separates READ (measure) and WRITE (mutate) phases to prevent layout thrashing.
          * @private
          */
         _processInjectionQueue() {
@@ -8053,29 +8071,82 @@
             this._injectionQueue = [];
 
             const processedClass = this.style.classes.processed;
+            const batchSize = CONSTANTS.PROCESSING.BATCH_SIZE;
+            let index = 0;
+            let isCancelled = false;
+            let rafId = null;
 
-            const task = processInBatches(
-                messagesToProcess,
-                (msgElem) => {
+            const processNextBatch = () => {
+                if (isCancelled) return;
+
+                const endIndex = Math.min(index + batchSize, messagesToProcess.length);
+                const batchMeasurements = [];
+                const reservedKeys = new Set(); // For batch-scope duplication check
+
+                // Phase 1: Measure (READ)
+                for (let i = index; i < endIndex; i++) {
+                    const msgElem = messagesToProcess[i];
+                    if (!msgElem.isConnected) continue;
+
                     const role = PlatformAdapters.General.getMessageRole(msgElem);
-                    if (!role) return;
+                    if (!role) continue;
 
-                    const container = this.avatarTemplate.cloneNode(true);
-                    if (container instanceof HTMLElement) {
-                        // Call the platform-specific injection logic
-                        PlatformAdapters.Avatar.addAvatarToMessage(msgElem, container, processedClass);
-
-                        // On successful injection attempt, remove the counter.
-                        // If the injection somehow fails and the avatar is still missing,
-                        // Sentinel will re-queue it, and the counter will be incremented again.
-                        // Also clear the permanent failure flag.
-                        DomState.remove(msgElem, CONSTANTS.DATA_KEYS.AVATAR_INJECT_ATTEMPTS);
-                        DomState.remove(msgElem, CONSTANTS.DATA_KEYS.AVATAR_INJECT_FAILED);
+                    try {
+                        const measurement = PlatformAdapters.Avatar.measureAvatarTarget(msgElem);
+                        if (measurement) {
+                            // Check exclusion key to prevent duplicates in this batch
+                            if (measurement.exclusionKey) {
+                                if (reservedKeys.has(measurement.exclusionKey)) continue;
+                                reservedKeys.add(measurement.exclusionKey);
+                            }
+                            batchMeasurements.push(measurement);
+                        }
+                    } catch (e) {
+                        Logger.warn('AVATAR', '', 'Error measuring avatar target:', e);
                     }
-                },
-                CONSTANTS.PROCESSING.BATCH_SIZE
-            );
-            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, () => task.cancel());
+                }
+
+                // Phase 2: Mutate (WRITE)
+                for (const measurement of batchMeasurements) {
+                    // Safety check: Ensure targets are still connected
+                    if (measurement.targetElement && !measurement.targetElement.isConnected) continue;
+                    if (measurement.processedTarget && !measurement.processedTarget.isConnected) continue;
+
+                    try {
+                        // Create container (only if injection is needed)
+                        let container = null;
+                        if (measurement.shouldInject) {
+                            const node = this.avatarTemplate.cloneNode(true);
+                            // Verify type using instanceof instead of casting
+                            if (node instanceof HTMLElement) {
+                                container = node;
+                            } else {
+                                // If cloning failed to produce an HTMLElement, skip injection for this item
+                                continue;
+                            }
+                        }
+
+                        PlatformAdapters.Avatar.injectAvatar(measurement, container, processedClass);
+
+                        // Cleanup flags using the strongly typed originalElement property
+                        DomState.remove(measurement.originalElement, CONSTANTS.DATA_KEYS.AVATAR_INJECT_ATTEMPTS);
+                        DomState.remove(measurement.originalElement, CONSTANTS.DATA_KEYS.AVATAR_INJECT_FAILED);
+                    } catch (e) {
+                        Logger.warn('AVATAR', '', 'Error injecting avatar:', e);
+                    }
+                }
+
+                index = endIndex;
+                if (index < messagesToProcess.length) {
+                    rafId = requestAnimationFrame(processNextBatch);
+                }
+            };
+
+            rafId = requestAnimationFrame(processNextBatch);
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, () => {
+                isCancelled = true;
+                if (rafId) cancelAnimationFrame(rafId);
+            });
         }
 
         /**
@@ -18270,7 +18341,7 @@
             }
 
             /** @override */
-            addAvatarToMessage(msgElem, avatarContainer, processedClass) {
+            measureAvatarTarget(msgElem) {
                 let turnContainer;
 
                 // Check if msgElem is the turn container (article) or a message element (div) inside it
@@ -18281,41 +18352,56 @@
                     // Case 2: msgElem is the DIV (from initial Sentinel or ensureMessageContainerForImage)
                     turnContainer = msgElem.closest(CONSTANTS.SELECTORS.CONVERSATION_UNIT);
                 }
-                if (!turnContainer) return;
+                if (!turnContainer) return null;
 
                 const centeredWrapper = turnContainer.querySelector(CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH);
-                if (!centeredWrapper) return;
+                if (!centeredWrapper) return null;
 
-                // Guard: Check if avatar container already exists *inside the centered wrapper*.
-                // This check is still valid and ensures one avatar per turn.
+                // Check if avatar container already exists *inside the centered wrapper*.
                 if (centeredWrapper.querySelector(CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER)) {
-                    // If the DOM element is already there, but the article isn't marked, mark it.
-                    // This fixes state inconsistencies.
-                    if (!turnContainer.classList.contains(processedClass)) {
-                        turnContainer.classList.add(processedClass);
-                    }
-                    return; // Already present, do nothing.
+                    // Already present. Return context to ensure processed class is added, but do not inject.
+                    return {
+                        shouldInject: false,
+                        targetElement: null,
+                        processedTarget: turnContainer,
+                        exclusionKey: turnContainer,
+                        originalElement: msgElem,
+                    };
                 }
 
                 // Find the *first* message element within this turn.
                 const firstMessageElement = turnContainer.querySelector(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
                 if (!(firstMessageElement instanceof HTMLElement)) {
-                    return; // No message element found to attach to
+                    return null; // No message element found to attach to
                 }
 
                 // Guard: Skip avatar injection for Deep Research result containers.
                 // These containers have their own layout that conflicts with the avatar.
                 if (firstMessageElement.querySelector(CONSTANTS.SELECTORS.DEEP_RESEARCH_RESULT)) {
-                    return;
+                    return null;
                 }
 
-                // --- CSS-based Positioning Logic ---
+                return {
+                    shouldInject: true,
+                    targetElement: firstMessageElement,
+                    processedTarget: turnContainer,
+                    exclusionKey: turnContainer,
+                    originalElement: msgElem,
+                };
+            }
+
+            /** @override */
+            injectAvatar(measurement, avatarContainer, processedClass) {
+                const { shouldInject, targetElement, processedTarget } = measurement;
+
                 // Inject the avatar directly into the *first message element*
-                firstMessageElement.prepend(avatarContainer);
+                if (shouldInject && targetElement && avatarContainer) {
+                    targetElement.prepend(avatarContainer);
+                }
 
                 // Mark the TURN container as processed.
-                if (!turnContainer.classList.contains(processedClass)) {
-                    turnContainer.classList.add(processedClass);
+                if (processedTarget && !processedTarget.classList.contains(processedClass)) {
+                    processedTarget.classList.add(processedClass);
                 }
             }
         }
@@ -19811,15 +19897,40 @@
             }
 
             /** @override */
-            addAvatarToMessage(msgElem, avatarContainer, processedClass) {
+            measureAvatarTarget(msgElem) {
                 // The guard should only check for the existence of the avatar container itself.
-                if (msgElem.querySelector(CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER)) return;
+                if (msgElem.querySelector(CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER)) {
+                    // (Logic adapted: Return context to ensure processed check is maintained, but do not inject)
+                    return {
+                        shouldInject: false,
+                        targetElement: null,
+                        processedTarget: msgElem,
+                        exclusionKey: msgElem,
+                        originalElement: msgElem,
+                    };
+                }
+
+                return {
+                    shouldInject: true,
+                    targetElement: msgElem,
+                    processedTarget: msgElem,
+                    exclusionKey: msgElem,
+                    originalElement: msgElem,
+                };
+            }
+
+            /** @override */
+            injectAvatar(measurement, avatarContainer, processedClass) {
+                const { shouldInject, targetElement, processedTarget } = measurement;
 
                 // Add the container to the message element and mark as processed.
-                msgElem.prepend(avatarContainer);
+                if (shouldInject && targetElement && avatarContainer) {
+                    targetElement.prepend(avatarContainer);
+                }
+
                 // Add the processed class only if it's not already there.
-                if (!msgElem.classList.contains(processedClass)) {
-                    msgElem.classList.add(processedClass);
+                if (processedTarget && !processedTarget.classList.contains(processedClass)) {
+                    processedTarget.classList.add(processedClass);
                 }
             }
         }

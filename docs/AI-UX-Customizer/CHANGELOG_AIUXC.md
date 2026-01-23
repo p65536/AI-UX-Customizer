@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.0-b403]
+- **Performance Improvements**
+  - **[Core]** Optimized the avatar injection process by strictly separating DOM reading (measurement) and writing (mutation) phases. This reduces layout thrashing, resulting in smoother scrolling and faster rendering, especially in long chats.
+- **Bug Fixes**
+  - **[Core]** Improved resource management during page navigation. Pending avatar rendering tasks are now immediately cancelled when switching chats to prevent errors on stale elements and potential memory leaks.
+
 ## [1.0.0-b402] - 2026-01-23
 - **Performance Improvements**
   - [Jumplist] Optimized the logic for building the Jump List index. This reduces memory allocation and CPU overhead, leading to faster processing of long chat histories.
