@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b402] - 2026-01-23
+- **Performance Improvements**
+  - [Jumplist] Optimized the logic for building the Jump List index. This reduces memory allocation and CPU overhead, leading to faster processing of long chat histories.
+
 ## [1.0.0-b401] - 2026-01-23
 - **Performance Improvements**
   - **[ChatGPT]** Optimized styling logic for Project pages. Replaced expensive CSS selectors (`:has`) with efficient JavaScript class injection to reduce browser rendering overhead and improve responsiveness.

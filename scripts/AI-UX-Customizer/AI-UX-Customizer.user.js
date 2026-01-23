@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b401
+// @version      1.0.0-b402
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -17658,24 +17658,19 @@
 
             /** @override */
             getJumpListDisplayText(messageElement) {
-                const role = this.getMessageRole(messageElement);
-                let contentEl;
+                const role = messageElement.getAttribute(CONSTANTS.ATTRIBUTES.MESSAGE_ROLE);
 
                 // 1. Check for text content first.
                 if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER) {
-                    contentEl = messageElement.querySelector(CONSTANTS.SELECTORS.USER_TEXT_CONTENT);
+                    const contentEl = messageElement.querySelector(CONSTANTS.SELECTORS.USER_TEXT_CONTENT);
+                    if (contentEl) return contentEl.textContent.trim();
                 } else {
-                    contentEl = messageElement.querySelector(CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT);
-                }
-                const text = contentEl?.textContent.trim();
-                if (text) {
-                    return text;
+                    const contentEl = messageElement.querySelector(CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT);
+                    if (contentEl) return contentEl.textContent.trim();
                 }
 
                 // 2. If no text, check for an image within the message container.
-                const imageSelector = [CONSTANTS.SELECTORS.RAW_USER_IMAGE_BUBBLE, CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE].join(', ');
-                const hasImage = messageElement.querySelector(imageSelector);
-                if (hasImage) {
+                if (messageElement.querySelector(CONSTANTS.SELECTORS.RAW_USER_IMAGE_BUBBLE) || messageElement.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE)) {
                     return '(Image)';
                 }
 
@@ -19313,22 +19308,27 @@
 
             /** @override */
             getJumpListDisplayText(messageElement) {
-                const role = this.getMessageRole(messageElement);
-                let contentEl;
+                const tagName = messageElement.tagName.toLowerCase();
 
-                if (role === CONSTANTS.SELECTORS.ASSISTANT_MESSAGE) {
-                    // Gemini has a more specific structure for assistant messages we can target first
+                if (tagName === CONSTANTS.SELECTORS.ASSISTANT_MESSAGE) {
+                    // Assistant (model-response)
+                    // Gemini has a specific structure: try the main answer container first.
                     const answerContainer = messageElement.querySelector(CONSTANTS.SELECTORS.ASSISTANT_ANSWER_CONTENT);
-                    contentEl = answerContainer?.querySelector(CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT);
-                    // Fallback to the general assistant content selector if the specific one isn't found
-                    if (!contentEl) {
-                        contentEl = messageElement.querySelector(CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT);
+                    if (answerContainer) {
+                        const textEl = answerContainer.querySelector(CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT);
+                        if (textEl) return textEl.textContent.trim();
                     }
-                } else if (role === CONSTANTS.SELECTORS.USER_MESSAGE) {
-                    contentEl = messageElement.querySelector(CONSTANTS.SELECTORS.USER_TEXT_CONTENT);
+
+                    // Fallback: Try finding text content directly if container structure varies
+                    const fallbackTextEl = messageElement.querySelector(CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT);
+                    if (fallbackTextEl) return fallbackTextEl.textContent.trim();
+                } else if (tagName === CONSTANTS.SELECTORS.USER_MESSAGE) {
+                    // User (user-query)
+                    const contentEl = messageElement.querySelector(CONSTANTS.SELECTORS.USER_TEXT_CONTENT);
+                    if (contentEl) return contentEl.textContent.trim();
                 }
 
-                return contentEl?.textContent || '';
+                return '';
             }
 
             /** @override */
