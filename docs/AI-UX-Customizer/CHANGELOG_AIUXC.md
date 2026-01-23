@@ -1,12 +1,16 @@
 # Changelog
 
-## [1.0.0-b404]
+## [1.0.0-b405] - 2026-01-24
+- **Fixes**
+  - Resolved internal inconsistencies in variable access within style templates to improve code stability.
+
+## [1.0.0-b404] - 2026-01-23
 - **Performance Improvements**
   - **[Core]** Applied rendering optimizations to **Message Numbers** and **Timestamps**. These features now update more efficiently by batching DOM reads and writes, further reducing stutter during rapid scrolling or loading large chats.
 - **Bug Fixes**
   - **[Core]** Fixed an issue where background rendering tasks for numbers and timestamps could persist briefly after navigating to a new page, potentially causing errors or wasted processing.
 
-## [1.0.0-b403]
+## [1.0.0-b403] - 2026-01-23
 - **Performance Improvements**
   - **[Core]** Optimized the avatar injection process by strictly separating DOM reading (measurement) and writing (mutation) phases. This reduces layout thrashing, resulting in smoother scrolling and faster rendering, especially in long chats.
 - **Bug Fixes**
