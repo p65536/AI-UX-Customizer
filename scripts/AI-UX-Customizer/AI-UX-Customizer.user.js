@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b403
+// @version      1.0.0-b404
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -10238,6 +10238,9 @@
             this._cacheUpdateUnsub = null;
         }
 
+        /**
+         * Initializes the manager by injecting styles and subscribing to events.
+         */
         _onInit() {
             this.injectStyle();
 
@@ -10246,7 +10249,11 @@
 
             // Subscribe to navigation events to clear the cache and load new data
             // This must always run, even when disabled, to clear the cache on page change.
-            this._subscribe(EVENTS.NAVIGATION, () => this._handleNavigation());
+            this._subscribe(EVENTS.NAVIGATION, () => {
+                this._handleNavigation();
+                // Cancel pending batch tasks on navigation
+                this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
+            });
             this._subscribe(EVENTS.NAVIGATION_START, () => this._handleNavigationStart());
             this._subscribe(EVENTS.NAVIGATION_END, () => this._handleNavigationEnd());
 
@@ -10448,6 +10455,7 @@
         /**
          * Updates the text content of all visible timestamps.
          * Creates the timestamp element if it doesn't exist.
+         * Separates READ and WRITE operations to prevent layout thrashing.
          */
         updateAllTimestamps() {
             // 1. Sync cache and remove deleted DOM nodes
@@ -10461,71 +10469,105 @@
 
             // 2. If the feature is disabled, ensure all DOM elements are removed and stop.
             if (!isTimestampEnabled) {
-                this._clearAllTimestampsDOM(); // This removes all remaining DOM elements
+                this._clearAllTimestampsDOM();
                 return;
             }
 
-            // 3. Run a single-pass batch operation to create/update all
-            const task = processInBatches(
-                allMessages,
-                (message) => {
-                    // Pass the feature flag to the update function
-                    this._injectOrUpdateTimestamp(message, isTimestampEnabled);
-                },
-                CONSTANTS.PROCESSING.BATCH_SIZE
-            );
-            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, () => task.cancel());
-        }
-
-        /**
-         * @private
-         * @description Ensures a single message element has the correct timestamp DOM and content.
-         * Creates, updates, and toggles visibility in one pass.
-         * @param {HTMLElement} messageElement The message element to process.
-         * @param {boolean} isTimestampEnabled The current state of the timestamp feature.
-         */
-        _injectOrUpdateTimestamp(messageElement, isTimestampEnabled) {
-            let timestampContainer = this.timestampDomCache.get(messageElement);
+            // 3. Run a batch operation with Measure/Mutate separation to create/update all
             const cls = this.styleHandle.classes;
+            const batchSize = CONSTANTS.PROCESSING.BATCH_SIZE;
+            let index = 0;
+            let isCancelled = false;
+            let rafId = null;
 
-            // 1. Create DOM element if it doesn't exist
-            if (!timestampContainer) {
-                const messageIdHolder = messageElement.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
-                if (!messageIdHolder) return; // Cannot find insertion point
+            const processNextBatch = () => {
+                if (isCancelled) return;
 
-                const role = PlatformAdapters.General.getMessageRole(messageElement);
-                if (!role) return; // Cannot determine role
+                const endIndex = Math.min(index + batchSize, allMessages.length);
+                const batchMeasurements = [];
 
-                const roleClass = role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER ? cls.user : cls.assistant;
+                // Phase 1: Measure (READ)
+                for (let i = index; i < endIndex; i++) {
+                    const messageElement = allMessages[i];
+                    if (!messageElement.isConnected) continue;
 
-                const containerNode = this.timestampContainerTemplate.cloneNode(true);
-                const spanNode = this.timestampSpanTemplate.cloneNode(true);
+                    const existingContainer = this.timestampDomCache.get(messageElement);
+                    let anchor = null;
+                    let roleClass = null;
+                    let timestampText = '';
 
-                if (containerNode instanceof HTMLElement && spanNode instanceof Element) {
-                    timestampContainer = containerNode; // Assign after type check
-                    timestampContainer.classList.add(roleClass);
-                    timestampContainer.appendChild(spanNode);
-                    messageIdHolder.prepend(timestampContainer);
-                    this.timestampDomCache.set(messageElement, timestampContainer);
-                } else {
-                    return; // Failed to create element
+                    // Calculate Anchor & Role only if needed (not cached yet)
+                    if (!existingContainer) {
+                        const messageIdHolder = messageElement.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
+                        if (messageIdHolder) {
+                            anchor = messageIdHolder;
+                            const role = PlatformAdapters.General.getMessageRole(messageElement);
+                            if (role) {
+                                roleClass = role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER ? cls.user : cls.assistant;
+                            }
+                        }
+                    }
+
+                    // Calculate Text (always needed to update content/visibility)
+                    if (isTimestampEnabled) {
+                        // Use the anchor found above, or find it now if we have a container but need ID
+                        // If we have existingContainer, the ID holder is its parent.
+                        const holder = anchor || (existingContainer ? existingContainer.parentElement : messageElement.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER));
+                        if (holder) {
+                            const messageId = PlatformAdapters.General.getMessageId(holder);
+                            const timestamp = messageId ? this.getTimestamp(messageId) : undefined;
+                            timestampText = this._formatTimestamp(timestamp);
+                        }
+                    }
+
+                    batchMeasurements.push({
+                        messageElement,
+                        existingContainer,
+                        anchor,
+                        roleClass,
+                        timestampText,
+                    });
                 }
-            }
 
-            // 2. Update content and visibility
-            const timestampSpan = timestampContainer.querySelector(`.${cls.text}`);
-            if (!(timestampSpan instanceof HTMLElement)) return;
+                // Phase 2: Mutate (WRITE)
+                for (const m of batchMeasurements) {
+                    let container = m.existingContainer;
 
-            let text = '';
-            if (isTimestampEnabled) {
-                const messageIdHolder = messageElement.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
-                const messageId = PlatformAdapters.General.getMessageId(messageIdHolder);
-                const timestamp = messageId ? this.getTimestamp(messageId) : undefined;
-                text = this._formatTimestamp(timestamp);
-            }
+                    // Create if missing and valid
+                    if (!container && m.anchor && m.anchor.isConnected && m.roleClass) {
+                        const node = this.timestampContainerTemplate.cloneNode(true);
+                        const span = this.timestampSpanTemplate.cloneNode(true);
 
-            timestampSpan.textContent = text;
-            timestampContainer.classList.toggle(cls.hidden, !isTimestampEnabled || !text);
+                        if (node instanceof HTMLElement && span instanceof Element) {
+                            container = node;
+                            container.classList.add(m.roleClass);
+                            container.appendChild(span);
+                            m.anchor.prepend(container);
+                            this.timestampDomCache.set(m.messageElement, container);
+                        }
+                    }
+
+                    // Update
+                    if (container && container.isConnected) {
+                        const span = container.lastElementChild; // Assuming span is appended last
+                        if (span) {
+                            span.textContent = m.timestampText;
+                        }
+                        container.classList.toggle(cls.hidden, !isTimestampEnabled || !m.timestampText);
+                    }
+                }
+
+                index = endIndex;
+                if (index < allMessages.length) {
+                    rafId = requestAnimationFrame(processNextBatch);
+                }
+            };
+
+            rafId = requestAnimationFrame(processNextBatch);
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, () => {
+                isCancelled = true;
+                if (rafId) cancelAnimationFrame(rafId);
+            });
         }
 
         /**
@@ -10569,8 +10611,11 @@
             this.injectStyle();
             // Use :cacheUpdated for batch updates (re-numbering, visibility toggles after config changes).
             this._subscribe(EVENTS.CACHE_UPDATED, () => this.updateAllMessageNumbers());
+
+            // Clear cache and cancel pending tasks on navigation to prevent errors.
             this._subscribe(EVENTS.NAVIGATION, () => {
                 this.numberSpanCache.clear();
+                this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
             });
         }
 
@@ -10602,6 +10647,7 @@
         /**
          * Updates the text content of all visible message numbers.
          * Creates the number element if it doesn't exist.
+         * Separates READ and WRITE operations to prevent layout thrashing.
          */
         updateAllMessageNumbers() {
             this._syncCache();
@@ -10611,57 +10657,81 @@
             const allMessages = this.messageCacheManager.getTotalMessages();
             const isNavConsoleEnabled = config.platforms[PLATFORM].features.fixed_nav_console.enabled;
             const cls = this.styleHandle.classes;
+            const batchSize = CONSTANTS.PROCESSING.BATCH_SIZE;
 
-            // --- Measure Phase ---
-            const toCreate = [];
-            allMessages.forEach((message) => {
-                if (!this.numberSpanCache.has(message)) {
-                    const anchor = PlatformAdapters.BubbleUI.getNavPositioningParent(message);
-                    if (anchor) {
-                        toCreate.push({ message, anchor });
+            let index = 0;
+            let isCancelled = false;
+            let rafId = null;
+
+            const processNextBatch = () => {
+                if (isCancelled) return;
+
+                const endIndex = Math.min(index + batchSize, allMessages.length);
+                const batchMeasurements = [];
+
+                // Phase 1: Measure (READ)
+                for (let i = index; i < endIndex; i++) {
+                    const message = allMessages[i];
+                    // Skip if message is no longer in DOM
+                    if (!message.isConnected) continue;
+
+                    const existingSpan = this.numberSpanCache.get(message);
+                    let anchor = null;
+                    let role = null;
+
+                    // Only query DOM if span doesn't exist yet
+                    if (!existingSpan) {
+                        anchor = PlatformAdapters.BubbleUI.getNavPositioningParent(message);
+                        if (anchor) {
+                            role = PlatformAdapters.General.getMessageRole(message);
+                        }
+                    }
+
+                    batchMeasurements.push({
+                        message,
+                        displayIndex: i + 1,
+                        existingSpan,
+                        anchor,
+                        role,
+                    });
+                }
+
+                // Phase 2: Mutate (WRITE)
+                for (const m of batchMeasurements) {
+                    let span = m.existingSpan;
+
+                    // Create new span if needed
+                    if (!span && m.anchor && m.anchor.isConnected && m.role) {
+                        m.anchor.classList.add(cls.parent);
+                        const roleClass = m.role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER ? cls.user : cls.assistant;
+
+                        const node = this.numberSpanTemplate.cloneNode(true);
+                        if (node instanceof HTMLElement) {
+                            span = node;
+                            span.classList.add(roleClass);
+                            m.anchor.appendChild(span);
+                            this.numberSpanCache.set(m.message, span);
+                        }
+                    }
+
+                    // Update content and visibility
+                    if (span && span.isConnected) {
+                        span.textContent = `#${m.displayIndex}`;
+                        span.classList.toggle(cls.hidden, !isNavConsoleEnabled);
                     }
                 }
+
+                index = endIndex;
+                if (index < allMessages.length) {
+                    rafId = requestAnimationFrame(processNextBatch);
+                }
+            };
+
+            rafId = requestAnimationFrame(processNextBatch);
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, () => {
+                isCancelled = true;
+                if (rafId) cancelAnimationFrame(rafId);
             });
-
-            // --- Mutate Phase (in batches) ---
-            const createSpans = () => {
-                const task = processInBatches(
-                    toCreate,
-                    ({ message, anchor }) => {
-                        anchor.classList.add(cls.parent);
-                        const role = PlatformAdapters.General.getMessageRole(message);
-                        if (role) {
-                            const roleClass = role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER ? cls.user : cls.assistant;
-                            const numberSpan = this.numberSpanTemplate.cloneNode(true);
-                            if (numberSpan instanceof Element) {
-                                numberSpan.classList.add(roleClass);
-                                anchor.appendChild(numberSpan);
-                                this.numberSpanCache.set(message, numberSpan);
-                            }
-                        }
-                    },
-                    CONSTANTS.PROCESSING.BATCH_SIZE,
-                    updateNumbers // Chain to the next step
-                );
-                this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, () => task.cancel());
-            };
-
-            const updateNumbers = () => {
-                const task = processInBatches(
-                    allMessages,
-                    (message, index) => {
-                        const numberSpan = this.numberSpanCache.get(message);
-                        if (numberSpan) {
-                            numberSpan.textContent = `#${index + 1}`;
-                            numberSpan.classList.toggle(cls.hidden, !isNavConsoleEnabled);
-                        }
-                    },
-                    CONSTANTS.PROCESSING.BATCH_SIZE
-                );
-                this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, () => task.cancel());
-            };
-
-            createSpans(); // Start the chain
         }
     }
 
