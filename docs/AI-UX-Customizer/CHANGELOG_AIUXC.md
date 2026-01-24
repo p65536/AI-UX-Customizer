@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.0-b408] - 2026-01-24
+- **Core Improvements**
+  - Centralized UI rendering logic (Avatars, Buttons, Timestamps) into a unified batch processor. This reduces layout thrashing and prevents individual rendering errors from stopping the entire UI update.
+  - Improved memory handling by ensuring background tasks are strictly cancelled and cleaned up during rapid updates or navigation.
+- **Bug Fixes**
+  - Fixed a potential issue where avatar icons could be duplicated within the same conversation turn.
+
 ## [1.0.0-b407] - 2026-01-24
 - **Performance Improvements**
   - Optimized the rendering logic for message bubble features (Collapsible buttons, Navigation buttons).

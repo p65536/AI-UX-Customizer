@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b407
+// @version      1.0.0-b408
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -5512,6 +5512,82 @@
     }
 
     /**
+     * Executes a batch processing task on an array of items, separating Read (Measure) and Write (Mutate) operations.
+     * Uses requestAnimationFrame to prevent blocking the main thread.
+     *
+     * @template T, R
+     * @param {T[]} items - The array of items to process.
+     * @param {number} batchSize - The number of items to process per frame.
+     * @param {(item: T, index: number) => R | null} measureFn - Function to read from the DOM. Returns data for mutation or null to skip.
+     * @param {(data: R) => void} mutateFn - Function to write to the DOM.
+     * @param {() => void} [onFinish] - Callback executed ONLY when all batches are successfully processed.
+     * @param {() => void} [onAbort] - Callback executed ONLY when processing is cancelled before completion.
+     * @returns {() => void} A cancel function to abort the processing.
+     */
+    function runBatchUpdate(items, batchSize, measureFn, mutateFn, onFinish, onAbort) {
+        if (!items || items.length === 0) {
+            if (onFinish) onFinish();
+            return () => {};
+        }
+
+        let index = 0;
+        let rafId = null;
+        let isCancelled = false;
+        let isFinished = false;
+
+        const processNextBatch = () => {
+            if (isCancelled) return;
+
+            const endIndex = Math.min(index + batchSize, items.length);
+            const batchMeasurements = [];
+
+            // Phase 1: Measure (READ)
+            for (let i = index; i < endIndex; i++) {
+                const item = items[i];
+                try {
+                    const measurement = measureFn(item, i);
+                    // Strict check to allow 0, false, or empty string as valid measurements
+                    if (measurement !== null && measurement !== undefined) {
+                        batchMeasurements.push(measurement);
+                    }
+                } catch (e) {
+                    Logger.warn('BatchUpdate', '', 'Error during measure phase:', e);
+                }
+            }
+
+            // Phase 2: Mutate (WRITE)
+            for (const data of batchMeasurements) {
+                try {
+                    mutateFn(data);
+                } catch (e) {
+                    Logger.warn('BatchUpdate', '', 'Error during mutate phase:', e);
+                }
+            }
+
+            index = endIndex;
+            if (index < items.length) {
+                rafId = requestAnimationFrame(processNextBatch);
+            } else {
+                isFinished = true;
+                if (onFinish) onFinish();
+            }
+        };
+
+        rafId = requestAnimationFrame(processNextBatch);
+
+        return () => {
+            // If already finished, do nothing (cleanup already handled by onFinish)
+            if (isFinished) return;
+
+            isCancelled = true;
+            if (rafId) cancelAnimationFrame(rafId);
+
+            // Execute abort callback only if interrupted
+            if (onAbort) onAbort();
+        };
+    }
+
+    /**
      * @description Ensures the settings button is correctly placed.
      * @param {object} settingsButton The settings button component instance.
      * @param {string} anchorSelector The CSS selector for the anchor element.
@@ -7999,6 +8075,9 @@
          * @private
          */
         _processInjectionQueue() {
+            // Cancel any existing batch task immediately
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
+
             if (this._injectionQueue.length === 0) {
                 return;
             }
@@ -8008,82 +8087,61 @@
             this._injectionQueue = [];
 
             const processedClass = this.style.classes.processed;
-            const batchSize = CONSTANTS.PROCESSING.BATCH_SIZE;
-            let index = 0;
-            let isCancelled = false;
-            let rafId = null;
+            const reservedKeys = new Set(); // For scope duplication check
 
-            const processNextBatch = () => {
-                if (isCancelled) return;
-
-                const endIndex = Math.min(index + batchSize, messagesToProcess.length);
-                const batchMeasurements = [];
-                const reservedKeys = new Set(); // For batch-scope duplication check
-
-                // Phase 1: Measure (READ)
-                for (let i = index; i < endIndex; i++) {
-                    const msgElem = messagesToProcess[i];
-                    if (!msgElem.isConnected) continue;
+            const cancelFn = runBatchUpdate(
+                messagesToProcess,
+                CONSTANTS.PROCESSING.BATCH_SIZE,
+                // Measure
+                (msgElem) => {
+                    if (!msgElem.isConnected) return null;
 
                     const role = PlatformAdapters.General.getMessageRole(msgElem);
-                    if (!role) continue;
+                    if (!role) return null;
 
-                    try {
-                        const measurement = PlatformAdapters.Avatar.measureAvatarTarget(msgElem);
-                        if (measurement) {
-                            // Check exclusion key to prevent duplicates in this batch
-                            if (measurement.exclusionKey) {
-                                if (reservedKeys.has(measurement.exclusionKey)) continue;
-                                reservedKeys.add(measurement.exclusionKey);
-                            }
-                            batchMeasurements.push(measurement);
+                    const measurement = PlatformAdapters.Avatar.measureAvatarTarget(msgElem);
+                    if (measurement) {
+                        // Check exclusion key to prevent duplicates in this entire process
+                        if (measurement.exclusionKey) {
+                            if (reservedKeys.has(measurement.exclusionKey)) return null;
+                            reservedKeys.add(measurement.exclusionKey);
                         }
-                    } catch (e) {
-                        Logger.warn('AVATAR', '', 'Error measuring avatar target:', e);
+                        return measurement;
                     }
-                }
-
-                // Phase 2: Mutate (WRITE)
-                for (const measurement of batchMeasurements) {
+                    return null;
+                },
+                // Mutate
+                (measurement) => {
                     // Safety check: Ensure targets are still connected
-                    if (measurement.targetElement && !measurement.targetElement.isConnected) continue;
-                    if (measurement.processedTarget && !measurement.processedTarget.isConnected) continue;
+                    if (measurement.targetElement && !measurement.targetElement.isConnected) return;
+                    if (measurement.processedTarget && !measurement.processedTarget.isConnected) return;
 
-                    try {
-                        // Create container (only if injection is needed)
-                        let container = null;
-                        if (measurement.shouldInject) {
-                            const node = this.avatarTemplate.cloneNode(true);
-                            // Verify type using instanceof instead of casting
-                            if (node instanceof HTMLElement) {
-                                container = node;
-                            } else {
-                                // If cloning failed to produce an HTMLElement, skip injection for this item
-                                continue;
-                            }
+                    // Create container (only if injection is needed)
+                    let container = null;
+                    if (measurement.shouldInject) {
+                        const node = this.avatarTemplate.cloneNode(true);
+                        // Verify type using instanceof instead of casting
+                        if (node instanceof HTMLElement) {
+                            container = node;
+                        } else {
+                            // If cloning failed to produce an HTMLElement, skip injection for this item
+                            return;
                         }
-
-                        PlatformAdapters.Avatar.injectAvatar(measurement, container, processedClass);
-
-                        // Cleanup flags using the strongly typed originalElement property
-                        DomState.remove(measurement.originalElement, CONSTANTS.DATA_KEYS.AVATAR_INJECT_ATTEMPTS);
-                        DomState.remove(measurement.originalElement, CONSTANTS.DATA_KEYS.AVATAR_INJECT_FAILED);
-                    } catch (e) {
-                        Logger.warn('AVATAR', '', 'Error injecting avatar:', e);
                     }
-                }
 
-                index = endIndex;
-                if (index < messagesToProcess.length) {
-                    rafId = requestAnimationFrame(processNextBatch);
-                }
-            };
+                    PlatformAdapters.Avatar.injectAvatar(measurement, container, processedClass);
 
-            rafId = requestAnimationFrame(processNextBatch);
-            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, () => {
-                isCancelled = true;
-                if (rafId) cancelAnimationFrame(rafId);
-            });
+                    // Cleanup flags using the strongly typed originalElement property
+                    DomState.remove(measurement.originalElement, CONSTANTS.DATA_KEYS.AVATAR_INJECT_ATTEMPTS);
+                    DomState.remove(measurement.originalElement, CONSTANTS.DATA_KEYS.AVATAR_INJECT_FAILED);
+                },
+                // On Finish
+                () => {
+                    this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
+                }
+            );
+
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, cancelFn);
         }
 
         /**
@@ -8414,52 +8472,30 @@
             // Cancel any existing batch task
             this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
 
-            if (!messages || messages.length === 0) {
-                onComplete?.();
-                return;
-            }
-
-            const batchSize = CONSTANTS.PROCESSING.BATCH_SIZE;
-            let index = 0;
-            let rafId = null;
-            let isCancelled = false;
-
-            const processNextBatch = () => {
-                if (isCancelled) return;
-
-                const endIndex = Math.min(index + batchSize, messages.length);
-                const measurements = [];
-
-                // Phase 1: Measure (READ)
-                for (let i = index; i < endIndex; i++) {
-                    const msg = messages[i];
+            const cancelFn = runBatchUpdate(
+                messages,
+                CONSTANTS.PROCESSING.BATCH_SIZE,
+                // Measure
+                (msg) => {
                     if (msg.isConnected) {
-                        const m = this._measureElement(msg);
-                        if (m) measurements.push(m);
+                        return this._measureElement(msg);
                     }
-                }
-
-                // Phase 2: Mutate (WRITE)
-                for (const m of measurements) {
+                    return null;
+                },
+                // Mutate
+                (m) => {
                     if (m.messageElement.isConnected) {
                         this._mutateElement(m);
                     }
+                },
+                // On Finish
+                () => {
+                    this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
+                    if (onComplete) onComplete();
                 }
+            );
 
-                index = endIndex;
-                if (index < messages.length) {
-                    rafId = requestAnimationFrame(processNextBatch);
-                } else {
-                    onComplete?.();
-                }
-            };
-
-            rafId = requestAnimationFrame(processNextBatch);
-
-            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, () => {
-                isCancelled = true;
-                if (rafId) cancelAnimationFrame(rafId);
-            });
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, cancelFn);
         }
 
         /**
@@ -10450,6 +10486,9 @@
          * Separates READ and WRITE operations to prevent layout thrashing.
          */
         updateAllTimestamps() {
+            // Cancel any existing batch task immediately
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
+
             // 1. Sync cache and remove deleted DOM nodes
             this._syncCache();
 
@@ -10467,21 +10506,13 @@
 
             // 3. Run a batch operation with Measure/Mutate separation to create/update all
             const cls = this.styleHandle.classes;
-            const batchSize = CONSTANTS.PROCESSING.BATCH_SIZE;
-            let index = 0;
-            let isCancelled = false;
-            let rafId = null;
 
-            const processNextBatch = () => {
-                if (isCancelled) return;
-
-                const endIndex = Math.min(index + batchSize, allMessages.length);
-                const batchMeasurements = [];
-
-                // Phase 1: Measure (READ)
-                for (let i = index; i < endIndex; i++) {
-                    const messageElement = allMessages[i];
-                    if (!messageElement.isConnected) continue;
+            const cancelFn = runBatchUpdate(
+                allMessages,
+                CONSTANTS.PROCESSING.BATCH_SIZE,
+                // Measure
+                (messageElement) => {
+                    if (!messageElement.isConnected) return null;
 
                     const existingContainer = this.timestampDomCache.get(messageElement);
                     let anchor = null;
@@ -10512,17 +10543,16 @@
                         }
                     }
 
-                    batchMeasurements.push({
+                    return {
                         messageElement,
                         existingContainer,
                         anchor,
                         roleClass,
                         timestampText,
-                    });
-                }
-
-                // Phase 2: Mutate (WRITE)
-                for (const m of batchMeasurements) {
+                    };
+                },
+                // Mutate
+                (m) => {
                     let container = m.existingContainer;
 
                     // Create if missing and valid
@@ -10547,19 +10577,14 @@
                         }
                         container.classList.toggle(cls.hidden, !isTimestampEnabled || !m.timestampText);
                     }
+                },
+                // On Finish
+                () => {
+                    this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
                 }
+            );
 
-                index = endIndex;
-                if (index < allMessages.length) {
-                    rafId = requestAnimationFrame(processNextBatch);
-                }
-            };
-
-            rafId = requestAnimationFrame(processNextBatch);
-            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, () => {
-                isCancelled = true;
-                if (rafId) cancelAnimationFrame(rafId);
-            });
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, cancelFn);
         }
 
         /**
@@ -10642,6 +10667,9 @@
          * Separates READ and WRITE operations to prevent layout thrashing.
          */
         updateAllMessageNumbers() {
+            // Cancel any existing batch task immediately
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
+
             this._syncCache();
             const config = this.configManager.get();
             if (!config) return;
@@ -10649,23 +10677,14 @@
             const allMessages = this.messageCacheManager.getTotalMessages();
             const isNavConsoleEnabled = config.platforms[PLATFORM].features.fixed_nav_console.enabled;
             const cls = this.styleHandle.classes;
-            const batchSize = CONSTANTS.PROCESSING.BATCH_SIZE;
 
-            let index = 0;
-            let isCancelled = false;
-            let rafId = null;
-
-            const processNextBatch = () => {
-                if (isCancelled) return;
-
-                const endIndex = Math.min(index + batchSize, allMessages.length);
-                const batchMeasurements = [];
-
-                // Phase 1: Measure (READ)
-                for (let i = index; i < endIndex; i++) {
-                    const message = allMessages[i];
+            const cancelFn = runBatchUpdate(
+                allMessages,
+                CONSTANTS.PROCESSING.BATCH_SIZE,
+                // Measure
+                (message, i) => {
                     // Skip if message is no longer in DOM
-                    if (!message.isConnected) continue;
+                    if (!message.isConnected) return null;
 
                     const existingSpan = this.numberSpanCache.get(message);
                     let anchor = null;
@@ -10679,17 +10698,16 @@
                         }
                     }
 
-                    batchMeasurements.push({
+                    return {
                         message,
                         displayIndex: i + 1,
                         existingSpan,
                         anchor,
                         role,
-                    });
-                }
-
-                // Phase 2: Mutate (WRITE)
-                for (const m of batchMeasurements) {
+                    };
+                },
+                // Mutate
+                (m) => {
                     let span = m.existingSpan;
 
                     // Create new span if needed
@@ -10711,19 +10729,14 @@
                         span.textContent = `#${m.displayIndex}`;
                         span.classList.toggle(cls.hidden, !isNavConsoleEnabled);
                     }
+                },
+                // On Finish
+                () => {
+                    this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
                 }
+            );
 
-                index = endIndex;
-                if (index < allMessages.length) {
-                    rafId = requestAnimationFrame(processNextBatch);
-                }
-            };
-
-            rafId = requestAnimationFrame(processNextBatch);
-            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, () => {
-                isCancelled = true;
-                if (rafId) cancelAnimationFrame(rafId);
-            });
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, cancelFn);
         }
     }
 
