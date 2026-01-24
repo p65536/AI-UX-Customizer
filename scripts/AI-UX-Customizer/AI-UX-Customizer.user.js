@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b409
+// @version      1.0.0-b410
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -18350,6 +18350,8 @@
                         MESSAGE_THRESHOLD: 5, // Lower threshold for ChatGPT as it's for layout scanning
                         // Delay between simulated PageUp scrolls (in ms)
                         SCAN_INTERVAL_MS: 30,
+                        // The grace period (in ms) after navigation to allow messages to load before deciding not to scroll.
+                        GRACE_PERIOD_MS: 2000,
                     };
 
                     /**
@@ -18365,6 +18367,7 @@
                         this.scanLoopId = null; // Use for setTimeout loop
                         this.boundStop = null;
                         this.isLayoutScanComplete = false;
+                        this.navigationStartTime = 0;
                     }
 
                     /**
@@ -18489,7 +18492,6 @@
                         if (!this.isEnabled || this.isInitialScrollCheckDone || this.isScrolling) {
                             return;
                         }
-                        this.isInitialScrollCheckDone = true;
 
                         const messageCount = this.messageCacheManager.getTotalMessages().length;
                         if (messageCount >= AutoScrollManager.CONFIG.MESSAGE_THRESHOLD) {
@@ -18499,8 +18501,17 @@
                             this._subscribeOnce(EVENTS.AUTO_SCROLL_COMPLETE, () => this._onScanComplete());
                             // Start the scan
                             EventBus.publish(EVENTS.AUTO_SCROLL_REQUEST);
+                            this.isInitialScrollCheckDone = true;
                         } else {
-                            Logger.log('', '', `AutoScrollManager: ${messageCount} messages found. No scan needed.`);
+                            // Check if the grace period has expired
+                            const timeSinceNavigation = Date.now() - this.navigationStartTime;
+                            if (timeSinceNavigation > AutoScrollManager.CONFIG.GRACE_PERIOD_MS) {
+                                Logger.log('', '', `AutoScrollManager: ${messageCount} messages found after grace period. No scan needed.`);
+                                this.isInitialScrollCheckDone = true;
+                            } else {
+                                // Within grace period: do nothing and wait for subsequent cache updates.
+                                // This handles cases where messages load progressively (e.g. hundreds of messages).
+                            }
                         }
                     }
 
@@ -18516,6 +18527,7 @@
                         }
                         this.isInitialScrollCheckDone = false;
                         this.isLayoutScanComplete = false;
+                        this.navigationStartTime = Date.now();
                     }
                 }
                 controller.autoScrollManager = controller.manageFactory(CONSTANTS.RESOURCE_KEYS.AUTO_SCROLL_MANAGER, () => new AutoScrollManager(controller.configManager, controller.messageCacheManager, controller.messageLifecycleManager));

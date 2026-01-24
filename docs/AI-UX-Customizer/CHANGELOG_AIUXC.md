@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b410] - 2026-01-24
+- **Bug Fixes**
+  - **[ChatGPT]** Fixed an issue where the **"Scan layout on chat load"** feature (Firefox only) would sometimes fail to trigger on chats with long histories. The detection logic has been improved to ensure messages are loaded before deciding whether to run the scan.
+
 ## [1.0.0-b409] - 2026-01-24
 - **Performance Improvements**
   - Significantly optimized the rendering logic for **Timestamps**, **Message Numbers**, and **Navigation Buttons**. Operations are now processed in asynchronous batches, preventing UI freezes particularly in long conversations.
