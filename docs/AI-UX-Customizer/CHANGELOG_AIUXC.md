@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.0-b411] - 2026-01-24
+- **Bug Fixes**
+  - Fixed a critical race condition where receiving a new message during a full-page update (e.g., loading history or changing settings) could cancel pending tasks, resulting in missing timestamps or navigation buttons.
+  - Resolved a potential issue where timestamps could be generated twice if multiple updates occurred simultaneously.
+- **Core Improvements**
+  - Refactored internal task scheduling to isolate real-time message processing from global UI refreshes, ensuring consistent display state during rapid interactions.
+
 ## [1.0.0-b410] - 2026-01-24
 - **Bug Fixes**
   - **[ChatGPT]** Fixed an issue where the **"Scan layout on chat load"** feature (Firefox only) would sometimes fail to trigger on chats with long histories. The detection logic has been improved to ensure messages are loaded before deciding whether to run the scan.

@@ -646,6 +646,8 @@ interface PlatformConstants {
         LAYOUT_RESIZE_OBSERVER: string;
         POLLING_SCAN: string;
         BATCH_TASK: string;
+        BATCH_TASK_SINGLE: string;
+        BATCH_TASK_TURN: string;
         STREAM_CHECK: string;
         ZERO_MSG_TIMER: string;
         NAVIGATION_MONITOR: string;

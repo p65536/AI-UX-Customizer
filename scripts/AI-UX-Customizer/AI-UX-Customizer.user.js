@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b410
+// @version      1.0.0-b411
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -309,6 +309,8 @@
 
             // Task Resources
             BATCH_TASK: 'batchTask',
+            BATCH_TASK_SINGLE: 'batchTaskSingle',
+            BATCH_TASK_TURN: 'batchTaskTurn',
             STREAM_CHECK: 'streamCheck',
             ZERO_MSG_TIMER: 'zeroMsgTimer',
             REMOVAL_TASK: 'removalTask',
@@ -8450,7 +8452,7 @@
         updateAll() {
             this._syncCaches();
             const allMessages = this.messageCacheManager.getTotalMessages();
-            this._processUpdateQueue(allMessages, () => {
+            this._processUpdateQueue(allMessages, CONSTANTS.RESOURCE_KEYS.BATCH_TASK, () => {
                 this._updateNavButtonStates();
             });
         }
@@ -8461,18 +8463,19 @@
          */
         processTurn(turnNode) {
             const allMessageElements = Array.from(turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS)).filter((el) => el instanceof HTMLElement);
-            this._processUpdateQueue(allMessageElements);
+            this._processUpdateQueue(allMessageElements, CONSTANTS.RESOURCE_KEYS.BATCH_TASK_TURN);
         }
 
         /**
          * Processes a list of messages in batches, separating Read (Measure) and Write (Mutate) operations.
          * @private
          * @param {HTMLElement[]} messages - List of messages to process.
+         * @param {string} resourceKey - The resource key to manage this batch task (allows concurrency for different contexts).
          * @param {() => void} [onComplete] - Callback when all batches are done.
          */
-        _processUpdateQueue(messages, onComplete) {
-            // Cancel any existing batch task
-            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
+        _processUpdateQueue(messages, resourceKey, onComplete) {
+            // Cancel any existing batch task for this specific key
+            this.manageResource(resourceKey, null);
 
             const cancelFn = runBatchUpdate(
                 messages,
@@ -8492,12 +8495,12 @@
                 },
                 // On Finish
                 () => {
-                    this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
+                    this.manageResource(resourceKey, null);
                     if (onComplete) onComplete();
                 }
             );
 
-            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, cancelFn);
+            this.manageResource(resourceKey, cancelFn);
         }
 
         /**
@@ -8652,6 +8655,7 @@
         _onNavigation() {
             // Cancel pending batch processing to prevent memory leaks or errors
             this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK_TURN, null);
             this.manageResource(CONSTANTS.RESOURCE_KEYS.BUTTON_STATE_TASK, null);
             this.navContainers.clear();
             this.featureElementsCache.clear();
@@ -10387,6 +10391,7 @@
             Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, 'Disabling...');
             this.isEnabled = false;
             this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK_SINGLE, null);
 
             // Unsubscribe from events that trigger DOM updates
             if (this._cacheUpdateUnsub) {
@@ -10405,6 +10410,7 @@
         _handleNavigation() {
             // Cancel pending batch tasks on navigation to prevent errors.
             this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK_SINGLE, null);
             this.manageResource(CONSTANTS.RESOURCE_KEYS.REMOVAL_TASK, null);
             // Only clear the DOM cache as the elements are gone.
             this._clearAllTimestampsDOM();
@@ -10466,7 +10472,7 @@
 
         /**
          * @private
-         * Updates a single timestamp item. Uses BATCH_TASK to avoid conflicts with full updates.
+         * Updates a single timestamp item. Uses BATCH_TASK_SINGLE to avoid conflicts with full updates.
          */
         _updateSingleTimestamp(messageId) {
             const selector = `[${CONSTANTS.ATTRIBUTES.MESSAGE_ID}="${messageId}"]`;
@@ -10476,8 +10482,8 @@
             const messageElement = PlatformAdapters.General.findMessageElement(anchor);
             if (!messageElement) return;
 
-            // Cancel any pending full update to prioritize this single interaction
-            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
+            // Cancel any pending single update to prioritize the latest one if spamming occurs
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK_SINGLE, null);
 
             const item = {
                 messageElement,
@@ -10495,6 +10501,15 @@
                 (m) => {
                     // Measure
                     if (!m.messageElement.isConnected) return null;
+
+                    // If not in cache, check DOM to prevent duplicates from race conditions
+                    if (!m.existingContainer) {
+                        m.existingContainer = m.anchor.querySelector(`.${cls.container}`);
+                        if (m.existingContainer) {
+                            this.timestampDomCache.set(m.messageElement, m.existingContainer);
+                        }
+                    }
+
                     if (!m.existingContainer) {
                         const role = PlatformAdapters.General.getMessageRole(m.messageElement);
                         if (role) {
@@ -10523,9 +10538,9 @@
                         container.classList.toggle(cls.hidden, !m.timestampText);
                     }
                 },
-                () => this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null)
+                () => this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK_SINGLE, null)
             );
-            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, cancel);
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK_SINGLE, cancel);
         }
 
         /**
@@ -10582,7 +10597,7 @@
             this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
             this.manageResource(CONSTANTS.RESOURCE_KEYS.REMOVAL_TASK, null);
 
-            // 1. Sync cache and remove deleted DOM nodes
+            // 1. Async Cache Sync & Removal
             const removalCandidates = this._syncCache();
             if (removalCandidates.length > 0) {
                 const cancelRemoval = runBatchUpdate(
@@ -10620,7 +10635,7 @@
                 (messageElement) => {
                     if (!messageElement.isConnected) return null;
 
-                    const existingContainer = this.timestampDomCache.get(messageElement);
+                    let existingContainer = this.timestampDomCache.get(messageElement);
                     let anchor = null;
                     let roleClass = null;
                     let timestampText = '';
@@ -10630,18 +10645,27 @@
                         const messageIdHolder = messageElement.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
                         if (messageIdHolder) {
                             anchor = messageIdHolder;
-                            const role = PlatformAdapters.General.getMessageRole(messageElement);
-                            if (role) {
-                                roleClass = role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER ? cls.user : cls.assistant;
+
+                            // Check DOM for existing container (Idempotency)
+                            existingContainer = anchor.querySelector(`.${cls.container}`);
+                            if (existingContainer) {
+                                this.timestampDomCache.set(messageElement, existingContainer);
+                            } else {
+                                const role = PlatformAdapters.General.getMessageRole(messageElement);
+                                if (role) {
+                                    roleClass = role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER ? cls.user : cls.assistant;
+                                }
                             }
                         }
+                    } else {
+                        // If we have cached container, ensure we can find the ID holder for text update
+                        anchor = existingContainer.parentElement;
                     }
 
                     // Calculate Text (always needed to update content/visibility)
                     if (isTimestampEnabled) {
                         // Use the anchor found above, or find it now if we have a container but need ID
-                        // If we have existingContainer, the ID holder is its parent.
-                        const holder = anchor || (existingContainer ? existingContainer.parentElement : messageElement.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER));
+                        const holder = anchor || messageElement.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
                         if (holder) {
                             const messageId = PlatformAdapters.General.getMessageId(holder);
                             const timestamp = messageId ? this.getTimestamp(messageId) : undefined;
