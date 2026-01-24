@@ -123,12 +123,11 @@ interface PlatformSettings {
     };
     features: {
         collapsible_button: { enabled: boolean };
-        scroll_to_top_button: { enabled: boolean };
-        sequential_nav_buttons: { enabled: boolean };
+        auto_collapse_user_message: { enabled: boolean };
+        bubble_nav_buttons: { enabled: boolean };
         fixed_nav_console: { enabled: boolean; position?: string };
         load_full_history_on_chat_load?: { enabled: boolean };
         timestamp: { enabled: boolean };
-        auto_collapse_user_message: { enabled: boolean };
     };
     defaultSet: Omit<ThemeSet, 'metadata'>;
 }
@@ -398,8 +397,7 @@ interface ThemeManagerAdapter {
 interface BubbleUIAdapter {
     getNavPositioningParent(messageElement: HTMLElement): HTMLElement | null;
     getCollapsibleInfo(messageElement: HTMLElement): { msgWrapper: HTMLElement, bubbleElement: HTMLElement, positioningParent: HTMLElement } | null;
-    getSequentialNavInfo(messageElement: HTMLElement): object | null;
-    getScrollToTopInfo(messageElement: HTMLElement): object | null;
+    getBubbleNavButtonsInfo(messageElement: HTMLElement): object | null;
 }
 
 interface ToastAdapter {

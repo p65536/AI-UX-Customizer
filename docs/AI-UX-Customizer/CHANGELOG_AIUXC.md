@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.0-b406] - 2026-01-24
+- **UI & Settings**
+  - Consolidated the settings for message navigation buttons. The separate toggles for "Sequential nav buttons" and "Scroll to top button" have been unified into a single **Bubble nav buttons** option (enabled by default) to simplify the settings panel.
+- **Core Changes**
+  - Refactored the `BubbleUIManager` architecture to handle navigation buttons more efficiently. This internal change optimizes how buttons are defined and rendered, reducing redundant DOM operations and improving code maintainability.
+
 ## [1.0.0-b405] - 2026-01-24
 - **Fixes**
   - Resolved internal inconsistencies in variable access within style templates to improve code stability.

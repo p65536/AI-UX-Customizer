@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b405
+// @version      1.0.0-b406
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -339,8 +339,7 @@
                 features: {
                     collapsible_button: { enabled: true },
                     auto_collapse_user_message: { enabled: false },
-                    sequential_nav_buttons: { enabled: true },
-                    scroll_to_top_button: { enabled: true },
+                    bubble_nav_buttons: { enabled: true },
                     fixed_nav_console: { enabled: true, position: SHARED_CONSTANTS.CONSOLE_POSITIONS.INPUT_TOP },
                     load_full_history_on_chat_load: { enabled: true },
                     timestamp: { enabled: true },
@@ -390,8 +389,7 @@
                 features: {
                     collapsible_button: { enabled: true },
                     auto_collapse_user_message: { enabled: false },
-                    sequential_nav_buttons: { enabled: true },
-                    scroll_to_top_button: { enabled: true },
+                    bubble_nav_buttons: { enabled: true },
                     fixed_nav_console: { enabled: true, position: SHARED_CONSTANTS.CONSOLE_POSITIONS.INPUT_TOP },
                     load_full_history_on_chat_load: { enabled: true },
                     timestamp: { enabled: true },
@@ -1283,20 +1281,11 @@
         }
 
         /**
-         * Gets information required to render sequential navigation buttons.
+         * Gets information required to render bubble navigation buttons (Side Nav).
          * @param {HTMLElement} messageElement The message element.
          * @returns {object | null} Truthy object to enable, null to disable. Default is empty object.
          */
-        getSequentialNavInfo(messageElement) {
-            return {};
-        }
-
-        /**
-         * Gets information required to render the scroll-to-top button.
-         * @param {HTMLElement} messageElement The message element.
-         * @returns {object | null} Truthy object to enable, null to disable. Default is empty object.
-         */
-        getScrollToTopInfo(messageElement) {
+        getBubbleNavButtonsInfo(messageElement) {
             return {};
         }
     }
@@ -8331,12 +8320,12 @@
                 }
             },
         },
-        SEQUENTIAL_NAV: {
-            name: 'sequentialNav',
-            group: 'sideNav',
+        BUBBLE_NAV_TOP: {
+            name: 'bubbleNavTop',
+            group: 'bubbleNavButtons',
             position: 'top',
-            isEnabled: (config) => config.platforms[PLATFORM].features.sequential_nav_buttons.enabled,
-            getInfo: (msgElem) => PlatformAdapters.BubbleUI.getSequentialNavInfo(msgElem),
+            isEnabled: (config) => config.platforms[PLATFORM].features.bubble_nav_buttons.enabled,
+            getInfo: (msgElem) => PlatformAdapters.BubbleUI.getBubbleNavButtonsInfo(msgElem),
             render: (info, msgElem, manager) => {
                 const createClickHandler = (direction) => (e) => {
                     e.stopPropagation();
@@ -8349,8 +8338,8 @@
                         EventBus.publish(EVENTS.NAV_HIGHLIGHT_MESSAGE, targetMsg);
                     }
                 };
-                const prevBtn = manager.featureTemplates.sequentialNavPrevButton.cloneNode(true);
-                const nextBtn = manager.featureTemplates.sequentialNavNextButton.cloneNode(true);
+                const prevBtn = manager.featureTemplates.navPrevButton.cloneNode(true);
+                const nextBtn = manager.featureTemplates.navNextButton.cloneNode(true);
                 if (!(prevBtn instanceof HTMLElement) || !(nextBtn instanceof HTMLElement)) return null;
 
                 prevBtn.onclick = createClickHandler(-1);
@@ -8363,14 +8352,14 @@
                 element.classList.toggle(cls.hidden, !isEnabled);
             },
         },
-        SCROLL_TO_TOP: {
-            name: 'scrollToTop',
-            group: 'sideNav',
+        BUBBLE_NAV_BOTTOM: {
+            name: 'bubbleNavBottom',
+            group: 'bubbleNavButtons',
             position: 'bottom',
-            isEnabled: (config) => config.platforms[PLATFORM].features.scroll_to_top_button.enabled,
-            getInfo: (msgElem) => PlatformAdapters.BubbleUI.getScrollToTopInfo(msgElem),
+            isEnabled: (config) => config.platforms[PLATFORM].features.bubble_nav_buttons.enabled,
+            getInfo: (msgElem) => PlatformAdapters.BubbleUI.getBubbleNavButtonsInfo(msgElem),
             render: (info, msgElem, manager) => {
-                const topBtn = manager.featureTemplates.scrollToTopButton.cloneNode(true);
+                const topBtn = manager.featureTemplates.navTopButton.cloneNode(true);
                 if (!(topBtn instanceof HTMLElement)) return null;
 
                 topBtn.onclick = (e) => {
@@ -8411,7 +8400,7 @@
              * @private
              * @type {Array<object>}
              */
-            this._features = [BubbleFeatureDefs.COLLAPSIBLE, BubbleFeatureDefs.SEQUENTIAL_NAV, BubbleFeatureDefs.SCROLL_TO_TOP].map((def) => ({
+            this._features = [BubbleFeatureDefs.COLLAPSIBLE, BubbleFeatureDefs.BUBBLE_NAV_TOP, BubbleFeatureDefs.BUBBLE_NAV_BOTTOM].map((def) => ({
                 ...def,
                 // Wrap update method to inject 'this' (manager) as the last argument
                 // This allows the external definition to access manager state (styles, config, etc.)
@@ -8487,11 +8476,9 @@
 
             this.featureTemplates = {
                 collapsibleButton: h(`button.${cls.collapsibleBtn}`, { type: 'button', title: 'Toggle message' }, [this._createIcon('collapse')]),
-                sequentialNavPrevButton: h('button', { className: prevClass, type: 'button', title: 'Scroll to previous message', dataset: { [CONSTANTS.DATA_KEYS.ORIGINAL_TITLE]: 'Scroll to previous message' } }, [
-                    this._createIcon('prev'),
-                ]),
-                sequentialNavNextButton: h('button', { className: nextClass, type: 'button', title: 'Scroll to next message', dataset: { [CONSTANTS.DATA_KEYS.ORIGINAL_TITLE]: 'Scroll to next message' } }, [this._createIcon('next')]),
-                scrollToTopButton: h('button', { className: topClass, type: 'button', title: 'Scroll to top of this message' }, [this._createIcon('top')]),
+                navPrevButton: h('button', { className: prevClass, type: 'button', title: 'Scroll to previous message', dataset: { [CONSTANTS.DATA_KEYS.ORIGINAL_TITLE]: 'Scroll to previous message' } }, [this._createIcon('prev')]),
+                navNextButton: h('button', { className: nextClass, type: 'button', title: 'Scroll to next message', dataset: { [CONSTANTS.DATA_KEYS.ORIGINAL_TITLE]: 'Scroll to next message' } }, [this._createIcon('next')]),
+                navTopButton: h('button', { className: topClass, type: 'button', title: 'Scroll to top of this message' }, [this._createIcon('top')]),
             };
         }
 
@@ -8525,7 +8512,7 @@
             }));
 
             // Phase 2: Write/Mutate the DOM based on the gathered information.
-            let sideNavContainer = null;
+            let bubbleNavContainer = null;
 
             for (const task of featureTasks) {
                 const { feature, cacheKey, isEnabled, info } = task;
@@ -8541,12 +8528,12 @@
                             let targetContainer = null;
                             let cleanupSelector = null;
 
-                            if (feature.group === 'sideNav') {
-                                if (!sideNavContainer) {
-                                    sideNavContainer = this._getOrCreateNavContainer(messageElement);
+                            if (feature.group === 'bubbleNavButtons') {
+                                if (!bubbleNavContainer) {
+                                    bubbleNavContainer = this._getOrCreateNavContainer(messageElement);
                                 }
-                                if (sideNavContainer) {
-                                    targetContainer = sideNavContainer.querySelector(`.${cls.navButtons}`);
+                                if (bubbleNavContainer) {
+                                    targetContainer = bubbleNavContainer.querySelector(`.${cls.navButtons}`);
                                     // Identify duplication by the main class of the container returned by render
                                     if (featureElement.classList.contains(cls.navGroupTop)) {
                                         cleanupSelector = `.${cls.navGroupTop}`;
@@ -12330,8 +12317,7 @@
             _createFeaturesSection(p) {
                 const commonFeatures = [
                     SchemaBuilder.Toggle(`${p}.features.collapsible_button.enabled`, 'Collapsible button', { title: 'Enables a button to collapse large message bubbles.' }),
-                    SchemaBuilder.Toggle(`${p}.features.sequential_nav_buttons.enabled`, 'Sequential nav buttons', { title: 'Enables buttons to jump to the previous/next message.' }),
-                    SchemaBuilder.Toggle(`${p}.features.scroll_to_top_button.enabled`, 'Scroll to top button', { title: 'Enables a button to scroll to the top of a message.' }),
+                    SchemaBuilder.Toggle(`${p}.features.bubble_nav_buttons.enabled`, 'Bubble nav buttons', { title: 'Enables navigation buttons (Prev/Next/Top) attached to each message.' }),
 
                     // Navigation Console Group
                     SchemaBuilder.Toggle(`${p}.features.fixed_nav_console.enabled`, 'Navigation console', { title: 'When enabled, a navigation console with message counters will be displayed.' }),
@@ -18946,7 +18932,7 @@
                             EventBus.publish(EVENTS.AUTO_SCROLL_REQUEST);
                         },
                     },
-                    [createIconFromDef(StyleDefinitions.ICONS.scrollToTop)] // Use 'scrollToTop' icon
+                    [createIconFromDef(StyleDefinitions.ICONS.scrollToTop)]
                 );
 
                 return [autoscrollBtn];
