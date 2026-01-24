@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b411
+// @version      1.0.0-b412
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -5522,7 +5522,7 @@
      * @template T, R
      * @param {T[]} items - The array of items to process.
      * @param {number} batchSize - The number of items to process per frame.
-     * @param {(item: T, index: number) => R | null} measureFn - Function to read from the DOM. Returns data for mutation or null to skip.
+     * @param {(item: T, index: number) => R | null | undefined} measureFn - Function to read from the DOM. Returns data for mutation, or null/undefined to skip.
      * @param {(data: R) => void} mutateFn - Function to write to the DOM.
      * @param {() => void} [onFinish] - Callback executed ONLY when all batches are successfully processed.
      * @param {() => void} [onAbort] - Callback executed ONLY when processing is cancelled before completion.
@@ -8028,10 +8028,16 @@
             // Instead of processing immediately, queue the element for batch processing.
             this._subscribe(EVENTS.AVATAR_INJECT, (elem) => this.queueForInjection(elem));
 
-            // Clear queue and cancel pending tasks on navigation to prevent memory leaks and errors on stale elements.
+            // Clear queue and cancel pending tasks on navigation start to prevent memory leaks and unnecessary processing.
+            this._subscribe(EVENTS.NAVIGATION_START, () => {
+                this._injectionQueue = [];
+                this._debouncedProcessQueue.cancel();
+                this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
+            });
+
+            // Ensure state is clean on navigation settlement.
             this._subscribe(EVENTS.NAVIGATION, () => {
                 this._injectionQueue = [];
-                this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
             });
 
             this.addDisposable(this._debouncedProcessQueue.cancel);
@@ -8425,7 +8431,12 @@
             this.injectStyle();
             this._createTemplates();
             this._subscribe(EVENTS.TURN_COMPLETE, (turnNode) => this.processTurn(turnNode));
+
+            // Clean up DOM and cancel tasks immediately on navigation start
+            this._subscribe(EVENTS.NAVIGATION_START, () => this._handleNavigationStart());
+            // Reset state on navigation complete
             this._subscribe(EVENTS.NAVIGATION, () => this._onNavigation());
+
             this._subscribe(EVENTS.CACHE_UPDATED, () => this.updateAll());
         }
 
@@ -8649,14 +8660,36 @@
         }
 
         /**
-         * Resets caches on page navigation.
+         * Cleans up resources and DOM elements when navigation starts.
          * @private
          */
-        _onNavigation() {
+        _handleNavigationStart() {
             // Cancel pending batch processing to prevent memory leaks or errors
             this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
             this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK_TURN, null);
             this.manageResource(CONSTANTS.RESOURCE_KEYS.BUTTON_STATE_TASK, null);
+
+            // Explicitly remove injected elements from DOM to prevent ghost UI
+            this.navContainers.forEach((container) => container.remove());
+            this.navContainers.clear();
+
+            this.featureElementsCache.forEach((element) => element.remove());
+            this.featureElementsCache.clear();
+
+            this.autoCollapseProcessedIds.clear();
+        }
+
+        /**
+         * Resets caches on page navigation.
+         * @private
+         */
+        _onNavigation() {
+            // Cancel pending batch processing as a fail-safe (in case NAVIGATION_START was missed)
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK_TURN, null);
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BUTTON_STATE_TASK, null);
+
+            // Ensure caches are cleared if not already done
             this.navContainers.clear();
             this.featureElementsCache.clear();
             this.autoCollapseProcessedIds.clear();
@@ -10333,6 +10366,12 @@
         _handleNavigationStart() {
             this.isNavigating = true;
             this.pendingTimestamps.clear();
+
+            // Cancel pending batch tasks and remove DOM elements immediately
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK_SINGLE, null);
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.REMOVAL_TASK, null);
+            this._clearAllTimestampsDOM();
         }
 
         /**
@@ -10408,12 +10447,7 @@
          * Clears caches on navigation and prepares for new data.
          */
         _handleNavigation() {
-            // Cancel pending batch tasks on navigation to prevent errors.
-            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
-            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK_SINGLE, null);
-            this.manageResource(CONSTANTS.RESOURCE_KEYS.REMOVAL_TASK, null);
-            // Only clear the DOM cache as the elements are gone.
-            this._clearAllTimestampsDOM();
+            // Reset chat ID as we are on a new page
             this.currentChatId = null;
         }
 
@@ -10759,11 +10793,12 @@
             // Use :cacheUpdated for batch updates (re-numbering, visibility toggles after config changes).
             this._subscribe(EVENTS.CACHE_UPDATED, () => this.updateAllMessageNumbers());
 
-            // Clear cache and cancel pending tasks on navigation to prevent errors.
+            // Clean up immediately on navigation start
+            this._subscribe(EVENTS.NAVIGATION_START, () => this._handleNavigationStart());
+
+            // Clear cache on navigation to prevent errors.
             this._subscribe(EVENTS.NAVIGATION, () => {
                 this.numberSpanCache.clear();
-                this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
-                this.manageResource(CONSTANTS.RESOURCE_KEYS.REMOVAL_TASK, null);
             });
         }
 
@@ -10786,6 +10821,19 @@
                 }
             }
             return removalCandidates;
+        }
+
+        /**
+         * Cleans up resources and DOM elements when navigation starts.
+         * @private
+         */
+        _handleNavigationStart() {
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.REMOVAL_TASK, null);
+
+            // Remove all message number spans from the DOM
+            this.numberSpanCache.forEach((span) => span.remove());
+            this.numberSpanCache.clear();
         }
 
         /**

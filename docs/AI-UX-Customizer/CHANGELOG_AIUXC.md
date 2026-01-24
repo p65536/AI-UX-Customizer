@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-b412] - 2026-01-24
+- **Fixes & Improvements**
+  - **[Core]** Improved stability when switching chats by immediately cancelling background tasks and pending operations.
+  - **[UI]** Fixed visual bugs where interface elements (buttons, counters) could remain visible or duplicate after navigating to a new page.
+
 ## [1.0.0-b411] - 2026-01-24
 - **Bug Fixes**
   - Fixed a critical race condition where receiving a new message during a full-page update (e.g., loading history or changing settings) could cancel pending tasks, resulting in missing timestamps or navigation buttons.
