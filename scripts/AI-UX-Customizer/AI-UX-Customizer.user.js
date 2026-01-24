@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b406
+// @version      1.0.0-b407
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -5512,58 +5512,6 @@
     }
 
     /**
-     * @description Processes an array of items in asynchronous batches to avoid blocking the main thread.
-     * Returns a cancel function to stop processing and prevent onComplete from firing.
-     * @param {Array<T>} items The array of items to process.
-     * @param {(item: T, index: number) => void} processItem The function to execute for each item.
-     * @param {number} batchSize The number of items to process in each batch.
-     * @param {() => void} [onComplete] An optional callback to execute when all batches are complete.
-     * @returns {{ cancel: () => void }} An object containing a cancel function.
-     * @template T
-     */
-    function processInBatches(items, processItem, batchSize, onComplete) {
-        let index = 0;
-        const totalItems = items.length;
-        let isCancelled = false;
-        let animationFrameId = null;
-
-        const cancel = () => {
-            isCancelled = true;
-            if (animationFrameId !== null) {
-                cancelAnimationFrame(animationFrameId);
-                animationFrameId = null;
-            }
-        };
-
-        if (totalItems === 0) {
-            onComplete?.();
-            return { cancel };
-        }
-
-        function runNextBatch() {
-            if (isCancelled) return;
-
-            const endIndex = Math.min(index + batchSize, totalItems);
-            for (; index < endIndex; index++) {
-                processItem(items[index], index);
-            }
-
-            if (index < totalItems) {
-                if (!isCancelled) {
-                    animationFrameId = requestAnimationFrame(runNextBatch);
-                }
-            } else {
-                if (!isCancelled) {
-                    onComplete?.();
-                }
-            }
-        }
-
-        animationFrameId = requestAnimationFrame(runNextBatch);
-        return { cancel };
-    }
-
-    /**
      * @description Ensures the settings button is correctly placed.
      * @param {object} settingsButton The settings button component instance.
      * @param {string} anchorSelector The CSS selector for the anchor element.
@@ -8442,99 +8390,186 @@
         updateAll() {
             this._syncCaches();
             const allMessages = this.messageCacheManager.getTotalMessages();
-            const task = processInBatches(
-                allMessages,
-                (messageElement) => {
-                    this.processElement(messageElement);
-                },
-                CONSTANTS.PROCESSING.BATCH_SIZE,
-                () => {
-                    // Update nav button states after all elements have been processed.
-                    this._updateNavButtonStates();
-                }
-            );
-            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, () => task.cancel());
+            this._processUpdateQueue(allMessages, () => {
+                this._updateNavButtonStates();
+            });
         }
 
         /**
-         * Injects the feature's specific CSS into the document head using StyleManager.
+         * Processes a conversation turn after it has completed rendering.
+         * @param {HTMLElement} turnNode The turn container element.
          */
-        injectStyle() {
-            this.styleHandle = StyleManager.request(StyleDefinitions.getBubbleUI);
+        processTurn(turnNode) {
+            const allMessageElements = Array.from(turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS)).filter((el) => el instanceof HTMLElement);
+            this._processUpdateQueue(allMessageElements);
         }
 
         /**
-         * Creates templates for UI features using the injected styles.
+         * Processes a list of messages in batches, separating Read (Measure) and Write (Mutate) operations.
          * @private
+         * @param {HTMLElement[]} messages - List of messages to process.
+         * @param {() => void} [onComplete] - Callback when all batches are done.
          */
-        _createTemplates() {
-            const cls = this.styleHandle.classes;
-            // Class combination for navigation buttons: common navBtn style + specific ID class
-            const prevClass = `${cls.navBtn} ${cls.navPrev}`;
-            const nextClass = `${cls.navBtn} ${cls.navNext}`;
-            const topClass = `${cls.navBtn} ${cls.navTop}`;
+        _processUpdateQueue(messages, onComplete) {
+            // Cancel any existing batch task
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
 
-            this.featureTemplates = {
-                collapsibleButton: h(`button.${cls.collapsibleBtn}`, { type: 'button', title: 'Toggle message' }, [this._createIcon('collapse')]),
-                navPrevButton: h('button', { className: prevClass, type: 'button', title: 'Scroll to previous message', dataset: { [CONSTANTS.DATA_KEYS.ORIGINAL_TITLE]: 'Scroll to previous message' } }, [this._createIcon('prev')]),
-                navNextButton: h('button', { className: nextClass, type: 'button', title: 'Scroll to next message', dataset: { [CONSTANTS.DATA_KEYS.ORIGINAL_TITLE]: 'Scroll to next message' } }, [this._createIcon('next')]),
-                navTopButton: h('button', { className: topClass, type: 'button', title: 'Scroll to top of this message' }, [this._createIcon('top')]),
+            if (!messages || messages.length === 0) {
+                onComplete?.();
+                return;
+            }
+
+            const batchSize = CONSTANTS.PROCESSING.BATCH_SIZE;
+            let index = 0;
+            let rafId = null;
+            let isCancelled = false;
+
+            const processNextBatch = () => {
+                if (isCancelled) return;
+
+                const endIndex = Math.min(index + batchSize, messages.length);
+                const measurements = [];
+
+                // Phase 1: Measure (READ)
+                for (let i = index; i < endIndex; i++) {
+                    const msg = messages[i];
+                    if (msg.isConnected) {
+                        const m = this._measureElement(msg);
+                        if (m) measurements.push(m);
+                    }
+                }
+
+                // Phase 2: Mutate (WRITE)
+                for (const m of measurements) {
+                    if (m.messageElement.isConnected) {
+                        this._mutateElement(m);
+                    }
+                }
+
+                index = endIndex;
+                if (index < messages.length) {
+                    rafId = requestAnimationFrame(processNextBatch);
+                } else {
+                    onComplete?.();
+                }
+            };
+
+            rafId = requestAnimationFrame(processNextBatch);
+
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, () => {
+                isCancelled = true;
+                if (rafId) cancelAnimationFrame(rafId);
+            });
+        }
+
+        /**
+         * Gathers information required for UI injection without modifying the DOM.
+         * @private
+         * @param {HTMLElement} messageElement
+         */
+        _measureElement(messageElement) {
+            const config = this.configManager.get();
+            if (!config) return null;
+
+            // 1. Unique ID Check
+            let uniqueId = DomState.get(messageElement, CONSTANTS.DATA_KEYS.UNIQUE_ID);
+            let needsIdSet = false;
+            if (!uniqueId) {
+                uniqueId = generateUniqueId('msg');
+                needsIdSet = true;
+            }
+
+            // 2. Feature Info Gathering
+            const featureTasks = this._features.map((feature) => {
+                const isEnabled = feature.isEnabled(config);
+                // getInfo is assumed to be a READ operation
+                const info = isEnabled ? feature.getInfo(messageElement) : null;
+                return {
+                    feature,
+                    cacheKey: `${feature.name}-${uniqueId}`,
+                    isEnabled,
+                    info,
+                };
+            });
+
+            // 3. Navigation Anchor Check
+            const needsNavContainer = featureTasks.some((t) => t.isEnabled && t.info && t.feature.group === 'bubbleNavButtons');
+            let navPositioningParent = null;
+            if (needsNavContainer) {
+                navPositioningParent = PlatformAdapters.BubbleUI.getNavPositioningParent(messageElement);
+            }
+
+            return {
+                messageElement,
+                uniqueId,
+                needsIdSet,
+                featureTasks,
+                navPositioningParent,
             };
         }
 
         /**
-         * Processes a single message element, applying all relevant features.
-         * @param {HTMLElement} messageElement The message element to process.
+         * Applies DOM changes based on measurement data.
+         * @private
+         * @param {object} measurement
          */
-        processElement(messageElement) {
-            const config = this.configManager.get();
-            if (!config) return;
-
+        _mutateElement(measurement) {
+            const { messageElement, uniqueId, needsIdSet, featureTasks, navPositioningParent } = measurement;
             const cls = this.styleHandle.classes;
 
-            // Self-correction: If this element was previously marked as an image-only anchor but is now receiving content, remove the anchor class to restore normal layout.
+            // 1. Set ID if needed
+            if (needsIdSet) {
+                DomState.set(messageElement, CONSTANTS.DATA_KEYS.UNIQUE_ID, uniqueId);
+            }
+
+            // 2. Cleanup Anchor Class (Self-correction)
             if (messageElement.classList.contains(cls.imageOnlyAnchor)) {
                 messageElement.classList.remove(cls.imageOnlyAnchor);
             }
 
-            let uniqueId = DomState.get(messageElement, CONSTANTS.DATA_KEYS.UNIQUE_ID);
-            if (!uniqueId) {
-                uniqueId = generateUniqueId('msg');
-                DomState.set(messageElement, CONSTANTS.DATA_KEYS.UNIQUE_ID, uniqueId);
+            // 3. Prepare Nav Container
+            let bubbleNavContainer = null;
+            if (navPositioningParent) {
+                if (this.navContainers.has(messageElement)) {
+                    bubbleNavContainer = this.navContainers.get(messageElement);
+                } else {
+                    // Check DOM in case it exists but wasn't cached (e.g., after reload)
+                    let container = messageElement.querySelector(`.${cls.navContainer}`);
+                    if (!container) {
+                        // Create and Append
+                        navPositioningParent.style.position = 'relative';
+                        navPositioningParent.classList.add(cls.navParent);
+
+                        container = h(`div.${cls.navContainer}`, [h(`div.${cls.navButtons}`)]);
+                        if (container instanceof HTMLElement) {
+                            navPositioningParent.appendChild(container);
+                            this.navContainers.set(messageElement, container);
+                        }
+                    } else {
+                        this.navContainers.set(messageElement, container);
+                    }
+                    bubbleNavContainer = container;
+                }
             }
 
-            // Phase 1: Read/Gather information without modifying the DOM.
-            const featureTasks = this._features.map((feature) => ({
-                feature,
-                cacheKey: `${feature.name}-${uniqueId}`,
-                isEnabled: feature.isEnabled(config),
-                info: feature.getInfo(messageElement),
-            }));
-
-            // Phase 2: Write/Mutate the DOM based on the gathered information.
-            let bubbleNavContainer = null;
-
+            // 4. Apply Features
             for (const task of featureTasks) {
                 const { feature, cacheKey, isEnabled, info } = task;
 
                 if (isEnabled && info) {
                     let featureElement = this.featureElementsCache.get(cacheKey);
                     if (!featureElement) {
+                        // Render (Create DOM)
                         featureElement = feature.render(info, messageElement, this);
                         if (featureElement) {
                             this.featureElementsCache.set(cacheKey, featureElement);
 
-                            // --- Unified Placement and Cleanup Logic ---
                             let targetContainer = null;
                             let cleanupSelector = null;
 
                             if (feature.group === 'bubbleNavButtons') {
-                                if (!bubbleNavContainer) {
-                                    bubbleNavContainer = this._getOrCreateNavContainer(messageElement);
-                                }
                                 if (bubbleNavContainer) {
                                     targetContainer = bubbleNavContainer.querySelector(`.${cls.navButtons}`);
-                                    // Identify duplication by the main class of the container returned by render
                                     if (featureElement.classList.contains(cls.navGroupTop)) {
                                         cleanupSelector = `.${cls.navGroupTop}`;
                                     } else {
@@ -8542,20 +8577,16 @@
                                     }
                                 }
                             } else {
-                                // For non-grouped features like collapsible, attach directly to positioningParent
                                 targetContainer = info.positioningParent;
-                                // Identify duplication by the main class of the element itself
                                 if (featureElement.classList.length > 0) {
                                     cleanupSelector = `.${featureElement.classList[0]}`;
                                 }
                             }
 
                             if (targetContainer && cleanupSelector) {
-                                // 1. Cleanup: Remove any existing element of the same type
                                 const existing = targetContainer.querySelector(cleanupSelector);
                                 if (existing) existing.remove();
 
-                                // 2. Append: Insert the new element
                                 if (feature.position === 'top') {
                                     targetContainer.prepend(featureElement);
                                 } else {
@@ -8577,23 +8608,12 @@
         }
 
         /**
-         * Processes a conversation turn after it has completed rendering.
-         * @param {HTMLElement} turnNode The turn container element.
-         */
-        processTurn(turnNode) {
-            const allMessageElements = turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
-            allMessageElements.forEach((messageElement) => {
-                if (messageElement instanceof HTMLElement) {
-                    this.processElement(messageElement);
-                }
-            });
-        }
-
-        /**
          * Resets caches on page navigation.
          * @private
          */
         _onNavigation() {
+            // Cancel pending batch processing to prevent memory leaks or errors
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
             this.navContainers.clear();
             this.featureElementsCache.clear();
             this.autoCollapseProcessedIds.clear();
@@ -8604,10 +8624,7 @@
          * @private
          */
         _syncCaches() {
-            // Remove entries for messages that are no longer in the DOM.
             syncCacheWithMessages(this.navContainers, this.messageCacheManager);
-
-            // Remove entries for feature elements that are no longer connected to the DOM.
             for (const [key, element] of this.featureElementsCache.entries()) {
                 if (!element.isConnected) {
                     this.featureElementsCache.delete(key);
@@ -8616,9 +8633,32 @@
         }
 
         /**
+         * Injects the feature's specific CSS into the document head using StyleManager.
+         */
+        injectStyle() {
+            this.styleHandle = StyleManager.request(StyleDefinitions.getBubbleUI);
+        }
+
+        /**
+         * Creates templates for UI features using the injected styles.
+         * @private
+         */
+        _createTemplates() {
+            const cls = this.styleHandle.classes;
+            const prevClass = `${cls.navBtn} ${cls.navPrev}`;
+            const nextClass = `${cls.navBtn} ${cls.navNext}`;
+            const topClass = `${cls.navBtn} ${cls.navTop}`;
+
+            this.featureTemplates = {
+                collapsibleButton: h(`button.${cls.collapsibleBtn}`, { type: 'button', title: 'Toggle message' }, [this._createIcon('collapse')]),
+                navPrevButton: h('button', { className: prevClass, type: 'button', title: 'Scroll to previous message', dataset: { [CONSTANTS.DATA_KEYS.ORIGINAL_TITLE]: 'Scroll to previous message' } }, [this._createIcon('prev')]),
+                navNextButton: h('button', { className: nextClass, type: 'button', title: 'Scroll to next message', dataset: { [CONSTANTS.DATA_KEYS.ORIGINAL_TITLE]: 'Scroll to next message' } }, [this._createIcon('next')]),
+                navTopButton: h('button', { className: topClass, type: 'button', title: 'Scroll to top of this message' }, [this._createIcon('top')]),
+            };
+        }
+
+        /**
          * Creates an SVG icon element from a predefined map.
-         * @param {string} type The type of icon to create.
-         * @returns {SVGElement | null}
          * @private
          */
         _createIcon(type) {
@@ -8640,46 +8680,11 @@
         }
 
         /**
-         * Retrieves or creates the shared navigation button container for a message element.
-         * @private
-         * @param {HTMLElement} messageElement The message to attach the container to.
-         * @returns {HTMLElement | null} The navigation container element.
-         */
-        _getOrCreateNavContainer(messageElement) {
-            if (this.navContainers.has(messageElement)) {
-                return this.navContainers.get(messageElement);
-            }
-
-            const positioningParent = PlatformAdapters.BubbleUI.getNavPositioningParent(messageElement);
-            if (!positioningParent) {
-                Logger.debug('NAV SKIP', LOG_STYLES.CYAN, 'Navigation attachment skipped (no positioning parent). This is expected for image-only or transient elements:', messageElement);
-                return null;
-            }
-
-            const cls = this.styleHandle.classes;
-            let container = messageElement.querySelector(`.${cls.navContainer}`);
-            if (container instanceof HTMLElement) {
-                this.navContainers.set(messageElement, container);
-                return container;
-            }
-
-            positioningParent.style.position = 'relative';
-            positioningParent.classList.add(cls.navParent);
-
-            container = h(`div.${cls.navContainer}`, [h(`div.${cls.navButtons}`)]);
-            if (!(container instanceof HTMLElement)) return null;
-
-            positioningParent.appendChild(container);
-            this.navContainers.set(messageElement, container);
-            return container;
-        }
-
-        /**
          * Updates the enabled/disabled state of sequential navigation buttons.
          * @private
          */
         _updateNavButtonStates() {
-            this._syncCaches(); // Clean up caches before processing
+            this._syncCaches();
             const disabledHint = '(No message to scroll to)';
             const cls = this.styleHandle.classes;
 
