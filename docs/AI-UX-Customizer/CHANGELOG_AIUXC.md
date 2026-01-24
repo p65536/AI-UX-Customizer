@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.0-b409] - 2026-01-24
+- **Performance Improvements**
+  - Significantly optimized the rendering logic for **Timestamps**, **Message Numbers**, and **Navigation Buttons**. Operations are now processed in asynchronous batches, preventing UI freezes particularly in long conversations.
+  - Improved the efficiency of real-time timestamp updates to ensure smooth performance while messages are streaming.
+- **Core Changes**
+  - Enhanced resource management during page navigation to prevent memory leaks and ensure immediate cleanup of stale UI elements.
+  - Hardened internal state consistency to prevent errors when switching between chats rapidly or canceling operations.
+
 ## [1.0.0-b408] - 2026-01-24
 - **Core Improvements**
   - Centralized UI rendering logic (Avatars, Buttons, Timestamps) into a unified batch processor. This reduces layout thrashing and prevents individual rendering errors from stopping the entire UI update.

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b408
+// @version      1.0.0-b409
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -311,6 +311,8 @@
             BATCH_TASK: 'batchTask',
             STREAM_CHECK: 'streamCheck',
             ZERO_MSG_TIMER: 'zeroMsgTimer',
+            REMOVAL_TASK: 'removalTask',
+            BUTTON_STATE_TASK: 'buttonStateTask',
 
             // Lifecycle Resources
             NAVIGATION_MONITOR: 'navigationMonitor',
@@ -8650,6 +8652,7 @@
         _onNavigation() {
             // Cancel pending batch processing to prevent memory leaks or errors
             this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BUTTON_STATE_TASK, null);
             this.navContainers.clear();
             this.featureElementsCache.clear();
             this.autoCollapseProcessedIds.clear();
@@ -8721,31 +8724,52 @@
          */
         _updateNavButtonStates() {
             this._syncCaches();
+            // Cancel any pending button state updates
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BUTTON_STATE_TASK, null);
+
             const disabledHint = '(No message to scroll to)';
             const cls = this.styleHandle.classes;
 
-            const updateActorButtons = (messages) => {
-                messages.forEach((message, index) => {
+            const allMessages = [...this.messageCacheManager.getUserMessages(), ...this.messageCacheManager.getAssistantMessages()];
+
+            const cancelFn = runBatchUpdate(
+                allMessages,
+                CONSTANTS.PROCESSING.BATCH_SIZE,
+                (message) => {
+                    if (!message.isConnected) return null;
                     const container = this.navContainers.get(message);
-                    if (!container) return;
+                    if (!container || !container.isConnected) return null;
+
+                    // Calculate state based on cache role index logic
+                    // We need to know if this is the first or last message of its role.
+                    const roleInfo = this.messageCacheManager.findMessageIndex(message);
+                    if (!roleInfo) return null;
+
+                    const roleMessages = roleInfo.role === CONSTANTS.INTERNAL_ROLES.USER ? this.messageCacheManager.getUserMessages() : this.messageCacheManager.getAssistantMessages();
+
+                    const isFirst = roleInfo.index === 0;
+                    const isLast = roleInfo.index === roleMessages.length - 1;
+
+                    return { container, isFirst, isLast };
+                },
+                ({ container, isFirst, isLast }) => {
                     const prevBtn = container.querySelector(`.${cls.navPrev}`);
                     if (prevBtn) {
-                        const isDisabled = index === 0;
-                        prevBtn.disabled = isDisabled;
+                        prevBtn.disabled = isFirst;
                         const originalTitle = DomState.get(prevBtn, CONSTANTS.DATA_KEYS.ORIGINAL_TITLE);
-                        prevBtn.title = isDisabled ? `${originalTitle} ${disabledHint}` : originalTitle;
+                        prevBtn.title = isFirst ? `${originalTitle} ${disabledHint}` : originalTitle;
                     }
                     const nextBtn = container.querySelector(`.${cls.navNext}`);
                     if (nextBtn) {
-                        const isDisabled = index === messages.length - 1;
-                        nextBtn.disabled = isDisabled;
+                        nextBtn.disabled = isLast;
                         const originalTitle = DomState.get(nextBtn, CONSTANTS.DATA_KEYS.ORIGINAL_TITLE);
-                        nextBtn.title = isDisabled ? `${originalTitle} ${disabledHint}` : originalTitle;
+                        nextBtn.title = isLast ? `${originalTitle} ${disabledHint}` : originalTitle;
                     }
-                });
-            };
-            updateActorButtons(this.messageCacheManager.getUserMessages());
-            updateActorButtons(this.messageCacheManager.getAssistantMessages());
+                },
+                () => this.manageResource(CONSTANTS.RESOURCE_KEYS.BUTTON_STATE_TASK, null)
+            );
+
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BUTTON_STATE_TASK, cancelFn);
         }
     }
 
@@ -10379,6 +10403,9 @@
          * Clears caches on navigation and prepares for new data.
          */
         _handleNavigation() {
+            // Cancel pending batch tasks on navigation to prevent errors.
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.REMOVAL_TASK, null);
             // Only clear the DOM cache as the elements are gone.
             this._clearAllTimestampsDOM();
             this.currentChatId = null;
@@ -10432,9 +10459,73 @@
 
                 // If enabled, trigger a DOM update for the new real-time timestamp
                 if (this.isEnabled) {
-                    this.updateAllTimestamps();
+                    this._updateSingleTimestamp(messageId);
                 }
             }
+        }
+
+        /**
+         * @private
+         * Updates a single timestamp item. Uses BATCH_TASK to avoid conflicts with full updates.
+         */
+        _updateSingleTimestamp(messageId) {
+            const selector = `[${CONSTANTS.ATTRIBUTES.MESSAGE_ID}="${messageId}"]`;
+            const anchor = document.querySelector(selector);
+            if (!anchor) return;
+
+            const messageElement = PlatformAdapters.General.findMessageElement(anchor);
+            if (!messageElement) return;
+
+            // Cancel any pending full update to prioritize this single interaction
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
+
+            const item = {
+                messageElement,
+                existingContainer: this.timestampDomCache.get(messageElement),
+                anchor,
+                roleClass: null,
+                timestampText: this._formatTimestamp(PlatformAdapters.Timestamp.getTimestamp(messageId)),
+            };
+
+            const cls = this.styleHandle.classes;
+
+            const cancel = runBatchUpdate(
+                [item],
+                1,
+                (m) => {
+                    // Measure
+                    if (!m.messageElement.isConnected) return null;
+                    if (!m.existingContainer) {
+                        const role = PlatformAdapters.General.getMessageRole(m.messageElement);
+                        if (role) {
+                            m.roleClass = role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER ? cls.user : cls.assistant;
+                        }
+                    }
+                    return m;
+                },
+                (m) => {
+                    // Mutate
+                    let container = m.existingContainer;
+                    if (!container && m.anchor && m.anchor.isConnected && m.roleClass) {
+                        const node = this.timestampContainerTemplate.cloneNode(true);
+                        const span = this.timestampSpanTemplate.cloneNode(true);
+                        if (node instanceof HTMLElement && span instanceof Element) {
+                            container = node;
+                            container.classList.add(m.roleClass);
+                            container.appendChild(span);
+                            m.anchor.prepend(container);
+                            this.timestampDomCache.set(m.messageElement, container);
+                        }
+                    }
+                    if (container && container.isConnected) {
+                        const span = container.lastElementChild;
+                        if (span) span.textContent = m.timestampText;
+                        container.classList.toggle(cls.hidden, !m.timestampText);
+                    }
+                },
+                () => this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null)
+            );
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, cancel);
         }
 
         /**
@@ -10469,15 +10560,16 @@
         }
 
         _syncCache() {
-            // Synchronizes the DOM by removing any timestamp elements whose corresponding message is no longer in the cache.
+            // Identifies timestamp elements for removal whose corresponding message is no longer in the cache.
             // This prevents DOM leaks when messages are deleted.
             const currentMessages = new Set(this.messageCacheManager.getTotalMessages());
+            const removalCandidates = [];
             for (const [messageElement, domElement] of this.timestampDomCache.entries()) {
                 if (!currentMessages.has(messageElement)) {
-                    domElement.remove(); // Remove the timestamp from the DOM
-                    this.timestampDomCache.delete(messageElement); // Remove from the cache
+                    removalCandidates.push({ messageElement, domElement });
                 }
             }
+            return removalCandidates;
         }
 
         /**
@@ -10488,9 +10580,23 @@
         updateAllTimestamps() {
             // Cancel any existing batch task immediately
             this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.REMOVAL_TASK, null);
 
             // 1. Sync cache and remove deleted DOM nodes
-            this._syncCache();
+            const removalCandidates = this._syncCache();
+            if (removalCandidates.length > 0) {
+                const cancelRemoval = runBatchUpdate(
+                    removalCandidates,
+                    CONSTANTS.PROCESSING.BATCH_SIZE,
+                    (item) => item,
+                    ({ messageElement, domElement }) => {
+                        if (domElement.isConnected) domElement.remove(); // Remove the timestamp from the DOM
+                        this.timestampDomCache.delete(messageElement); // Remove from the cache
+                    },
+                    () => this.manageResource(CONSTANTS.RESOURCE_KEYS.REMOVAL_TASK, null)
+                );
+                this.manageResource(CONSTANTS.RESOURCE_KEYS.REMOVAL_TASK, cancelRemoval);
+            }
 
             const config = this.configManager.get();
             if (!config) return;
@@ -10633,6 +10739,7 @@
             this._subscribe(EVENTS.NAVIGATION, () => {
                 this.numberSpanCache.clear();
                 this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
+                this.manageResource(CONSTANTS.RESOURCE_KEYS.REMOVAL_TASK, null);
             });
         }
 
@@ -10647,7 +10754,14 @@
         }
 
         _syncCache() {
-            syncCacheWithMessages(this.numberSpanCache, this.messageCacheManager);
+            const currentMessages = new Set(this.messageCacheManager.getTotalMessages());
+            const removalCandidates = [];
+            for (const [messageElement, span] of this.numberSpanCache.entries()) {
+                if (!currentMessages.has(messageElement)) {
+                    removalCandidates.push({ messageElement, span });
+                }
+            }
+            return removalCandidates;
         }
 
         /**
@@ -10669,8 +10783,24 @@
         updateAllMessageNumbers() {
             // Cancel any existing batch task immediately
             this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.REMOVAL_TASK, null);
 
-            this._syncCache();
+            // 1. Async Cache Sync & Removal
+            const removalCandidates = this._syncCache();
+            if (removalCandidates.length > 0) {
+                const cancelRemoval = runBatchUpdate(
+                    removalCandidates,
+                    CONSTANTS.PROCESSING.BATCH_SIZE,
+                    (item) => item,
+                    ({ messageElement, span }) => {
+                        if (span.isConnected) span.remove();
+                        this.numberSpanCache.delete(messageElement);
+                    },
+                    () => this.manageResource(CONSTANTS.RESOURCE_KEYS.REMOVAL_TASK, null)
+                );
+                this.manageResource(CONSTANTS.RESOURCE_KEYS.REMOVAL_TASK, cancelRemoval);
+            }
+
             const config = this.configManager.get();
             if (!config) return;
 
