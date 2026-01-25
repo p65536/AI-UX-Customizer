@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.0-b417] - 2026-01-26
+- **Fixes**
+  - Fixed an issue in the Theme Editor where the scroll position and input focus were reset when clicking "Apply".
+- **Core Changes**
+  - Refactored `ThemePreviewController` to centralize style application logic, reducing code duplication and improving maintainability.
+
 ## [1.0.0-b416] - 2026-01-25
 - **Refactoring**
   - Removed unused logic to streamline the codebase.

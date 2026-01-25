@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b416
+// @version      1.0.0-b417
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -11787,6 +11787,35 @@
         }
 
         /**
+         * Resolves the effective value for a theme property based on editing mode.
+         * @private
+         * @param {object} config - The current config object.
+         * @param {object} defaultConfig - The default config object.
+         * @param {string} key - The property key.
+         * @returns {any} The resolved value.
+         */
+        _resolveValue(config, defaultConfig, key) {
+            const val = config[key];
+            if (this.isEditingDefault) return val;
+            return val ?? defaultConfig[key];
+        }
+
+        /**
+         * Applies mapped styles to an element using resolved values.
+         * @private
+         * @param {HTMLElement} element - The target element.
+         * @param {object} config - The current config object.
+         * @param {object} defaultConfig - The default config object.
+         * @param {Record<string, string>} mapping - Map of CSS property to config key.
+         */
+        _applyStyles(element, config, defaultConfig, mapping) {
+            const style = element.style;
+            for (const [cssProp, configKey] of Object.entries(mapping)) {
+                style[cssProp] = this._resolveValue(config, defaultConfig, configKey) || '';
+            }
+        }
+
+        /**
          * Updates the preview style for a specific actor (user/assistant).
          * Falls back to defaultSet values if properties are null/undefined, unless editing the default set itself.
          * @param {'user'|'assistant'} actor
@@ -11799,38 +11828,24 @@
             const currentConfig = config || {};
             const defaultConfig = this.defaultSet[actor] || {};
 
-            const resolve = (key) => {
-                const val = currentConfig[key];
-                if (this.isEditingDefault) return val;
-                return val ?? defaultConfig[key];
-            };
+            // Apply standard styles
+            this._applyStyles(element, currentConfig, defaultConfig, {
+                color: 'textColor',
+                backgroundColor: 'bubbleBackgroundColor',
+                fontFamily: 'font',
+                borderRadius: 'bubbleBorderRadius',
+                padding: 'bubblePadding',
+            });
 
-            const style = element.style;
-
-            // Text Color
-            style.color = resolve('textColor') || '';
-
-            // Background Color
-            style.backgroundColor = resolve('bubbleBackgroundColor') || '';
-
-            // Font Family
-            style.fontFamily = resolve('font') || '';
-
-            // Border Radius
-            style.borderRadius = resolve('bubbleBorderRadius') || '';
-
-            // Padding
-            style.padding = resolve('bubblePadding') || '';
-
-            // Max Width
+            // Max Width (Special handling for Auto fallback)
             // If the resolved value is null (Auto), fallback to hardcoded defaults for preview purposes
             // to mimic the behavior of previous versions (user: 50%, assistant: 90%).
-            const resolvedWidth = resolve('bubbleMaxWidth');
+            const resolvedWidth = this._resolveValue(currentConfig, defaultConfig, 'bubbleMaxWidth');
             const maxWidthDefault = actor === 'user' ? CONSTANTS.UI_SPECS.PREVIEW_BUBBLE_MAX_WIDTH.USER : CONSTANTS.UI_SPECS.PREVIEW_BUBBLE_MAX_WIDTH.ASSISTANT;
             const maxWidth = resolvedWidth ?? maxWidthDefault;
 
-            style.width = maxWidth;
-            style.maxWidth = maxWidth;
+            element.style.width = maxWidth;
+            element.style.maxWidth = maxWidth;
         }
 
         /**
@@ -11845,14 +11860,10 @@
             const currentConfig = config || {};
             const defaultConfig = this.defaultSet.inputArea || {};
 
-            const resolve = (key) => {
-                const val = currentConfig[key];
-                if (this.isEditingDefault) return val;
-                return val ?? defaultConfig[key];
-            };
-
-            element.style.color = resolve('textColor') || '';
-            element.style.backgroundColor = resolve('backgroundColor') || '';
+            this._applyStyles(element, currentConfig, defaultConfig, {
+                color: 'textColor',
+                backgroundColor: 'backgroundColor',
+            });
         }
 
         /**
@@ -11867,14 +11878,10 @@
             const currentConfig = config || {};
             const defaultConfig = this.defaultSet.window || {};
 
-            const resolve = (key) => {
-                const val = currentConfig[key];
-                if (this.isEditingDefault) return val;
-                return val ?? defaultConfig[key];
-            };
-
             // Only background-color is previewed for window
-            element.style.backgroundColor = resolve('backgroundColor') || '';
+            this._applyStyles(element, currentConfig, defaultConfig, {
+                backgroundColor: 'backgroundColor',
+            });
         }
     }
 
@@ -13877,6 +13884,10 @@
             EventBus.subscribe(
                 EVENTS.CONFIG_UPDATED,
                 async (newConfig) => {
+                    // Guard: Skip UI refresh if we are currently saving changes ourselves.
+                    // This prevents resetting the scroll position and focus processing during "Apply".
+                    if (this.state.isSaving) return;
+
                     // Update internal state with new config
                     this.state.config = deepClone(newConfig);
                     const sizeInfo = this.checkSize(newConfig);
