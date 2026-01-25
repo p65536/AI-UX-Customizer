@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b414
+// @version      1.0.0-b415
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -11478,6 +11478,9 @@
                 }
             };
 
+            // Ensure picker is closed when the parent component is destroyed or re-rendered
+            this.disposer(() => closePicker());
+
             if (swatch instanceof HTMLElement) {
                 swatch.onclick = (e) => {
                     e.preventDefault();
@@ -12631,6 +12634,8 @@
             this._handleDocumentClick = this._handleDocumentClick.bind(this);
             this._handleDocumentKeydown = this._handleDocumentKeydown.bind(this);
             this.isUpdatingFromExternal = false; // Flag to prevent save loops
+            /** @type {Array<() => void>} */
+            this._uiSubscriptions = []; // Transient subscriptions for the current render cycle
         }
 
         _onInit() {
@@ -12666,6 +12671,10 @@
 
         _onDestroy() {
             this.store = null;
+
+            // Clean up transient UI subscriptions
+            this._uiSubscriptions.forEach((unsub) => unsub());
+            this._uiSubscriptions = [];
 
             super._onDestroy();
         }
@@ -12812,14 +12821,23 @@
         }
 
         _renderContent() {
+            // 1. Clean up previous render's resources
+            this._uiSubscriptions.forEach((unsub) => unsub());
+            this._uiSubscriptions = [];
+
             this.element.textContent = '';
 
             const cls = { ...this.commonStyleHandle.classes, ...this.style.classes };
             const prefix = this.style.prefix;
             const context = { styles: cls, siteStyles: SITE_STYLES };
 
-            // UIBuilder instance: Use addStoreSubscription for lifecycle management
-            const ui = new UIBuilder(this.store, context, this.addStoreSubscription.bind(this));
+            // UIBuilder instance: Pass a wrapper to register transient subscriptions
+            const uiDisposer = (unsub) => {
+                if (typeof unsub === 'function') {
+                    this._uiSubscriptions.push(unsub);
+                }
+            };
+            const ui = new UIBuilder(this.store, context, uiDisposer);
 
             // --- 1. System Warning Banner ---
             const warningBanner = this._createSystemWarning(ui);

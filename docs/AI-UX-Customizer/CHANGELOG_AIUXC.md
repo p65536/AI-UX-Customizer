@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-b415] - 2026-01-25
+- **Bug Fixes**
+  - Fixed memory leak issues where the Settings Panel would accumulate event listeners and subscriptions upon re-rendering.
+  - Fixed an issue where the Color Picker failed to properly dispose of its popup and global listeners when the settings menu was closed or updated.
+
 ## [1.0.0-b414] - 2026-01-25
 - **Core Improvements**
   - **[Internal]** Completely rebuilt the settings and modal UI engine (`UIBuilder`). This architectural change reduces script overhead, improves maintainability, and ensures a snappier interface when opening menus or editing themes.
