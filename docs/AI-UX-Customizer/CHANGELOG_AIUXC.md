@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.0-b414] - 2026-01-25
+- **Core Improvements**
+  - **[Internal]** Completely rebuilt the settings and modal UI engine (`UIBuilder`). This architectural change reduces script overhead, improves maintainability, and ensures a snappier interface when opening menus or editing themes.
+- **User Interface**
+  - **[Settings]** All buttons and inputs in the Theme and JSON editors are now disabled while saving or importing data. This prevents errors and data corruption caused by rapid clicking or concurrent actions.
+  - **[Settings]** The JSON configuration modal no longer closes when clicking the background area. This prevents accidental loss of unsaved edits; it must now be closed explicitly via the "Cancel" button or Esc key.
+- **Bug Fixes**
+  - **[Theme Editor]** Fixed an issue where the live preview would stop updating correctly after switching themes or reloading the form.
+  - **[Theme Editor]** Fixed validation logic so that error messages (e.g., for invalid colors or regex patterns) appear and clear correctly.
+
 ## [1.0.0-b413] - 2026-01-25
 - **Fixes**
   - **[AutoScroll]** Fixed a bug where the layout scan (ChatGPT) or auto-scroll (Gemini) would incorrectly trigger when sending a new message in a short conversation. The system now correctly distinguishes between the initial page load and active user interaction.

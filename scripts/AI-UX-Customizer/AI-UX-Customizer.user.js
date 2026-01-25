@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b413
+// @version      1.0.0-b414
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -271,9 +271,13 @@
         STORE_KEYS: {
             SYSTEM_ROOT: '_system',
             SYSTEM_WARNING: 'warning',
+            SYSTEM_ERRORS: 'errors',
+            SYSTEM_SIZE_EXCEEDED: 'isSizeExceeded',
             WARNING_PATH: '_system.warning',
             WARNING_MSG_PATH: '_system.warning.message',
             WARNING_SHOW_PATH: '_system.warning.show',
+            ERRORS_PATH: '_system.errors',
+            SIZE_EXCEEDED_PATH: '_system.isSizeExceeded',
         },
         RESOURCE_KEYS: {
             // UI Components
@@ -1435,7 +1439,7 @@
     class BaseSettingsPanelAdapter {
         /**
          * Returns platform-specific feature toggles for the settings panel.
-         * @returns {Array<{type: string, configKey: string, label: string, title?: string, disabledIf?: (data: any) => boolean}>} Array of toggle definitions.
+         * @returns {Array<{type: string, configKey: string, label: string, title?: string, disabledIf?: (data: any) => boolean, dependencies?: string[]}>} Array of toggle definitions.
          */
         getPlatformSpecificFeatureToggles() {
             return [];
@@ -11114,434 +11118,542 @@
     }
 
     /**
-     * @class ComponentRegistry
-     * @description Registry for UI components used by FormEngine.
+     * @class UIBuilder
+     * @description A lightweight, procedural UI builder that handles DOM generation,
+     * two-way data binding with ReactiveStore, and lifecycle management.
      */
-    class ComponentRegistry {
-        static components = new Map();
-
-        /**
-         * Registers a component definition.
-         * @param {string} type - Component type name.
-         * @param {object} def - Component definition containing render logic.
-         */
-        static register(type, def) {
-            this.components.set(type, def);
-        }
-
-        /**
-         * Retrieves a component definition.
-         * @param {string} type
-         * @returns {object|undefined}
-         */
-        static get(type) {
-            return this.components.get(type);
-        }
-    }
-
-    /**
-     * @class FormEngine
-     * @extends BaseManager
-     * @description A reactive form engine that binds a schema to a ReactiveStore.
-     * Handles DOM generation, event binding, and dynamic property updates.
-     */
-    class FormEngine extends BaseManager {
+    class UIBuilder {
         /**
          * @param {ReactiveStore} store - The data store.
-         * @param {Array<object>|object} schema - The UI schema.
-         * @param {object} context - Context object containing styles, etc.
+         * @param {object} context - Context containing styles, siteStyles, fileHandler, etc.
+         * @param {(fn: () => void) => void} disposer - Function to register cleanup callbacks.
          */
-        constructor(store, schema, context) {
-            super();
+        constructor(store, context, disposer) {
             this.store = store;
-            this.schema = Array.isArray(schema) ? schema : [schema];
             this.context = context;
-            this.elements = new Map(); // Map<schemaId, HTMLElement>
-            this.isRendered = false;
-
-            // Bind methods
-            this._handleInput = this._handleInput.bind(this);
-            this._handleStoreUpdate = this._handleStoreUpdate.bind(this);
+            this.styles = context.styles || {};
+            this.disposer = disposer;
         }
 
         /**
-         * Renders the form definition into a DocumentFragment.
-         * @returns {DocumentFragment}
+         * Creates a DOM element wrapper using the global h() function.
+         * @param {string} tag
+         * @param {object} [props]
+         * @param {Array<Node|string>} [children]
+         * @returns {HTMLElement | SVGElement}
          */
-        render() {
-            if (this.isRendered) {
-                Logger.warn('FormEngine', '', 'render() called multiple times on the same instance. Ignoring.');
-                return document.createDocumentFragment();
-            }
-            this.isRendered = true;
-
-            const fragment = document.createDocumentFragment();
-            this._renderRecursive(this.schema, fragment);
-
-            // Setup reactivity after rendering
-            this.addDisposable(this.store.subscribe(this._handleStoreUpdate));
-
-            // Initial evaluation of dynamic properties
-            this._evaluateDynamicProperties(this.store.getData());
-
-            return fragment;
+        create(tag, props = {}, children = []) {
+            return h(tag, props, children);
         }
 
         /**
-         * Lifecycle hook for cleanup.
-         * @protected
-         * @override
+         * Observes store paths and triggers callback on change.
+         * Automatically registers cleanup.
+         * @param {string|string[]} paths - Config key(s) to observe.
+         * @param {function(any): void} callback - Called with full store state on change.
          */
-        _onDestroy() {
-            // Execute component-specific cleanup logic
-            for (const { element, node } of this.elements.values()) {
-                const component = ComponentRegistry.get(node.type);
-                if (component && typeof component.destroy === 'function') {
-                    try {
-                        component.destroy(element);
-                    } catch (e) {
-                        Logger.warn('FormEngine', LOG_STYLES.YELLOW, `Error destroying component "${node.type}"`, e);
-                    }
-                }
-            }
+        observe(paths, callback) {
+            const pathList = Array.isArray(paths) ? paths : [paths];
+            // Initial call
+            callback(this.store.getData());
 
-            this.elements.clear();
-        }
-
-        /**
-         * @private
-         */
-        _renderRecursive(schemaNodes, parent) {
-            for (const node of schemaNodes) {
-                const component = ComponentRegistry.get(node.type);
-                if (!component) {
-                    Logger.warn('FormEngine', '', `Unknown component type "${node.type}"`);
-                    continue;
-                }
-
-                // Render the component
-                const element = component.render(node, this.context, this);
-
-                if (element) {
-                    // Register element for updates if it has an ID
-                    // Use a generated internal ID if none provided to track the node
-                    const nodeId = node.id || `_node_${Math.random().toString(36).slice(2)}`;
-                    node._internalId = nodeId;
-                    this.elements.set(nodeId, { element, node });
-
-                    // Bind events if the component is interactive
-                    if (node.configKey) {
-                        this._bindInteractiveElement(element, node);
-                    }
-
-                    // Recursively render children if applicable
-                    // Some components might handle children rendering internally (e.g. specialized containers),
-                    // but the default behavior is to append them.
-                    if (node.children && !component.handlesChildren) {
-                        const container = component.getContentContainer ? component.getContentContainer(element) : element;
-                        this._renderRecursive(node.children, container);
-                    }
-
-                    parent.appendChild(element);
-                }
-            }
-        }
-
-        /**
-         * @private
-         */
-        _bindInteractiveElement(rootElement, node) {
-            const component = ComponentRegistry.get(node.type);
-
-            // Skip default binding if component handles it manually
-            if (component && component.manualBinding) {
-                // Just trigger initial update to sync UI with Store
-                const value = this.store.get(node.configKey);
-                if (component.onUpdate) {
-                    component.onUpdate(rootElement, value, this.context, node);
-                }
-                return;
-            }
-
-            // Find the actual input element.
-            let input = rootElement.matches('input, select, textarea') ? rootElement : rootElement.querySelector('input, select, textarea');
-
-            if (!input) {
-                input = rootElement;
-            }
-
-            // Retrieve initial value once
-            const initialValue = this.store.get(node.configKey);
-
-            // Check if input is a file input using selector match (safer than type property)
-            const isFileInput = input.matches('input[type="file"]');
-
-            // Set initial value (skip for file inputs to avoid security errors)
-            if (!isFileInput) {
-                this._setElementValue(input, initialValue, node);
-            }
-
-            // Initial UI update (for auxiliary displays like slider values)
-            if (component && component.onUpdate) {
-                component.onUpdate(input, initialValue, this.context, node);
-            }
-
-            // Listen for changes
-            const handler = (e) => this._handleInput(e, node);
-
-            // Determine correct event type to avoid double subscription
-            let useChangeEvent = false;
-            if (input.tagName === 'SELECT') {
-                useChangeEvent = true;
-            } else if (input.matches('input[type="checkbox"], input[type="radio"], input[type="file"]')) {
-                useChangeEvent = true;
-            }
-
-            const eventType = useChangeEvent ? 'change' : 'input';
-
-            input.addEventListener(eventType, handler);
-            this.addDisposable(() => input.removeEventListener(eventType, handler));
-        }
-
-        /**
-         * @private
-         */
-        _handleInput(e, node) {
-            // Auto-clear error when user interacts to improve UX
-            if (node.configKey) {
-                this.clearError(node.configKey);
-            }
-
-            const target = e.target;
-            let value;
-
-            if (target.type === 'checkbox') {
-                value = target.checked;
-            } else if (target.type === 'number' || target.type === 'range') {
-                const floatVal = parseFloat(target.value);
-                // Convert NaN (invalid input or empty string) to null for safety
-                value = Number.isNaN(floatVal) ? null : floatVal;
-            } else {
-                // Convert empty string to null for text inputs
-                value = target.value === '' ? null : target.value;
-            }
-
-            // Execute transformation hook if defined (UI Value -> Store Value)
-            if (node.transformValue) {
-                value = node.transformValue(value);
-            }
-
-            this.store.set(node.configKey, value);
-
-            // Execute side-effect hook if defined
-            if (node.onChange) {
-                node.onChange(value, this.store.getData());
-            }
-        }
-
-        /**
-         * Sets validation errors on the form components.
-         * @param {Array<{field: string, message: string}>} errors
-         */
-        setErrors(errors) {
-            // First clear existing errors to ensure fresh state
-            this.clearErrors();
-
-            errors.forEach((err) => {
-                const entry = this._findNodeByConfigKey(err.field);
-                if (!entry) return;
-
-                const { element } = entry;
-                const cls = this.context.styles;
-
-                // 1. Mark input as invalid (red border)
-                const input = element.matches('input, select, textarea') ? element : element.querySelector('input, select, textarea');
-                if (input) {
-                    input.classList.add(cls.invalidInput);
-                }
-
-                // 2. Display error message in the unified container
-                const selector = DomState.getSelector(CONSTANTS.DATA_KEYS.FORM_ERROR_FOR, err.field);
-                const errorContainer = element.querySelector(selector);
-                if (errorContainer instanceof HTMLElement) {
-                    errorContainer.textContent = err.message;
-                    errorContainer.title = err.message;
-                    // Apply error color from context siteStyles
-                    if (this.context.siteStyles?.PALETTE?.error_text) {
-                        errorContainer.style.color = this.context.siteStyles.PALETTE.error_text;
-                    }
+            const unsub = this.store.subscribe((state, changedPath) => {
+                // Check if changedPath matches or is parent/child of any observed path
+                const isMatch = pathList.some((p) => p === changedPath || changedPath.startsWith(p + '.') || p.startsWith(changedPath + '.'));
+                if (isMatch) {
+                    callback(state);
                 }
             });
+            this.disposer(unsub);
         }
 
         /**
-         * Clears all validation errors from the form.
+         * @private
+         * Sets up dynamic visibility and disabled state.
+         * @param {HTMLElement} element
+         * @param {object} options
          */
-        clearErrors() {
-            for (const { node } of this.elements.values()) {
-                if (node.configKey) {
-                    this.clearError(node.configKey);
+        _setupDynamicState(element, options) {
+            if (options.visibleIf || options.disabledIf) {
+                const deps = options.dependencies || [];
+                // If specific dependencies aren't listed but we have a key, watch the key too (unlikely for visibility but safe)
+                if (options.key && !deps.includes(options.key)) deps.push(options.key);
+
+                if (deps.length > 0) {
+                    this.observe(deps, (state) => {
+                        if (options.visibleIf) {
+                            element.style.display = options.visibleIf(state) ? '' : 'none';
+                        }
+                        if (options.disabledIf) {
+                            const isDisabled = options.disabledIf(state);
+                            const targets = element.matches('input, select, textarea, button') ? [element] : element.querySelectorAll('input, select, textarea, button');
+                            targets.forEach((t) => {
+                                if (t instanceof HTMLInputElement || t instanceof HTMLSelectElement || t instanceof HTMLTextAreaElement || t instanceof HTMLButtonElement) {
+                                    t.disabled = isDisabled;
+                                }
+                            });
+                            element.classList.toggle('is-disabled', isDisabled);
+                            element.style.opacity = isDisabled ? '0.5' : '';
+                            element.style.pointerEvents = isDisabled ? 'none' : '';
+                        }
+                    });
                 }
             }
         }
 
         /**
-         * Clears validation error for a specific field.
-         * @param {string} configKey
-         */
-        clearError(configKey) {
-            const entry = this._findNodeByConfigKey(configKey);
-            if (!entry) return;
-
-            const { element } = entry;
-            const cls = this.context.styles;
-
-            // 1. Remove invalid class
-            const input = element.matches('input, select, textarea') ? element : element.querySelector('input, select, textarea');
-            if (input) {
-                input.classList.remove(cls.invalidInput);
-            }
-
-            // 2. Clear error message and reset style
-            const selector = DomState.getSelector(CONSTANTS.DATA_KEYS.FORM_ERROR_FOR, configKey);
-            const errorContainer = element.querySelector(selector);
-            if (errorContainer instanceof HTMLElement) {
-                errorContainer.textContent = '';
-                errorContainer.title = '';
-                errorContainer.style.color = '';
-            }
-        }
-
-        /**
-         * Efficiently finds a node definition and DOM element by configKey.
          * @private
-         * @param {string} configKey
-         * @returns {{element: HTMLElement, node: object}|undefined}
+         * Binds an input element to the store key.
+         * @param {HTMLElement} element - The container element.
+         * @param {HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement} input - The input element.
+         * @param {string} key - Store key.
+         * @param {object} options - Transform options.
          */
-        _findNodeByConfigKey(configKey) {
-            for (const entry of this.elements.values()) {
-                if (entry.node.configKey === configKey) {
-                    return entry;
+        _bindInput(element, input, key, options) {
+            // 1. Store -> UI Update
+            this.observe(key, (state) => {
+                // Clear error on external update
+                this._updateErrorState(element, key, state);
+
+                const rawValue = getPropertyByPath(state, key);
+                // Allow manual override for complex components (like ColorPicker)
+                if (options.onStoreUpdate) {
+                    options.onStoreUpdate(input, rawValue);
+                    return;
                 }
-            }
-            return undefined;
-        }
 
-        /**
-         * @private
-         */
-        _setElementValue(element, value, node) {
-            // Apply transformation from Store Value -> UI Input Value if defined
-            let inputValue = value;
-            if (node && node.toInputValue) {
-                inputValue = node.toInputValue(value);
+                const uiValue = options.toInputValue ? options.toInputValue(rawValue) : rawValue;
+
+                if (input instanceof HTMLInputElement && input.type === 'checkbox') {
+                    input.checked = !!uiValue;
+                } else if (input.value !== String(uiValue ?? '')) {
+                    // Avoid resetting cursor position if value is effectively same
+                    input.value = String(uiValue ?? '');
+                }
+
+                // Hook for label update (sliders)
+                // Pass rawValue to allow formatting based on the actual store value (e.g. null -> "Auto")
+                if (options.onUIUpdate) options.onUIUpdate(rawValue, uiValue);
+            });
+
+            // 2. UI -> Store Update
+            let eventType = 'input';
+            if (input instanceof HTMLInputElement && input.type === 'checkbox') {
+                eventType = 'change';
+            } else if (input instanceof HTMLSelectElement) {
+                eventType = 'change';
             }
 
-            if (element.type === 'checkbox') {
-                element.checked = !!inputValue;
-            } else if (element.type === 'range' || element.type === 'number') {
-                // Handle null/undefined for numeric inputs
-                if (inputValue === null || inputValue === undefined) {
-                    // Check for dataset defaults or specific logic (can be extended)
-                    element.value = element.min || 0;
+            const handler = (e) => {
+                let value;
+                if (input instanceof HTMLInputElement && input.type === 'checkbox') {
+                    value = input.checked;
                 } else {
-                    element.value = inputValue;
+                    value = input.value;
                 }
-            } else {
-                element.value = inputValue === null || inputValue === undefined ? '' : inputValue;
-            }
+
+                if (input instanceof HTMLInputElement && (input.type === 'number' || input.type === 'range')) {
+                    value = value === '' ? null : parseFloat(String(value));
+                } else if (typeof value === 'string' && value === '') {
+                    value = null; // Normalize empty string to null
+                }
+
+                if (options.transformValue) {
+                    value = options.transformValue(value);
+                }
+
+                this.store.set(key, value);
+
+                // Optimistic error clearing
+                this._clearError(key);
+            };
+
+            input.addEventListener(eventType, handler);
+            this.disposer(() => input.removeEventListener(eventType, handler));
         }
 
         /**
          * @private
+         * Manages error display based on store state.
          */
-        _handleStoreUpdate(state, changedPath) {
-            // 1. Update bound values
-            for (const { element, node } of this.elements.values()) {
-                // Check for exact match, parent path match (changedPath is parent), OR child path match (changedPath is child)
-                // This ensures bi-directional updates:
-                // - Parent change updates children (e.g. store.set('user', ...) updates 'user.name' input)
-                // - Child change updates parent (e.g. store.set('user.name', ...) updates 'user' bound component)
-                if (node.configKey && typeof changedPath === 'string' && (node.configKey === changedPath || node.configKey.startsWith(changedPath + '.') || changedPath.startsWith(node.configKey + '.'))) {
-                    // Auto-clear error on store update to ensure UI consistency (e.g. file selection)
-                    this.clearError(node.configKey);
+        _updateErrorState(element, key, state) {
+            const errorPath = `${CONSTANTS.STORE_KEYS.ERRORS_PATH}.${key}`;
+            const error = getPropertyByPath(state, errorPath); // Expecting { message: string } or null
 
-                    const component = ComponentRegistry.get(node.type);
-                    const newValue = this.store.get(node.configKey);
+            const errorMsg = element.querySelector(`.${this.styles.formErrorMsg}`);
+            const input = element.querySelector('input, select, textarea');
 
-                    // Handle manual binding components (e.g. padding slider)
-                    // These components manage their own internal state updates via onUpdate
-                    if (component && component.manualBinding) {
-                        if (component.onUpdate) {
-                            component.onUpdate(element, newValue, this.context, node);
-                        }
-                        continue;
-                    }
+            if (errorMsg && error) {
+                errorMsg.textContent = error.message || error;
+                if (input) input.classList.add(this.styles.invalidInput);
+            } else if (errorMsg) {
+                errorMsg.textContent = '';
+                if (input) input.classList.remove(this.styles.invalidInput);
+            }
+        }
 
-                    // Default behavior for standard inputs
-                    const input = element.matches('input, select, textarea') ? element : element.querySelector('input, select, textarea');
-                    if (input) {
-                        // Only update DOM if different to prevent cursor jumping
-                        if (input.type === 'checkbox') {
-                            if (input.checked !== !!newValue) input.checked = !!newValue;
-                        } else {
-                            // Calculate expected UI value to compare
-                            let expectedValue = newValue;
-                            if (node.toInputValue) {
-                                expectedValue = node.toInputValue(newValue);
+        _clearError(key) {
+            // Helper to clear error in store
+            this.store.set(`${CONSTANTS.STORE_KEYS.ERRORS_PATH}.${key}`, null);
+        }
+
+        // --- Components ---
+
+        text(key, label, options = {}) {
+            const cls = this.styles;
+            const input = this.create('input', { type: 'text' });
+            const errorSpan = this.create('div', { className: cls.formErrorMsg });
+
+            const children = [input];
+
+            // File selection button for image fields
+            if (options.fieldType === 'image' || options.fieldType === 'icon') {
+                const btn = this.create(
+                    'button',
+                    {
+                        className: cls.localFileBtn,
+                        type: 'button',
+                        title: 'Select local file',
+                        onclick: () => {
+                            if (this.context.fileHandler) {
+                                this.context.fileHandler(key, {
+                                    onStart: () => {
+                                        if (errorSpan instanceof HTMLElement) {
+                                            errorSpan.textContent = 'Processing...';
+                                            errorSpan.style.color = this.context.siteStyles?.PALETTE?.accent_text;
+                                        }
+                                    },
+                                    onSuccess: () => {
+                                        if (errorSpan instanceof HTMLElement) {
+                                            errorSpan.textContent = '';
+                                            errorSpan.style.color = '';
+                                        }
+                                        if (input instanceof HTMLElement) input.classList.remove(cls.invalidInput);
+                                    },
+                                    onError: (msg) => {
+                                        if (errorSpan instanceof HTMLElement) {
+                                            errorSpan.textContent = msg;
+                                            errorSpan.style.color = this.context.siteStyles?.PALETTE?.error_text;
+                                        }
+                                    },
+                                });
                             }
-                            // Loose equality check to allow string/number conversions
-                            // eslint-disable-next-line eqeqeq
-                            if (input.value != expectedValue) this._setElementValue(input, newValue, node);
-                        }
-
-                        // Trigger UI update hook
-                        if (component && component.onUpdate) {
-                            component.onUpdate(input, newValue, this.context, node);
-                        }
-                    } else {
-                        // Fallback for non-input components (e.g. text-display)
-                        // Trigger UI update hook passing the root element
-                        if (component && component.onUpdate) {
-                            component.onUpdate(element, newValue, this.context, node);
-                        }
-                    }
-                }
+                        },
+                    },
+                    [createIconFromDef(StyleDefinitions.ICONS.folder)]
+                );
+                children.push(btn);
             }
 
-            // 2. Evaluate dynamic properties (visibility, disabled state)
-            this._evaluateDynamicProperties(state);
+            const container = this.create('div', { className: cls.formField }, [
+                this.create('div', { className: cls.labelRow }, [this.create('label', { title: options.tooltip }, label)]),
+                this.create('div', { className: cls.inputWrapper }, children),
+                errorSpan,
+            ]);
+
+            if (container instanceof HTMLElement && input instanceof HTMLInputElement) {
+                this._bindInput(container, input, key, options);
+                this._setupDynamicState(container, options);
+
+                // Allow manual error update observing
+                this.observe(`${CONSTANTS.STORE_KEYS.ERRORS_PATH}.${key}`, (state) => this._updateErrorState(container, key, state));
+            }
+
+            return container;
         }
 
-        /**
-         * @private
-         */
-        _evaluateDynamicProperties(state) {
-            for (const { element, node } of this.elements.values()) {
-                // Visibility
-                if (node.visibleIf) {
-                    const isVisible = node.visibleIf(state);
-                    element.style.display = isVisible ? '' : 'none';
-                }
+        textarea(key, label, options = {}) {
+            const cls = this.styles;
+            const input = this.create('textarea', { rows: options.rows || 3 });
+            const errorSpan = this.create('div', { className: cls.formErrorMsg });
 
-                // Disabled state
-                if (node.disabledIf) {
-                    const isDisabled = node.disabledIf(state);
-                    const targets = element.matches('input, select, textarea, button') ? [element] : element.querySelectorAll('input, select, textarea, button');
-                    targets.forEach((t) => (t.disabled = isDisabled));
+            const container = this.create('div', { className: cls.formField }, [this.create('label', { title: options.tooltip }, label), input, errorSpan]);
 
-                    // Style adjustments for containers
-                    if (isDisabled) {
-                        element.classList.add('is-disabled');
-                        element.style.opacity = '0.5';
-                        element.style.pointerEvents = 'none';
-                    } else {
-                        element.classList.remove('is-disabled');
-                        element.style.opacity = '';
-                        element.style.pointerEvents = '';
-                    }
-                }
+            if (container instanceof HTMLElement && input instanceof HTMLTextAreaElement) {
+                this._bindInput(container, input, key, options);
+                this._setupDynamicState(container, options);
+                this.observe(`${CONSTANTS.STORE_KEYS.ERRORS_PATH}.${key}`, (state) => this._updateErrorState(container, key, state));
             }
+
+            return container;
+        }
+
+        toggle(key, label, options = {}) {
+            const cls = this.styles;
+            const input = this.create('input', { type: 'checkbox' });
+
+            const container = this.create('div', { className: cls.submenuRow }, [
+                this.create('label', { title: options.title }, label), // Label on left
+                this.create('label', { className: cls.toggleSwitch, title: options.title }, [
+                    // Switch on right
+                    input,
+                    this.create('span', { className: cls.toggleSlider }),
+                ]),
+            ]);
+
+            if (container instanceof HTMLElement && input instanceof HTMLInputElement) {
+                this._bindInput(container, input, key, options);
+                this._setupDynamicState(container, options);
+            }
+
+            return container;
+        }
+
+        range(key, label, min, max, options = {}) {
+            const cls = this.styles;
+            const step = options.step || 1;
+
+            const input = this.create('input', { type: 'range', min, max, step });
+            const display = this.create('span', { className: cls.sliderDisplay });
+
+            const controlGroup = this.create('div', { className: cls.sliderSubgroupControl }, [input, display]);
+            const containerClass = options.containerClass ? cls[options.containerClass] : cls.sliderContainer;
+
+            const container = this.create('div', { className: containerClass }, [this.create('label', { title: options.tooltip }, label), controlGroup]);
+
+            const extendedOptions = {
+                ...options,
+                // Use rawValue (val) for display logic to handle 'Auto' (null) correctly
+                onUIUpdate: (val, uiVal) => {
+                    if (options.valueLabelFormatter) {
+                        display.textContent = options.valueLabelFormatter(val);
+                    } else {
+                        display.textContent = val === null || val === undefined ? 'Auto' : String(val);
+                    }
+                    // Handle 'default' style (grey out text if auto)
+                    if (controlGroup instanceof HTMLElement) {
+                        const isDefault = val === null || val === undefined;
+                        controlGroup.classList.toggle('is-default', isDefault);
+                    }
+                },
+            };
+
+            if (container instanceof HTMLElement && input instanceof HTMLInputElement) {
+                this._bindInput(container, input, key, extendedOptions);
+                this._setupDynamicState(container, options);
+            }
+
+            return container;
+        }
+
+        select(key, label, options = {}) {
+            const cls = this.styles;
+            const selectOptions = (options.options || []).map((opt) => {
+                const text = opt === '' ? '(not set)' : opt;
+                return this.create('option', { value: opt }, text);
+            });
+
+            const input = this.create('select', {}, selectOptions);
+
+            let container;
+            if (options.showLabel) {
+                container = this.create('div', { className: cls.formField }, [this.create('label', { title: options.tooltip }, label), input]);
+            } else {
+                // Bare select (often used in rows)
+                container = input;
+            }
+
+            if (container instanceof HTMLElement && input instanceof HTMLSelectElement) {
+                this._bindInput(container, input, key, options);
+                if (container !== input) this._setupDynamicState(container, options);
+            }
+
+            return container;
+        }
+
+        color(key, label, options = {}) {
+            const cls = this.styles;
+            const input = this.create('input', { type: 'text', autocomplete: 'off' });
+
+            const swatchValue = this.create('span', { className: cls.colorSwatchValue });
+            const swatch = this.create('button', { className: cls.colorSwatch, type: 'button', title: 'Open color picker' }, [this.create('span', { className: cls.colorSwatchChecker }), swatchValue]);
+
+            // Picker logic encapsulation
+            let activePicker = null;
+            const closePicker = () => {
+                if (activePicker) {
+                    activePicker.destroy();
+                    activePicker.popup.remove();
+                    activePicker = null;
+                }
+            };
+
+            if (swatch instanceof HTMLElement) {
+                swatch.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!(input instanceof HTMLInputElement)) return;
+                    if (activePicker) {
+                        closePicker();
+                        return;
+                    }
+
+                    // Create popup
+                    const popupRoot = this.create('div');
+                    const popupWrapper = this.create('div', { className: cls.colorPickerPopup, style: { position: 'absolute' } }, [popupRoot]);
+
+                    const dialog = swatch.closest('dialog') || document.body;
+                    if (popupWrapper instanceof HTMLElement) {
+                        dialog.appendChild(popupWrapper);
+                    }
+
+                    if (popupRoot instanceof HTMLElement) {
+                        const picker = new CustomColorPicker(popupRoot, {
+                            initialColor: input.value || 'rgb(128 128 128 / 1)',
+                            classes: cls,
+                        });
+                        picker.render();
+
+                        // Positioning logic (simplified from existing)
+                        const rect = swatch.getBoundingClientRect();
+                        const containerRect = dialog.getBoundingClientRect();
+                        if (popupWrapper instanceof HTMLElement) {
+                            popupWrapper.style.top = `${rect.bottom - containerRect.top + 4}px`;
+                            popupWrapper.style.left = `${rect.left - containerRect.left}px`;
+                        }
+
+                        // Events
+                        const onColorChange = (ev) => {
+                            if (ev instanceof CustomEvent) {
+                                const color = ev.detail.color;
+                                input.value = color;
+                                if (swatchValue instanceof HTMLElement) {
+                                    swatchValue.style.backgroundColor = color;
+                                }
+                                input.dispatchEvent(new Event('input')); // Trigger store update
+                            }
+                        };
+                        popupRoot.addEventListener('color-change', onColorChange);
+
+                        // Auto close
+                        const outsideClick = (ev) => {
+                            if (popupWrapper instanceof HTMLElement) {
+                                if (ev.target instanceof Node && !popupWrapper.contains(ev.target) && ev.target !== swatch && !swatch.contains(ev.target)) closePicker();
+                            }
+                        };
+                        setTimeout(() => document.addEventListener('click', outsideClick, true), 0);
+
+                        activePicker = {
+                            destroy: () => {
+                                picker.destroy();
+                                document.removeEventListener('click', outsideClick, true);
+                            },
+                            popup: popupWrapper,
+                        };
+                    }
+                };
+            }
+
+            const container = this.create('div', { className: cls.formField }, [
+                this.create('div', { className: cls.labelRow }, [
+                    this.create('label', { title: options.tooltip }, label),
+                    this.create('span', { className: cls.statusText }), // Error container placeholder
+                ]),
+                this.create('div', { className: cls.colorFieldWrapper }, [input, swatch]),
+            ]);
+
+            const extendedOptions = {
+                ...options,
+                onStoreUpdate: (el, val) => {
+                    if (input instanceof HTMLInputElement) input.value = val || '';
+                    if (swatchValue instanceof HTMLElement) swatchValue.style.backgroundColor = val || 'transparent';
+                },
+            };
+
+            if (container instanceof HTMLElement && input instanceof HTMLInputElement) {
+                this._bindInput(container, input, key, extendedOptions);
+                this._setupDynamicState(container, options);
+                // Error handling for color field (using statusText)
+                this.observe(`${CONSTANTS.STORE_KEYS.ERRORS_PATH}.${key}`, (state) => {
+                    const error = getPropertyByPath(state, `${CONSTANTS.STORE_KEYS.ERRORS_PATH}.${key}`);
+                    const statusText = container.querySelector(`.${cls.statusText}`);
+                    if (statusText instanceof HTMLElement) {
+                        statusText.textContent = error ? error.message || error : '';
+                        statusText.style.color = error ? this.context.siteStyles?.PALETTE?.error_text || 'red' : '';
+                    }
+                    if (error) input.classList.add(cls.invalidInput);
+                    else input.classList.remove(cls.invalidInput);
+                });
+            }
+
+            return container;
+        }
+
+        button(id, text, onClick, options = {}) {
+            const cls = this.styles;
+            const className = options.className ? `${cls.modalButton} ${options.className}` : cls.modalButton;
+            const btn = this.create(
+                'button',
+                {
+                    id,
+                    className,
+                    type: 'button',
+                    title: options.title || '',
+                    onclick: (e) => {
+                        e.preventDefault();
+                        if (typeof onClick === 'function') {
+                            onClick(e);
+                        }
+                    },
+                    style: { width: options.fullWidth ? '100%' : 'auto' },
+                },
+                text
+            );
+            return btn;
+        }
+
+        // --- Layouts ---
+
+        group(label, children, options = {}) {
+            const cls = this.styles;
+            const container = this.create('fieldset', { className: cls.submenuFieldset }, [this.create('legend', {}, label), ...children]);
+            if (container instanceof HTMLElement) {
+                this._setupDynamicState(container, options);
+            }
+            return container;
+        }
+
+        row(children, options = {}) {
+            const cls = this.styles;
+            let className = cls.submenuRow;
+            if (options.className && cls[options.className]) {
+                className += ` ${cls[options.className]}`;
+            } else if (options.className) {
+                className += ` ${options.className}`;
+            }
+            const container = this.create('div', { className }, children);
+            if (container instanceof HTMLElement) {
+                this._setupDynamicState(container, options);
+            }
+            return container;
+        }
+
+        separator(options = {}) {
+            const container = this.create('div', { className: this.styles.submenuSeparator });
+            if (container instanceof HTMLElement) {
+                this._setupDynamicState(container, options);
+            }
+            return container;
+        }
+
+        label(text, options = {}) {
+            const container = this.create('label', { title: options.title }, text);
+            if (container instanceof HTMLElement) {
+                this._setupDynamicState(container, options);
+            }
+            return container;
+        }
+
+        container(children, options = {}) {
+            let className = '';
+            if (options.className && this.styles[options.className]) {
+                className = this.styles[options.className];
+            }
+            const container = this.create('div', { className }, children);
+            if (container instanceof HTMLElement) {
+                this._setupDynamicState(container, options);
+            }
+            return container;
         }
     }
 
@@ -11557,6 +11669,7 @@
          * @property {string} [className] - Custom CSS class.
          * @property {(data: any) => boolean} [visibleIf] - Conditional visibility.
          * @property {(data: any) => boolean} [disabledIf] - Conditional disabled state.
+         * @property {string[]} [dependencies] - Array of config keys to observe.
          * @property {(value: any, data: any) => void} [onChange] - Side effect callback.
          */
 
@@ -11650,949 +11763,6 @@
         },
         PreviewBackground(options = {}) {
             return { type: 'preview-background', ...options };
-        },
-    };
-
-    /**
-     * Registers standard UI components to the registry.
-     */
-    function registerComponents() {
-        // --- Layout Components ---
-        ComponentRegistry.register('group', {
-            render(node, context) {
-                const cls = context.styles;
-                // Group is rendered as a fieldset
-                return h('fieldset', { className: cls.submenuFieldset }, [h('legend', node.label)]);
-            },
-        });
-
-        ComponentRegistry.register('row', {
-            render(node, context) {
-                const cls = context.styles;
-                let className = cls.submenuRow;
-                // Append custom logical class if provided and exists in styles
-                if (node.className && cls[node.className]) {
-                    className += ` ${cls[node.className]}`;
-                }
-                return h('div', { className: className });
-            },
-        });
-
-        ComponentRegistry.register('separator', {
-            render(node, context) {
-                return h('div', { className: context.styles.submenuSeparator });
-            },
-        });
-
-        ComponentRegistry.register('label', {
-            render(node, context) {
-                return h('label', { title: node.title }, node.text);
-            },
-        });
-
-        // --- Input Components ---
-        ComponentRegistry.register('text', {
-            render(node, context) {
-                const cls = context.styles;
-                const isImageField = ['image', 'icon'].includes(node.fieldType);
-
-                const input = h('input', {
-                    type: 'text',
-                    // id is not strictly required here as label uses wrapper/logic, but keeping if provided
-                    dataset: { [CONSTANTS.DATA_KEYS.CONFIG_KEY]: node.configKey },
-                });
-
-                const wrapperChildren = [input];
-
-                // Create status span for BOTH file processing feedback AND validation errors
-                // Unified attribute 'data-form-error-for' allows FormEngine to target this element
-                const statusSpan = h('span', {
-                    className: cls.statusText,
-                    dataset: { [CONSTANTS.DATA_KEYS.FORM_ERROR_FOR]: node.configKey },
-                });
-
-                if (isImageField) {
-                    const btn = h(
-                        'button',
-                        {
-                            className: cls.localFileBtn,
-                            type: 'button',
-                            dataset: { [CONSTANTS.DATA_KEYS.TARGET_CONFIG_KEY]: node.configKey },
-                            title: 'Select local file',
-                            onclick: (e) => {
-                                if (context.fileHandler) {
-                                    context.fileHandler(node.configKey, {
-                                        onStart: () => {
-                                            if (statusSpan instanceof HTMLElement) {
-                                                statusSpan.textContent = 'Processing...';
-                                                statusSpan.title = '';
-                                                statusSpan.style.color = context.siteStyles?.PALETTE?.accent_text || '';
-                                            }
-                                        },
-                                        onSuccess: () => {
-                                            if (statusSpan instanceof HTMLElement) {
-                                                statusSpan.textContent = '';
-                                                statusSpan.title = '';
-                                                statusSpan.style.color = '';
-                                            }
-                                            // Clear the error state from the input field
-                                            if (input instanceof HTMLElement) {
-                                                input.classList.remove(cls.invalidInput);
-                                            }
-                                        },
-                                        onError: (message) => {
-                                            if (statusSpan instanceof HTMLElement) {
-                                                statusSpan.textContent = 'Error';
-                                                statusSpan.title = message; // Show details on hover
-                                                statusSpan.style.color = context.siteStyles?.PALETTE?.error_text || '';
-                                            }
-                                        },
-                                    });
-                                }
-                            },
-                        },
-                        [createIconFromDef(StyleDefinitions.ICONS.folder)]
-                    );
-                    wrapperChildren.push(btn);
-                }
-
-                return h('div', { className: cls.formField }, [h('div', { className: cls.labelRow }, [h('label', { title: node.tooltip }, node.label), statusSpan]), h('div', { className: cls.inputWrapper }, wrapperChildren)]);
-            },
-        });
-
-        ComponentRegistry.register('toggle', {
-            render(node, context) {
-                const cls = context.styles;
-                // Toggle structure: label.switch > input + span.slider
-                return h('label', { className: cls.toggleSwitch, title: node.title }, [
-                    h('input', {
-                        type: 'checkbox',
-                        dataset: { [CONSTANTS.DATA_KEYS.CONFIG_KEY]: node.configKey },
-                    }),
-                    h('span', { className: cls.toggleSlider }),
-                ]);
-            },
-        });
-
-        ComponentRegistry.register('slider', {
-            render(node, context) {
-                const cls = context.styles;
-                const containerClass = node.containerClass ? context.styles[node.containerClass] : cls.sliderContainer;
-
-                // Create display element
-                const display = h('span', { className: cls.sliderDisplay });
-
-                const input = h('input', {
-                    type: 'range',
-                    min: node.min,
-                    max: node.max,
-                    step: node.step || 1,
-                    dataset: { [CONSTANTS.DATA_KEYS.CONFIG_KEY]: node.configKey },
-                });
-
-                return h('div', { className: containerClass }, [h('label', { title: node.tooltip }, node.label), h('div', { className: cls.sliderSubgroupControl }, [input, display])]);
-            },
-            onUpdate(input, value, context, node) {
-                const cls = context.styles;
-                const container = input.closest(`.${cls.sliderSubgroupControl}`);
-                if (!container) return;
-
-                const display = container.querySelector(`.${cls.sliderDisplay}`);
-                if (!display) return;
-
-                // Use custom formatter if provided
-                if (node.valueLabelFormatter) {
-                    display.textContent = node.valueLabelFormatter(value);
-                    return;
-                }
-
-                // Default logic: Null check for "Auto"
-                if (value === null || value === undefined) {
-                    display.textContent = 'Auto';
-                    return;
-                }
-
-                // Prevent duplicate unit display if value is string (e.g. "50%")
-                display.textContent = String(value);
-            },
-        });
-
-        // Singleton state for color picker to manage toggling correctly
-        let activePickerState = null;
-
-        ComponentRegistry.register('color', {
-            render(node, context) {
-                const cls = context.styles;
-                const wrapper = h('div', { className: cls.colorFieldWrapper });
-                const input = h('input', { type: 'text', dataset: { [CONSTANTS.DATA_KEYS.CONFIG_KEY]: node.configKey }, autocomplete: 'off' });
-
-                const swatchValue = h('span', { className: cls.colorSwatchValue });
-                const swatch = h('button', { className: cls.colorSwatch, type: 'button', title: 'Open color picker' }, [h('span', { className: cls.colorSwatchChecker }), swatchValue]);
-
-                // Encapsulate close logic
-                const closePicker = () => {
-                    if (activePickerState) {
-                        activePickerState.picker.destroy();
-                        activePickerState.popupWrapper.remove();
-                        document.removeEventListener('click', activePickerState.outsideClickHandler, true);
-                        document.removeEventListener('keydown', activePickerState.keydownHandler, true);
-                        window.removeEventListener('scroll', activePickerState.scrollHandler, { capture: true });
-                        window.removeEventListener('resize', activePickerState.scrollHandler);
-                        // Also remove scroll listener from the dialog content wrapper if possible
-                        if (activePickerState.scrollContainer) {
-                            activePickerState.scrollContainer.removeEventListener('scroll', activePickerState.scrollHandler, { capture: true, passive: true });
-                        }
-
-                        activePickerState = null;
-                    }
-                };
-
-                swatch.onclick = (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-
-                    if (!(input instanceof HTMLInputElement)) return;
-
-                    // Toggle logic: if clicking the active swatch, just close.
-                    if (activePickerState && activePickerState.swatch === swatch) {
-                        closePicker();
-                        return;
-                    }
-
-                    // Close any other open picker
-                    closePicker();
-
-                    const popupRoot = h('div');
-                    // Note: Use 'absolute' positioning relative to the dialog
-                    const popupWrapper = h(`div.${cls.colorPickerPopup}`, { style: { position: 'absolute' } }, [popupRoot]);
-
-                    // Find the dialog to append to. This ensures correct z-index stacking context.
-                    const dialog = swatch.closest('dialog') || document.body;
-                    dialog.appendChild(popupWrapper);
-
-                    const picker = new CustomColorPicker(popupRoot, {
-                        initialColor: input.value || 'rgb(128 128 128 / 1)',
-                        classes: cls,
-                    });
-                    picker.render();
-
-                    // --- Coordinate Calculation (Relative to Dialog) ---
-                    const dialogRect = dialog.getBoundingClientRect();
-                    const swatchRect = swatch.getBoundingClientRect();
-
-                    const dim = CustomColorPicker.DIMENSIONS;
-                    const pickerWidth = dim.WIDTH + dim.PADDING; // Approx width + padding
-                    const pickerHeight = dim.HEIGHT; // Approx height
-                    const margin = dim.MARGIN;
-
-                    // Calculate top/left relative to the dialog's top-left corner
-                    let top = swatchRect.bottom - dialogRect.top + margin;
-                    let left = swatchRect.left - dialogRect.left;
-
-                    // Flip vertical if overflow bottom
-                    if (swatchRect.bottom + pickerHeight > window.innerHeight) {
-                        top = swatchRect.top - dialogRect.top - pickerHeight - margin;
-                    }
-
-                    // Shift horizontal if overflow right
-                    // Check against dialog width or window width? Window width is safer for overflow.
-                    if (swatchRect.left + pickerWidth > window.innerWidth) {
-                        left = window.innerWidth - dialogRect.left - pickerWidth - margin;
-                    }
-
-                    // Ensure not off-screen to the left or top
-                    top = Math.max(margin, top);
-                    left = Math.max(margin, left);
-
-                    popupWrapper.style.top = `${top}px`;
-                    popupWrapper.style.left = `${left}px`;
-
-                    // --- Initial Value Sync ---
-                    // Normalize the input value to the picker's format (rgb/rgba).
-                    // This handles cases like #RRGGBB or named colors being converted to modern syntax immediately.
-                    const pickerColor = picker.getColor();
-                    // Only update if the value is actually different (normalization needed)
-                    // or if the input was empty (default value applied).
-                    if (input.value !== pickerColor) {
-                        input.value = pickerColor;
-                        if (swatchValue instanceof HTMLElement) {
-                            swatchValue.style.backgroundColor = pickerColor;
-                        }
-                        input.dispatchEvent(new Event('input', { bubbles: true }));
-                    }
-
-                    // Sync Picker -> Input
-                    let isSyncing = false;
-                    popupRoot.addEventListener('color-change', (ev) => {
-                        if (isSyncing) return;
-                        if (ev instanceof CustomEvent) {
-                            isSyncing = true;
-                            const newColor = ev.detail.color;
-                            if (input instanceof HTMLInputElement) {
-                                input.value = newColor;
-                                if (swatchValue instanceof HTMLElement) {
-                                    swatchValue.style.backgroundColor = newColor;
-                                }
-                                input.dispatchEvent(new Event('input', { bubbles: true }));
-                            }
-                            isSyncing = false;
-                        }
-                    });
-
-                    // Event Handlers for Auto-close
-                    const outsideClickHandler = (ev) => {
-                        const target = ev.target;
-                        if (target instanceof Node) {
-                            if (!popupWrapper.contains(target) && target !== swatch && !swatch.contains(target)) {
-                                closePicker();
-                            }
-                        }
-                    };
-
-                    const scrollHandler = () => closePicker();
-
-                    // Keydown handler to capture ESC
-                    const keydownHandler = (ev) => {
-                        if (ev.key === 'Escape') {
-                            ev.preventDefault();
-                            ev.stopPropagation();
-                            closePicker();
-                        }
-                    };
-
-                    // Register state
-                    activePickerState = {
-                        picker,
-                        popupWrapper,
-                        swatch,
-                        outsideClickHandler,
-                        scrollHandler,
-                        keydownHandler,
-                        scrollContainer: swatch.closest(`.${context.styles.scrollableArea}`), // Track scrollable parent if exists
-                        close: closePicker, // Store reference for cleanup
-                    };
-
-                    // Defer listeners
-                    setTimeout(() => {
-                        document.addEventListener('click', outsideClickHandler, true);
-                        document.addEventListener('keydown', keydownHandler, true);
-                        window.addEventListener('scroll', scrollHandler, { capture: true, passive: true });
-                        window.addEventListener('resize', scrollHandler, { passive: true });
-                        if (activePickerState.scrollContainer) {
-                            activePickerState.scrollContainer.addEventListener('scroll', scrollHandler, { capture: true, passive: true });
-                        }
-                    }, 0);
-                };
-
-                wrapper.append(input, swatch);
-
-                // Use labelRow layout to support status messages (e.g. invalid color)
-                return h('div', { className: cls.formField }, [
-                    h('div', { className: cls.labelRow }, [h('label', { title: node.tooltip }, node.label), h('span', { className: cls.statusText, dataset: { [CONSTANTS.DATA_KEYS.FORM_ERROR_FOR]: node.configKey } })]),
-                    wrapper,
-                ]);
-            },
-            onUpdate(input, value, context, node) {
-                if (!(input instanceof HTMLInputElement)) return;
-                const wrapper = input.closest(`.${context.styles.colorFieldWrapper}`);
-                if (wrapper) {
-                    const swatchValue = wrapper.querySelector(`.${context.styles.colorSwatchValue}`);
-                    if (swatchValue instanceof HTMLElement) {
-                        swatchValue.style.backgroundColor = value || 'transparent';
-                    }
-                }
-            },
-            destroy(element) {
-                // If the active picker belongs to the element being destroyed, close it properly
-                if (activePickerState && activePickerState.swatch && element.contains(activePickerState.swatch)) {
-                    activePickerState.close();
-                }
-            },
-        });
-
-        ComponentRegistry.register('select', {
-            render(node, context) {
-                const cls = context.styles;
-                // Map options to elements, converting empty string to "(not set)" for display
-                const options = (node.options || []).map((opt) => {
-                    const text = opt === '' ? '(not set)' : opt;
-                    return h('option', { value: opt }, text);
-                });
-
-                const select = h('select', { dataset: { [CONSTANTS.DATA_KEYS.CONFIG_KEY]: node.configKey } }, options);
-
-                // If label display is requested, wrap in form field structure
-                if (node.showLabel === true) {
-                    // Use labelRow to accommodate status/error message, aligning with text/color components
-                    return h('div', { className: cls.formField }, [
-                        h('div', { className: cls.labelRow }, [h('label', { title: node.tooltip }, node.label), h('span', { className: cls.statusText, dataset: { [CONSTANTS.DATA_KEYS.FORM_ERROR_FOR]: node.configKey } })]),
-                        select,
-                    ]);
-                }
-
-                // Otherwise return raw select element (e.g. for row layouts)
-                return select;
-            },
-        });
-
-        ComponentRegistry.register('button', {
-            render(node, context) {
-                const cls = context.styles;
-                const btnClass = node.className ? `${cls.modalButton} ${node.className}` : cls.modalButton;
-                return h(
-                    'button',
-                    {
-                        id: node.id,
-                        className: btnClass,
-                        title: node.title,
-                        type: 'button',
-                        style: { width: node.fullWidth ? '100%' : 'auto' },
-                        onclick: (e) => {
-                            e.preventDefault();
-                            if (node.onClick) node.onClick(e);
-                        },
-                    },
-                    node.text
-                );
-            },
-        });
-
-        // --- New Layout Components ---
-        ComponentRegistry.register('grid', {
-            render(node, context) {
-                // CSS Grid container (used in ThemeModal)
-                // Use a dedicated class for grid or fallback to compound container style
-                return h('div', { className: context.styles.compoundFormFieldContainer }, []); // Children appended by engine
-            },
-        });
-
-        ComponentRegistry.register('container', {
-            render(node, context) {
-                // Generic container
-                let className = '';
-                if (node.className && context.styles[node.className]) {
-                    className = context.styles[node.className];
-                }
-                return h('div', { className }, []);
-            },
-        });
-
-        // --- New Input Components ---
-        ComponentRegistry.register('textarea', {
-            render(node, context) {
-                const cls = context.styles;
-                return h('div', { className: cls.formField }, [
-                    h('label', { title: node.tooltip }, node.label),
-                    h('textarea', {
-                        rows: node.rows || 3,
-                        dataset: { [CONSTANTS.DATA_KEYS.CONFIG_KEY]: node.configKey },
-                    }),
-                    h('div', { className: cls.formErrorMsg, dataset: { [CONSTANTS.DATA_KEYS.FORM_ERROR_FOR]: node.configKey } }),
-                ]);
-            },
-        });
-
-        // --- Preview Components ---
-        ComponentRegistry.register('preview', {
-            render(node, context) {
-                const cls = context.styles;
-                const wrapperClass = node.actor === 'user' ? `${cls.previewBubbleWrapper} ${cls.userPreview}` : cls.previewBubbleWrapper;
-                return h('div', { className: cls.previewContainer }, [
-                    h('label', 'Preview:'),
-                    h('div', { className: wrapperClass }, [h('div', { className: cls.previewBubble, dataset: { [CONSTANTS.DATA_KEYS.PREVIEW_FOR]: node.actor } }, [h('span', 'Sample Text')])]),
-                ]);
-            },
-        });
-
-        ComponentRegistry.register('preview-input', {
-            render(node, context) {
-                const cls = context.styles;
-                return h('div', { className: cls.previewContainer }, [
-                    h('label', 'Preview:'),
-                    h('div', { className: cls.previewBubbleWrapper }, [h('div', { className: cls.previewInputArea, dataset: { [CONSTANTS.DATA_KEYS.PREVIEW_FOR]: 'inputArea' } }, [h('span', 'Sample input text')])]),
-                ]);
-            },
-        });
-
-        ComponentRegistry.register('preview-background', {
-            render(node, context) {
-                const cls = context.styles;
-                return h('div', { className: cls.formField }, [
-                    h('label', 'BG Preview:'),
-                    h('div', { className: cls.previewBubbleWrapper, style: { padding: '0', minHeight: '0' } }, [h('div', { className: cls.previewBackground, dataset: { [CONSTANTS.DATA_KEYS.PREVIEW_FOR]: 'window' } })]),
-                ]);
-            },
-        });
-
-        // --- Special Components for JsonModal ---
-        ComponentRegistry.register('code-editor', {
-            manualBinding: true, // Handle updates manually to prevent cursor jumping
-            render(node, context, engine) {
-                const cls = context.styles;
-                const container = h('div', { className: cls.formField }, [
-                    h('textarea', {
-                        className: cls.jsonEditor,
-                        dataset: { [CONSTANTS.DATA_KEYS.CONFIG_KEY]: node.configKey },
-                        spellcheck: false,
-                        oninput: (e) => {
-                            engine.store.set(node.configKey, e.target.value);
-                            if (node.onChange) node.onChange(e.target.value, engine.store.getData());
-                        },
-                    }),
-                ]);
-                return container;
-            },
-            onUpdate(element, value, context) {
-                const textarea = element.querySelector('textarea');
-                if (!textarea) return;
-
-                // Crucial: Do not update value if the element has focus.
-                // This prevents the cursor from jumping to the end while typing.
-                if (document.activeElement === textarea) return;
-
-                textarea.value = value || '';
-            },
-        });
-
-        ComponentRegistry.register('text-display', {
-            render(node, context) {
-                return h('div', { className: node.className || '' });
-            },
-            onUpdate(element, value) {
-                // Support both simple string and object with style info
-                if (value && typeof value === 'object') {
-                    element.textContent = value.text || '';
-                    element.style.color = value.color || '';
-                    element.style.fontWeight = value.bold ? 'bold' : 'normal';
-                } else {
-                    element.textContent = value || '';
-                    element.style.color = '';
-                    element.style.fontWeight = 'normal';
-                }
-            },
-        });
-    }
-
-    /**
-     * @class SchemaHelpers
-     * @description Helper functions for schema generation, specifically for value transformations.
-     */
-    const SchemaHelpers = {
-        /**
-         * Creates transformation logic for pixel-based sliders with an 'Auto' state.
-         * @param {number} min - The minimum value on the slider.
-         * @param {number} nullThreshold - Values below this threshold are treated as null (Auto).
-         * @returns {object} Options object containing transformValue, toInputValue, and valueLabelFormatter.
-         */
-        pxTransformer: (min, nullThreshold) => ({
-            transformValue: (val) => (val < nullThreshold ? null : `${val}px`),
-            toInputValue: (val) => {
-                if (typeof val === 'string' && val.endsWith('px')) {
-                    const match = String(val).match(/^(-?\d+)/);
-                    if (match) return parseInt(match[1], 10);
-                    return min;
-                }
-                if (typeof val === 'number') return val;
-                return min; // null/undefined -> min
-            },
-            valueLabelFormatter: (val) => (val === null ? 'Auto' : val),
-        }),
-
-        /**
-         * Creates transformation logic for percentage-based sliders with an 'Auto' state.
-         * @param {number} min - The minimum value on the slider.
-         * @param {number} nullThreshold - Values below this threshold are treated as null (Auto).
-         * @returns {object} Options object containing transformValue, toInputValue, and valueLabelFormatter.
-         */
-        percentTransformer: (min, nullThreshold) => ({
-            transformValue: (val) => (val < nullThreshold ? null : `${val}%`),
-            toInputValue: (val) => {
-                if (typeof val === 'string' && val.endsWith('%')) return parseInt(val, 10);
-                if (typeof val === 'number') return val;
-                return min; // null -> min
-            },
-            valueLabelFormatter: (val) => (val === null ? 'Auto' : val),
-        }),
-    };
-
-    /**
-     * Factory to generate UI schema definitions.
-     */
-    const UISchemaFactory = {
-        createSystemWarning() {
-            // Returns a schema definition for the system warning banner.
-            // Requires the store to have `_system.warning.message` and `_system.warning.show`.
-            return SchemaBuilder.create('text-display', 'system-warning-banner', {
-                configKey: CONSTANTS.STORE_KEYS.WARNING_MSG_PATH,
-                className: StyleDefinitions.COMMON_CLASSES.warningBanner,
-                visibleIf: (data) => getPropertyByPath(data, CONSTANTS.STORE_KEYS.WARNING_SHOW_PATH),
-            });
-        },
-
-        ThemeModal: {
-            /**
-             * @param {string} prefix - Prefix for ID generation
-             */
-            createMain(prefix) {
-                // Check if we are editing the default set to hide pattern fields
-                // This logic will be handled by visibleIf in the schema
-                const isNotDefault = (data) => data.metadata && data.metadata.id;
-
-                const generalSettings = SchemaBuilder.Container(
-                    [
-                        SchemaBuilder.Container(
-                            [
-                                SchemaBuilder.TextArea('metadata.matchPatterns', 'Title Patterns (one per line):', {
-                                    tooltip: 'Enter one RegEx pattern per line to automatically apply this theme (e.g., /My Project/i).\nNote: "g" (global) and "y" (sticky) flags are ignored for performance.',
-                                    rows: 3,
-                                    // Store (Array) <-> UI (String) conversion
-                                    // Handle null/undefined values safely
-                                    transformValue: (val) => (val ? val.split('\n') : []),
-                                    toInputValue: (val) => (Array.isArray(val) ? val.join('\n') : val || ''),
-                                }),
-                                SchemaBuilder.TextArea('metadata.urlPatterns', 'URL Patterns (one per line):', {
-                                    tooltip: 'Enter one RegEx pattern per line to match against the decoded URL path.\nExample: /\\/c\\/.*$/i\nNote: "g" (global) and "y" (sticky) flags are ignored for performance.',
-                                    rows: 3,
-                                    transformValue: (val) => (val ? val.split('\n') : []),
-                                    toInputValue: (val) => (Array.isArray(val) ? val.join('\n') : val || ''),
-                                }),
-                            ],
-                            { className: 'compoundFormFieldContainer' }
-                        ),
-                    ],
-                    {
-                        className: 'generalSettings',
-                        visibleIf: isNotDefault, // Hide if editing default set (no metadata)
-                    }
-                );
-
-                const separator = SchemaBuilder.Separator({
-                    className: 'separator',
-                    visibleIf: isNotDefault,
-                });
-
-                // Generate fields using metadata
-                const gridContent = SchemaBuilder.Grid(
-                    [
-                        this._createActor(prefix, 'assistant'),
-                        this._createActor(prefix, 'user'),
-                        SchemaBuilder.Group('Background', this._generateFields('window', this._getWindowFieldDefinitions())),
-                        SchemaBuilder.Group('Input area', this._generateFields('inputArea', this._getInputFieldDefinitions())),
-                    ],
-                    { className: 'grid' }
-                );
-
-                return [SchemaBuilder.Container([generalSettings, separator, gridContent], { className: 'scrollableArea' })];
-            },
-
-            _createActor(prefix, actor) {
-                const fields = this._getActorFieldDefinitions(actor);
-                const title = actor.charAt(0).toUpperCase() + actor.slice(1);
-                return SchemaBuilder.Group(title, this._generateFields(actor, fields));
-            },
-
-            /**
-             * Generates schema nodes from metadata definitions.
-             * @param {string} prefix - The config key prefix (e.g., 'user', 'window').
-             * @param {Array} definitions - Array of field definition objects.
-             * @returns {Array} Array of SchemaBuilder nodes.
-             */
-            _generateFields(prefix, definitions) {
-                return definitions.map((def) => {
-                    // Handle nested layouts (Container, etc.)
-                    if (def.layout) {
-                        const children = def.children ? this._generateFields(prefix, def.children) : [];
-                        const args = def.args || [];
-                        return SchemaBuilder[def.layout](...args, children, def.options || {});
-                    }
-
-                    // Handle standard controls
-                    const key = def.keySuffix ? `${prefix}${def.keySuffix}` : null;
-                    const args = def.args || [];
-
-                    // Combine transform options if provided (e.g. from SchemaHelpers)
-                    const options = { ...def.options };
-
-                    // Handle special cases without config keys (e.g. Preview, Separator)
-                    if (!key) {
-                        return SchemaBuilder[def.type](...args, options);
-                    }
-
-                    return SchemaBuilder[def.type](key, def.label, ...args, options);
-                });
-            },
-
-            _getActorFieldDefinitions(actor) {
-                const bubbleWidthConfig = CONSTANTS.SLIDER_CONFIGS.BUBBLE_MAX_WIDTH;
-                return [
-                    { type: 'Text', keySuffix: '.name', label: 'Name:', options: { tooltip: `The name displayed for the ${actor}.`, fieldType: 'name' } },
-                    { type: 'Text', keySuffix: '.icon', label: 'Icon:', options: { tooltip: `URL, Data URI, or <svg> for the ${actor}'s icon.`, fieldType: 'icon' } },
-                    { type: 'Text', keySuffix: '.standingImageUrl', label: 'Standing image:', options: { tooltip: `URL or Data URI for the character's standing image.`, fieldType: 'image' } },
-                    {
-                        layout: 'Group',
-                        args: ['Bubble Settings'], // Layout args usually go to first param
-                        children: [
-                            { type: 'Color', keySuffix: '.bubbleBackgroundColor', label: 'Background color:', options: { tooltip: 'Background color of the message bubble.' } },
-                            { type: 'Color', keySuffix: '.textColor', label: 'Text color:', options: { tooltip: 'Color of the text inside the bubble.' } },
-                            { type: 'Text', keySuffix: '.font', label: 'Font:', options: { tooltip: 'Font family for the text.\nFont names with spaces must be quoted (e.g., "Times New Roman").' } },
-
-                            // Row 1: Padding and Radius side-by-side using Flexbox (compoundSliderContainer)
-                            {
-                                layout: 'Container',
-                                options: { className: 'compoundSliderContainer' }, // Use Flexbox container
-                                children: [
-                                    {
-                                        type: 'Slider',
-                                        keySuffix: '.bubblePadding',
-                                        label: 'Padding:',
-                                        args: [-1, 30],
-                                        options: {
-                                            step: 1,
-                                            tooltip: 'Adjusts padding for all sides.\nSet to the far left for (auto).',
-                                            containerClass: 'sliderSubgroup',
-                                            ...SchemaHelpers.pxTransformer(-1, 0),
-                                        },
-                                    },
-                                    {
-                                        type: 'Slider',
-                                        keySuffix: '.bubbleBorderRadius',
-                                        label: 'Radius:',
-                                        args: [-1, 50],
-                                        options: {
-                                            step: 1,
-                                            tooltip: 'Corner roundness of the bubble (e.g., 10px).\nSet to the far left for (auto).',
-                                            containerClass: 'sliderSubgroup',
-                                            ...SchemaHelpers.pxTransformer(-1, 0),
-                                        },
-                                    },
-                                ],
-                            },
-
-                            // Row 2: Max Width on its own line
-                            {
-                                type: 'Slider',
-                                keySuffix: '.bubbleMaxWidth',
-                                label: 'max Width:',
-                                args: [bubbleWidthConfig.MIN, bubbleWidthConfig.MAX],
-                                options: {
-                                    step: 1,
-                                    tooltip: 'Maximum width of the bubble.\nSet to the far left for (auto).',
-                                    containerClass: 'sliderContainer',
-                                    ...SchemaHelpers.percentTransformer(bubbleWidthConfig.MIN, bubbleWidthConfig.NULL_THRESHOLD),
-                                },
-                            },
-                            { type: 'Separator', options: { className: 'separator' } },
-                            { type: 'Preview', args: [actor] },
-                        ],
-                    },
-                ];
-            },
-
-            _getWindowFieldDefinitions() {
-                return [
-                    { type: 'Color', keySuffix: '.backgroundColor', label: 'Background color:', options: { tooltip: 'Main background color of the chat window.' } },
-                    { type: 'Text', keySuffix: '.backgroundImageUrl', label: 'Background image:', options: { tooltip: 'URL or Data URI for the main background image.', fieldType: 'image' } },
-                    {
-                        layout: 'Container',
-                        options: { className: 'compoundFormFieldContainer' },
-                        children: [
-                            {
-                                type: 'Select',
-                                keySuffix: '.backgroundSize',
-                                label: 'Size:',
-                                args: [['', 'auto', 'cover', 'contain']],
-                                options: { tooltip: 'How the background image is sized.', showLabel: true },
-                            },
-                            {
-                                type: 'Select',
-                                keySuffix: '.backgroundPosition',
-                                label: 'Position:',
-                                args: [['', 'top left', 'top center', 'top right', 'center left', 'center center', 'center right', 'bottom left', 'bottom center', 'bottom right']],
-                                options: { tooltip: 'Position of the background image.', showLabel: true },
-                            },
-                        ],
-                    },
-                    {
-                        layout: 'Container',
-                        options: { className: 'compoundFormFieldContainer' },
-                        children: [
-                            {
-                                type: 'Select',
-                                keySuffix: '.backgroundRepeat',
-                                label: 'Repeat:',
-                                args: [['', 'no-repeat', 'repeat']],
-                                options: { tooltip: 'How the background image is repeated.', showLabel: true },
-                            },
-                            { type: 'PreviewBackground' },
-                        ],
-                    },
-                ];
-            },
-
-            _getInputFieldDefinitions() {
-                return [
-                    { type: 'Color', keySuffix: '.backgroundColor', label: 'Background color:', options: { tooltip: 'Background color of the text input area.' } },
-                    { type: 'Color', keySuffix: '.textColor', label: 'Text color:', options: { tooltip: 'Color of the text you type.' } },
-                    { type: 'Separator', options: { className: 'separator' } },
-                    { type: 'PreviewInput' },
-                ];
-            },
-        },
-        SettingsPanel: {
-            /**
-             * @param {string} prefix - Prefix for ID generation
-             */
-            createMain(prefix) {
-                const widthConfig = CONSTANTS.SLIDER_CONFIGS.CHAT_WIDTH;
-                const p = `platforms.${PLATFORM}`;
-                // prettier-ignore
-                return [
-                    this._createAppliedThemeSection(prefix),
-                    this._createSubmenuSection(prefix),
-                    this._createOptionsSection(prefix, p, widthConfig),
-                    this._createFeaturesSection(p)
-                ];
-            },
-
-            /**
-             * @private
-             */
-            _createAppliedThemeSection(prefix) {
-                return SchemaBuilder.Group('Applied Theme', [SchemaBuilder.Button(`${prefix}-theme-name`, 'Loading...', null, { fullWidth: true, title: 'Click to edit this theme' })]);
-            },
-
-            /**
-             * @private
-             */
-            _createSubmenuSection(prefix) {
-                return SchemaBuilder.Row(
-                    [
-                        SchemaBuilder.Group('Themes', [SchemaBuilder.Button(`${prefix}-edit-themes-btn`, 'Edit Themes...', null, { fullWidth: true, title: 'Open the theme editor to create and modify themes.' })]),
-                        SchemaBuilder.Group('JSON', [
-                            SchemaBuilder.Button(`${prefix}-json-btn`, 'JSON...', null, { fullWidth: true, title: 'Opens the advanced settings modal to directly edit, import, or export the entire configuration in JSON format.' }),
-                        ]),
-                    ],
-                    { className: 'topRow' }
-                );
-            },
-
-            /**
-             * @private
-             */
-            _createOptionsSection(prefix, p, widthConfig) {
-                return SchemaBuilder.Group(
-                    'Options',
-                    [
-                        SchemaBuilder.Slider(`${p}.options.icon_size`, 'Icon size:', 0, CONSTANTS.UI_SPECS.AVATAR.SIZE_OPTIONS.length - 1, {
-                            step: 1,
-                            tooltip: 'Specifies the size of the chat icons in pixels.',
-                            // Transform UI value (index 0-4) to Store value (pixels 64-192)
-                            transformValue: (index) => CONSTANTS.UI_SPECS.AVATAR.SIZE_OPTIONS[index] ?? CONSTANTS.UI_SPECS.AVATAR.DEFAULT_SIZE,
-                            // Transform Store value (pixels 64-192) to UI value (index 0-4)
-                            toInputValue: (pixelVal) => {
-                                const idx = CONSTANTS.UI_SPECS.AVATAR.SIZE_OPTIONS.indexOf(pixelVal);
-                                return idx !== -1 ? idx : 0;
-                            },
-                            // Format display value (receive Store value)
-                            valueLabelFormatter: (val) => `${val}px`,
-                        }),
-                        SchemaBuilder.Slider(`${p}.options.chat_content_max_width`, 'Chat content max width:', widthConfig.MIN, widthConfig.MAX, {
-                            step: 1,
-                            tooltip: `Adjusts the maximum width of the chat content.\nMove slider to the far left for default.\nRange: ${widthConfig.NULL_THRESHOLD}vw to ${widthConfig.MAX}vw.`,
-                            // Transform UI value (number) to Store value (string "XXvw" or null)
-                            transformValue: (val) => {
-                                if (val < widthConfig.NULL_THRESHOLD) return null;
-                                return `${val}vw`;
-                            },
-                            // Transform Store value (string "XXvw" or null) to UI value (number)
-                            toInputValue: (val) => {
-                                if (val === null) return widthConfig.MIN;
-                                return parseInt(val, 10);
-                            },
-                            // Format display value (receive Store value)
-                            valueLabelFormatter: (val) => (!val ? 'Auto' : val),
-                            // Trigger preview on change
-                            onChange: (val) => {
-                                EventBus.publish(EVENTS.WIDTH_PREVIEW, val);
-                            },
-                        }),
-                        SchemaBuilder.Separator({ className: 'submenuSeparator' }),
-                        SchemaBuilder.Row([
-                            SchemaBuilder.Label('Prevent image/avatar overlap:', {
-                                for: `${APPID}-form-${p}-options-respect_avatar_space`.replace(/\./g, '-'), // Manual ID sync for label targeting
-                                title: 'When enabled, adjusts the standing image area to not overlap the avatar icon.\nWhen disabled, the standing image is maximized but may overlap the icon.',
-                            }),
-                            SchemaBuilder.Toggle(`${p}.options.respect_avatar_space`, '', {
-                                title: 'When enabled, adjusts the standing image area to not overlap the avatar icon.\nWhen disabled, the standing image is maximized but may overlap the icon.',
-                            }),
-                        ]),
-                    ],
-                    { disabledIf: (data) => data._system?.isSizeExceeded }
-                );
-            },
-
-            /**
-             * @private
-             */
-            _createFeaturesSection(p) {
-                const commonFeatures = [
-                    SchemaBuilder.Toggle(`${p}.features.collapsible_button.enabled`, 'Collapsible button', { title: 'Enables a button to collapse large message bubbles.' }),
-                    SchemaBuilder.Toggle(`${p}.features.bubble_nav_buttons.enabled`, 'Bubble nav buttons', { title: 'Enables navigation buttons (Prev/Next/Top) attached to each message.' }),
-
-                    // Navigation Console Group
-                    SchemaBuilder.Toggle(`${p}.features.fixed_nav_console.enabled`, 'Navigation console', { title: 'When enabled, a navigation console with message counters will be displayed.' }),
-                    SchemaBuilder.Select(`${p}.features.fixed_nav_console.position`, 'Console Position', [CONSTANTS.CONSOLE_POSITIONS.INPUT_TOP, CONSTANTS.CONSOLE_POSITIONS.HEADER], {
-                        title: 'Choose where to display the navigation console.\nInput Top: Floating above the input area (Default).\nHeader: Embedded in the top toolbar.',
-                        disabledIf: (data) => !getPropertyByPath(data, `${p}.features.fixed_nav_console.enabled`),
-                        showLabel: false,
-                    }),
-                ];
-
-                const platformFeatures = PlatformAdapters.SettingsPanel.getPlatformSpecificFeatureToggles();
-
-                // Wrap each feature in a Row.
-                // Note: The console options are visually grouped by the user interface layout logic.
-                const featureGroups = [...platformFeatures, ...commonFeatures].map((/** @type {any} */ feature) => {
-                    return SchemaBuilder.Row(
-                        [
-                            SchemaBuilder.Label(feature.label, { title: feature.title }),
-                            feature, // The toggle/select itself
-                        ],
-                        { className: 'featureGroup' }
-                    );
-                });
-
-                return SchemaBuilder.Group('Features', featureGroups, { disabledIf: (data) => data._system?.isSizeExceeded });
-            },
-        },
-        JsonModal: {
-            createMain(prefix) {
-                return [
-                    SchemaBuilder.create('code-editor', 'json-editor', {
-                        configKey: 'jsonString',
-                        // Trigger size calculation on input
-                        onChange: (val, data) => {
-                            // We can't access component instance here directly,
-                            // so we rely on the store update to trigger side effects or handle it in the component.
-                            // However, FormEngine logic executes onChange.
-                            // Ideally, the size calculation logic should be bound to the store subscription in the component, but here we define the structure.
-                        },
-                    }),
-                    SchemaBuilder.Row(
-                        [
-                            SchemaBuilder.create('text-display', 'status-msg', {
-                                configKey: 'status',
-                                className: 'status-msg-display',
-                            }),
-                            SchemaBuilder.create('text-display', 'size-info', {
-                                configKey: 'sizeInfo',
-                                className: 'size-info-display',
-                            }),
-                        ],
-                        { className: 'statusContainer' }
-                    ),
-                ];
-            },
         },
     };
 
@@ -13457,7 +12627,6 @@
             this.activeThemeSet = null;
             this.subscriptions = [];
             this.store = null;
-            this.engine = null; // FormEngine instance
             this.debouncedSave = debounce(this._handleDebouncedSave.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.SETTINGS_SAVE, true);
             this._handleDocumentClick = this._handleDocumentClick.bind(this);
             this._handleDocumentKeydown = this._handleDocumentKeydown.bind(this);
@@ -13496,7 +12665,6 @@
         }
 
         _onDestroy() {
-            this.engine?.destroy();
             this.store = null;
 
             super._onDestroy();
@@ -13544,7 +12712,7 @@
             if (this.isDestroyed) return;
 
             const currentWarning = this.callbacks.getCurrentWarning();
-            const { SYSTEM_ROOT, SYSTEM_WARNING } = CONSTANTS.STORE_KEYS;
+            const { SYSTEM_ROOT, SYSTEM_WARNING, SYSTEM_SIZE_EXCEEDED } = CONSTANTS.STORE_KEYS;
 
             // Check size state
             const sizeInfo = this.callbacks.checkSize(currentConfig);
@@ -13563,7 +12731,7 @@
                 ...deepClone(currentConfig),
                 [SYSTEM_ROOT]: {
                     [SYSTEM_WARNING]: warningState,
-                    isSizeExceeded: sizeInfo.isExceeded,
+                    [SYSTEM_SIZE_EXCEEDED]: sizeInfo.isExceeded,
                 },
             };
 
@@ -13644,24 +12812,187 @@
         }
 
         _renderContent() {
-            // Clean up previous engine
-            if (this.engine) {
-                this.engine.destroy();
-                this.element.textContent = '';
-            }
+            this.element.textContent = '';
 
-            const mainSchema = UISchemaFactory.SettingsPanel.createMain(this.style.prefix);
-            const warningSchema = UISchemaFactory.createSystemWarning();
-            const schema = [warningSchema, ...mainSchema];
+            const cls = { ...this.commonStyleHandle.classes, ...this.style.classes };
+            const prefix = this.style.prefix;
+            const context = { styles: cls, siteStyles: SITE_STYLES };
 
-            const context = {
-                styles: { ...this.commonStyleHandle.classes, ...this.style.classes },
+            // UIBuilder instance: Use addStoreSubscription for lifecycle management
+            const ui = new UIBuilder(this.store, context, this.addStoreSubscription.bind(this));
+
+            // --- 1. System Warning Banner ---
+            const warningBanner = this._createSystemWarning(ui);
+
+            // --- 2. Applied Theme Section ---
+            const themeSection = ui.group('Applied Theme', [ui.button(`${prefix}-theme-name`, 'Loading...', null, { fullWidth: true, title: 'Click to edit this theme' })]);
+
+            // --- 3. Submenu Section ---
+            const submenuSection = ui.row(
+                [
+                    ui.group('Themes', [ui.button(`${prefix}-edit-themes-btn`, 'Edit Themes...', null, { fullWidth: true, title: 'Open the theme editor to create and modify themes.' })]),
+                    ui.group('JSON', [ui.button(`${prefix}-json-btn`, 'JSON...', null, { fullWidth: true, title: 'Opens the advanced settings modal to directly edit, import, or export the entire configuration in JSON format.' })]),
+                ],
+                { className: 'topRow' }
+            );
+
+            // --- 4. Options Section ---
+            const p = `platforms.${PLATFORM}`;
+            const widthConfig = CONSTANTS.SLIDER_CONFIGS.CHAT_WIDTH;
+            const sizeCheck = {
+                dependencies: [CONSTANTS.STORE_KEYS.SIZE_EXCEEDED_PATH],
+                disabledIf: (data) => getPropertyByPath(data, CONSTANTS.STORE_KEYS.SIZE_EXCEEDED_PATH),
             };
 
-            this.engine = new FormEngine(this.store, schema, context);
-            this.element.appendChild(this.engine.render());
+            const optionsSection = ui.group(
+                'Options',
+                [
+                    ui.range(`${p}.options.icon_size`, 'Icon size:', 0, CONSTANTS.UI_SPECS.AVATAR.SIZE_OPTIONS.length - 1, {
+                        step: 1,
+                        tooltip: 'Specifies the size of the chat icons in pixels.',
+                        transformValue: (index) => CONSTANTS.UI_SPECS.AVATAR.SIZE_OPTIONS[index] ?? CONSTANTS.UI_SPECS.AVATAR.DEFAULT_SIZE,
+                        toInputValue: (pixelVal) => {
+                            const idx = CONSTANTS.UI_SPECS.AVATAR.SIZE_OPTIONS.indexOf(pixelVal);
+                            return idx !== -1 ? idx : 0;
+                        },
+                        valueLabelFormatter: (val) => `${val}px`,
+                    }),
+                    ui.range(`${p}.options.chat_content_max_width`, 'Chat content max width:', widthConfig.MIN, widthConfig.MAX, {
+                        step: 1,
+                        tooltip: `Adjusts the maximum width of the chat content.\nMove slider to the far left for default.\nRange: ${widthConfig.NULL_THRESHOLD}vw to ${widthConfig.MAX}vw.`,
+                        transformValue: (val) => {
+                            if (val < widthConfig.NULL_THRESHOLD) return null;
+                            return `${val}vw`;
+                        },
+                        toInputValue: (val) => {
+                            if (val === null) return widthConfig.MIN;
+                            return parseInt(val, 10);
+                        },
+                        valueLabelFormatter: (val) => (!val ? 'Auto' : val),
+                    }),
+                    ui.separator({ className: 'submenuSeparator' }),
+                    ui.row([
+                        ui.label('Prevent image/avatar overlap:', {
+                            title: 'When enabled, adjusts the standing image area to not overlap the avatar icon.\nWhen disabled, the standing image is maximized but may overlap the icon.',
+                        }),
+                        ui.toggle(`${p}.options.respect_avatar_space`, '', {
+                            title: 'When enabled, adjusts the standing image area to not overlap the avatar icon.\nWhen disabled, the standing image is maximized but may overlap the icon.',
+                        }),
+                    ]),
+                ],
+                sizeCheck
+            );
+
+            // --- 5. Features Section ---
+            const featureRows = [];
+
+            // Platform Specific Features (Adapter returns Schema objects, convert them to UIBuilder calls)
+            const platformFeatures = PlatformAdapters.SettingsPanel.getPlatformSpecificFeatureToggles();
+            platformFeatures.forEach((feat) => {
+                featureRows.push(
+                    ui.row(
+                        [
+                            ui.label(feat.label, { title: feat.title }),
+                            ui.toggle(feat.configKey, '', {
+                                title: feat.title,
+                                disabledIf: feat.disabledIf,
+                                dependencies: feat.dependencies,
+                            }),
+                        ],
+                        { className: 'featureGroup' }
+                    )
+                );
+            });
+
+            // Common Features
+            // Collapsible
+            featureRows.push(
+                ui.row(
+                    [
+                        ui.label('Collapsible button', { title: 'Enables a button to collapse large message bubbles.' }),
+                        ui.toggle(`${p}.features.collapsible_button.enabled`, '', { title: 'Enables a button to collapse large message bubbles.' }),
+                    ],
+                    { className: 'featureGroup' }
+                )
+            );
+
+            // Bubble Nav
+            featureRows.push(
+                ui.row(
+                    [
+                        ui.label('Bubble nav buttons', { title: 'Enables navigation buttons (Prev/Next/Top) attached to each message.' }),
+                        ui.toggle(`${p}.features.bubble_nav_buttons.enabled`, '', { title: 'Enables navigation buttons (Prev/Next/Top) attached to each message.' }),
+                    ],
+                    { className: 'featureGroup' }
+                )
+            );
+
+            // Navigation Console
+            featureRows.push(
+                ui.row(
+                    [
+                        ui.label('Navigation console', { title: 'When enabled, a navigation console with message counters will be displayed.' }),
+                        ui.toggle(`${p}.features.fixed_nav_console.enabled`, '', { title: 'When enabled, a navigation console with message counters will be displayed.' }),
+                    ],
+                    { className: 'featureGroup' }
+                )
+            );
+
+            // Console Position (Select)
+            featureRows.push(
+                ui.row(
+                    [
+                        ui.label('Console Position', { title: 'Choose where to display the navigation console.' }),
+                        ui.select(`${p}.features.fixed_nav_console.position`, '', {
+                            options: [CONSTANTS.CONSOLE_POSITIONS.INPUT_TOP, CONSTANTS.CONSOLE_POSITIONS.HEADER],
+                            title: 'Choose where to display the navigation console.\nInput Top: Floating above the input area (Default).\nHeader: Embedded in the top toolbar.',
+                            dependencies: [`${p}.features.fixed_nav_console.enabled`],
+                            disabledIf: (data) => !getPropertyByPath(data, `${p}.features.fixed_nav_console.enabled`),
+                        }),
+                    ],
+                    { className: 'featureGroup' }
+                )
+            );
+
+            const featuresSection = ui.group('Features', featureRows, sizeCheck);
+
+            // Assemble
+            this.element.append(warningBanner, themeSection, submenuSection, optionsSection, featuresSection);
 
             this._setupStaticListeners();
+            this._setupObservers(ui);
+        }
+
+        _createSystemWarning(ui) {
+            const warningKey = CONSTANTS.STORE_KEYS.WARNING_MSG_PATH;
+            const showKey = CONSTANTS.STORE_KEYS.WARNING_SHOW_PATH;
+            const cls = this.commonStyleHandle.classes;
+
+            const container = ui.create('div', { className: cls.warningBanner });
+
+            // Bind content and visibility manually via observe
+            ui.observe([warningKey, showKey], (state) => {
+                const message = getPropertyByPath(state, warningKey);
+                const show = getPropertyByPath(state, showKey);
+
+                container.textContent = message || '';
+                container.style.display = show ? '' : 'none';
+            });
+
+            return container;
+        }
+
+        _setupObservers(ui) {
+            const p = `platforms.${PLATFORM}`;
+            const widthKey = `${p}.options.chat_content_max_width`;
+
+            // Watch for chat width changes to trigger preview
+            // Use UIBuilder's observe to auto-manage lifecycle
+            ui.observe(widthKey, (state) => {
+                const val = getPropertyByPath(state, widthKey);
+                // Trigger preview event
+                EventBus.publish(EVENTS.WIDTH_PREVIEW, val);
+            });
         }
 
         _handleDocumentClick(e) {
@@ -13737,7 +13068,6 @@
             DEBOUNCE_CALC: 'debounceCalc',
             LISTENERS: 'listeners',
             MODAL: 'modal',
-            ENGINE: 'engine',
             FILE_READER: 'fileReader',
         };
 
@@ -13746,7 +13076,6 @@
             this.modal = null;
             this.styleHandle = null;
             this.store = null;
-            this.engine = null;
 
             // Debounced calculator is initialized in _onInit
         }
@@ -13788,6 +13117,7 @@
                 jsonString: initialJson,
                 status: { text: '', color: '' },
                 sizeInfo: { text: 'Checking...', color: '' },
+                isProcessing: false,
                 [SYSTEM_ROOT]: { [SYSTEM_WARNING]: currentWarning },
             });
 
@@ -13809,13 +13139,30 @@
                 if (path === 'jsonString') {
                     this.debouncedCalcSize(state.jsonString);
                 }
-                // Update Save button state based on size info
-                if (path === 'sizeInfo' || path === 'jsonString') {
+                // Update Button states based on size info and processing status
+                if (path === 'sizeInfo' || path === 'jsonString' || path === 'isProcessing') {
+                    const isProcessing = state.isProcessing;
+                    const isExceeded = state.sizeInfo && state.sizeInfo.color === SITE_STYLES.PALETTE.danger_text;
+
                     const saveBtn = this.modal?.element?.querySelector(`#${cls.saveBtn}`);
-                    if (saveBtn) {
-                        const isExceeded = state.sizeInfo && state.sizeInfo.color === SITE_STYLES.PALETTE.danger_text;
-                        saveBtn.disabled = isExceeded;
-                        if (isExceeded) {
+                    const exportBtn = this.modal?.element?.querySelector(`#${cls.exportBtn}`);
+                    const importBtn = this.modal?.element?.querySelector(`#${cls.importBtn}`);
+                    const cancelBtn = this.modal?.element?.querySelector(`#${cls.cancelBtn}`);
+
+                    // Disable other buttons during processing
+                    if (exportBtn instanceof HTMLButtonElement) exportBtn.disabled = isProcessing;
+                    if (importBtn instanceof HTMLButtonElement) importBtn.disabled = isProcessing;
+                    if (cancelBtn instanceof HTMLButtonElement) cancelBtn.disabled = isProcessing;
+
+                    if (saveBtn instanceof HTMLButtonElement) {
+                        // Save is disabled if processing OR size exceeded
+                        const shouldDisable = isProcessing || isExceeded;
+                        saveBtn.disabled = shouldDisable;
+
+                        if (isProcessing) {
+                            saveBtn.style.opacity = '0.5';
+                            saveBtn.style.cursor = 'wait';
+                        } else if (isExceeded) {
                             saveBtn.title = 'Cannot save: Configuration size limit exceeded.';
                             saveBtn.style.opacity = '0.5';
                             saveBtn.style.cursor = 'not-allowed';
@@ -13834,6 +13181,11 @@
                                 this.store.set('status', { text: '', color: '' });
                             }
                         }
+                    }
+
+                    // Update global cursor
+                    if (this.modal?.element) {
+                        this.modal.element.style.cursor = isProcessing ? 'wait' : '';
                     }
                 }
             });
@@ -13878,6 +13230,7 @@
                 width: JsonModalComponent.DEFAULTS.WIDTH, // Responsive width
                 id: this.styleHandle.classes.dialogId,
                 zIndex: SITE_STYLES.Z_INDICES.JSON_MODAL,
+                closeOnBackdropClick: false,
                 buttons: [
                     { text: 'Export', id: cls.exportBtn, className: btnClass, title: 'Export current settings to a JSON file.', onClick: () => this._handleExport() },
                     { text: 'Import', id: cls.importBtn, className: btnClass, title: 'Click to replace settings.\nHold [Ctrl] to append themes (keep existing).', onClick: (modal, e) => this._handleImport(e.ctrlKey) },
@@ -13886,15 +13239,12 @@
                 ],
                 onDestroy: () => {
                     // When the modal is closed (by user or code), ensure all temporary resources are disposed via the manager.
-                    // Passing null removes them from the manager's active list and triggers their disposal logic.
                     this.manageResource(JsonModalComponent.RESOURCE_KEYS.MODAL, null);
-                    this.manageResource(JsonModalComponent.RESOURCE_KEYS.ENGINE, null);
                     this.manageResource(JsonModalComponent.RESOURCE_KEYS.LISTENERS, null);
                     this.manageResource(JsonModalComponent.RESOURCE_KEYS.FILE_READER, null);
 
                     this.store = null;
                     this.modal = null;
-                    this.engine = null;
                 },
             });
 
@@ -13905,21 +13255,15 @@
 
             const contentContainer = this.modal.getContentContainer();
 
-            // Initialize FormEngine
-            const mainSchema = UISchemaFactory.JsonModal.createMain(this.styleHandle.prefix);
-            const warningSchema = UISchemaFactory.createSystemWarning();
-            const schema = [warningSchema, ...mainSchema];
-
-            // Merge styles for context
+            // --- UI Rendering using UIBuilder ---
             const context = {
                 styles: { ...this.commonStyleHandle.classes, ...this.styleHandle.classes },
             };
-
-            this.engine = new FormEngine(this.store, schema, context);
-            this.manageResource(JsonModalComponent.RESOURCE_KEYS.ENGINE, this.engine);
+            const ui = new UIBuilder(this.store, context, this.addStoreSubscription.bind(this));
 
             contentContainer.style.padding = '8px';
-            contentContainer.appendChild(this.engine.render());
+            const content = this._renderJsonContent(ui);
+            contentContainer.appendChild(content);
 
             // Initial size calculation
             this._calculateAndSetSize(initialJson);
@@ -13939,16 +13283,68 @@
             });
         }
 
+        _renderJsonContent(ui) {
+            const cls = ui.context.styles;
+            const container = document.createDocumentFragment();
+
+            // 1. JSON Editor
+            const textarea = ui.create('textarea', {
+                className: cls.jsonEditor,
+                spellcheck: false,
+            });
+
+            // Manual binding for code editor
+            ui.observe('jsonString', (state) => {
+                // Prevent cursor jumping if user is typing
+                if (document.activeElement === textarea) return;
+                textarea.value = state.jsonString || '';
+            });
+
+            textarea.addEventListener('input', (e) => {
+                // Update store (which triggers size calculation)
+                ui.store.set('jsonString', e.target.value);
+            });
+
+            const editorField = ui.container([textarea], { className: cls.formField });
+            container.appendChild(editorField);
+
+            // 2. Status Bar
+            const statusMsg = ui.create('div', { className: 'status-msg-display' });
+            const sizeInfo = ui.create('div', { className: 'size-info-display' });
+
+            ui.observe(['status', 'sizeInfo'], (state) => {
+                const status = state.status || {};
+                const info = state.sizeInfo || {};
+
+                // Update Status Message
+                if (statusMsg.textContent !== (status.text || '')) {
+                    statusMsg.textContent = status.text || '';
+                    statusMsg.style.color = status.color || '';
+                }
+
+                // Update Size Info
+                if (sizeInfo.textContent !== (info.text || '')) {
+                    sizeInfo.textContent = info.text || '';
+                    sizeInfo.style.color = info.color || '';
+                    sizeInfo.style.fontWeight = info.bold ? 'bold' : 'normal';
+                }
+            });
+
+            const statusRow = ui.container([statusMsg, sizeInfo], { className: cls.statusContainer });
+            container.appendChild(statusRow);
+
+            return container;
+        }
+
         close() {
             this.modal?.close();
         }
 
         _onDestroy() {
-            // BaseManager handles disposal of MODAL, ENGINE, LISTENERS, FILE_READER and DEBOUNCE_CALC via managed resources.
+            // BaseManager handles disposal of MODAL, LISTENERS, FILE_READER and DEBOUNCE_CALC via managed resources.
             this.styleHandle = null;
             this.store = null;
             this.modal = null;
-            this.engine = null;
             super._onDestroy();
         }
 
@@ -14067,6 +13463,7 @@
 
         async _handleSave() {
             if (!this.store) return;
+            this.store.set('isProcessing', true);
             const jsonString = this.store.get('jsonString');
 
             // Reset status
@@ -14081,6 +13478,10 @@
                     text: e.message,
                     color: SITE_STYLES.PALETTE.danger_text,
                 });
+            } finally {
+                if (this.store) {
+                    this.store.set('isProcessing', false);
+                }
             }
         }
 
@@ -14133,14 +13534,11 @@
                         if (this.isDestroyed || !this.store) return;
 
                         this.store.set('status', { text: 'Processing...', color: '' });
-                        document.body.style.cursor = 'wait';
+                        this.store.set('isProcessing', true);
 
                         requestAnimationFrame(async () => {
                             // Guard: Check if destroyed during animation frame
-                            if (this.isDestroyed || !this.store) {
-                                document.body.style.cursor = '';
-                                return;
-                            }
+                            if (this.isDestroyed || !this.store) return;
 
                             try {
                                 const result = e.target?.result;
@@ -14232,7 +13630,9 @@
                                     color: SITE_STYLES.PALETTE.danger_text,
                                 });
                             } finally {
-                                document.body.style.cursor = '';
+                                if (this.store) {
+                                    this.store.set('isProcessing', false);
+                                }
                                 // Clean up the file reader resource
                                 this.manageResource(JsonModalComponent.RESOURCE_KEYS.FILE_READER, null);
                             }
@@ -14244,7 +13644,9 @@
                 },
             });
 
-            if (fileInput instanceof HTMLElement) fileInput.click();
+            if (fileInput instanceof HTMLElement) {
+                fileInput.click();
+            }
         }
 
         getContextForReopen() {
@@ -14452,7 +13854,6 @@
 
         static RESOURCE_KEYS = {
             MODAL: 'modal',
-            ENGINE: 'engine',
             PREVIEW_CTRL: 'previewCtrl',
             LISTENERS: 'listeners',
         };
@@ -14463,7 +13864,6 @@
             this.dataConverter = callbacks.dataConverter;
             this.checkSize = callbacks.checkSize;
             this.store = null;
-            this.engine = null;
             this.previewController = null;
             this.style = null; // Style handle will be stored here
 
@@ -14474,6 +13874,7 @@
                 pendingDeletionKey: null,
                 config: null, // Holds the working copy of the config
                 isSizeExceeded: false,
+                isSaving: false,
             };
         }
 
@@ -14508,6 +13909,7 @@
                 pendingDeletionKey: null,
                 config: deepClone(initialConfig), // Create a deep copy for editing
                 isSizeExceeded: isExceeded,
+                isSaving: false,
             };
 
             const primaryBtnClass = this.commonStyle.classes.primaryBtn;
@@ -14579,13 +13981,11 @@
                 onDestroy: () => {
                     // When the modal is closed (by user or code), ensure all temporary resources are disposed via the manager.
                     this.manageResource(ThemeModalComponent.RESOURCE_KEYS.MODAL, null);
-                    this.manageResource(ThemeModalComponent.RESOURCE_KEYS.ENGINE, null);
                     this.manageResource(ThemeModalComponent.RESOURCE_KEYS.PREVIEW_CTRL, null);
                     this.manageResource(ThemeModalComponent.RESOURCE_KEYS.LISTENERS, null);
 
                     this.store = null;
                     this.modal = null;
-                    this.engine = null;
                     this.previewController = null;
                     // Release memory: Clear the temporary state containing the config copy
                     this.state = {
@@ -14594,6 +13994,7 @@
                         pendingDeletionKey: null,
                         config: null,
                         isSizeExceeded: false,
+                        isSaving: false,
                     };
                 },
             });
@@ -14668,6 +14069,9 @@
             // Guard: Check if destroyed before proceeding (especially if called after async op)
             if (this.isDestroyed || !this.state.config) return;
 
+            // Clear old subscriptions before re-initializing the form to prevent memory leaks
+            this.clearStoreSubscriptions();
+
             const initialTheme = this._getCurrentThemeData(this.state.config, themeKey);
             const currentWarning = this.callbacks.getCurrentWarning();
             const { SYSTEM_ROOT, SYSTEM_WARNING } = CONSTANTS.STORE_KEYS;
@@ -14678,23 +14082,16 @@
                 [SYSTEM_ROOT]: { [SYSTEM_WARNING]: currentWarning },
             };
 
-            // Sync PreviewController's edit mode BEFORE updating the store.
-            if (this.previewController) {
-                this.previewController.setIsEditingDefault(themeKey === 'defaultSet');
-            }
-
             if (!this.store) {
                 this.store = new ReactiveStore(storeState);
             } else {
                 this.store.replaceState(storeState);
             }
 
-            if (!this.engine) {
-                const mainSchema = UISchemaFactory.ThemeModal.createMain(this.style.prefix);
-                const warningSchema = UISchemaFactory.createSystemWarning();
-                const schema = [warningSchema, ...mainSchema];
+            const contentArea = this.modal.element.querySelector(`.${this.style.classes.content}`);
+            if (contentArea) {
+                contentArea.textContent = '';
 
-                // Use the style handle captured in open()
                 const context = {
                     styles: {
                         ...this.commonStyle.classes,
@@ -14705,16 +14102,222 @@
                     fileHandler: this._handleLocalFileSelect.bind(this),
                 };
 
-                this.engine = new FormEngine(this.store, schema, context);
-                this.manageResource(ThemeModalComponent.RESOURCE_KEYS.ENGINE, this.engine);
+                const ui = new UIBuilder(this.store, context, this.addStoreSubscription.bind(this));
 
-                // Append rendered form to the content area
-                const contentArea = this.modal.element.querySelector(`.${this.style.classes.content}`);
-                if (contentArea) {
-                    contentArea.textContent = '';
-                    contentArea.appendChild(this.engine.render());
-                }
+                // Render the entire form structure
+                const formContent = this._renderThemeForm(ui, themeKey);
+                contentArea.appendChild(formContent);
+
+                // Add error monitoring to auto-clear footer message
+                this.addStoreSubscription(
+                    this.store.subscribe((state, path) => {
+                        // Check if the update is related to errors
+                        if (path && path.startsWith(CONSTANTS.STORE_KEYS.ERRORS_PATH)) {
+                            const errors = getPropertyByPath(state, CONSTANTS.STORE_KEYS.ERRORS_PATH) || {};
+                            // Check if any error still exists
+                            const hasError = Object.values(errors).some((val) => val && val.message);
+
+                            const footerMessage = this.modal?.dom?.footerMessage;
+                            // Only clear if it matches the validation error message
+                            if (footerMessage && !hasError && footerMessage.textContent === 'Please correct the errors above.') {
+                                footerMessage.textContent = '';
+                            }
+                        }
+                    })
+                );
+
+                // Re-initialize preview controller to bind to new DOM elements
+                // First, dispose the old one
+                this.manageResource(ThemeModalComponent.RESOURCE_KEYS.PREVIEW_CTRL, null);
+
+                // Create new one with the current store and default set
+                this.previewController = new ThemePreviewController(this.modal.element, this.store, this.state.config.platforms[PLATFORM].defaultSet);
+                // Sync mode
+                this.previewController.setIsEditingDefault(themeKey === CONSTANTS.THEME_IDS.DEFAULT);
+
+                this.manageResource(ThemeModalComponent.RESOURCE_KEYS.PREVIEW_CTRL, this.previewController);
             }
+        }
+
+        /**
+         * @private
+         * Renders the theme editor form using UIBuilder.
+         */
+        /**
+         * @private
+         * Renders the theme editor form using UIBuilder.
+         */
+        _renderThemeForm(ui, themeKey) {
+            const isNotDefault = themeKey !== CONSTANTS.THEME_IDS.DEFAULT;
+
+            const fragments = [];
+
+            // 1. General Settings (Patterns) - Only for custom themes
+            if (isNotDefault) {
+                const patternsGroup = ui.container(
+                    [
+                        ui.textarea('metadata.matchPatterns', 'Title Patterns (one per line):', {
+                            tooltip: 'Enter one RegEx pattern per line to automatically apply this theme (e.g., /My Project/i).\nNote: "g" (global) and "y" (sticky) flags are ignored for performance.',
+                            rows: 3,
+                            transformValue: (val) => (val ? val.split('\n') : []),
+                            toInputValue: (val) => (Array.isArray(val) ? val.join('\n') : val || ''),
+                        }),
+                        ui.textarea('metadata.urlPatterns', 'URL Patterns (one per line):', {
+                            tooltip: 'Enter one RegEx pattern per line to match against the decoded URL path.\nExample: /\\/c\\/.*$/i\nNote: "g" (global) and "y" (sticky) flags are ignored for performance.',
+                            rows: 3,
+                            transformValue: (val) => (val ? val.split('\n') : []),
+                            toInputValue: (val) => (Array.isArray(val) ? val.join('\n') : val || ''),
+                        }),
+                    ],
+                    { className: 'compoundFormFieldContainer' }
+                ); // Grid layout for patterns
+
+                fragments.push(ui.container([patternsGroup], { className: 'generalSettings' }));
+                fragments.push(ui.separator({ className: 'separator' }));
+            }
+
+            // 2. Actor & Window Settings Grid
+            const gridContent = ui.container([this._renderActorGroup(ui, 'assistant', 'Assistant'), this._renderActorGroup(ui, 'user', 'User'), this._renderWindowGroup(ui), this._renderInputGroup(ui)], { className: 'grid' });
+
+            fragments.push(gridContent);
+
+            return ui.container(fragments, { className: 'scrollableArea' });
+        }
+
+        _renderActorGroup(ui, actor, title) {
+            const prefix = actor;
+            const bubbleWidthConfig = CONSTANTS.SLIDER_CONFIGS.BUBBLE_MAX_WIDTH;
+
+            // Helper for pixel transformers
+            const pxTransform = {
+                transformValue: (val) => (val < 0 ? null : `${val}px`),
+                toInputValue: (val) => {
+                    if (typeof val === 'string' && val.endsWith('px')) {
+                        const match = String(val).match(/^(-?\d+)/);
+                        if (match) return parseInt(match[1], 10);
+                        return -1;
+                    }
+                    if (typeof val === 'number') return val;
+                    return -1; // null -> -1 (Auto)
+                },
+                valueLabelFormatter: (val) => (val === null ? 'Auto' : val),
+            };
+
+            return ui.group(title, [
+                ui.text(`${prefix}.name`, 'Name:', { tooltip: `The name displayed for the ${actor}.`, fieldType: 'name' }),
+                ui.text(`${prefix}.icon`, 'Icon:', { tooltip: `URL, Data URI, or <svg> for the ${actor}'s icon.`, fieldType: 'icon' }),
+                ui.text(`${prefix}.standingImageUrl`, 'Standing image:', { tooltip: `URL or Data URI for the character's standing image.`, fieldType: 'image' }),
+
+                ui.group('Bubble Settings', [
+                    ui.color(`${prefix}.bubbleBackgroundColor`, 'Background color:', { tooltip: 'Background color of the message bubble.' }),
+                    ui.color(`${prefix}.textColor`, 'Text color:', { tooltip: 'Color of the text inside the bubble.' }),
+                    ui.text(`${prefix}.font`, 'Font:', { tooltip: 'Font family for the text.\nFont names with spaces must be quoted (e.g., "Times New Roman").' }),
+
+                    // Compound container for Padding & Radius
+                    ui.container(
+                        [
+                            ui.range(`${prefix}.bubblePadding`, 'Padding:', -1, 30, {
+                                step: 1,
+                                tooltip: 'Adjusts padding for all sides.\nSet to the far left for (auto).',
+                                containerClass: 'sliderSubgroup',
+                                ...pxTransform,
+                            }),
+                            ui.range(`${prefix}.bubbleBorderRadius`, 'Radius:', -1, 50, {
+                                step: 1,
+                                tooltip: 'Corner roundness of the bubble (e.g., 10px).\nSet to the far left for (auto).',
+                                containerClass: 'sliderSubgroup',
+                                ...pxTransform,
+                            }),
+                        ],
+                        { className: 'compoundSliderContainer' }
+                    ),
+
+                    ui.range(`${prefix}.bubbleMaxWidth`, 'max Width:', bubbleWidthConfig.MIN, bubbleWidthConfig.MAX, {
+                        step: 1,
+                        tooltip: 'Maximum width of the bubble.\nSet to the far left for (auto).',
+                        containerClass: 'sliderContainer',
+                        transformValue: (val) => (val < bubbleWidthConfig.NULL_THRESHOLD ? null : `${val}%`),
+                        toInputValue: (val) => {
+                            if (typeof val === 'string' && val.endsWith('%')) return parseInt(val, 10);
+                            if (typeof val === 'number') return val;
+                            return bubbleWidthConfig.MIN;
+                        },
+                        valueLabelFormatter: (val) => (val === null ? 'Auto' : val),
+                    }),
+
+                    ui.separator({ className: 'separator' }),
+                    this._renderPreview(ui, actor),
+                ]),
+            ]);
+        }
+
+        _renderWindowGroup(ui) {
+            return ui.group('Background', [
+                ui.color('window.backgroundColor', 'Background color:', { tooltip: 'Main background color of the chat window.' }),
+                ui.text('window.backgroundImageUrl', 'Background image:', { tooltip: 'URL or Data URI for the main background image.', fieldType: 'image' }),
+
+                ui.container(
+                    [
+                        ui.select('window.backgroundSize', 'Size:', {
+                            options: ['', 'auto', 'cover', 'contain'],
+                            tooltip: 'How the background image is sized.',
+                            showLabel: true,
+                        }),
+                        ui.select('window.backgroundPosition', 'Position:', {
+                            options: ['', 'top left', 'top center', 'top right', 'center left', 'center center', 'center right', 'bottom left', 'bottom center', 'bottom right'],
+                            tooltip: 'Position of the background image.',
+                            showLabel: true,
+                        }),
+                    ],
+                    { className: 'compoundFormFieldContainer' }
+                ),
+
+                ui.container(
+                    [
+                        ui.select('window.backgroundRepeat', 'Repeat:', {
+                            options: ['', 'no-repeat', 'repeat'],
+                            tooltip: 'How the background image is repeated.',
+                            showLabel: true,
+                        }),
+                        this._renderPreviewBackground(ui),
+                    ],
+                    { className: 'compoundFormFieldContainer' }
+                ),
+            ]);
+        }
+
+        _renderInputGroup(ui) {
+            return ui.group('Input area', [
+                ui.color('inputArea.backgroundColor', 'Background color:', { tooltip: 'Background color of the text input area.' }),
+                ui.color('inputArea.textColor', 'Text color:', { tooltip: 'Color of the text you type.' }),
+                ui.separator({ className: 'separator' }),
+                this._renderPreviewInput(ui),
+            ]);
+        }
+
+        _renderPreview(ui, actor) {
+            const cls = ui.context.styles;
+            const wrapperClass = actor === 'user' ? `${cls.previewBubbleWrapper} ${cls.userPreview}` : cls.previewBubbleWrapper;
+            return ui.create('div', { className: cls.previewContainer }, [
+                ui.create('label', {}, 'Preview:'),
+                ui.create('div', { className: wrapperClass }, [ui.create('div', { className: cls.previewBubble, dataset: { [CONSTANTS.DATA_KEYS.PREVIEW_FOR]: actor } }, [ui.create('span', {}, 'Sample Text')])]),
+            ]);
+        }
+
+        _renderPreviewInput(ui) {
+            const cls = ui.context.styles;
+            return ui.create('div', { className: cls.previewContainer }, [
+                ui.create('label', {}, 'Preview:'),
+                ui.create('div', { className: cls.previewBubbleWrapper }, [ui.create('div', { className: cls.previewInputArea, dataset: { [CONSTANTS.DATA_KEYS.PREVIEW_FOR]: 'inputArea' } }, [ui.create('span', {}, 'Sample input text')])]),
+            ]);
+        }
+
+        _renderPreviewBackground(ui) {
+            const cls = ui.context.styles;
+            return ui.create('div', { className: cls.formField }, [
+                ui.create('label', {}, 'BG Preview:'),
+                ui.create('div', { className: cls.previewBubbleWrapper, style: { padding: '0', minHeight: '0' } }, [ui.create('div', { className: cls.previewBackground, dataset: { [CONSTANTS.DATA_KEYS.PREVIEW_FOR]: 'window' } })]),
+            ]);
         }
 
         _setupEventListeners() {
@@ -14750,8 +14353,6 @@
                     this.state.activeThemeKey = target.value;
                     this._initFormWithTheme(this.state.activeThemeKey);
                     this._renderUI();
-                    // Clear any lingering errors from the previous theme
-                    this.engine.clearErrors();
                 }
             });
 
@@ -14851,7 +14452,7 @@
         _renderUI() {
             if (!this.modal) return;
 
-            const { uiMode, activeThemeKey, config, isSizeExceeded } = this.state;
+            const { uiMode, activeThemeKey, config, isSizeExceeded, isSaving } = this.state;
             const cls = this.style.classes;
             const isDefault = activeThemeKey === CONSTANTS.THEME_IDS.DEFAULT;
             const isRenaming = uiMode === ThemeModalComponent.UI_MODES.RENAMING;
@@ -14895,7 +14496,7 @@
             }
 
             // --- Set enabled/disabled state of all controls ---
-            const isActionInProgress = uiMode !== ThemeModalComponent.UI_MODES.NORMAL;
+            const isActionInProgress = uiMode !== ThemeModalComponent.UI_MODES.NORMAL || isSaving;
             const index = config.themeSets.findIndex((t) => t.metadata.id === activeThemeKey);
 
             // Block structural changes if size is exceeded
@@ -14959,7 +14560,7 @@
         }
 
         _createMainContent() {
-            // Container for FormEngine output
+            // Container for UIBuilder output
             return h(`div.${this.style.classes.content}`);
         }
 
@@ -15000,9 +14601,6 @@
         }
 
         async _handleThemeAction(shouldClose) {
-            // Clear all previous field errors before validating again.
-            this.engine.clearErrors();
-
             const footerMessage = this.modal?.dom?.footerMessage;
             // Guard: Do not clear the footer message if it is a conflict warning (waiting for reload)
             if (footerMessage && !footerMessage.classList.contains(this.commonStyle.classes.conflictText)) {
@@ -15017,10 +14615,24 @@
             themeData = ConfigProcessor.normalize(themeData);
 
             const validationResult = ConfigProcessor.validate(themeData, this.state.activeThemeKey === CONSTANTS.THEME_IDS.DEFAULT);
+
             if (!validationResult.isValid) {
-                this.engine.setErrors(validationResult.errors);
+                // Map validation errors to store to trigger UI updates
+                validationResult.errors.forEach((err) => {
+                    this.store.set(`${CONSTANTS.STORE_KEYS.ERRORS_PATH}.${err.field}`, { message: err.message });
+                });
+
+                // Also show a summary in the footer
+                if (footerMessage) {
+                    footerMessage.textContent = 'Please correct the errors above.';
+                    footerMessage.style.color = SITE_STYLES.PALETTE.error_text;
+                }
                 return;
             }
+
+            // Lock UI
+            this.state.isSaving = true;
+            this._renderUI();
 
             const newConfig = deepClone(this.state.config);
             if (this.state.activeThemeKey === CONSTANTS.THEME_IDS.DEFAULT) {
@@ -15043,6 +14655,12 @@
 
             const onSuccess = async () => (shouldClose ? this.close() : this._renderUI());
             await this._saveConfigAndHandleFeedback(newConfig, onSuccess);
+
+            // Unlock UI (if still open)
+            this.state.isSaving = false;
+            if (!shouldClose) {
+                this._renderUI();
+            }
         }
 
         _handleThemeNew() {
@@ -17190,9 +16808,6 @@
             // Reset failed URLs state on initialization to allow retrying previously failed images in this new session
             this.imageDataManager.clearFailedUrls();
 
-            // Register UI components before initializing UI managers
-            registerComponents();
-
             await this.configManager.load(true);
             if (this.isDestroyed) return;
 
@@ -19066,6 +18681,7 @@
                 const autoCollapseFeature = SchemaBuilder.Toggle(`${p}.features.auto_collapse_user_message.enabled`, 'Auto collapse user message', {
                     title: 'Automatically collapses user messages that exceed the height threshold.\nApplies to new messages and existing history on load.\nRequires "Collapsible button" to be enabled.',
                     disabledIf: (data) => !getPropertyByPath(data, `${p}.features.collapsible_button.enabled`),
+                    dependencies: [`${p}.features.collapsible_button.enabled`],
                 });
 
                 if (!isFirefox()) {

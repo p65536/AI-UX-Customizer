@@ -467,6 +467,7 @@ interface SettingsPanelAdapter {
         className?: string;
         visibleIf?: (data: any) => boolean;
         disabledIf?: (data: any) => boolean;
+        dependencies?: string[];
         onChange?: (value: any, data: any) => void;
     }>;
 }
@@ -617,9 +618,13 @@ interface PlatformConstants {
     STORE_KEYS: {
         SYSTEM_ROOT: string;
         SYSTEM_WARNING: string;
+        SYSTEM_ERRORS: string;
+        SYSTEM_SIZE_EXCEEDED: string;
         WARNING_PATH: string;
         WARNING_MSG_PATH: string;
         WARNING_SHOW_PATH: string;
+        ERRORS_PATH: string;
+        SIZE_EXCEEDED_PATH: string;
     };
     RESOURCE_KEYS: {
         SETTINGS_BUTTON: string;
