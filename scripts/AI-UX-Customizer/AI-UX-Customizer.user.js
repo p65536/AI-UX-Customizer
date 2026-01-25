@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b418
+// @version      1.0.0-b419
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -105,9 +105,6 @@
         STANDING_IMG_USER_MASK: `--${APPID}-standing-image-user-mask`,
         STANDING_IMG_ASST_MASK: `--${APPID}-standing-image-assistant-mask`,
         RIGHT_SIDEBAR_WIDTH: `--${APPID}-right-sidebar-width`,
-
-        // Components
-        COLOR_PICKER_FOCUS: `--${APPID}-color-picker-focus-color`,
     };
 
     /**
@@ -3793,16 +3790,6 @@
                 .${cls.colorSwatchValue} {
                     transition: background-color: 0.1s;
                 }
-                .${cls.colorPickerPopup} {
-                    background-color: ${palette.bg};
-                    border: 1px solid ${palette.border};
-                    border-radius: 4px;
-                    box-shadow: 0 4px 12px rgb(0 0 0 / 0.2);
-                    padding: 16px;
-                    position: absolute;
-                    width: 280px;
-                    z-index: 10;
-                }
             `;
         }
 
@@ -4276,7 +4263,7 @@
             return `
                 .${cls.picker} { display: flex;  flex-direction: column; gap: 16px; }
                 .${cls.svPlane} { position: relative;  width: 100%; aspect-ratio: 1 / 1; cursor: crosshair; touch-action: none; border-radius: 4px; overflow: hidden; flex-shrink: 0; }
-                .${cls.svPlane}:focus { outline: 2px solid var(${CSS_VARS.COLOR_PICKER_FOCUS}, ${palette.accent_text});  }
+                .${cls.svPlane}:focus { outline: 2px solid ${palette.accent_text};  }
                 .${cls.svPlane} .${cls.gradientWhite}, .${cls.svPlane} .${cls.gradientBlack} { position: absolute;  inset: 0; pointer-events: none; }
                 .${cls.svPlane} .${cls.gradientWhite} { background: linear-gradient(to right, white, transparent);  }
                 .${cls.svPlane} .${cls.gradientBlack} { background: linear-gradient(to top, black, transparent);  }
@@ -4289,8 +4276,8 @@
                 .${cls.sliderGroup} input[type="range"]:focus { outline: none;  }
                 .${cls.sliderGroup} input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none;  appearance: none; width: 20px; height: 20px; border: 2px solid white; border-radius: 50%; background-color: #fff;  box-shadow: 0 0 2px 1px rgb(0 0 0 / 0.5);  }
                 .${cls.sliderGroup} input[type="range"]::-moz-range-thumb { width: 20px;  height: 20px; border: 2px solid white; border-radius: 50%; background-color: #fff; box-shadow: 0 0 2px 1px rgb(0 0 0 / 0.5);  }
-                .${cls.sliderGroup} input[type="range"]:focus::-webkit-slider-thumb { outline: 2px solid var(${CSS_VARS.COLOR_PICKER_FOCUS}, ${palette.accent_text});  outline-offset: 1px; }
-                .${cls.sliderGroup} input[type="range"]:focus::-moz-range-thumb { outline: 2px solid var(${CSS_VARS.COLOR_PICKER_FOCUS}, ${palette.accent_text});  outline-offset: 1px; }
+                .${cls.sliderGroup} input[type="range"]:focus::-webkit-slider-thumb { outline: 2px solid ${palette.accent_text};  outline-offset: 1px; }
+                .${cls.sliderGroup} input[type="range"]:focus::-moz-range-thumb { outline: 2px solid ${palette.accent_text};  outline-offset: 1px; }
             `;
         }
 
@@ -17452,7 +17439,6 @@
             slider_display_text: 'var(--text-primary)',
             label_text: 'var(--text-secondary)',
             error_text: 'var(--text-danger)',
-            dnd_indicator_color: 'var(--text-accent)',
             // Component Specifics: Settings Button
             settings_btn_width: 'calc(var(--spacing)*9)',
             settings_btn_height: 'calc(var(--spacing)*9)',
@@ -19107,7 +19093,6 @@
             slider_display_text: 'var(--gem-sys-color--on-surface)',
             label_text: 'var(--gem-sys-color--on-surface-variant)',
             error_text: 'var(--gem-sys-color--error)',
-            dnd_indicator_color: 'var(--gem-sys-color--primary)',
             // Component Specifics: Settings Button
             settings_btn_width: '40px',
             settings_btn_height: '40px',

@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b419] - 2026-01-26
+- **Code Cleanup**
+  - Removed unused CSS variables.
+
 ## [1.0.0-b418] - 2026-01-26
 - **Performance Improvements**
   - **[Gemini]** Optimized the internal lookup mechanism for the chat history container, reducing processing overhead during cache updates and layout calculations.
