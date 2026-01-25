@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b413] - 2026-01-25
+- **Fixes**
+  - **[AutoScroll]** Fixed a bug where the layout scan (ChatGPT) or auto-scroll (Gemini) would incorrectly trigger when sending a new message in a short conversation. The system now correctly distinguishes between the initial page load and active user interaction.
+
 ## [1.0.0-b412] - 2026-01-24
 - **Fixes & Improvements**
   - **[Core]** Improved stability when switching chats by immediately cancelling background tasks and pending operations.

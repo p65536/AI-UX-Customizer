@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b412
+// @version      1.0.0-b413
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -18422,8 +18422,6 @@
                         MESSAGE_THRESHOLD: 5, // Lower threshold for ChatGPT as it's for layout scanning
                         // Delay between simulated PageUp scrolls (in ms)
                         SCAN_INTERVAL_MS: 30,
-                        // The grace period (in ms) after navigation to allow messages to load before deciding not to scroll.
-                        GRACE_PERIOD_MS: 2000,
                     };
 
                     /**
@@ -18439,7 +18437,6 @@
                         this.scanLoopId = null; // Use for setTimeout loop
                         this.boundStop = null;
                         this.isLayoutScanComplete = false;
-                        this.navigationStartTime = 0;
                     }
 
                     /**
@@ -18566,6 +18563,14 @@
                         }
 
                         const messageCount = this.messageCacheManager.getTotalMessages().length;
+
+                        // Wait for at least one message to ensure history has started loading (First Paint logic)
+                        if (messageCount === 0) return;
+
+                        // Latch on first data: Mark initialization as done immediately regardless of threshold.
+                        // This prevents subsequent message additions (e.g. user sending a message) from triggering a delayed scan.
+                        this.isInitialScrollCheckDone = true;
+
                         if (messageCount >= AutoScrollManager.CONFIG.MESSAGE_THRESHOLD) {
                             Logger.log('', '', `AutoScrollManager: ${messageCount} messages found. Triggering layout scan.`);
 
@@ -18573,17 +18578,8 @@
                             this._subscribeOnce(EVENTS.AUTO_SCROLL_COMPLETE, () => this._onScanComplete());
                             // Start the scan
                             EventBus.publish(EVENTS.AUTO_SCROLL_REQUEST);
-                            this.isInitialScrollCheckDone = true;
                         } else {
-                            // Check if the grace period has expired
-                            const timeSinceNavigation = Date.now() - this.navigationStartTime;
-                            if (timeSinceNavigation > AutoScrollManager.CONFIG.GRACE_PERIOD_MS) {
-                                Logger.log('', '', `AutoScrollManager: ${messageCount} messages found after grace period. No scan needed.`);
-                                this.isInitialScrollCheckDone = true;
-                            } else {
-                                // Within grace period: do nothing and wait for subsequent cache updates.
-                                // This handles cases where messages load progressively (e.g. hundreds of messages).
-                            }
+                            Logger.log('', '', `AutoScrollManager: ${messageCount} messages found (below threshold). Layout scan skipped.`);
                         }
                     }
 
@@ -18599,7 +18595,6 @@
                         }
                         this.isInitialScrollCheckDone = false;
                         this.isLayoutScanComplete = false;
-                        this.navigationStartTime = Date.now();
                     }
                 }
                 controller.autoScrollManager = controller.manageFactory(CONSTANTS.RESOURCE_KEYS.AUTO_SCROLL_MANAGER, () => new AutoScrollManager(controller.configManager, controller.messageCacheManager, controller.messageLifecycleManager));
@@ -19891,8 +19886,6 @@
                         APPEAR_TIMEOUT_MS: 2000,
                         // The maximum time (in ms) to wait for the progress bar to disappear after it has appeared.
                         DISAPPEAR_TIMEOUT_MS: 5000,
-                        // The grace period (in ms) after navigation to allow messages to load before deciding not to scroll.
-                        GRACE_PERIOD_MS: 2000,
                         // The maximum time (in ms) to wait for Canvas to close before aborting scroll.
                         CANVAS_CLOSE_TIMEOUT_MS: 1000,
                     };
@@ -19914,7 +19907,6 @@
                         this.progressObserver = null;
                         this.appearTimeout = null;
                         this.disappearTimeout = null;
-                        this.navigationStartTime = 0;
                     }
 
                     /**
@@ -20109,20 +20101,18 @@
                         }
 
                         const messageCount = this.messageCacheManager.getTotalMessages().length;
+
+                        // Wait for at least one message to ensure history has started loading (First Paint logic)
+                        if (messageCount === 0) return;
+
+                        // Latch on first data: Mark initialization as done immediately regardless of threshold.
+                        this.isInitialScrollCheckDone = true;
+
                         if (messageCount >= AutoScrollManager.CONFIG.MESSAGE_THRESHOLD) {
                             Logger.log('', '', `AutoScrollManager: ${messageCount} messages found. Triggering auto-scroll.`);
-                            this.isInitialScrollCheckDone = true;
                             EventBus.publish(EVENTS.AUTO_SCROLL_REQUEST);
                         } else {
-                            // If message count is low, check if the grace period has expired.
-                            const timeSinceNavigation = Date.now() - this.navigationStartTime;
-                            if (timeSinceNavigation > AutoScrollManager.CONFIG.GRACE_PERIOD_MS) {
-                                Logger.log('', '', `AutoScrollManager: ${messageCount} messages found after grace period. No scroll needed.`);
-                                this.isInitialScrollCheckDone = true;
-                            } else {
-                                // Within grace period: do nothing and wait for subsequent cache updates.
-                                // This handles cases where messages load progressively.
-                            }
+                            Logger.log('', '', `AutoScrollManager: ${messageCount} messages found (below threshold). Auto-scroll skipped.`);
                         }
                     }
 
@@ -20151,7 +20141,6 @@
                             this.stop(true);
                         }
                         this.isInitialScrollCheckDone = false;
-                        this.navigationStartTime = Date.now();
                     }
                 }
                 // Inject toastManager into the constructor
