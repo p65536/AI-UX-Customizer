@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b418] - 2026-01-26
+- **Performance Improvements**
+  - **[Gemini]** Optimized the internal lookup mechanism for the chat history container, reducing processing overhead during cache updates and layout calculations.
+
 ## [1.0.0-b417] - 2026-01-26
 - **Fixes**
   - Fixed an issue in the Theme Editor where the scroll position and input focus were reset when clicking "Apply".
