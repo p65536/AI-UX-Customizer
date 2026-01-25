@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b416] - 2026-01-25
+- **Refactoring**
+  - Removed unused logic to streamline the codebase.
+
 ## [1.0.0-b415] - 2026-01-25
 - **Bug Fixes**
   - Fixed memory leak issues where the Settings Panel would accumulate event listeners and subscriptions upon re-rendering.

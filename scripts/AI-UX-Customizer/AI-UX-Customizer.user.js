@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b415
+// @version      1.0.0-b416
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -550,12 +550,6 @@
          * @property {null} detail - No payload.
          */
         INPUT_AREA_RESIZED: `${APPID}:inputAreaResized`,
-        /**
-         * @description Requests to reopen a modal, typically after a settings sync conflict is resolved.
-         * @event REOPEN_MODAL
-         * @property {object} detail - Context for which modal to reopen (e.g., { type: 'json' }).
-         */
-        REOPEN_MODAL: `${APPID}:reOpenModal`,
 
         // Navigation & Cache
         /**
@@ -11685,37 +11679,7 @@
             return { type, id, ...props };
         },
 
-        // --- Layouts ---
-        Group(label, children, options = {}) {
-            return { type: 'group', label, children, ...options };
-        },
-        Row(children, options = {}) {
-            return { type: 'row', children, ...options };
-        },
-        Separator(options = {}) {
-            return { type: 'separator', ...options };
-        },
-        Grid(children, options = {}) {
-            return { type: 'grid', children, ...options };
-        },
-        Container(children, options = {}) {
-            return { type: 'container', children, ...options };
-        },
-
         // --- Controls ---
-        /**
-         * @param {string} text
-         * @param {CommonOptions & { for?: string }} [options]
-         */
-        Label(text, options = {}) {
-            return { type: 'label', text, ...options };
-        },
-        Text(key, label, options = {}) {
-            return { type: 'text', configKey: key, label, ...options };
-        },
-        TextArea(key, label, options = {}) {
-            return { type: 'textarea', configKey: key, label, ...options };
-        },
         /**
          * @param {string} key
          * @param {string} label
@@ -11723,49 +11687,6 @@
          */
         Toggle(key, label, options = {}) {
             return { type: 'toggle', configKey: key, label, ...options };
-        },
-        /**
-         * @param {string} key
-         * @param {string} label
-         * @param {number} min
-         * @param {number} max
-         * @param {CommonOptions & {
-         * step?: number,
-         * containerClass?: string,
-         * valueLabelFormatter?: (value: any) => string,
-         * transformValue?: (value: number) => any,
-         * toInputValue?: (value: any) => number
-         * }} [options]
-         */
-        Slider(key, label, min, max, options = {}) {
-            return { type: 'slider', configKey: key, label, min, max, ...options };
-        },
-        Select(key, label, optionValues, options = {}) {
-            return { type: 'select', configKey: key, label, options: optionValues, ...options };
-        },
-        Color(key, label, options = {}) {
-            return { type: 'color', configKey: key, label, ...options };
-        },
-        /**
-         * @param {string} id
-         * @param {string} text
-         * @param {(e: Event) => void} [onClick]
-         * @param {CommonOptions & { fullWidth?: boolean, disabledIf?: (data: any) => boolean }} [options]
-         */
-        Button(id, text, onClick, options = {}) {
-            // Button is special; it doesn't bind to store usually, so configKey is omitted
-            return { type: 'button', id, text, onClick, ...options };
-        },
-
-        // --- Preview ---
-        Preview(actor, options = {}) {
-            return { type: 'preview', actor, ...options };
-        },
-        PreviewInput(options = {}) {
-            return { type: 'preview-input', ...options };
-        },
-        PreviewBackground(options = {}) {
-            return { type: 'preview-background', ...options };
         },
     };
 
@@ -13666,10 +13587,6 @@
                 fileInput.click();
             }
         }
-
-        getContextForReopen() {
-            return { type: 'json' };
-        }
     }
 
     /**
@@ -14802,10 +14719,6 @@
             this.state.uiMode = ThemeModalComponent.UI_MODES.NORMAL;
             this.state.pendingDeletionKey = null;
             this._renderUI();
-        }
-
-        getContextForReopen() {
-            return { type: 'theme', key: this.state.activeThemeKey };
         }
     }
 
@@ -16115,15 +16028,6 @@
             // This is critical for initializing resources like debounced functions.
             if (this.jsonModal) await this.jsonModal.init();
             if (this.themeModal) await this.themeModal.init();
-
-            this._subscribe(EVENTS.REOPEN_MODAL, ({ type, key }) => {
-                const anchor = this.callbacks.getAnchorElement?.();
-                if (type === 'json') {
-                    this.jsonModal?.open(anchor);
-                } else if (type === 'theme') {
-                    this.themeModal?.open(key);
-                }
-            });
         }
 
         _onDestroy() {
@@ -17851,9 +17755,6 @@
                     }
                     ${CONSTANTS.SELECTORS.BUTTON_SHARE_CHAT}:hover {
                         background-color: var(--interactive-bg-secondary-hover);
-                    }
-                    #fixedTextUIRoot, #fixedTextUIRoot * {
-                        color: inherit;
                     }
                     ${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT} {
                         overflow-x: auto;
