@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b423] - 2026-01-26
+- **Performance Improvements**
+  - The script now intelligently skips unnecessary checks during text streaming, ensuring a smoother experience and lower CPU usage during active chat generation.
+
 ## [1.0.0-b422] - 2026-01-26
 - **Refactoring**
   - Refactored internal constants to remove unused definitions.

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b422
+// @version      1.0.0-b423
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -7878,6 +7878,9 @@
          * @param {MutationRecord[]} mutations An array of MutationRecord objects provided by the observer.
          */
         _handleMainMutations(mutations) {
+            // PERFORMANCE OPTIMIZATION:
+            if (this.streamingState.isActive) return;
+
             // Check only for removed nodes that are message containers.
             // Additions are handled exclusively by Sentinel for better performance.
             const hasDeletion = mutations.some((mutation) => Array.from(mutation.removedNodes).some((node) => node instanceof Element && node.matches(CONSTANTS.SELECTORS.MESSAGE_ROOT_NODE)));
