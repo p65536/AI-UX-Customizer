@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b427
+// @version      1.0.0-b428
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -171,6 +171,7 @@
                 IDLE_INDEXING_MS: 1000, // Interval for background text indexing task
             },
             PERF_MONITOR_THROTTLE: 1000,
+            KEYBOARD_THROTTLE: 120,
         },
         UI_SPECS: {
             STANDING_IMAGE_MASK_THRESHOLD_PX: 32,
@@ -338,12 +339,18 @@
                     respect_avatar_space: true,
                 },
                 features: {
-                    collapsible_button: { enabled: true },
-                    auto_collapse_user_message: { enabled: false },
-                    bubble_nav_buttons: { enabled: true },
-                    fixed_nav_console: { enabled: true, position: SHARED_CONSTANTS.CONSOLE_POSITIONS.INPUT_TOP },
                     load_full_history_on_chat_load: { enabled: true },
                     timestamp: { enabled: true },
+                    collapsible_button: {
+                        enabled: true,
+                        auto_collapse_user_message: { enabled: false },
+                    },
+                    bubble_nav_buttons: { enabled: true },
+                    fixed_nav_console: {
+                        enabled: true,
+                        position: SHARED_CONSTANTS.CONSOLE_POSITIONS.INPUT_TOP,
+                        keyboard_shortcuts: { enabled: true },
+                    },
                 },
                 defaultSet: {
                     assistant: {
@@ -388,12 +395,18 @@
                     respect_avatar_space: true,
                 },
                 features: {
-                    collapsible_button: { enabled: true },
-                    auto_collapse_user_message: { enabled: false },
-                    bubble_nav_buttons: { enabled: true },
-                    fixed_nav_console: { enabled: true, position: SHARED_CONSTANTS.CONSOLE_POSITIONS.INPUT_TOP },
                     load_full_history_on_chat_load: { enabled: true },
                     timestamp: { enabled: true },
+                    collapsible_button: {
+                        enabled: true,
+                        auto_collapse_user_message: { enabled: false },
+                    },
+                    bubble_nav_buttons: { enabled: true },
+                    fixed_nav_console: {
+                        enabled: true,
+                        position: SHARED_CONSTANTS.CONSOLE_POSITIONS.INPUT_TOP,
+                        keyboard_shortcuts: { enabled: true },
+                    },
                 },
                 defaultSet: {
                     assistant: {
@@ -8271,7 +8284,7 @@
                     const uniqueId = DomState.get(messageElement, CONSTANTS.DATA_KEYS.UNIQUE_ID);
                     if (uniqueId && !manager.autoCollapseProcessedIds.has(uniqueId)) {
                         const config = manager.configManager.get();
-                        if (config.platforms[PLATFORM].features.auto_collapse_user_message.enabled) {
+                        if (config.platforms[PLATFORM].features.collapsible_button.auto_collapse_user_message.enabled) {
                             const role = PlatformAdapters.General.getMessageRole(messageElement);
                             if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER) {
                                 const height = info.bubbleElement.offsetHeight;
@@ -8809,6 +8822,8 @@
                 stickyMode: null, // null | 'shift'
                 interactionActive: false, // true if hovered or focused
             };
+
+            this.lastShortcutTime = 0;
 
             // Cache for UI elements to avoid repeated querySelector calls
             this.uiCache = null;
@@ -9923,6 +9938,67 @@
         }
 
         _handleKeyDown(e) {
+            const config = this.configManager.get();
+            const shortcutsEnabled = config?.platforms?.[PLATFORM]?.features?.fixed_nav_console?.keyboard_shortcuts?.enabled;
+
+            if (shortcutsEnabled && e.altKey && !e.ctrlKey && !e.metaKey) {
+                // Throttle check
+                const now = Date.now();
+                if (now - this.lastShortcutTime < CONSTANTS.TIMING.KEYBOARD_THROTTLE) {
+                    e.preventDefault();
+                    return;
+                }
+
+                // Determine active role
+                const role = this.state.activeRole;
+                const roleBtn = this.uiCache?.buttons?.role;
+                let actionTaken = false;
+
+                switch (e.key) {
+                    case 'ArrowUp':
+                        e.preventDefault();
+                        this._navigateTo(role, e.shiftKey ? 'first' : 'prev');
+                        actionTaken = true;
+                        break;
+                    case 'ArrowDown':
+                        e.preventDefault();
+                        this._navigateTo(role, e.shiftKey ? 'last' : 'next');
+                        actionTaken = true;
+                        break;
+                    case 'j':
+                    case 'J':
+                        e.preventDefault();
+                        if (roleBtn instanceof HTMLElement) {
+                            this._toggleJumpList(roleBtn);
+                        }
+                        actionTaken = true;
+                        break;
+                    case 'n':
+                    case 'N': {
+                        e.preventDefault();
+                        const cls = this.styleHandle.classes;
+                        const existingInput = this.navConsole?.querySelector(`.${cls.jumpInput}`);
+
+                        if (existingInput instanceof HTMLInputElement) {
+                            existingInput.focus();
+                            existingInput.select();
+                        } else {
+                            const counter = this.uiCache?.info?.counter;
+                            if (counter instanceof HTMLElement) {
+                                this._startJumpInputSession(counter);
+                            }
+                        }
+                        actionTaken = true;
+                        break;
+                    }
+                }
+
+                if (actionTaken) {
+                    this.lastShortcutTime = now;
+                    return;
+                }
+            }
+
             if (e.key === 'Escape') {
                 // Handle auto-scroll cancellation first.
                 if (this.autoScrollManager?.isScrolling) {
@@ -12810,7 +12886,23 @@
                 )
             );
 
-            // Navigation Console
+            // Keyboard Shortcuts
+            featureRows.push(
+                ui.row(
+                    [
+                        ui.label('Keyboard shortcuts', {
+                            title: 'Enable keyboard shortcuts for message navigation and Jump List.\n\nAlt + ↑ / ↓ : Previous / Next message\nAlt + Shift + ↑ / ↓ : First / Last message\nAlt + J : Open Jump List\nAlt + N : Input message number\n\nRequires "Navigation console" to be enabled.',
+                        }),
+                        ui.toggle(`${p}.features.fixed_nav_console.keyboard_shortcuts.enabled`, '', {
+                            title: 'Enable keyboard shortcuts for message navigation and Jump List.\n\nAlt + ↑ / ↓ : Previous / Next message\nAlt + Shift + ↑ / ↓ : First / Last message\nAlt + J : Open Jump List\nAlt + N : Input message number',
+                            disabledIf: (data) => !getPropertyByPath(data, `${p}.features.fixed_nav_console.enabled`),
+                            dependencies: [`${p}.features.fixed_nav_console.enabled`],
+                        }),
+                    ],
+                    { className: 'featureGroup' }
+                )
+            );
+
             featureRows.push(
                 ui.row(
                     [
@@ -18530,7 +18622,7 @@
                 const p = `platforms.${PLATFORM}`;
                 const timestampFeature = SchemaBuilder.Toggle(`${p}.features.timestamp.enabled`, 'Show timestamp', { title: 'Displays the timestamp for each message.' });
 
-                const autoCollapseFeature = SchemaBuilder.Toggle(`${p}.features.auto_collapse_user_message.enabled`, 'Auto collapse user message', {
+                const autoCollapseFeature = SchemaBuilder.Toggle(`${p}.features.collapsible_button.auto_collapse_user_message.enabled`, 'Auto collapse user message', {
                     title: 'Automatically collapses user messages that exceed the height threshold.\nApplies to new messages and existing history on load.\nRequires "Collapsible button" to be enabled.',
                     disabledIf: (data) => !getPropertyByPath(data, `${p}.features.collapsible_button.enabled`),
                     dependencies: [`${p}.features.collapsible_button.enabled`],

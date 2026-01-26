@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.0-b428] - 2026-01-27
+- **New Features**
+  - **[Navigation] Keyboard Shortcuts:** You can now navigate through messages using keyboard shortcuts.
+    - `Alt + ↑ / ↓`: Jump to Previous / Next message.
+    - `Alt + Shift + ↑ / ↓`: Jump to First / Last message.
+    - `Alt + J`: Open the Jump List.
+    - `Alt + N`: Focus the Message Number input.
+    - *Note:* This feature includes smart throttling to ensure smooth, visible transitions when keys are held down.
+- **Refactoring**
+  - **[Settings]** The internal configuration structure has been refactored. Features that depend on others (like "Auto collapse" depending on "Collapsible button") are now logically nested, improving stability and settings management.
+
 ## [1.0.0-b427] - 2026-01-26
 - **UX Improvements**
   - Message numbers and navigation counters now appear immediately when the assistant starts streaming a response, rather than waiting for the generation to complete.

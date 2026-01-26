@@ -122,12 +122,18 @@ interface PlatformSettings {
         respect_avatar_space: boolean;
     };
     features: {
-        collapsible_button: { enabled: boolean };
-        auto_collapse_user_message: { enabled: boolean };
-        bubble_nav_buttons: { enabled: boolean };
-        fixed_nav_console: { enabled: boolean; position?: string };
         load_full_history_on_chat_load?: { enabled: boolean };
         timestamp: { enabled: boolean };
+        collapsible_button: {
+            enabled: boolean;
+            auto_collapse_user_message: { enabled: boolean };
+        };
+        bubble_nav_buttons: { enabled: boolean };
+        fixed_nav_console: {
+            enabled: boolean;
+            position?: string;
+            keyboard_shortcuts: { enabled: boolean };
+        };
     };
     defaultSet: Omit<ThemeSet, 'metadata'>;
 }
@@ -530,6 +536,7 @@ interface PlatformConstants {
             IDLE_INDEXING_MS: number;
         };
         PERF_MONITOR_THROTTLE: number;
+        KEYBOARD_THROTTLE: number;
     };
     UI_SPECS: {
         STANDING_IMAGE_MASK_THRESHOLD_PX: number;
