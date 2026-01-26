@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b421] - 2026-01-26
+- **Bug Fixes**
+  - Fixed a synchronization issue in the **Theme Editor** where the live preview failed to update its fallback (default) settings when the configuration was reloaded.
+
 ## [1.0.0-b420] - 2026-01-26
 - **Bug Fixes**
   - **[Settings]** Fixed an issue where the "Console Position" setting would remain interactive even when the "Navigation console" feature was disabled. It now correctly reflects the disabled state.
