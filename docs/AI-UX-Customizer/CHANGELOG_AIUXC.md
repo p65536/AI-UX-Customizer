@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-b422] - 2026-01-26
+- **Refactoring**
+  - Refactored internal constants to remove unused definitions.
+  - Standardized DOM data attribute access in the Navigation Console to improve maintainability.
+
 ## [1.0.0-b421] - 2026-01-26
 - **Bug Fixes**
   - Fixed a synchronization issue in the **Theme Editor** where the live preview failed to update its fallback (default) settings when the configuration was reloaded.

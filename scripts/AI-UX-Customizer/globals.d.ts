@@ -604,16 +604,12 @@ interface PlatformConstants {
         AVATAR_INJECT_ATTEMPTS: string;
         AVATAR_INJECT_FAILED: string;
         UNIQUE_ID: string;
-        NAV_CMD: string;
-        NAV_ROLE: string;
         ORIGINAL_TITLE: string;
-        CONFIG_KEY: string;
         STATE: string;
         FILTERED_INDEX: string;
         MESSAGE_INDEX: string;
         PREVIEW_FOR: string;
-        FORM_ERROR_FOR: string;
-        TARGET_CONFIG_KEY: string;
+        ICON_TYPE: string;
     };
     STORE_KEYS: {
         SYSTEM_ROOT: string;

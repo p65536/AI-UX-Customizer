@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b421
+// @version      1.0.0-b422
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -254,16 +254,12 @@
             AVATAR_INJECT_ATTEMPTS: `${APPID}AvatarInjectAttempts`,
             AVATAR_INJECT_FAILED: `${APPID}AvatarInjectFailed`,
             UNIQUE_ID: `${APPID}UniqueId`,
-            NAV_CMD: 'nav',
-            NAV_ROLE: 'role',
             ORIGINAL_TITLE: 'originalTitle',
-            CONFIG_KEY: 'configKey',
             STATE: 'state',
             FILTERED_INDEX: 'filteredIndex',
             MESSAGE_INDEX: 'messageIndex',
             PREVIEW_FOR: 'previewFor',
-            FORM_ERROR_FOR: 'formErrorFor',
-            TARGET_CONFIG_KEY: 'targetConfigKey',
+            ICON_TYPE: 'iconType',
         },
         STORE_KEYS: {
             SYSTEM_ROOT: '_system',
@@ -9563,14 +9559,14 @@
             const roleBtn = this.uiCache.buttons.role;
             if (roleBtn instanceof HTMLElement) {
                 // Only update DOM if icon type changed
-                const currentIconType = roleBtn.dataset.iconType;
+                const currentIconType = DomState.get(roleBtn, CONSTANTS.DATA_KEYS.ICON_TYPE);
                 if (currentIconType !== currentData.icon) {
                     roleBtn.textContent = '';
                     const iconDef = StyleDefinitions.ICONS[currentData.icon];
                     if (iconDef) {
                         roleBtn.appendChild(createIconFromDef(iconDef));
                     }
-                    roleBtn.dataset.iconType = currentData.icon;
+                    DomState.set(roleBtn, CONSTANTS.DATA_KEYS.ICON_TYPE, currentData.icon);
                 }
 
                 // Update Colors
