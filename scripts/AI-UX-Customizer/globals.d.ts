@@ -252,7 +252,7 @@ interface IMessageCacheManager {
 
 interface IMessageLifecycleManager {
     scanForUnprocessedMessages(): number;
-    startPollingScan(): void;
+    scheduleIntegrityScan(): void;
     processRawMessage(element: HTMLElement): void;
 }
 
@@ -645,7 +645,7 @@ interface PlatformConstants {
         AUTO_SCROLL_MANAGER: string;
         MAIN_OBSERVER: string;
         LAYOUT_RESIZE_OBSERVER: string;
-        POLLING_SCAN: string;
+        INTEGRITY_SCAN: string;
         BATCH_TASK: string;
         BATCH_TASK_SINGLE: string;
         BATCH_TASK_TURN: string;

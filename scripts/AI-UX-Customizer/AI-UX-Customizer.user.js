@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b425
+// @version      1.0.0-b426
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -302,7 +302,7 @@
             // Observer Resources
             MAIN_OBSERVER: 'mainObserver',
             LAYOUT_RESIZE_OBSERVER: 'layoutResizeObserver',
-            POLLING_SCAN: 'pollingScan',
+            INTEGRITY_SCAN: 'integrityScan',
 
             // Task Resources
             BATCH_TASK: 'batchTask',
@@ -689,10 +689,10 @@
 
         /**
          * @description (ChatGPT-only) Fired by the polling scanner when it detects new messages.
-         * @event POLLING_MESSAGES_FOUND
+         * @event INTEGRITY_SCAN_MESSAGES_FOUND
          * @property {null} detail - No payload.
          */
-        POLLING_MESSAGES_FOUND: `${APPID}:pollingMessagesFound`,
+        INTEGRITY_SCAN_MESSAGES_FOUND: `${APPID}:integrityScanMessagesFound`,
         /**
          * @description (Gemini-only) Requests the start of the auto-scroll process to load full chat history.
          * @event AUTO_SCROLL_REQUEST
@@ -8869,7 +8869,7 @@
             // Reset state immediately on navigation start to hide UI and cleanup components
             this._subscribe(EVENTS.NAVIGATION_START, this.resetState.bind(this));
             this._subscribe(EVENTS.NAVIGATION, this.resetState.bind(this));
-            this._subscribe(EVENTS.POLLING_MESSAGES_FOUND, this._handlePollingMessagesFound.bind(this));
+            this._subscribe(EVENTS.INTEGRITY_SCAN_MESSAGES_FOUND, this._handleIntegrityScanMessagesFound.bind(this));
             this._subscribe(EVENTS.NAV_HIGHLIGHT_MESSAGE, this.setHighlightAndIndices.bind(this));
             this._subscribe(EVENTS.WINDOW_RESIZED, this.scheduleReposition);
             this._subscribe(EVENTS.SIDEBAR_LAYOUT_CHANGED, this.scheduleReposition);
@@ -9223,7 +9223,7 @@
             this._renderUI();
         }
 
-        _handlePollingMessagesFound() {
+        _handleIntegrityScanMessagesFound() {
             this.selectLastMessage();
         }
 
@@ -10122,27 +10122,32 @@
     // =================================================================================
 
     class MessageLifecycleManager extends BaseManager {
+        static CONFIG = {
+            INTEGRITY_SCAN_DELAY_MS: 1000,
+            IDLE_TIMEOUT_MS: 1000,
+        };
+
         /**
          * @param {MessageCacheManager} messageCacheManager
          */
         constructor(messageCacheManager) {
             super();
             this.messageCacheManager = messageCacheManager;
-            this.scanAttempts = 0;
-            this.boundStopPollingScan = this.stopPollingScan.bind(this);
-            // Define options once to ensure consistency between add/remove listeners
-            // Cast to any to suppress TS error on removeEventListener (which accepts EventListenerOptions but ignores extra props like passive/once)
-            /** @type {any} */
-            this.scanOptions = { once: true, passive: true };
+            this.isScanPending = false;
         }
 
         _onInit() {
-            this._subscribe(EVENTS.RAW_MESSAGE_ADDED, (elem) => this.processRawMessage(elem));
+            this._subscribe(EVENTS.RAW_MESSAGE_ADDED, (elem) => {
+                this.processRawMessage(elem);
+                // If an integrity scan is pending, extend the wait time (debounce)
+                // to avoid scanning while messages are actively loading.
+                if (this.isScanPending) {
+                    this.scheduleIntegrityScan();
+                }
+            });
             this._subscribe(EVENTS.NAVIGATION_END, () => {
                 PlatformAdapters.General.onNavigationEnd?.(this);
             });
-
-            this.addDisposable(() => this.stopPollingScan());
         }
 
         _onDestroy() {
@@ -10150,60 +10155,34 @@
         }
 
         /**
-         * @description Starts a polling mechanism to repeatedly scan for unprocessed messages.
-         * The polling stops automatically after a set number of attempts, on user interaction, or once a new message is found.
+         * @description Schedules an integrity scan to run after DOM activity settles.
+         * The scan runs only once after the specified silence duration.
          */
-        startPollingScan() {
-            this.stopPollingScan(); // Ensure any previous polling is stopped
-            this.scanAttempts = 0;
-            const MAX_ATTEMPTS = CONSTANTS.RETRY.POLLING_SCAN_LIMIT;
-            const INTERVAL_MS = CONSTANTS.TIMING.POLLING.MESSAGE_DISCOVERY_MS;
+        scheduleIntegrityScan() {
+            this.isScanPending = true;
 
-            Logger.log('', '', 'Starting polling scan for unprocessed messages.');
+            // Cancel any existing timer to reset the debounce window
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.INTEGRITY_SCAN, null);
 
-            const id = setInterval(() => {
-                this.scanAttempts++;
-                Logger.log('', '', `Executing polling scan (Attempt ${this.scanAttempts}/${MAX_ATTEMPTS})...`);
-                const newItemsFound = this.scanForUnprocessedMessages();
+            const timerId = setTimeout(() => {
+                this.isScanPending = false;
+                runWhenIdle(() => {
+                    const newItemsFound = this.scanForUnprocessedMessages();
+                    if (newItemsFound > 0) {
+                        Logger.log('IntegrityScan', '', `Scan complete. Found ${newItemsFound} unprocessed items.`);
+                        EventBus.publish(EVENTS.INTEGRITY_SCAN_MESSAGES_FOUND);
+                    } else {
+                        Logger.debug('IntegrityScan', '', 'Scan complete. No missing items found.');
+                    }
+                }, MessageLifecycleManager.CONFIG.IDLE_TIMEOUT_MS);
+            }, MessageLifecycleManager.CONFIG.INTEGRITY_SCAN_DELAY_MS);
 
-                if (newItemsFound > 0) {
-                    Logger.log('', '', `Polling scan found ${newItemsFound} new message(s). Stopping early.`);
-                    EventBus.publish(EVENTS.POLLING_MESSAGES_FOUND);
-                    this.stopPollingScan();
-                    return;
-                }
-
-                if (this.scanAttempts >= MAX_ATTEMPTS) {
-                    Logger.log('', '', `Polling scan finished after ${this.scanAttempts} attempts without finding new messages.`);
-                    this.stopPollingScan();
-                }
-            }, INTERVAL_MS);
-
-            // Register the interval cleanup
-            this.manageResource(CONSTANTS.RESOURCE_KEYS.POLLING_SCAN, () => clearInterval(id));
-
-            // Stop polling immediately on user interaction
-            window.addEventListener('wheel', this.boundStopPollingScan, this.scanOptions);
-            window.addEventListener('keydown', this.boundStopPollingScan, this.scanOptions);
+            // Register the timer resource for automatic cleanup
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.INTEGRITY_SCAN, () => clearTimeout(timerId));
         }
 
         /**
-         * @description Stops the polling scan and cleans up associated listeners.
-         */
-        stopPollingScan() {
-            // Dispose of the polling resource (clears interval)
-            this.manageResource(CONSTANTS.RESOURCE_KEYS.POLLING_SCAN, null);
-
-            Logger.debug('', '', 'Polling scan stopped.');
-
-            // Clean up interaction listeners regardless
-            window.removeEventListener('wheel', this.boundStopPollingScan, this.scanOptions);
-            window.removeEventListener('keydown', this.boundStopPollingScan, this.scanOptions);
-        }
-
-        /**
-         * @description Performs a one-time scan for any unprocessed messages after initial page load,
-         * complementing the real-time detection by Sentinel.
+         * @description Performs a one-time scan for any unprocessed messages.
          * @returns {number} The number of new items found and processed.
          */
         scanForUnprocessedMessages() {
@@ -17662,10 +17641,10 @@
 
             /** @override */
             onNavigationEnd(lifecycleManager) {
-                // Start polling only on non-Firefox browsers and on existing chat pages.
-                if (!isFirefox() && !isNewChatPage()) {
-                    Logger.log('', '', 'Non-Firefox browser and existing chat detected, starting polling scan.');
-                    lifecycleManager.startPollingScan();
+                // Schedule integrity scan for all browsers on existing chat pages.
+                if (!isNewChatPage()) {
+                    Logger.log('', '', 'Scheduling integrity scan to capture any missed messages.');
+                    lifecycleManager.scheduleIntegrityScan();
                 }
             }
 

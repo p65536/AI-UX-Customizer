@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b426] - 2026-01-26
+- **Core Improvements**
+  - Replaced the legacy polling mechanism with a smart "Integrity Scan" that runs when the browser is idle. This improves performance and ensures UI elements (avatars, buttons) render reliably, even if you scroll or interact with the page immediately after loading.
+
 ## [1.0.0-b425] - 2026-01-26
 - **Performance Improvements**
   - Optimized the responsiveness of side panels (Canvas, File Panel, etc.). Opening and closing panels is now more efficient, removing redundant processing loops.
