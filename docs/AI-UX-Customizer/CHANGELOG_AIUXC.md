@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b425] - 2026-01-26
+- **Performance Improvements**
+  - Optimized the responsiveness of side panels (Canvas, File Panel, etc.). Opening and closing panels is now more efficient, removing redundant processing loops.
+
 ## [1.0.0-b424] - 2026-01-26
 - **Performance Improvements**
   - Improved performance when resizing the window or toggling the sidebar by migrating to `ResizeObserver`, eliminating unnecessary layout recalculations.
