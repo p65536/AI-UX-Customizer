@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b427] - 2026-01-26
+- **UX Improvements**
+  - Message numbers and navigation counters now appear immediately when the assistant starts streaming a response, rather than waiting for the generation to complete.
+
 ## [1.0.0-b426] - 2026-01-26
 - **Core Improvements**
   - Replaced the legacy polling mechanism with a smart "Integrity Scan" that runs when the browser is idle. This improves performance and ensures UI elements (avatars, buttons) render reliably, even if you scroll or interact with the page immediately after loading.
