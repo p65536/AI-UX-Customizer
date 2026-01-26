@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b423
+// @version      1.0.0-b424
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -18463,61 +18463,42 @@
              * @returns {() => void} A cleanup function.
              */
             startSidebarObserver(dependencies) {
-                let attributeObserver = null;
-                let animationLoopId = null;
-                const ANIMATION_DURATION = CONSTANTS.TIMING.ANIMATIONS.LAYOUT_STABILIZATION_MS;
+                let resizeObserver = null;
 
-                // Function to run the layout update loop
-                const startUpdateLoop = () => {
-                    if (animationLoopId) cancelAnimationFrame(animationLoopId);
+                const setupObserver = (sidebarContainer) => {
+                    resizeObserver?.disconnect();
 
-                    const startTime = Date.now();
-
-                    const loop = () => {
-                        // Publish update immediately
-                        EventBus.publish(EVENTS.SIDEBAR_LAYOUT_CHANGED);
-
-                        if (Date.now() - startTime < ANIMATION_DURATION) {
-                            animationLoopId = requestAnimationFrame(loop);
-                        } else {
-                            animationLoopId = null;
+                    resizeObserver = new ResizeObserver((entries) => {
+                        // We only need to signal that the layout changed.
+                        // Throttling is handled by the subscriber (ThemeManager).
+                        for (const entry of entries) {
+                            if (entry.contentBoxSize) {
+                                EventBus.publish(EVENTS.SIDEBAR_LAYOUT_CHANGED);
+                                break; // Only fire once per frame even if multiple entries
+                            }
                         }
-                    };
+                    });
 
-                    loop();
+                    resizeObserver.observe(sidebarContainer);
+
+                    // Trigger once initially to ensure state capture
+                    EventBus.publish(EVENTS.SIDEBAR_LAYOUT_CHANGED);
                 };
 
-                const setupAttributeObserver = (sidebarContainer) => {
-                    const stateIndicator = sidebarContainer.querySelector(CONSTANTS.SELECTORS.SIDEBAR_STATE_INDICATOR);
-                    attributeObserver?.disconnect(); // Disconnect previous observer if any
-                    if (stateIndicator) {
-                        attributeObserver = new MutationObserver(() => {
-                            // Start the update loop immediately upon detection
-                            startUpdateLoop();
-                        });
-                        attributeObserver.observe(stateIndicator, {
-                            attributes: true,
-                            attributeFilter: ['class'],
-                        });
-                        // Trigger once initially
-                        EventBus.publish(EVENTS.SIDEBAR_LAYOUT_CHANGED);
-                    }
-                };
+                // Use Sentinel to detect when the sidebar container is added or re-added to the DOM.
+                const selector = CONSTANTS.SELECTORS.SIDEBAR_WIDTH_TARGET;
+                sentinel.on(selector, setupObserver);
 
-                // Use Sentinel to detect when the sidebar container is added.
-                sentinel.on(CONSTANTS.SELECTORS.SIDEBAR_WIDTH_TARGET, setupAttributeObserver);
-
-                // Initial check in case the sidebar is already present.
-                const initialSidebar = document.querySelector(CONSTANTS.SELECTORS.SIDEBAR_WIDTH_TARGET);
+                // Initial check
+                const initialSidebar = document.querySelector(selector);
                 if (initialSidebar) {
-                    setupAttributeObserver(initialSidebar);
+                    setupObserver(initialSidebar);
                 }
 
-                // Return the cleanup function for all resources created by this observer.
+                // Cleanup
                 return () => {
-                    sentinel.off(CONSTANTS.SELECTORS.SIDEBAR_WIDTH_TARGET, setupAttributeObserver);
-                    attributeObserver?.disconnect();
-                    if (animationLoopId) cancelAnimationFrame(animationLoopId);
+                    sentinel.off(selector, setupObserver);
+                    resizeObserver?.disconnect();
                 };
             }
 
@@ -19870,93 +19851,59 @@
              * @returns {() => void} A cleanup function.
              */
             startSidebarObserver(dependencies) {
-                let animationLoopId = null;
-                const ANIMATION_DURATION = CONSTANTS.TIMING.ANIMATIONS.LAYOUT_STABILIZATION_MS;
-                let sidebarObserver = null;
-                let transitionEndHandler = null;
-                let observedElement = null;
+                let resizeObserver = null;
+                let titleObserver = null;
+                const debouncedTitleUpdate = debounce(() => EventBus.publish(EVENTS.TITLE_CHANGED), CONSTANTS.TIMING.DEBOUNCE_DELAYS.THEME_UPDATE, true);
 
                 const setupObserver = (sidebar) => {
-                    // Clean up previous listener if element has changed or observer is re-running
-                    if (observedElement && transitionEndHandler) {
-                        observedElement.removeEventListener('transitionend', transitionEndHandler);
-                    }
+                    resizeObserver?.disconnect();
+                    titleObserver?.disconnect();
 
-                    sidebarObserver?.disconnect();
-
-                    // Function to run the layout update loop
-                    const startUpdateLoop = () => {
-                        if (animationLoopId) cancelAnimationFrame(animationLoopId);
-
-                        const startTime = Date.now();
-
-                        const loop = () => {
-                            EventBus.publish(EVENTS.SIDEBAR_LAYOUT_CHANGED);
-
-                            if (Date.now() - startTime < ANIMATION_DURATION) {
-                                animationLoopId = requestAnimationFrame(loop);
-                            } else {
-                                animationLoopId = null;
+                    // 1. Layout Observer (ResizeObserver)
+                    resizeObserver = new ResizeObserver((entries) => {
+                        for (const entry of entries) {
+                            // Only fire if size actually changed
+                            if (entry.contentBoxSize) {
+                                EventBus.publish(EVENTS.SIDEBAR_LAYOUT_CHANGED);
+                                break;
                             }
-                        };
+                        }
+                    });
+                    resizeObserver.observe(sidebar);
 
-                        loop();
-                    };
-
-                    // Keep title updates debounced as they don't require animation loops
-                    const debouncedTitleUpdate = debounce(() => EventBus.publish(EVENTS.TITLE_CHANGED), CONSTANTS.TIMING.DEBOUNCE_DELAYS.THEME_UPDATE, true);
-
-                    // Handle transition end as a safety net to ensure final position is captured
-                    if (!transitionEndHandler) {
-                        transitionEndHandler = () => EventBus.publish(EVENTS.SIDEBAR_LAYOUT_CHANGED);
-                    }
-
-                    sidebar.addEventListener('transitionend', transitionEndHandler);
-                    observedElement = sidebar;
-
-                    sidebarObserver = new MutationObserver((mutations) => {
-                        let layoutChanged = false;
+                    // 2. Title/Selection Observer (MutationObserver)
+                    titleObserver = new MutationObserver((mutations) => {
                         let titleChanged = false;
 
                         for (const mutation of mutations) {
                             const target = mutation.target;
 
-                            // Check for layout changes (start of animation)
-                            if (mutation.type === 'attributes' && (mutation.attributeName === 'class' || mutation.attributeName === 'style' || mutation.attributeName === 'width')) {
-                                layoutChanged = true;
-
-                                // Enhanced Check: Detect selection changes in Chat History or Gem List
-                                // If the class of a list item changes, it likely means selection/deselection, which implies a title change.
-                                if (mutation.attributeName === 'class' && target instanceof Element) {
-                                    // Check if the target is a chat history item or a gem list item
-                                    if (target.matches(CONSTANTS.SELECTORS.CHAT_HISTORY_ITEM) || target.matches(CONSTANTS.SELECTORS.GEM_LIST_ITEM)) {
-                                        titleChanged = true;
-                                    }
+                            // Check for class changes on list items (Selection change implies title change)
+                            if (mutation.type === 'attributes' && mutation.attributeName === 'class' && target instanceof Element) {
+                                if (target.matches(CONSTANTS.SELECTORS.CHAT_HISTORY_ITEM) || target.matches(CONSTANTS.SELECTORS.GEM_LIST_ITEM)) {
+                                    titleChanged = true;
                                 }
                             }
-                            // Check for title text changes (renaming)
+                            // Check for title text changes (Renaming)
                             if (mutation.type === 'characterData' && target.parentElement?.matches(CONSTANTS.SELECTORS.CONVERSATION_TITLE_TEXT)) {
                                 titleChanged = true;
                             }
                         }
 
-                        if (layoutChanged) {
-                            startUpdateLoop();
-                        }
                         if (titleChanged) {
                             debouncedTitleUpdate();
                         }
                     });
 
-                    sidebarObserver.observe(sidebar, {
-                        attributes: true, // Enable attribute observation for layout changes and selection state
-                        attributeFilter: ['class', 'style', 'width'], // specific attributes
-                        characterData: true, // For title changes
-                        subtree: true, // Needed for title text nodes deeper in the tree
+                    titleObserver.observe(sidebar, {
+                        attributes: true,
+                        attributeFilter: ['class'], // Only watch class for selection state
+                        characterData: true, // For title text changes
+                        subtree: true, // Needed for deep text nodes and list items
                         childList: false,
                     });
 
-                    // Initial triggers for the first load.
+                    // Initial triggers
                     debouncedTitleUpdate();
                     EventBus.publish(EVENTS.SIDEBAR_LAYOUT_CHANGED);
                 };
@@ -19969,19 +19916,10 @@
                     setupObserver(existingSidebar);
                 }
 
-                // Return the cleanup function for all resources created by this observer.
                 return () => {
                     sentinel.off(selector, setupObserver);
-                    if (sidebarObserver) {
-                        sidebarObserver.disconnect();
-                    }
-                    if (animationLoopId) cancelAnimationFrame(animationLoopId);
-
-                    // Explicitly remove the event listener from the stored element reference
-                    if (observedElement && transitionEndHandler) {
-                        observedElement.removeEventListener('transitionend', transitionEndHandler);
-                        observedElement = null;
-                    }
+                    resizeObserver?.disconnect();
+                    titleObserver?.disconnect();
                 };
             }
 
