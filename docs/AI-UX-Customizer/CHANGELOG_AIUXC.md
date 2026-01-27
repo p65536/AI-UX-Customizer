@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-b430] - 2026-01-27
+- **UI Improvements**
+  - **[Settings]** Improved the vertical alignment of toggle buttons in the settings panel to ensure they are centered within their rows.
+  - **[JSON Modal]** Tightened the layout by removing excess whitespace from the status area when no messages are displayed.
+
 ## [1.0.0-b429] - 2026-01-27
 - **Bug Fixes**
   - Prevented keyboard shortcuts (e.g., `Alt+N`) from triggering unintended actions when the navigation console is hidden (such as on the "New Chat" page).

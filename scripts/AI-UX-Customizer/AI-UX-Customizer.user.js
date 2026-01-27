@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b429
+// @version      1.0.0-b430
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -2961,9 +2961,6 @@
 
                 // Layout Helpers
                 topRow: `${prefix}-top-row`,
-
-                // Feature Group Overrides
-                featureGroup: `${prefix}-feature-group`,
             };
 
             // prettier-ignore
@@ -3062,13 +3059,10 @@
                 .status-msg-display {
                     flex: 1;
                     margin-right: 8px;
-                    min-height: 1.2em;
-                    /* Color is handled dynamically */
                 }
                 .size-info-display {
                     white-space: nowrap;
                     text-align: right;
-                    /* Color is handled dynamically */
                 }
             `;
             };
@@ -3648,7 +3642,9 @@
                     height: 16px;
                     width: 16px;
                     left: 3px;
-                    bottom: 3px;
+                    top: 0;
+                    bottom: 0;
+                    margin: auto 0;
                     background-color: ${palette.toggle_knob};
                     transition: .3s;
                     border-radius: 50%;
@@ -3871,6 +3867,10 @@
                     gap: 8px;
                     margin-top: 8px;
                 }
+                /* Reset margin for nested rows to prevent double spacing/misalignment */
+                .${cls.submenuRow} .${cls.submenuRow} {
+                    margin-top: 0;
+                }
                 .${cls.submenuRow} label {
                     flex-shrink: 0;
                     margin: 0;
@@ -3891,15 +3891,15 @@
                 }
                 .${cls.submenuSeparator} {
                     border-top: 1px solid ${palette.border_light};
-                    margin: 12px 0;
+                    margin: 4px 0;
                 }
                 .${cls.featureGroup} {
-                    padding: 8px 0;
+                    padding: 6px 0;
                 }
                 .${cls.featureGroup}:not(:first-child) {
                     border-top: 1px solid ${palette.border_light};
                 }
-                .${cls.featureGroup} .${cls.submenuRow}:first-child {
+                .${cls.featureGroup}.${cls.submenuRow} {
                     margin-top: 0;
                 }
             `;
@@ -4038,18 +4038,6 @@
                 /* Target common slider display within the panel */
                 .${common.sliderSubgroupControl}.is-default .${common.sliderDisplay} {
                     color: ${palette.text_secondary};
-                }
-
-                /* Feature Group Styling */
-                .${cls.featureGroup} {
-                    padding: 6px 0;
-                }
-                .${cls.featureGroup}:not(:first-child) {
-                    border-top: 1px solid ${palette.border_light};
-                }
-                /* Target common submenu row within feature group */
-                .${cls.featureGroup}.${common.submenuRow} {
-                    margin-top: 0;
                 }
             `;
         }
