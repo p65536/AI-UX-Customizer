@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-b429] - 2026-01-27
+- **Bug Fixes**
+  - Prevented keyboard shortcuts (e.g., `Alt+N`) from triggering unintended actions when the navigation console is hidden (such as on the "New Chat" page).
+  - Fixed UI artifacts where input fields would persist or counters would disappear incorrectly when navigating between chats.
+
 ## [1.0.0-b428] - 2026-01-27
 - **New Features**
   - **[Navigation] Keyboard Shortcuts:** You can now navigate through messages using keyboard shortcuts.

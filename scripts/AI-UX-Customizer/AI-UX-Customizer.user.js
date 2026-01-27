@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b428
+// @version      1.0.0-b429
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -8965,6 +8965,9 @@
             // Guard against execution after destruction
             if (this.isDestroyed || !this.state) return;
 
+            // Force cleanup of any active input session to prevent UI corruption
+            this._forceCleanupJumpInput();
+
             // Hide immediately to prevent flickering of old state
             if (this.navConsole) {
                 this.navConsole.classList.add(this.styleHandle.classes.hidden);
@@ -9856,6 +9859,26 @@
 
         /**
          * @private
+         * Forcefully cleans up any jump input elements and restores counters.
+         * Used during reset/navigation to ensure no UI artifacts remain.
+         */
+        _forceCleanupJumpInput() {
+            if (!this.navConsole || !this.styleHandle) return;
+            const cls = this.styleHandle.classes;
+
+            // 1. Remove any lingering input fields
+            const inputs = this.navConsole.querySelectorAll(`input.${cls.jumpInput}`);
+            inputs.forEach((input) => input.remove());
+
+            // 2. Restore any hidden counters
+            const hiddenCounters = this.navConsole.querySelectorAll(`.${cls.counter}.${cls.isHidden}`);
+            hiddenCounters.forEach((counter) => {
+                counter.classList.remove(cls.isHidden);
+            });
+        }
+
+        /**
+         * @private
          * Starts the input session for jumping to a specific message index.
          * @param {HTMLElement} counterSpan The counter element that initiated the session.
          */
@@ -9938,6 +9961,12 @@
         }
 
         _handleKeyDown(e) {
+            // Guard: Disable shortcuts if the console is not visible (e.g. New Chat page)
+            // This prevents "ghost" inputs from being created in the background.
+            if (this.navConsole && this.navConsole.classList.contains(this.styleHandle.classes.hidden)) {
+                return;
+            }
+
             const config = this.configManager.get();
             const shortcutsEnabled = config?.platforms?.[PLATFORM]?.features?.fixed_nav_console?.keyboard_shortcuts?.enabled;
 
