@@ -33,8 +33,8 @@ You can access the Settings Panel by clicking the **Settings button** (palette i
 | **[ChatGPT only]**<br>**Show timestamp** | **[ChatGPT only]**<br>Displays the creation time for each message.<br>(This feature is not available for Gemini as it is technically difficult to retrieve timestamps.) |
 | **[ChatGPT only]**<br>**Auto collapse user message** | **[ChatGPT only]**<br>Automatically collapses user messages that exceed the height threshold upon loading.<br>Requires **Collapsible button** to be enabled. |
 | **Collapsible button** | Adds a button to each message to collapse long messages. |
-| **Sequential nav buttons** | Adds buttons to each message to jump to the next/previous message by the same speaker (user/assistant). |
-| **Scroll to top button** | Adds a button to each message to scroll to the top of that message. |
+| **Bubble nav buttons** | Enables navigation buttons (Prev/Next/Top) attached to each message. |
+| **Keyboard shortcuts** | Enables keyboard shortcuts for navigation.<br>**Alt + ↑ / ↓**: Previous / Next message<br>**Alt + Shift + ↑ / ↓**: First / Last message<br>**Alt + J**: Open Jump List<br>**Alt + N**: Input message number<br>Requires **Navigation console** to be enabled. |
 | **Navigation console** | Displays an operation panel above the text input field for quick navigation between messages. |
 | **Console Position** | Choose where to display the navigation console.<br>**Input Top**: Floating above the input area (Default).<br>**Header**: Embedded in the top toolbar. |
 

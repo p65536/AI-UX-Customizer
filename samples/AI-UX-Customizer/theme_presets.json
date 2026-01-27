@@ -10,24 +10,27 @@
         "respect_avatar_space": true
       },
       "features": {
-        "collapsible_button": {
+        "load_full_history_on_chat_load": {
           "enabled": true
         },
-        "auto_collapse_user_message": {
-          "enabled": false
+        "timestamp": {
+          "enabled": true
+        },
+        "collapsible_button": {
+          "enabled": true,
+          "auto_collapse_user_message": {
+            "enabled": false
+          }
         },
         "bubble_nav_buttons": {
           "enabled": true
         },
         "fixed_nav_console": {
           "enabled": true,
-          "position": "input_top"
-        },
-        "load_full_history_on_chat_load": {
-          "enabled": true
-        },
-        "timestamp": {
-          "enabled": true
+          "position": "input_top",
+          "keyboard_shortcuts": {
+            "enabled": true
+          }
         }
       },
       "defaultSet": {
@@ -73,24 +76,27 @@
         "respect_avatar_space": true
       },
       "features": {
-        "collapsible_button": {
+        "load_full_history_on_chat_load": {
           "enabled": true
         },
-        "auto_collapse_user_message": {
-          "enabled": false
+        "timestamp": {
+          "enabled": true
+        },
+        "collapsible_button": {
+          "enabled": true,
+          "auto_collapse_user_message": {
+            "enabled": false
+          }
         },
         "bubble_nav_buttons": {
           "enabled": true
         },
         "fixed_nav_console": {
           "enabled": true,
-          "position": "input_top"
-        },
-        "load_full_history_on_chat_load": {
-          "enabled": true
-        },
-        "timestamp": {
-          "enabled": true
+          "position": "input_top",
+          "keyboard_shortcuts": {
+            "enabled": true
+          }
         }
       },
       "defaultSet": {

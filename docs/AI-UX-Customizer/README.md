@@ -37,6 +37,7 @@ It also includes convenient UI enhancements such as **message collapsing**, **a 
   - **Per-Message Navigation**: Adds buttons to each message to jump to the next/previous message by the same speaker (user/assistant) or scroll to the top of the current message.
   - **Collapsible Messages**: Adds a button to collapse long messages, and includes a "Bulk Collapse/Expand" button in the navigation console.
   - **[ChatGPT only] Auto-collapse User Messages**: Automatically collapses long user queries upon loading to save screen space.
+  - **Keyboard Shortcuts**: Efficiently navigate messages (`Alt + ↑/↓`), toggle the Jump List (`Alt + J`), and access message number input (`Alt + N`) without leaving the keyboard.
 
 - **Utility & Platform-Specific**
   - **Responsive Settings UI**: The Settings Panel and Theme Editor automatically adjust their size and layout to fit smaller screens.

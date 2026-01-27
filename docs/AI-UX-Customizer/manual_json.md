@@ -31,12 +31,18 @@ The following is a sample to illustrate the JSON structure. **Ready-to-use sampl
         "respect_avatar_space": true
       },
       "features": {
-        "collapsible_button": { "enabled": true },
-        "auto_collapse_user_message": { "enabled": false },
-        "bubble_nav_buttons": { "enabled": true },
-        "fixed_nav_console": { "enabled": true, "position": "input_top" },
         "load_full_history_on_chat_load": { "enabled": true },
-        "timestamp": { "enabled": true }
+        "timestamp": { "enabled": true },
+        "collapsible_button": {
+          "enabled": true,
+          "auto_collapse_user_message": { "enabled": false }
+        },
+        "bubble_nav_buttons": { "enabled": true },
+        "fixed_nav_console": {
+          "enabled": true,
+          "position": "input_top",
+          "keyboard_shortcuts": { "enabled": true }
+        }
       },
       "defaultSet": {
         "user": {
@@ -169,12 +175,13 @@ Configure ON/OFF and thresholds for convenient UI improvement features.
 
 | Property Name | Description | Example | Notes/Allowed Values |
 | --- | --- | --- | --- |
-| `auto_collapse_user_message` | **[ChatGPT only]**<br>Automatically collapses user messages that exceed the height threshold upon loading. | `{ "enabled": false }` | `true`/`false`<br>Default is `false`.<br>Requires `collapsible_button` to be enabled. |
+| `load_full_history_on_chat_load` | `ChatGPT` (Firefox only)<br>Enables "layout scan and rescan DOM" on chat load.<br>`Gemini`<br>Enables auto-load full chat history on chat load.  | `{ "enabled": true }` | `true`/`false`<br>`ChatGPT`<br>Automatically scans the chat layout when opening a chat (Firefox only. See notes below.).<br>`Gemini`<br>Automatically loads the entire chat history when opening a chat.  |
+| `timestamp` | `ChatGPT` **[ChatGPT only]**<br>Displays the creation time for each message. | `{ "enabled": true }` | `true`/`false`<br>`ChatGPT` only.<br>This feature is not available for Gemini as it is technically difficult to retrieve timestamps. |
 | `collapsible_button` | Displays a button to collapse messages at the top of each message bubble.  | `{ "enabled": true }` | `true`/`false`<br>Displays on the top-left for assistant and top-right for user.<br>Note: For Gemini, user bubbles have a standard collapse button, so this script does not process user bubbles for Gemini.<br>When this feature is enabled, a button to toggle the collapse state of all messages is displayed to the right of the message input field.  |
+| `collapsible_button.`<br>`auto_collapse_user_message` | **[ChatGPT only]**<br>Automatically collapses user messages that exceed the height threshold upon loading. | `{ "enabled": false }` | `true`/`false`<br>Default is `false`.<br>Requires `collapsible_button` to be enabled. |
 | `bubble_nav_buttons` | Displays navigation buttons (Prev/Next/Top) attached to each message bubble. | `{ "enabled": true }` | `true`/`false`<br>Displays buttons for Previous/Next/Top navigation on the message bubble. |
 | `fixed_nav_console` | Displays an integrated navigation console.  | `{ "enabled": true, "position": "input_top" }` | `true`/`false`<br>Displays a console bar consolidating navigation-related features for efficient message movement.<br>Accepted values for `position`: `"input_top"` (floating above input) or `"header"` (embedded in top bar). Default is `"input_top"`.  |
-| `load_full_history_on_chat_load` | `ChatGPT` (Firefox only)<br>Enables "layout scan and rescan DOM" on chat load.<br>`Gemini`<br>Enables auto-load full chat history on chat load.  | `{ "enabled": true }` | `true`/`false`<br>`ChatGPT`<br>Automatically scans the chat layout when opening a chat (Firefox only. See notes below.).<br>`Gemini`<br>Automatically loads the entire chat history when opening a chat.  |
-| `timestamp` | `ChatGPT` **[ChatGPT only]**<br>Displays the creation time for each message. | `{ "enabled": true }` | `true`/`false`<br>`ChatGPT` (ChatGPT) only.<br>This feature is not available for Gemini as it is technically difficult to retrieve timestamps. |
+| `fixed_nav_console.`<br>`keyboard_shortcuts` | Enables keyboard shortcuts for navigation.<br>**Alt + ↑ / ↓**: Previous / Next message<br>**Alt + Shift + ↑ / ↓**: First / Last message<br>**Alt + J**: Open Jump List<br>**Alt + N**: Input message number | `{ "enabled": true }` | `true`/`false`<br>Default is `true`.<br>Requires `fixed_nav_console` to be enabled. |
 
 ##### Notes about `load_full_history_on_chat_load` (ChatGPT / Firefox-only Option):
 When using Firefox, you may experience a "rubber-banding" or scroll-bouncing effect while scrolling. This is likely caused by layout shifts, where the height of off-screen elements (suspected to be the avatar icons) is calculated late, causing the entire page to reflow.  
