@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b434] - 2026-01-28
+- **Internal Improvements**
+  - Optimized the internal CSS generation engine to eliminate redundant style definitions, reducing the overall script footprint and improving performance.
+
 ## [1.0.0-b433] - 2026-01-28
 - **Bug Fixes**
   - Fixed a UI glitch where the jump input field and message counter could duplicate when using the `Alt+N` shortcut while the navigation console was focused.

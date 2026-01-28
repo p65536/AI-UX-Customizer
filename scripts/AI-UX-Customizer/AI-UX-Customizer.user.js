@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b433
+// @version      1.0.0-b434
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -776,14 +776,12 @@
      */
     const StyleTemplates = {
         /**
-         * Generates common styles scoped to a specific root ID.
-         * Used as a Mix-in for other components.
-         * @param {string} rootId
+         * Generates common styles scoped to elements with the data-aiuxc-scope attribute.
          * @param {Record<string, string>} cls
          */
-        getCommonCss(rootId, cls) {
+        getSharedCommonCss(cls) {
             const palette = SITE_STYLES.PALETTE;
-            const root = `#${rootId}`;
+            const root = `[data-${APPID}-scope]`;
             return `
                 /* --- Common Modal Buttons --- */
                 ${root} .${cls.modalButton} {
@@ -1163,12 +1161,19 @@
             `;
         },
 
-        getModalCss(rootId, cls) {
+        /**
+         * Generates modal styles scoped to elements with the data-[APPID]-scope attribute.
+         * @param {Record<string, string>} cls
+         */
+        getSharedModalCss(cls) {
             const palette = SITE_STYLES.PALETTE;
-            // The dialog element itself should be targeted by the ID
-            const root = `#${rootId}`;
+            // Attribute selector strategy for shared scoping
+            const root = `[data-${APPID}-scope]`;
+            // Target specific dialog class to avoid affecting other scoped elements like SettingsPanel
+            const dialog = `${root}.${cls.dialog}`;
+
             return `
-                ${root} {
+                ${dialog} {
                     padding: 0;
                     border: none;
                     background: transparent;
@@ -1176,11 +1181,11 @@
                     max-height: 100vh;
                     overflow: visible;
                 }
-                ${root}::backdrop {
+                ${dialog}::backdrop {
                     background: rgb(0 0 0 / 0.5);
                     pointer-events: auto;
                 }
-                ${root} .${cls.box} {
+                ${dialog} .${cls.box} {
                     display: flex;
                     flex-direction: column;
                     background: ${palette.bg};
@@ -1191,17 +1196,17 @@
                     max-height: 90vh;
                     width: 100%;
                 }
-                ${root} .${cls.header}, 
-                ${root} .${cls.footer} {
+                ${dialog} .${cls.header}, 
+                ${dialog} .${cls.footer} {
                     flex-shrink: 0;
                     padding: 12px 16px;
                 }
-                ${root} .${cls.header} {
+                ${dialog} .${cls.header} {
                     font-size: 1.1em;
                     font-weight: 600;
                     border-bottom: 1px solid ${palette.border};
                 }
-                ${root} .${cls.content} {
+                ${dialog} .${cls.content} {
                     flex-grow: 1;
                     padding: 0;
                     overflow: hidden;
@@ -1209,18 +1214,18 @@
                     flex-direction: column;
                     min-height: 0;
                 }
-                ${root} .${cls.footer} {
+                ${dialog} .${cls.footer} {
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
                     gap: 16px;
                     border-top: 1px solid ${palette.border};
                 }
-                ${root} .${cls.footerMessage} {
+                ${dialog} .${cls.footerMessage} {
                     flex-grow: 1;
                     font-size: 0.9em;
                 }
-                ${root} .${cls.buttonGroup} {
+                ${dialog} .${cls.buttonGroup} {
                     display: flex;
                     gap: 8px;
                 }
@@ -4223,6 +4228,18 @@
             SETTINGS_BUTTON: `${APPID}-settings-button`,
         };
 
+        static getCommonStyle() {
+            const key = 'common-style';
+            const generator = (cls) => StyleTemplates.getSharedCommonCss(cls);
+            return { key, rootId: null, classes: StyleDefinitions.COMMON_CLASSES, vars: {}, generator };
+        }
+
+        static getModalStyle() {
+            const key = 'modal-style';
+            const generator = (cls) => StyleTemplates.getSharedModalCss(cls);
+            return { key, rootId: null, classes: StyleDefinitions.MODAL_CLASSES, vars: {}, generator };
+        }
+
         static getStaticBase() {
             const key = 'static-base';
             const prefix = `${APPID}-${key}`;
@@ -4275,7 +4292,7 @@
                 topRow: `${prefix}-top-row`,
             };
 
-            const generator = () => StyleTemplates.getSettingsPanelCss(rootId, classes) + StyleTemplates.getCommonCss(rootId, StyleDefinitions.COMMON_CLASSES);
+            const generator = () => StyleTemplates.getSettingsPanelCss(rootId, classes);
 
             return { key, rootId, classes, vars: {}, generator };
         }
@@ -4299,7 +4316,7 @@
                 saveBtn: `${prefix}-save-btn`,
             };
 
-            const generator = () => StyleTemplates.getJsonModalCss(rootId, classes, prefix) + StyleTemplates.getModalCss(rootId, StyleDefinitions.MODAL_CLASSES) + StyleTemplates.getCommonCss(rootId, StyleDefinitions.COMMON_CLASSES);
+            const generator = () => StyleTemplates.getJsonModalCss(rootId, classes, prefix);
 
             return { key, rootId, classes, vars: {}, generator };
         }
@@ -4358,7 +4375,7 @@
                 renameActionsId: `${prefix}-actions-rename`,
             };
 
-            const generator = () => StyleTemplates.getThemeModalCss(rootId, classes) + StyleTemplates.getModalCss(rootId, StyleDefinitions.MODAL_CLASSES) + StyleTemplates.getCommonCss(rootId, StyleDefinitions.COMMON_CLASSES);
+            const generator = () => StyleTemplates.getThemeModalCss(rootId, classes);
 
             return { key, rootId, classes, vars: {}, generator };
         }
@@ -12319,7 +12336,10 @@
             // Create the entire modal structure using h().
             const dialogElement = h(
                 `dialog.${cls.dialog}`, // Common dialog class
-                { id: this.options.id }, // Specific ID passed from options (Required for CSS scoping)
+                {
+                    id: this.options.id, // Specific ID passed from options (Required for CSS scoping)
+                    [`data-${APPID}-scope`]: '',
+                },
                 (modalBox = h(`div.${cls.box}`, { style: { width: this.options.width } }, [
                     (header = h(`div.${cls.header}`, this.options.title)),
                     (content = h(`div.${cls.content}`)),
@@ -12538,6 +12558,7 @@
         }
 
         _onInit() {
+            StyleManager.request(StyleDefinitions.getCommonStyle);
             this.style = StyleManager.request(StyleDefinitions.getSettingsPanel);
 
             this._subscribe(EVENTS.CONFIG_UPDATED, async (newConfig) => {
@@ -12716,7 +12737,11 @@
 
         _createPanelContainer() {
             // Use the rootId provided by the style definition for scoping
-            return h(`div#${this.style.rootId}`, { style: { display: 'none' }, role: 'menu' });
+            return h(`div#${this.style.rootId}`, {
+                style: { display: 'none' },
+                role: 'menu',
+                [`data-${APPID}-scope`]: '',
+            });
         }
 
         _renderContent() {
@@ -13029,6 +13054,8 @@
             if (this.modal) return;
 
             // Inject styles
+            StyleManager.request(StyleDefinitions.getCommonStyle);
+            StyleManager.request(StyleDefinitions.getModalStyle);
             this.styleHandle = StyleManager.request(StyleDefinitions.getJsonModal);
 
             // Common styles are now mixed in, so we use static references
@@ -13821,6 +13848,8 @@
             if (this.modal) return;
 
             // 1. Request all necessary styles upfront
+            StyleManager.request(StyleDefinitions.getCommonStyle);
+            StyleManager.request(StyleDefinitions.getModalStyle);
             this.style = StyleManager.request(StyleDefinitions.getThemeModal);
             this.pickerStyle = StyleManager.request(StyleDefinitions.getColorPicker);
 
