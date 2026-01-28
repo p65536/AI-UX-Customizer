@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b432
+// @version      1.0.0-b433
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -9973,25 +9973,30 @@
         _handleInteractionStateChange(e) {
             const cls = this.styleHandle.classes;
 
-            // Check if the user is currently editing the jump input
-            const isEditing = document.activeElement && document.activeElement.classList.contains(cls.jumpInput);
-
-            // Force cancel active input ONLY if we are not currently editing it.
-            // This prevents the focus event (triggered by creating the input) from immediately destroying it.
-            if (!isEditing) {
-                this._cancelJumpInput();
-            }
-
-            // Update input mode immediately on entry if modifier keys are pressed
-            if (e.type === 'mouseenter') {
-                if (e.shiftKey) this.state.inputMode = CONSTANTS.INPUT_MODES.SHIFT;
-                else this.state.inputMode = CONSTANTS.INPUT_MODES.NORMAL;
-            }
+            // Capture event properties needed asynchronously
+            const isMouseEnter = e.type === 'mouseenter';
+            const shiftKey = e.shiftKey;
 
             // Delay check to handle focus transition gaps
             // Use requestAnimationFrame instead of setTimeout to prevent forced reflow violations during rapid events
             requestAnimationFrame(() => {
                 if (!this.navConsole) return;
+
+                // Check if the user is currently editing the jump input
+                // We do this inside rAF to ensure focus transitions (focusout -> focusin) have settled.
+                const isEditing = document.activeElement && document.activeElement.classList.contains(cls.jumpInput);
+
+                // Force cancel active input ONLY if we are not currently editing it.
+                if (!isEditing) {
+                    this._cancelJumpInput();
+                }
+
+                // Update input mode immediately on entry if modifier keys are pressed
+                if (isMouseEnter) {
+                    if (shiftKey) this.state.inputMode = CONSTANTS.INPUT_MODES.SHIFT;
+                    else this.state.inputMode = CONSTANTS.INPUT_MODES.NORMAL;
+                }
+
                 const isHovered = this.navConsole.matches(':hover');
                 const isFocused = this.navConsole.contains(document.activeElement);
                 const isActive = isHovered || isFocused;
@@ -10010,7 +10015,7 @@
                 }
 
                 // If entered with modifiers, force render to show correct mode
-                if (isActive && e.type === 'mouseenter') {
+                if (isActive && isMouseEnter) {
                     shouldRender = true;
                 }
 
@@ -15650,6 +15655,9 @@
         }
 
         _handleFilterKeyDown(event) {
+            // Guard: Component might be destroyed by a global capture listener (e.g. Alt+J) before this local handler runs.
+            if (!this.state) return;
+
             // Only flush pending filters for navigation keys to ensure the list is up-to-date.
             // For regular typing, let the debounce timer handle it to prevent input lag.
             if (['ArrowDown', 'ArrowUp', 'Enter', 'Tab'].includes(event.key)) {

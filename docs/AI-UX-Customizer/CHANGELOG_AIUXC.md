@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-b433] - 2026-01-28
+- **Bug Fixes**
+  - Fixed a UI glitch where the jump input field and message counter could duplicate when using the `Alt+N` shortcut while the navigation console was focused.
+  - Fixed a crash (`TypeError`) that occurred when closing the Jump List using keyboard shortcuts while typing in the filter box.
+
 ## [1.0.0-b432] - 2026-01-28
 - **Refactoring**
   - **[CSS Architecture]** Implemented a **Component Root Scoping** strategy to improve style stability. This major refactor replaces the reliance on `!important` with specific Root IDs for UI components (Settings Panel, Modals, Fixed Nav, etc.), ensuring custom styles apply reliably without brute force.
