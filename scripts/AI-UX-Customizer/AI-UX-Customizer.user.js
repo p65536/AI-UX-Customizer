@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b431
+// @version      1.0.0-b432
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -775,11 +775,18 @@
      * @description Shared CSS generation logic to reduce code duplication between platforms.
      */
     const StyleTemplates = {
-        getCommonCss(cls) {
+        /**
+         * Generates common styles scoped to a specific root ID.
+         * Used as a Mix-in for other components.
+         * @param {string} rootId
+         * @param {Record<string, string>} cls
+         */
+        getCommonCss(rootId, cls) {
             const palette = SITE_STYLES.PALETTE;
+            const root = `#${rootId}`;
             return `
                 /* --- Common Modal Buttons --- */
-                .${cls.modalButton} {
+                ${root} .${cls.modalButton} {
                     background: ${palette.btn_bg};
                     border: 1px solid ${palette.btn_border};
                     border-radius: var(--radius-md, 5px);
@@ -790,82 +797,82 @@
                     transition: background 0.12s;
                     min-width: 80px;
                 }
-                .${cls.modalButton}:hover {
-                    background: ${palette.btn_hover_bg} !important;
+                ${root} .${cls.modalButton}:hover {
+                    background: ${palette.btn_hover_bg};
                     border-color: ${palette.btn_border};
                 }
-                .${cls.modalButton}:disabled {
-                    background: ${palette.btn_bg} !important;
+                ${root} .${cls.modalButton}:disabled {
+                    background: ${palette.btn_bg};
                     cursor: not-allowed;
                     opacity: 0.5;
                 }
                 /* --- Utility Buttons --- */
-                .${cls.primaryBtn} {
-                    background-color: #1a73e8 !important;
-                    color: #ffffff !important;
-                    border: 1px solid transparent !important;
+                ${root} .${cls.primaryBtn} {
+                    background-color: #1a73e8;
+                    color: #ffffff;
+                    border: 1px solid transparent;
                 }
-                .${cls.primaryBtn}:hover {
-                    background-color: #1557b0 !important;
+                ${root} .${cls.primaryBtn}:hover {
+                    background-color: #1557b0;
                 }
-                .${cls.pushRightBtn} {
-                    margin-left: auto !important;
+                ${root} .${cls.pushRightBtn} {
+                    margin-left: auto;
                 }
                 /* Danger Button (Red/Warning) */
-                .${cls.dangerBtn} {
-                    background-color: ${palette.delete_confirm_btn_bg} !important;
-                    color: ${palette.delete_confirm_btn_text} !important;
+                ${root} .${cls.dangerBtn} {
+                    background-color: ${palette.delete_confirm_btn_bg};
+                    color: ${palette.delete_confirm_btn_text};
                 }
-                .${cls.dangerBtn}:hover {
-                    background-color: ${palette.delete_confirm_btn_hover_bg} !important;
-                    color: ${palette.delete_confirm_btn_hover_text} !important;
+                ${root} .${cls.dangerBtn}:hover {
+                    background-color: ${palette.delete_confirm_btn_hover_bg};
+                    color: ${palette.delete_confirm_btn_hover_text};
                 }
 
                 /* --- Common Sliders --- */
-                .${cls.sliderSubgroupControl} {
+                ${root} .${cls.sliderSubgroupControl} {
                     align-items: center;
                     display: flex;
                     gap: 6px;
                 }
-                .${cls.sliderSubgroupControl} input[type=range] {
+                ${root} .${cls.sliderSubgroupControl} input[type=range] {
                     flex-grow: 1;
                     min-width: 0;
                 }
-                .${cls.sliderDisplay} {
+                ${root} .${cls.sliderDisplay} {
                     color: ${palette.slider_display_text};
                     font-family: monospace;
                     min-width: 7ch;
                     text-align: right;
                 }
-                .${cls.sliderSubgroupControl}.${cls.sliderDefault} .${cls.sliderDisplay} {
+                ${root} .${cls.sliderSubgroupControl}.${cls.sliderDefault} .${cls.sliderDisplay} {
                     color: ${palette.label_text};
                 }
-                .${cls.sliderContainer} {
+                ${root} .${cls.sliderContainer} {
                     display: flex;
                     flex-direction: column;
                     align-items: stretch;
                     gap: 4px;
                     margin-top: 8px;
                 }
-                .${cls.sliderContainer} input[type="range"] {
+                ${root} .${cls.sliderContainer} input[type="range"] {
                     flex-grow: 1;
                     margin: 0;
                 }
-                .${cls.sliderContainer} label {
+                ${root} .${cls.sliderContainer} label {
                     margin-inline-end: 0;
                     flex-shrink: 1;
                     color: ${palette.text_secondary};
                 }
-                .${cls.compoundSliderContainer} {
+                ${root} .${cls.compoundSliderContainer} {
                     display: flex;
                     gap: 16px;
                     margin-top: 4px;
                 }
-                .${cls.sliderSubgroup} {
+                ${root} .${cls.sliderSubgroup} {
                     flex: 1;
                     min-width: 0;
                 }
-                .${cls.sliderSubgroup} > label {
+                ${root} .${cls.sliderSubgroup} > label {
                     color: ${palette.text_secondary};
                     display: block;
                     font-size: 0.9em;
@@ -873,19 +880,19 @@
                 }
 
                 /* --- Toggle Switch --- */
-                .${cls.toggleSwitch} {
+                ${root} .${cls.toggleSwitch} {
                     position: relative;
                     display: inline-block;
                     width: 40px;
                     height: 22px;
                     flex-shrink: 0;
                 }
-                .${cls.toggleSwitch} input {
+                ${root} .${cls.toggleSwitch} input {
                     opacity: 0;
                     width: 0;
                     height: 0;
                 }
-                .${cls.toggleSlider} {
+                ${root} .${cls.toggleSlider} {
                     position: absolute;
                     cursor: pointer;
                     top: 0;
@@ -896,7 +903,7 @@
                     transition: .3s;
                     border-radius: 22px;
                 }
-                .${cls.toggleSlider}:before {
+                ${root} .${cls.toggleSlider}:before {
                     position: absolute;
                     content: "";
                     height: 16px;
@@ -909,64 +916,64 @@
                     transition: .3s;
                     border-radius: 50%;
                 }
-                .${cls.toggleSwitch} input:checked + .${cls.toggleSlider} {
+                ${root} .${cls.toggleSwitch} input:checked + .${cls.toggleSlider} {
                     background-color: ${palette.toggle_bg_on};
                 }
-                .${cls.toggleSwitch} input:checked + .${cls.toggleSlider}:before {
+                ${root} .${cls.toggleSwitch} input:checked + .${cls.toggleSlider}:before {
                     transform: translateX(18px);
                 }
 
                 /* --- Form Fields & Layout --- */
-                .${cls.formField} {
+                ${root} .${cls.formField} {
                     display: flex;
                     flex-direction: column;
                     gap: 4px;
                 }
-                .${cls.formField} > label {
+                ${root} .${cls.formField} > label {
                     color: ${palette.text_secondary};
                     font-size: 0.9em;
                 }
-                .${cls.labelRow} {
+                ${root} .${cls.labelRow} {
                     display: flex;
                     align-items: baseline;
                     gap: 8px;
                 }
-                .${cls.labelRow} > label {
+                ${root} .${cls.labelRow} > label {
                     color: ${palette.text_secondary};
                     font-size: 0.9em;
                     margin: 0;
                 }
-                .${cls.statusText} {
+                ${root} .${cls.statusText} {
                     font-size: 0.8em;
                     font-weight: 500;
                     /* No auto margin to keep it next to the label */
                 }
-                .${cls.inputWrapper} {
+                ${root} .${cls.inputWrapper} {
                     display: flex;
                     align-items: center;
                     gap: 4px;
                 }
-                .${cls.inputWrapper} input {
+                ${root} .${cls.inputWrapper} input {
                     flex-grow: 1;
                 }
-                .${cls.formErrorMsg} {
+                ${root} .${cls.formErrorMsg} {
                     color: ${palette.error_text};
                     font-size: 0.8em;
                     margin-top: 2px;
                     white-space: pre-wrap;
                 }
-                .${cls.compoundFormFieldContainer} {
+                ${root} .${cls.compoundFormFieldContainer} {
                     display: grid;
                     grid-template-columns: 1fr 1fr;
                     gap: 16px;
                 }
                 
                 /* Common Inputs */
-                .${cls.commonInput},
-                .${cls.formField} input[type="text"], 
-                .${cls.formField} textarea, 
-                .${cls.formField} select,
-                .${cls.submenuRow} select {
+                ${root} .${cls.commonInput},
+                ${root} .${cls.formField} input[type="text"], 
+                ${root} .${cls.formField} textarea, 
+                ${root} .${cls.formField} select,
+                ${root} .${cls.submenuRow} select {
                     background: ${palette.input_bg};
                     border: 1px solid ${palette.border};
                     border-radius: 4px;
@@ -975,24 +982,23 @@
                     padding: 6px 8px;
                     width: 100%;
                 }
-                /* Submenu Row Select Specific Sizing */
-                .${cls.submenuRow} select {
+                ${root} .${cls.submenuRow} select {
                     width: auto;
                     min-width: 120px;
                     max-width: 50%;
                 }
 
-                .${cls.formField} input[type="text"].${cls.invalidInput}, 
-                .${cls.formField} textarea.${cls.invalidInput} {
-                    border-color: ${palette.error_text} !important;
+                ${root} .${cls.formField} input[type="text"].${cls.invalidInput}, 
+                ${root} .${cls.formField} textarea.${cls.invalidInput} {
+                    border-color: ${palette.error_text};
                     outline: 1px solid ${palette.error_text};
                 }
-                .${cls.formField} textarea {
+                ${root} .${cls.formField} textarea {
                     resize: vertical;
                 }
 
                 /* --- Local File Button --- */
-                .${cls.localFileBtn} {
+                ${root} .${cls.localFileBtn} {
                     flex-shrink: 0;
                     padding: 4px 6px;
                     height: 32px;
@@ -1004,19 +1010,19 @@
                     cursor: pointer;
                     color: ${palette.btn_text};
                 }
-                .${cls.localFileBtn}:hover {
+                ${root} .${cls.localFileBtn}:hover {
                     background: ${palette.btn_hover_bg};
                 }
 
                 /* --- Color Picker Fields --- */
-                .${cls.colorFieldWrapper} {
+                ${root} .${cls.colorFieldWrapper} {
                     display: flex;
                     gap: 8px;
                 }
-                .${cls.colorFieldWrapper} input[type="text"] {
+                ${root} .${cls.colorFieldWrapper} input[type="text"] {
                     flex-grow: 1;
                 }
-                .${cls.colorSwatch} {
+                ${root} .${cls.colorSwatch} {
                     background-color: transparent;
                     border: 1px solid ${palette.border};
                     border-radius: 4px;
@@ -1027,32 +1033,33 @@
                     position: relative;
                     width: 32px;
                 }
-                .${cls.colorSwatchChecker}, .${cls.colorSwatchValue} {
+                ${root} .${cls.colorSwatchChecker}, 
+                ${root} .${cls.colorSwatchValue} {
                     border-radius: 2px;
                     height: auto;
                     inset: 2px;
                     position: absolute;
                     width: auto;
                 }
-                .${cls.colorSwatchChecker} {
+                ${root} .${cls.colorSwatchChecker} {
                     background-image: repeating-conic-gradient(#808080 0% 25%, #c0c0c0 0% 50%);
                     background-size: 12px 12px;
                 }
-                .${cls.colorSwatchValue} {
+                ${root} .${cls.colorSwatchValue} {
                     transition: background-color: 0.1s;
                 }
 
                 /* --- Preview Components --- */
-                .${cls.previewContainer} {
+                ${root} .${cls.previewContainer} {
                     margin-top: 0;
                 }
-                .${cls.previewContainer} > label {
+                ${root} .${cls.previewContainer} > label {
                     color: ${palette.text_secondary};
                     display: block;
                     font-size: 0.9em;
                     margin-bottom: 4px;
                 }
-                .${cls.previewBubbleWrapper} {
+                ${root} .${cls.previewBubbleWrapper} {
                     background-image: repeating-conic-gradient(#cccccc 0% 25%, #a9a9a9 0% 50%);
                     background-size: 20px 20px;
                     border-radius: 4px;
@@ -1063,17 +1070,17 @@
                     text-align: left;
                     width: 100%;
                 }
-                .${cls.previewBubbleWrapper}.${cls.userPreview} {
+                ${root} .${cls.previewBubbleWrapper}.${cls.userPreview} {
                     text-align: right;
                 }
-                .${cls.previewBubble} {
+                ${root} .${cls.previewBubble} {
                     box-sizing: border-box;
                     display: inline-block;
                     text-align: left;
                     transition: all 0.1s linear;
                     word-break: break-all;
                 }
-                .${cls.previewInputArea} {
+                ${root} .${cls.previewInputArea} {
                     display: block;
                     width: 75%;
                     margin: 0 auto;
@@ -1084,63 +1091,62 @@
                     border: 1px solid ${palette.border};
                     transition: all 0.1s linear;
                 }
-                .${cls.previewBackground} {
+                ${root} .${cls.previewBackground} {
                     width: 100%;
                     height: 100%;
                     border-radius: 4px;
                     transition: all 0.1s linear;
                     border: 1px solid ${palette.border};
                 }
-                .${cls.compoundFormFieldContainer} .${cls.formField} > .${cls.previewBubbleWrapper} {
+                ${root} .${cls.compoundFormFieldContainer} .${cls.formField} > .${cls.previewBubbleWrapper} {
                     flex-grow: 1;
                 }
 
                 /* --- Submenu / Panels --- */
-                .${cls.submenuRow} {
+                ${root} .${cls.submenuRow} {
                     display: flex;
                     align-items: center;
                     justify-content: space-between;
                     gap: 8px;
                     margin-top: 8px;
                 }
-                /* Reset margin for nested rows to prevent double spacing/misalignment */
-                .${cls.submenuRow} .${cls.submenuRow} {
+                ${root} .${cls.submenuRow} .${cls.submenuRow} {
                     margin-top: 0;
                 }
-                .${cls.submenuRow} label {
+                ${root} .${cls.submenuRow} label {
                     flex-shrink: 0;
                     margin: 0;
                     padding: 0;
                     line-height: 1.5;
                 }
-                .${cls.submenuFieldset} {
+                ${root} .${cls.submenuFieldset} {
                     border: 1px solid ${palette.border};
                     border-radius: 4px;
                     padding: 8px 12px 12px;
                     margin: 0 0 12px 0;
                     min-width: 0;
                 }
-                .${cls.submenuFieldset} legend {
+                ${root} .${cls.submenuFieldset} legend {
                     padding: 0 4px;
                     font-weight: 500;
                     color: ${palette.text_secondary};
                 }
-                .${cls.submenuSeparator} {
+                ${root} .${cls.submenuSeparator} {
                     border-top: 1px solid ${palette.border_light};
                     margin: 4px 0;
                 }
-                .${cls.featureGroup} {
+                ${root} .${cls.featureGroup} {
                     padding: 6px 0;
                 }
-                .${cls.featureGroup}:not(:first-child) {
+                ${root} .${cls.featureGroup}:not(:first-child) {
                     border-top: 1px solid ${palette.border_light};
                 }
-                .${cls.featureGroup}.${cls.submenuRow} {
+                ${root} .${cls.featureGroup}.${cls.submenuRow} {
                     margin-top: 0;
                 }
 
                 /* --- Warnings & Notifications --- */
-                .${cls.warningBanner} {
+                ${root} .${cls.warningBanner} {
                     background-color: var(--bg-danger, #ffdddd);
                     color: var(--text-on-danger, #a00);
                     padding: 8px 12px;
@@ -1151,16 +1157,18 @@
                     border: 1px solid var(--border-danger-heavy, #c00);
                     white-space: pre-wrap;
                 }
-                .${cls.conflictText} {
-                    color: ${palette.error_text} !important;
+                ${root} .${cls.conflictText} {
+                    color: ${palette.error_text};
                 }
             `;
         },
 
-        getModalCss(cls) {
+        getModalCss(rootId, cls) {
             const palette = SITE_STYLES.PALETTE;
+            // The dialog element itself should be targeted by the ID
+            const root = `#${rootId}`;
             return `
-                dialog.${cls.dialog} {
+                ${root} {
                     padding: 0;
                     border: none;
                     background: transparent;
@@ -1168,11 +1176,11 @@
                     max-height: 100vh;
                     overflow: visible;
                 }
-                dialog.${cls.dialog}::backdrop {
+                ${root}::backdrop {
                     background: rgb(0 0 0 / 0.5);
                     pointer-events: auto;
                 }
-                .${cls.box} {
+                ${root} .${cls.box} {
                     display: flex;
                     flex-direction: column;
                     background: ${palette.bg};
@@ -1180,19 +1188,20 @@
                     border: 1px solid ${palette.border};
                     border-radius: 8px;
                     box-shadow: 0 4px 16px rgb(0 0 0 / 0.2);
-                    max-height: 90vh; /* Limit height to viewport */
+                    max-height: 90vh;
                     width: 100%;
                 }
-                .${cls.header}, .${cls.footer} {
+                ${root} .${cls.header}, 
+                ${root} .${cls.footer} {
                     flex-shrink: 0;
                     padding: 12px 16px;
                 }
-                .${cls.header} {
+                ${root} .${cls.header} {
                     font-size: 1.1em;
                     font-weight: 600;
                     border-bottom: 1px solid ${palette.border};
                 }
-                .${cls.content} {
+                ${root} .${cls.content} {
                     flex-grow: 1;
                     padding: 0;
                     overflow: hidden;
@@ -1200,30 +1209,32 @@
                     flex-direction: column;
                     min-height: 0;
                 }
-                .${cls.footer} {
+                ${root} .${cls.footer} {
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
                     gap: 16px;
                     border-top: 1px solid ${palette.border};
                 }
-                .${cls.footerMessage} {
+                ${root} .${cls.footerMessage} {
                     flex-grow: 1;
                     font-size: 0.9em;
                 }
-                .${cls.buttonGroup} {
+                ${root} .${cls.buttonGroup} {
                     display: flex;
                     gap: 8px;
                 }
             `;
         },
 
-        getSettingsPanelCss(cls) {
+        getSettingsPanelCss(rootId, cls) {
             const common = StyleDefinitions.COMMON_CLASSES;
             const palette = SITE_STYLES.PALETTE;
             const zIndex = SITE_STYLES.Z_INDICES.SETTINGS_PANEL;
+            const root = `#${rootId}`;
+
             return `
-                #${cls.panel} {
+                ${root} {
                     position: fixed;
                     width: min(340px, 95vw);
                     max-height: 85vh;
@@ -1238,60 +1249,60 @@
                     border: 1px solid ${palette.border_medium};
                     font-size: 0.9em;
                 }
-                #${cls.appliedThemeName} {
+                ${root} #${cls.appliedThemeName} {
                     white-space: nowrap;
                     overflow: hidden;
                     text-overflow: ellipsis;
                 }
-                .${cls.topRow} {
+                ${root} .${cls.topRow} {
                     display: flex;
                     gap: 12px;
                     margin-bottom: 12px;
                 }
                 /* Target the common fieldset within the top row */
-                .${cls.topRow} .${common.submenuFieldset} {
+                ${root} .${cls.topRow} .${common.submenuFieldset} {
                     flex: 1 1 0px;
                     margin-bottom: 0;
                 }
                 
                 /* Target common slider display within the panel */
-                .${common.sliderSubgroupControl}.is-default .${common.sliderDisplay} {
+                ${root} .${common.sliderSubgroupControl}.is-default .${common.sliderDisplay} {
                     color: ${palette.text_secondary};
                 }
             `;
         },
 
-        getJsonModalCss(cls, prefix) {
-            const modalId = StyleDefinitions.MODAL_CLASSES.dialog;
+        getJsonModalCss(rootId, cls, prefix) {
             const modal = StyleDefinitions.MODAL_CLASSES;
             const common = StyleDefinitions.COMMON_CLASSES;
             const palette = SITE_STYLES.PALETTE;
+            const root = `#${rootId}`;
 
             return `
                 /* Hide footer message area to allow buttons to take full width, unless conflict text is present */
-                #${modalId} .${modal.footerMessage}:not(.${common.conflictText}) {
-                    display: none !important;
+                ${root} .${modal.footerMessage}:not(.${common.conflictText}) {
+                    display: none;
                 }
 
                 /* Explicitly show and style the conflict message when present */
-                #${modalId} .${modal.footerMessage}.${common.conflictText} {
-                    display: flex !important;
+                ${root} .${modal.footerMessage}.${common.conflictText} {
+                    display: flex;
                     width: 100%;
                 }
                 
                 /* Allow the button group to expand and fill the footer */
-                #${modalId} .${modal.buttonGroup} {
+                ${root} .${modal.buttonGroup} {
                     flex-grow: 1;
                     width: 100%;
                 }
 
                 /* Allow wrapping in footer to prevent overflow when warning message is displayed */
-                #${modalId} .${modal.footer} {
+                ${root} .${modal.footer} {
                     flex-wrap: wrap;
                 }
 
                 /* Editor Style */
-                .${cls.jsonEditor} {
+                ${root} .${cls.jsonEditor} {
                     width: 100%;
                     height: 200px;
                     box-sizing: border-box;
@@ -1306,15 +1317,15 @@
                     background: ${palette.input_bg};
                     color: ${palette.text_primary};
                     border-radius: 4px;
-                    resize: none !important;
+                    resize: none;
                     padding: 8px;
                 }
-                .${cls.jsonEditor}:focus {
+                ${root} .${cls.jsonEditor}:focus {
                     outline: 1px solid ${palette.accent_text};
                 }
 
                 /* Status container specific style */
-                .${cls.statusContainer} {
+                ${root} .${cls.statusContainer} {
                     width: 100%;
                     display: flex;
                     justify-content: space-between;
@@ -1324,26 +1335,28 @@
                 }
                 
                 /* Mapped from UI Schema className */
-                .${prefix}-form-field {
+                ${root} .${prefix}-form-field {
                     width: 100%;
                 }
-                .status-msg-display {
+                ${root} .status-msg-display {
                     flex: 1;
                     margin-right: 8px;
                 }
-                .size-info-display {
+                ${root} .size-info-display {
                     white-space: nowrap;
                     text-align: right;
                 }
             `;
         },
 
-        getThemeModalCss(cls) {
+        getThemeModalCss(rootId, cls) {
             const common = StyleDefinitions.COMMON_CLASSES;
             const palette = SITE_STYLES.PALETTE;
+            const root = `#${rootId}`;
+
             return `
                 /* Make the content area expand to fill the modal */
-                .${cls.content} {
+                ${root} .${cls.content} {
                   display: flex;
                   flex-direction: column;
                   gap: 16px;
@@ -1353,36 +1366,36 @@
                 }
 
                 /* Header Controls Layout */
-                .${cls.headerControls} {
+                ${root} .${cls.headerControls} {
                   display: flex;
                   flex-direction: column;
                   gap: 12px;
                   flex-shrink: 0;
                 }
-                .${cls.headerRow} {
+                ${root} .${cls.headerRow} {
                   display: grid;
                   grid-template-columns: auto 1fr auto;
                   gap: 8px;
                   align-items: center;
                   padding-left: 1.2rem;
                 }
-                .${cls.headerRow} > label {
+                ${root} .${cls.headerRow} > label {
                   grid-column: 1;
                   text-align: left;
                   color: ${palette.text_secondary};
                   font-size: 0.9em;
                   white-space: nowrap;
                 }
-                .${cls.headerRow} > .${cls.renameArea} {
+                ${root} .${cls.headerRow} > .${cls.renameArea} {
                   grid-column: 2;
                   min-width: 180px;
                 }
-                .${cls.headerRow} > .${cls.actionArea} {
+                ${root} .${cls.headerRow} > .${cls.actionArea} {
                   grid-column: 3;
                   display: grid;
                   align-items: center;
                 }
-                .${cls.actionArea} > * {
+                ${root} .${cls.actionArea} > * {
                     grid-area: 1 / 1;
                     display: flex;
                     align-items: center;
@@ -1390,14 +1403,14 @@
                 }
 
                 /* Content Areas */
-                .${cls.generalSettings} {
+                ${root} .${cls.generalSettings} {
                   display: grid;
                   gap: 16px;
                   grid-template-columns: 1fr;
                   transition: opacity 0.2s;
                   flex-shrink: 0;
                 }
-                .${cls.scrollableArea} {
+                ${root} .${cls.scrollableArea} {
                   flex-grow: 1;
                   overflow-y: auto;
                   overflow-x: hidden; /* Prevent horizontal scroll */
@@ -1405,54 +1418,54 @@
                   transition: opacity 0.2s;
                   min-height: 0; /* Enable scrolling */
                 }
-                .${cls.scrollableArea}:focus {
+                ${root} .${cls.scrollableArea}:focus {
                   outline: none;
                 }
-                .${cls.grid} {
+                ${root} .${cls.grid} {
                   display: grid;
                   gap: 16px;
                   grid-template-columns: 1fr 1fr;
                 }
                 @media (max-width: 800px) {
-                    .${cls.grid} {
+                    ${root} .${cls.grid} {
                         grid-template-columns: 1fr !important;
                     }
                 }
 
                 /* Separator */
-                .${cls.separator} {
+                ${root} .${cls.separator} {
                   border: none;
                   border-top: 1px solid ${palette.border};
                   margin: 0;
                   flex-shrink: 0;
                 }
                 /* Reset separator margins inside fieldset to rely on gap */
-                fieldset > .${cls.separator} {
+                ${root} fieldset > .${cls.separator} {
                   margin: 0;
                 }
 
                 /* Spacing Overrides for Theme Editor Forms (Scoped to Theme Modal) */
-                .${cls.content} .${common.submenuFieldset} {
+                ${root} .${cls.content} .${common.submenuFieldset} {
                     display: flex;
                     flex-direction: column;
                     gap: 8px;
                 }
                 /* Reset individual margins to rely on the parent gap */
-                .${cls.content} .${common.sliderContainer},
-                .${cls.content} .${common.submenuRow},
-                .${cls.content} .${common.compoundSliderContainer} {
+                ${root} .${cls.content} .${common.sliderContainer},
+                ${root} .${cls.content} .${common.submenuRow},
+                ${root} .${cls.content} .${common.compoundSliderContainer} {
                     margin-top: 0;
                 }
 
                 /* Disabled State */
-                .${cls.generalSettings}.is-disabled,
-                .${cls.scrollableArea}.is-disabled {
+                ${root} .${cls.generalSettings}.is-disabled,
+                ${root} .${cls.scrollableArea}.is-disabled {
                   pointer-events: none;
                   opacity: 0.5;
                 }
 
                 /* Move Buttons (Arrows) */
-                .${common.modalButton}.${cls.moveBtn} {
+                ${root} .${common.modalButton}.${cls.moveBtn} {
                   display: flex;
                   align-items: center;
                   justify-content: center;
@@ -1464,15 +1477,15 @@
                 }
 
                 /* Delete Confirm Group */
-                .${cls.deleteConfirmGroup} {
+                ${root} .${cls.deleteConfirmGroup} {
                     display: none;
                 }
-                .${cls.deleteConfirmGroup}:not([hidden]) {
+                ${root} .${cls.deleteConfirmGroup}:not([hidden]) {
                   align-items: center;
                   display: flex;
                   gap: 8px;
                 }
-                .${cls.deleteConfirmLabel} {
+                ${root} .${cls.deleteConfirmLabel} {
                   color: ${palette.danger_text};
                   font-style: italic;
                   margin-right: auto;
@@ -1480,36 +1493,38 @@
 
                 /* Mobile Responsive Styles */
                 @media (max-width: 600px) {
-                    .${cls.headerRow} {
+                    ${root} .${cls.headerRow} {
                         grid-template-columns: 1fr;
                         gap: 12px;
                         padding-left: 0;
                     }
-                    .${cls.headerRow} > label {
+                    ${root} .${cls.headerRow} > label {
                         grid-column: 1;
                         text-align: left;
                     }
-                    .${cls.headerRow} > .${cls.renameArea} {
+                    ${root} .${cls.headerRow} > .${cls.renameArea} {
                         grid-column: 1;
                         min-width: 0;
                     }
-                    .${cls.headerRow} > .${cls.actionArea} {
+                    ${root} .${cls.headerRow} > .${cls.actionArea} {
                         grid-column: 1;
                     }
                     /* Allow button groups to wrap */
-                    .${cls.actionArea} > * {
+                    ${root} .${cls.actionArea} > * {
                         flex-wrap: wrap;
                     }
                 }
             `;
         },
 
-        getColorPickerCss(cls) {
+        getColorPickerCss(rootId, cls) {
             const palette = SITE_STYLES.PALETTE;
             const zIndex = SITE_STYLES.Z_INDICES.COLOR_PICKER;
+            const root = `#${rootId}`;
+
             return `
                 /* Popup Wrapper Style */
-                .${cls.colorPickerPopup} {
+                ${root} {
                     background-color: ${palette.bg};
                     border: 1px solid ${palette.border};
                     border-radius: 4px;
@@ -1519,30 +1534,34 @@
                     width: 280px;
                     z-index: ${zIndex};
                 }
-                .${cls.picker} { display: flex;  flex-direction: column; gap: 16px; }
-                .${cls.svPlane} { position: relative;  width: 100%; aspect-ratio: 1 / 1; cursor: crosshair; touch-action: none; border-radius: 4px; overflow: hidden; flex-shrink: 0; }
-                .${cls.svPlane}:focus { outline: 2px solid ${palette.accent_text};  }
-                .${cls.svPlane} .${cls.gradientWhite}, .${cls.svPlane} .${cls.gradientBlack} { position: absolute;  inset: 0; pointer-events: none; }
-                .${cls.svPlane} .${cls.gradientWhite} { background: linear-gradient(to right, white, transparent);  }
-                .${cls.svPlane} .${cls.gradientBlack} { background: linear-gradient(to top, black, transparent);  }
-                .${cls.svThumb} { position: absolute;  width: 20px; height: 20px; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 2px 1px rgb(0 0 0 / 0.5);  box-sizing: border-box; transform: translate(-50%, -50%); pointer-events: none; }
-                .${cls.sliderGroup} { position: relative;  cursor: pointer; height: 20px; flex-shrink: 0; }
-                .${cls.sliderGroup} .${cls.sliderTrack}, .${cls.sliderGroup} .${cls.alphaCheckerboard} { position: absolute;  top: 50%; transform: translateY(-50%); width: 100%; height: 12px; border-radius: 6px; pointer-events: none;  }
-                .${cls.sliderGroup} .${cls.alphaCheckerboard} { background-image: repeating-conic-gradient(#808080 0% 25%, #c0c0c0 0% 50%);  background-size: 12px 12px; }
-                .${cls.sliderGroup} .${cls.hueTrack} { background: linear-gradient( to right, hsl(0 100% 50%), hsl(60 100% 50%), hsl(120 100% 50%), hsl(180 100% 50%), hsl(240 100% 50%), hsl(300 100% 50%), hsl(360 100% 50%) );  }
-                .${cls.sliderGroup} input[type="range"] { -webkit-appearance: none;  appearance: none; position: relative; width: 100%; height: 100%; margin: 0; padding: 0; background-color: transparent; cursor: pointer;  }
-                .${cls.sliderGroup} input[type="range"]:focus { outline: none;  }
-                .${cls.sliderGroup} input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none;  appearance: none; width: 20px; height: 20px; border: 2px solid white; border-radius: 50%; background-color: #fff;  box-shadow: 0 0 2px 1px rgb(0 0 0 / 0.5);  }
-                .${cls.sliderGroup} input[type="range"]::-moz-range-thumb { width: 20px;  height: 20px; border: 2px solid white; border-radius: 50%; background-color: #fff; box-shadow: 0 0 2px 1px rgb(0 0 0 / 0.5);  }
-                .${cls.sliderGroup} input[type="range"]:focus::-webkit-slider-thumb { outline: 2px solid ${palette.accent_text};  outline-offset: 1px; }
-                .${cls.sliderGroup} input[type="range"]:focus::-moz-range-thumb { outline: 2px solid ${palette.accent_text};  outline-offset: 1px; }
+                ${root} .${cls.picker} { display: flex;  flex-direction: column; gap: 16px; }
+                ${root} .${cls.svPlane} { position: relative;  width: 100%; aspect-ratio: 1 / 1; cursor: crosshair; touch-action: none; border-radius: 4px; overflow: hidden; flex-shrink: 0; }
+                ${root} .${cls.svPlane}:focus { outline: 2px solid ${palette.accent_text};  }
+                ${root} .${cls.svPlane} .${cls.gradientWhite}, 
+                ${root} .${cls.svPlane} .${cls.gradientBlack} { position: absolute;  inset: 0; pointer-events: none; }
+                ${root} .${cls.svPlane} .${cls.gradientWhite} { background: linear-gradient(to right, white, transparent);  }
+                ${root} .${cls.svPlane} .${cls.gradientBlack} { background: linear-gradient(to top, black, transparent);  }
+                ${root} .${cls.svThumb} { position: absolute;  width: 20px; height: 20px; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 2px 1px rgb(0 0 0 / 0.5);  box-sizing: border-box; transform: translate(-50%, -50%); pointer-events: none; }
+                ${root} .${cls.sliderGroup} { position: relative;  cursor: pointer; height: 20px; flex-shrink: 0; }
+                ${root} .${cls.sliderGroup} .${cls.sliderTrack}, 
+                ${root} .${cls.sliderGroup} .${cls.alphaCheckerboard} { position: absolute;  top: 50%; transform: translateY(-50%); width: 100%; height: 12px; border-radius: 6px; pointer-events: none;  }
+                ${root} .${cls.sliderGroup} .${cls.alphaCheckerboard} { background-image: repeating-conic-gradient(#808080 0% 25%, #c0c0c0 0% 50%);  background-size: 12px 12px; }
+                ${root} .${cls.sliderGroup} .${cls.hueTrack} { background: linear-gradient( to right, hsl(0 100% 50%), hsl(60 100% 50%), hsl(120 100% 50%), hsl(180 100% 50%), hsl(240 100% 50%), hsl(300 100% 50%), hsl(360 100% 50%) );  }
+                ${root} .${cls.sliderGroup} input[type="range"] { -webkit-appearance: none;  appearance: none; position: relative; width: 100%; height: 100%; margin: 0; padding: 0; background-color: transparent; cursor: pointer;  }
+                ${root} .${cls.sliderGroup} input[type="range"]:focus { outline: none;  }
+                ${root} .${cls.sliderGroup} input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none;  appearance: none; width: 20px; height: 20px; border: 2px solid white; border-radius: 50%; background-color: #fff;  box-shadow: 0 0 2px 1px rgb(0 0 0 / 0.5);  }
+                ${root} .${cls.sliderGroup} input[type="range"]::-moz-range-thumb { width: 20px;  height: 20px; border: 2px solid white; border-radius: 50%; background-color: #fff; box-shadow: 0 0 2px 1px rgb(0 0 0 / 0.5);  }
+                ${root} .${cls.sliderGroup} input[type="range"]:focus::-webkit-slider-thumb { outline: 2px solid ${palette.accent_text};  outline-offset: 1px; }
+                ${root} .${cls.sliderGroup} input[type="range"]:focus::-moz-range-thumb { outline: 2px solid ${palette.accent_text};  outline-offset: 1px; }
             `;
         },
 
-        getFixedNavCss(cls) {
+        getFixedNavCss(rootId, cls) {
             const palette = SITE_STYLES.PALETTE;
             const zIndex = SITE_STYLES.Z_INDICES.NAV_CONSOLE;
             const selectors = CONSTANTS.SELECTORS;
+            const root = `#${rootId}`;
+
             const highlightRule = `
                 .${cls.highlightMessage} ${selectors.RAW_USER_BUBBLE}, 
                 .${cls.highlightMessage} ${selectors.RAW_ASSISTANT_BUBBLE}, 
@@ -1552,14 +1571,14 @@
 
             return `
                 /* --- Fixed Nav Container --- */
-                #${cls.consoleId} .${cls.isHidden} {
-                    display: none !important;
+                ${root} .${cls.isHidden} {
+                    display: none;
                 }
-                #${cls.consoleId}.${cls.unpositioned} {
+                ${root}.${cls.unpositioned} {
                     visibility: hidden;
                     opacity: 0;
                 }
-                #${cls.consoleId} {
+                ${root} {
                     position: fixed;
                     z-index: ${zIndex};
                     display: flex;
@@ -1575,7 +1594,7 @@
                     transform-origin: bottom;
                 }
                 /* Embedded Mode (Header Integration) */
-                #${cls.consoleId}.is-embedded {
+                ${root}.is-embedded {
                     position: static !important;
                     background-color: transparent !important;
                     border: none !important;
@@ -1584,22 +1603,22 @@
                     height: 100%;
                     z-index: auto;
                 }
-                #${cls.consoleId}.${cls.hidden} {
-                    display: none !important;
+                ${root}.${cls.hidden} {
+                    display: none;
                 }
 
                 /* --- Fixed Nav Content --- */
-                #${cls.consoleId} .${cls.group} {
+                ${root} .${cls.group} {
                     display: flex;
                     align-items: center;
                     gap: 6px;
                 }
-                #${cls.consoleId} .${cls.separator} {
+                ${root} .${cls.separator} {
                     width: 1px;
                     height: 20px;
                     background-color: ${palette.fixed_nav_separator_bg};
                 }
-                #${cls.consoleId} .${cls.roleBtn} {
+                ${root} .${cls.roleBtn} {
                     color: ${palette.fixed_nav_label_text};
                     font-weight: 500;
                     cursor: pointer;
@@ -1615,28 +1634,28 @@
                     width: 24px;
                     height: 24px;
                 }
-                #${cls.consoleId} .${cls.roleBtn}:hover {
+                ${root} .${cls.roleBtn}:hover {
                     background-color: ${palette.btn_hover_bg};
                 }
-                #${cls.consoleId} .${cls.roleBtn} svg {
+                ${root} .${cls.roleBtn} svg {
                     width: 20px;
                     height: 20px;
                     fill: currentColor;
                 }
                 
                 /* Role Colors */
-                #${cls.consoleId} .${cls.roleTotal} {
-                    color: ${palette.text_secondary} !important;
+                ${root} .${cls.roleTotal} {
+                    color: ${palette.text_secondary};
                 }
-                #${cls.consoleId} .${cls.roleUser} {
-                    color: ${palette.accent_text} !important;
+                ${root} .${cls.roleUser} {
+                    color: ${palette.accent_text};
                 }
-                #${cls.consoleId} .${cls.roleAssistant} {
-                    color: ${palette.fixed_nav_assistant_text} !important;
+                ${root} .${cls.roleAssistant} {
+                    color: ${palette.fixed_nav_assistant_text};
                 }
 
-                #${cls.consoleId} .${cls.counter},
-                #${cls.consoleId} .${cls.jumpInput} {
+                ${root} .${cls.counter},
+                ${root} .${cls.jumpInput} {
                     box-sizing: border-box;
                     width: 85px;
                     height: 24px;
@@ -1653,7 +1672,7 @@
                     font: inherit;
                     user-select: none;
                 }
-                #${cls.consoleId} .${cls.btn} {
+                ${root} .${cls.btn} {
                     background-color: ${palette.btn_bg};
                     color: ${palette.btn_text};
                     border: 1px solid ${palette.btn_border};
@@ -1667,35 +1686,36 @@
                     padding: 0;
                     transition: background-color 0.1s, color 0.1s;
                 }
-                #${cls.consoleId} .${cls.btn}:hover {
+                ${root} .${cls.btn}:hover {
                     background-color: ${palette.btn_hover_bg};
                 }
-                #${cls.consoleId} .${cls.btn} svg {
+                ${root} .${cls.btn} svg {
                     width: 20px;
                     height: 20px;
                     fill: currentColor;
                 }
-                #${cls.bulkCollapseBtnId} svg {
+                ${root} #${cls.bulkCollapseBtnId} svg {
                     width: 100%;
                     height: 100%;
                 }
-                #${cls.bulkCollapseBtnId}[data-state="expanded"] .icon-expand { display: none; }
-                #${cls.bulkCollapseBtnId}[data-state="expanded"] .icon-collapse { display: block; }
-                #${cls.bulkCollapseBtnId}[data-state="collapsed"] .icon-expand { display: block; }
-                #${cls.bulkCollapseBtnId}[data-state="collapsed"] .icon-collapse { display: none; }
+                ${root} #${cls.bulkCollapseBtnId}[data-state="expanded"] .icon-expand { display: none; }
+                ${root} #${cls.bulkCollapseBtnId}[data-state="expanded"] .icon-collapse { display: block; }
+                ${root} #${cls.bulkCollapseBtnId}[data-state="collapsed"] .icon-expand { display: block; }
+                ${root} #${cls.bulkCollapseBtnId}[data-state="collapsed"] .icon-collapse { display: none; }
                 
-                #${cls.consoleId} .${cls.btn}.${cls.btnAccent} {
+                ${root} .${cls.btn}.${cls.btnAccent} {
                     color: ${palette.fixed_nav_btn_accent_text};
                 }
-                #${cls.consoleId} .${cls.btn}.${cls.btnDanger} {
+                ${root} .${cls.btn}.${cls.btnDanger} {
                     color: ${palette.fixed_nav_btn_danger_text};
                 }
-                #${cls.autoscrollBtnId}:disabled {
+                ${root} #${cls.autoscrollBtnId}:disabled {
                     opacity: 0.5;
                     cursor: not-allowed;
                 }
 
-                /* --- Highlight --- */
+                /* --- Highlight (Global Scope) --- */
+                /* These rules target messages outside the root container, so they cannot use #rootId */
                 ${highlightRule} {
                     outline: 2px solid ${palette.fixed_nav_highlight_outline} !important;
                     outline-offset: -2px;
@@ -1705,14 +1725,15 @@
             `;
         },
 
-        getJumpListCss(cls) {
+        getJumpListCss(rootId, cls) {
             const palette = SITE_STYLES.PALETTE;
             const zIndex = SITE_STYLES.Z_INDICES.NAV_CONSOLE + 1;
-            const firefoxScrollbarFix = /firefox/i.test(navigator.userAgent) ? `.${cls.scrollbox} { padding-right: 12px; }` : '';
+            const root = `#${rootId}`;
+            const firefoxScrollbarFix = /firefox/i.test(navigator.userAgent) ? `${root} .${cls.scrollbox} { padding-right: 12px; }` : '';
 
             return `
                 /* --- Jump List Container --- */
-                #${cls.containerId} {
+                ${root} {
                     position: fixed;
                     z-index: ${zIndex};
                     background: ${palette.jump_list_bg};
@@ -1728,31 +1749,33 @@
                     display: flex;
                     flex-direction: column;
                 }
-                #${cls.containerId}.${cls.expandDown} {
+                ${root}.${cls.expandDown} {
                     transform-origin: top;
                     transform: translateY(-10px);
                 }
-                #${cls.containerId}:focus, #${cls.listId}:focus, .${cls.scrollbox}:focus {
+                ${root}:focus, 
+                ${root} #${cls.listId}:focus, 
+                ${root} .${cls.scrollbox}:focus {
                     outline: none;
                 }
-                #${cls.containerId}.${cls.visible} {
+                ${root}.${cls.visible} {
                     opacity: 1;
                     transform: translateY(0);
                     visibility: visible;
                 }
-                .${cls.scrollbox} {
+                ${root} .${cls.scrollbox} {
                     flex: 1 1 auto;
                     position: relative;
                 }
                 ${firefoxScrollbarFix}
 
                 /* --- Jump List Items --- */
-                #${cls.listId} {
+                ${root} #${cls.listId} {
                     list-style: none;
                     margin: 0;
                     padding: 0;
                 }
-                .${cls.filterContainer} {
+                ${root} .${cls.filterContainer} {
                     position: relative;
                     display: flex;
                     align-items: center;
@@ -1760,7 +1783,7 @@
                     margin: 4px 0 0 0;
                     flex-shrink: 0;
                 }
-                .${cls.filter} {
+                ${root} .${cls.filter} {
                     border: none;
                     background-color: transparent;
                     color: inherit;
@@ -1771,10 +1794,10 @@
                     width: 100%;
                     box-sizing: border-box;
                 }
-                .${cls.filter}.${cls.filterRegexValid} {
+                ${root} .${cls.filter}.${cls.filterRegexValid} {
                     border-color: ${palette.jump_list_current_outline};
                 }
-                .${cls.modeLabel} {
+                ${root} .${cls.modeLabel} {
                     position: absolute;
                     right: 8px;
                     padding: 1px 6px;
@@ -1785,19 +1808,19 @@
                     transition: background-color 0.2s, color 0.2s;
                     line-height: 1.5;
                 }
-                .${cls.modeLabel}.${cls.modeString} {
+                ${root} .${cls.modeLabel}.${cls.modeString} {
                     background-color: transparent;
                     color: ${palette.label_text};
                 }
-                .${cls.modeLabel}.${cls.modeRegex} {
+                ${root} .${cls.modeLabel}.${cls.modeRegex} {
                     background-color: #28a745;
                     color: #ffffff;
                 }
-                .${cls.modeLabel}.${cls.modeInvalid} {
+                ${root} .${cls.modeLabel}.${cls.modeInvalid} {
                     background-color: #dc3545;
                     color: #ffffff;
                 }
-                #${cls.listId} li {
+                ${root} #${cls.listId} li {
                     padding: 6px 10px;
                     cursor: pointer;
                     white-space: nowrap;
@@ -1806,28 +1829,30 @@
                     border-radius: 4px;
                     font-size: 0.85rem;
                 }
-                #${cls.listId} li:hover, #${cls.listId} li.${cls.focused} {
+                ${root} #${cls.listId} li:hover, 
+                ${root} #${cls.listId} li.${cls.focused} {
                     outline: 1px solid ${palette.jump_list_hover_outline};
                     outline-offset: -1px;
                 }
-                #${cls.listId} li.${cls.current} {
+                ${root} #${cls.listId} li.${cls.current} {
                     outline: 2px solid ${palette.jump_list_current_outline};
                     outline-offset: -2px;
                 }
-                #${cls.listId} li.${cls.current}:hover, #${cls.listId} li.${cls.current}.${cls.focused} {
+                ${root} #${cls.listId} li.${cls.current}:hover, 
+                ${root} #${cls.listId} li.${cls.current}.${cls.focused} {
                     outline-width: 2px;
                     outline-offset: -2px;
                 }
-                #${cls.listId} li.${cls.userItem} {
+                ${root} #${cls.listId} li.${cls.userItem} {
                     background-color: var(${CSS_VARS.USER_BUBBLE_BG}, transparent);
                     color: var(${CSS_VARS.USER_TEXT_COLOR}, inherit);
                 }
-                #${cls.listId} li.${cls.asstItem} {
+                ${root} #${cls.listId} li.${cls.asstItem} {
                     background-color: var(${CSS_VARS.ASSISTANT_BUBBLE_BG}, transparent);
                     color: var(${CSS_VARS.ASSISTANT_TEXT_COLOR}, inherit);
                 }
 
-                /* --- Jump List Preview --- */
+                /* --- Jump List Preview (Global) --- */
                 #${cls.previewId} {
                     position: fixed;
                     z-index: ${CONSTANTS.Z_INDICES.JUMP_LIST_PREVIEW};
@@ -1861,17 +1886,18 @@
             `;
         },
 
-        getSettingsButtonCss(cls, prefix) {
+        getSettingsButtonCss(rootId, cls, prefix) {
             const palette = SITE_STYLES.PALETTE;
             const zIndex = SITE_STYLES.Z_INDICES.SETTINGS_BUTTON;
             const animationName = `${prefix}-spin`;
+            const root = `#${rootId}`;
 
             return `
                 @keyframes ${animationName} {
                     0% { transform: rotate(0deg); }
                     100% { transform: rotate(360deg); }
                 }
-                #${cls.buttonId} {
+                ${root} {
                     z-index: ${zIndex};
                     background: transparent;
                     border: none;
@@ -1894,23 +1920,24 @@
                     padding: 0;
                     pointer-events: auto !important;
                 }
-                #${cls.buttonId}:hover {
+                ${root}:hover {
                     background: ${palette.settings_btn_hover_bg};
                     border-color: transparent;
                 }
-                #${cls.buttonId}.is-loading {
+                ${root}.is-loading {
                     color: ${palette.loading_spinner};
                 }
-                #${cls.buttonId}.is-loading svg {
+                ${root}.is-loading svg {
                     animation: ${animationName} 1.5s linear infinite;
                 }
             `;
         },
 
-        getToastCss(cls) {
+        getToastCss(rootId, cls) {
             const zIndex = SITE_STYLES.Z_INDICES.TOAST;
+            const root = `#${rootId}`;
             return `
-                .${cls.container} {
+                ${root} {
                     position: fixed;
                     top: 30%;
                     left: 50%;
@@ -1932,12 +1959,12 @@
                     pointer-events: none;
                     white-space: nowrap;
                 }
-                .${cls.container}.${cls.visible} {
+                ${root}.${cls.visible} {
                     opacity: 1;
                     transform: translate(-50%, 0);
                     pointer-events: auto;
                 }
-                .${cls.cancelBtn} {
+                ${root} .${cls.cancelBtn} {
                     background: rgb(255 255 255 / 0.2);
                     color: #ffffff;
                     border: none;
@@ -1948,7 +1975,7 @@
                     border-radius: 6px;
                     transition: background-color 0.2s ease;
                 }
-                .${cls.cancelBtn}:hover {
+                ${root} .${cls.cancelBtn}:hover {
                     background-color: rgb(255 255 255 / 0.3);
                 }
             `;
@@ -4185,11 +4212,16 @@
             };
         })();
 
-        static getCommon() {
-            const key = 'common';
-            const cssGenerator = (cls) => StyleTemplates.getCommonCss(cls);
-            return { key, classes: StyleDefinitions.COMMON_CLASSES, vars: {}, generator: cssGenerator };
-        }
+        static ROOT_IDS = {
+            SETTINGS_PANEL: `${APPID}-settings-panel`,
+            THEME_MODAL: `${APPID}-theme-modal`,
+            JSON_MODAL: `${APPID}-json-modal`,
+            FIXED_NAV: `${APPID}-fixed-nav-console`,
+            JUMP_LIST: `${APPID}-jump-list-container`,
+            TOAST: `${APPID}-toast-container`,
+            COLOR_PICKER: `${APPID}-color-picker-popup`,
+            SETTINGS_BUTTON: `${APPID}-settings-button`,
+        };
 
         static getStaticBase() {
             const key = 'static-base';
@@ -4206,54 +4238,51 @@
 
             const cssGenerator = (cls) => PlatformAdapters.StyleManager.getStaticCss(cls);
 
-            return { key, classes, vars, generator: cssGenerator };
+            return { key, rootId: null, classes, vars, generator: cssGenerator };
         }
 
         static getDynamicRules() {
             const key = 'dynamic-rules';
             // Generator accepts activeVars set to filter outputs
             const cssGenerator = (cls, activeVars) => StyleTemplates.getThemeBaseCss(cls, activeVars);
-            return { key, classes: {}, vars: {}, generator: cssGenerator };
-        }
-
-        static getModal() {
-            const key = 'modal';
-            const cssGenerator = (cls) => StyleTemplates.getModalCss(cls);
-            return { key, classes: StyleDefinitions.MODAL_CLASSES, vars: {}, generator: cssGenerator };
+            return { key, rootId: null, classes: {}, vars: {}, generator: cssGenerator };
         }
 
         static getSettingsButton() {
             const key = 'settings-button';
+            const rootId = StyleDefinitions.ROOT_IDS.SETTINGS_BUTTON;
             const prefix = `${APPID}-${key}`;
 
             const classes = {
-                buttonId: `${prefix}-btn`,
+                buttonId: rootId,
             };
 
-            const cssGenerator = (cls) => StyleTemplates.getSettingsButtonCss(cls, prefix);
+            const generator = () => StyleTemplates.getSettingsButtonCss(rootId, classes, prefix);
 
-            return { key, classes, vars: {}, generator: cssGenerator };
+            return { key, rootId, classes, vars: {}, generator };
         }
 
         static getSettingsPanel() {
             const key = 'settings-panel';
+            const rootId = StyleDefinitions.ROOT_IDS.SETTINGS_PANEL;
             const prefix = `${APPID}-${key}`;
 
             const classes = {
-                panel: `${prefix}-container`,
+                panel: rootId,
                 appliedThemeName: `${prefix}-theme-name`,
 
                 // Layout Helpers
                 topRow: `${prefix}-top-row`,
             };
 
-            const cssGenerator = (cls) => StyleTemplates.getSettingsPanelCss(cls);
+            const generator = () => StyleTemplates.getSettingsPanelCss(rootId, classes) + StyleTemplates.getCommonCss(rootId, StyleDefinitions.COMMON_CLASSES);
 
-            return { key, classes, vars: {}, generator: cssGenerator };
+            return { key, rootId, classes, vars: {}, generator };
         }
 
         static getJsonModal() {
             const key = 'json-modal';
+            const rootId = StyleDefinitions.ROOT_IDS.JSON_MODAL;
             const prefix = `${APPID}-${key}`;
             const modalId = StyleDefinitions.MODAL_CLASSES.dialog;
 
@@ -4270,13 +4299,14 @@
                 saveBtn: `${prefix}-save-btn`,
             };
 
-            const cssGenerator = (cls) => StyleTemplates.getJsonModalCss(cls, prefix);
+            const generator = () => StyleTemplates.getJsonModalCss(rootId, classes, prefix) + StyleTemplates.getModalCss(rootId, StyleDefinitions.MODAL_CLASSES) + StyleTemplates.getCommonCss(rootId, StyleDefinitions.COMMON_CLASSES);
 
-            return { key, classes, vars: {}, generator: cssGenerator };
+            return { key, rootId, classes, vars: {}, generator };
         }
 
         static getThemeModal() {
             const key = 'theme-modal';
+            const rootId = StyleDefinitions.ROOT_IDS.THEME_MODAL;
             const prefix = `${APPID}-${key}`;
 
             const classes = {
@@ -4328,13 +4358,14 @@
                 renameActionsId: `${prefix}-actions-rename`,
             };
 
-            const cssGenerator = (cls) => StyleTemplates.getThemeModalCss(cls);
+            const generator = () => StyleTemplates.getThemeModalCss(rootId, classes) + StyleTemplates.getModalCss(rootId, StyleDefinitions.MODAL_CLASSES) + StyleTemplates.getCommonCss(rootId, StyleDefinitions.COMMON_CLASSES);
 
-            return { key, classes, vars: {}, generator: cssGenerator };
+            return { key, rootId, classes, vars: {}, generator };
         }
 
         static getColorPicker() {
             const key = 'color-picker';
+            const rootId = StyleDefinitions.ROOT_IDS.COLOR_PICKER;
             const prefix = `${APPID}-${key}`;
 
             const classes = {
@@ -4351,34 +4382,36 @@
                 colorPickerPopup: `${prefix}-popup`,
             };
 
-            const cssGenerator = (cls) => StyleTemplates.getColorPickerCss(cls);
+            const generator = () => StyleTemplates.getColorPickerCss(rootId, classes);
 
-            return { key, classes, vars: {}, generator: cssGenerator };
+            return { key, rootId, classes, vars: {}, generator };
         }
 
         static getToast() {
             const key = 'toast';
+            const rootId = StyleDefinitions.ROOT_IDS.TOAST;
             const prefix = `${APPID}-${key}`;
 
             const classes = {
-                container: `${prefix}-container`,
+                container: rootId,
                 visible: 'is-visible',
                 cancelBtn: `${prefix}-cancel-btn`,
             };
 
-            const cssGenerator = (cls) => StyleTemplates.getToastCss(cls);
+            const generator = () => StyleTemplates.getToastCss(rootId, classes);
 
-            return { key, classes, vars: {}, generator: cssGenerator };
+            return { key, rootId, classes, vars: {}, generator };
         }
 
         static getFixedNav() {
             const key = 'fixed-nav';
+            const rootId = StyleDefinitions.ROOT_IDS.FIXED_NAV;
             const prefix = `${APPID}-${key}`;
 
             // 1. Define the class map (Source of Truth)
             const classes = {
                 // IDs
-                consoleId: `${prefix}-console`,
+                consoleId: rootId,
                 bulkCollapseBtnId: `${prefix}-bulk-collapse-btn`,
                 autoscrollBtnId: `${prefix}-autoscroll-btn`,
 
@@ -4409,18 +4442,19 @@
             };
 
             // 2. CSS Generator using the class map
-            const cssGenerator = (cls) => StyleTemplates.getFixedNavCss(cls);
+            const generator = () => StyleTemplates.getFixedNavCss(rootId, classes);
 
-            return { key, classes, vars: {}, generator: cssGenerator };
+            return { key, rootId, classes, vars: {}, generator };
         }
 
         static getJumpList() {
             const key = 'jump-list';
+            const rootId = StyleDefinitions.ROOT_IDS.JUMP_LIST;
             const prefix = `${APPID}-${key}`;
 
             const classes = {
                 // IDs
-                containerId: `${prefix}-container`,
+                containerId: rootId,
                 listId: `${prefix}-list`,
                 previewId: `${prefix}-preview`,
 
@@ -4441,9 +4475,9 @@
                 expandDown: 'expand-down',
             };
 
-            const cssGenerator = (cls) => StyleTemplates.getJumpListCss(cls);
+            const generator = () => StyleTemplates.getJumpListCss(rootId, classes);
 
-            return { key, classes, vars: {}, generator: cssGenerator };
+            return { key, rootId, classes, vars: {}, generator };
         }
 
         static getTimestamp() {
@@ -4458,7 +4492,7 @@
             };
 
             const cssGenerator = (cls) => StyleTemplates.getTimestampCss(cls);
-            return { key, classes, vars: {}, generator: cssGenerator };
+            return { key, rootId: null, classes, vars: {}, generator: cssGenerator };
         }
 
         static getMessageNumber() {
@@ -4473,7 +4507,7 @@
             };
 
             const cssGenerator = (cls) => StyleTemplates.getMessageNumberCss(cls);
-            return { key, classes, vars: {}, generator: cssGenerator };
+            return { key, rootId: null, classes, vars: {}, generator: cssGenerator };
         }
 
         static getStandingImage() {
@@ -4499,7 +4533,7 @@
 
             const cssGenerator = (cls) => StyleTemplates.getStandingImageCss(cls);
 
-            return { key, classes, vars, generator: cssGenerator };
+            return { key, rootId: null, classes, vars, generator: cssGenerator };
         }
 
         static getBubbleUI() {
@@ -4531,7 +4565,7 @@
 
             const cssGenerator = (cls) => PlatformAdapters.StyleManager.getBubbleCss(cls);
 
-            return { key, classes, vars: {}, generator: cssGenerator };
+            return { key, rootId: null, classes, vars: {}, generator: cssGenerator };
         }
 
         static getAvatar() {
@@ -4550,7 +4584,7 @@
 
             const cssGenerator = () => PlatformAdapters.Avatar.getCss();
 
-            return { key, classes, vars, generator: cssGenerator };
+            return { key, rootId: null, classes, vars, generator: cssGenerator };
         }
     }
 
@@ -4578,13 +4612,24 @@
          * @returns {StyleHandle} The style handle.
          */
         static _render(def) {
-            const id = `${APPID}-style-${def.key}`;
-            const prefix = `${APPID}-${def.key}`;
-            const cssContent = def.generator(def.classes);
+            // If rootId is present, the generator expects no arguments (Scoped Component Mode)
+            // If rootId is null, the generator expects classes/vars (Legacy/Global Mode)
+
+            const id = def.rootId ? `${def.rootId}-style` : `${APPID}-style-${def.key}`;
+            const prefix = `${APPID}-${def.key}`; // Prefix is still used for internal class generation logic if needed
+
+            let cssContent;
+            if (def.rootId) {
+                // Scoped Mode: Generator handles everything including Mix-ins
+                cssContent = def.generator();
+            } else {
+                // Legacy/Global Mode: Pass classes and potentially activeVars (handled by dynamic updater, not here usually)
+                cssContent = def.generator(def.classes);
+            }
 
             this._inject(id, cssContent);
 
-            return { id, prefix, classes: def.classes, vars: def.vars };
+            return { id, prefix, classes: def.classes, vars: def.vars, rootId: def.rootId };
         }
 
         /**
@@ -9097,10 +9142,14 @@
         }
 
         createContainers() {
+            // Check if element exists using the rootId from the style handle
+            const rootId = this.styleHandle.rootId;
+            if (document.getElementById(rootId)) return;
+
+            // Use rootId for the ID attribute. The class 'unpositioned' is still needed for initial state.
             const cls = this.styleHandle.classes;
-            // Check if element exists using new ID from StyleManager
-            if (document.getElementById(cls.consoleId)) return;
-            const navConsole = h(`div#${cls.consoleId}.${cls.unpositioned}`);
+            const navConsole = h(`div#${rootId}.${cls.unpositioned}`);
+
             if (!(navConsole instanceof HTMLElement)) return;
             this.navConsole = navConsole;
             document.body.appendChild(this.navConsole);
@@ -11382,7 +11431,16 @@
 
                     // Create popup
                     const popupRoot = this.create('div');
-                    const popupWrapper = this.create('div', { className: cls.colorPickerPopup, style: { position: 'absolute' } }, [popupRoot]);
+                    // Apply the pickerRootId from context to ensure styles are scoped correctly
+                    const popupWrapper = this.create(
+                        'div',
+                        {
+                            id: this.context.pickerRootId,
+                            className: cls.colorPickerPopup,
+                            style: { position: 'absolute' },
+                        },
+                        [popupRoot]
+                    );
 
                     const dialog = swatch.closest('dialog') || document.body;
                     if (popupWrapper instanceof HTMLElement) {
@@ -12204,7 +12262,7 @@
          * @param {object} options
          * @param {string} [options.title] - The title displayed in the modal header.
          * @param {string} [options.width] - The width of the modal.
-         * @param {string} options.id - The ID for the modal dialog element.
+         * @param {string} options.id - The ID for the modal dialog element. Required for scoping.
          * @param {number|string} [options.zIndex] - The z-index for the modal.
          * @param {boolean} [options.closeOnBackdropClick] - Whether to close the modal when clicking the backdrop.
          * @param {Array<{text: string, id: string, className?: string, title?: string, onClick: ModalButtonOnClick}>} [options.buttons] - An array of button definitions for the footer.
@@ -12221,14 +12279,15 @@
                 onDestroy: null,
                 ...options,
             };
-            this.style = StyleManager.request(StyleDefinitions.getModal);
+            // Style loading is handled by the parent component (ThemeModal/JsonModal) via Mix-in.
+            // CustomModal directly uses the static class definitions.
             this.element = null;
             this.dom = {}; // To hold references to internal elements like header, content, footer
             this._createModalElement();
         }
 
         _createModalElement() {
-            const cls = this.style.classes;
+            const cls = StyleDefinitions.MODAL_CLASSES;
             const commonBtnClass = StyleDefinitions.COMMON_CLASSES.modalButton;
 
             // Define variables to hold references to key elements.
@@ -12255,7 +12314,7 @@
             // Create the entire modal structure using h().
             const dialogElement = h(
                 `dialog.${cls.dialog}`, // Common dialog class
-                { id: this.options.id }, // Specific ID passed from options
+                { id: this.options.id }, // Specific ID passed from options (Required for CSS scoping)
                 (modalBox = h(`div.${cls.box}`, { style: { width: this.options.width } }, [
                     (header = h(`div.${cls.header}`, this.options.title)),
                     (content = h(`div.${cls.content}`)),
@@ -12398,7 +12457,8 @@
         render() {
             // Inject styles and get the managed ID
             this.styleHandle = StyleManager.request(StyleDefinitions.getSettingsButton);
-            this.id = this.styleHandle.classes.buttonId;
+            // Use the rootId defined in the style definition for the element ID
+            this.id = this.styleHandle.rootId;
 
             const oldElement = document.getElementById(this.id);
             if (oldElement) {
@@ -12474,7 +12534,6 @@
 
         _onInit() {
             this.style = StyleManager.request(StyleDefinitions.getSettingsPanel);
-            this.commonStyleHandle = StyleManager.request(StyleDefinitions.getCommon);
 
             this._subscribe(EVENTS.CONFIG_UPDATED, async (newConfig) => {
                 // If the panel is open, refresh the store.
@@ -12514,8 +12573,8 @@
         }
 
         render() {
-            if (this.style && document.getElementById(this.style.classes.panel)) {
-                document.getElementById(this.style.classes.panel).remove();
+            if (this.style && document.getElementById(this.style.rootId)) {
+                document.getElementById(this.style.rootId).remove();
             }
             this.element = this._createPanelContainer();
             document.body.appendChild(this.element);
@@ -12651,7 +12710,8 @@
         }
 
         _createPanelContainer() {
-            return h(`div#${this.style.classes.panel}`, { style: { display: 'none' }, role: 'menu' });
+            // Use the rootId provided by the style definition for scoping
+            return h(`div#${this.style.rootId}`, { style: { display: 'none' }, role: 'menu' });
         }
 
         _renderContent() {
@@ -12661,7 +12721,8 @@
 
             this.element.textContent = '';
 
-            const cls = { ...this.commonStyleHandle.classes, ...this.style.classes };
+            // Merge classes directly from StyleDefinitions for common styles
+            const cls = { ...StyleDefinitions.COMMON_CLASSES, ...this.style.classes };
             const prefix = this.style.prefix;
             const context = { styles: cls, siteStyles: SITE_STYLES };
 
@@ -12834,7 +12895,7 @@
         _createSystemWarning(ui) {
             const warningKey = CONSTANTS.STORE_KEYS.WARNING_MSG_PATH;
             const showKey = CONSTANTS.STORE_KEYS.WARNING_SHOW_PATH;
-            const cls = this.commonStyleHandle.classes;
+            const cls = StyleDefinitions.COMMON_CLASSES;
 
             const container = ui.create('div', { className: cls.warningBanner });
 
@@ -12964,11 +13025,11 @@
 
             // Inject styles
             this.styleHandle = StyleManager.request(StyleDefinitions.getJsonModal);
-            this.commonStyleHandle = StyleManager.request(StyleDefinitions.getCommon);
 
-            const btnClass = this.commonStyleHandle.classes.modalButton;
-            const primaryBtnClass = this.commonStyleHandle.classes.primaryBtn;
-            const pushRightBtnClass = this.commonStyleHandle.classes.pushRightBtn;
+            // Common styles are now mixed in, so we use static references
+            const btnClass = StyleDefinitions.COMMON_CLASSES.modalButton;
+            const primaryBtnClass = StyleDefinitions.COMMON_CLASSES.primaryBtn;
+            const pushRightBtnClass = StyleDefinitions.COMMON_CLASSES.pushRightBtn;
             const cls = this.styleHandle.classes;
 
             // Initialize Data
@@ -13087,7 +13148,7 @@
                     // Clear conflict notification if present
                     if (this.modal && this.modal.dom.footerMessage) {
                         this.modal.dom.footerMessage.textContent = '';
-                        this.modal.dom.footerMessage.classList.remove(this.commonStyleHandle.classes.conflictText);
+                        this.modal.dom.footerMessage.classList.remove(StyleDefinitions.COMMON_CLASSES.conflictText);
                     }
                 },
                 configUpdateListenerKey
@@ -13096,7 +13157,7 @@
             this.modal = new CustomModal({
                 title: `${APPNAME} Settings`,
                 width: JsonModalComponent.DEFAULTS.WIDTH, // Responsive width
-                id: this.styleHandle.classes.dialogId,
+                id: this.styleHandle.rootId, // Use the rootId for scoping
                 zIndex: SITE_STYLES.Z_INDICES.JSON_MODAL,
                 closeOnBackdropClick: false,
                 buttons: [
@@ -13125,7 +13186,8 @@
 
             // --- UI Rendering using UIBuilder ---
             const context = {
-                styles: { ...this.commonStyleHandle.classes, ...this.styleHandle.classes },
+                styles: { ...StyleDefinitions.COMMON_CLASSES, ...this.styleHandle.classes },
+                pickerRootId: StyleDefinitions.ROOT_IDS.COLOR_PICKER,
             };
             const ui = new UIBuilder(this.store, context, this.addStoreSubscription.bind(this));
 
@@ -13754,7 +13816,6 @@
             if (this.modal) return;
 
             // 1. Request all necessary styles upfront
-            this.commonStyle = StyleManager.request(StyleDefinitions.getCommon);
             this.style = StyleManager.request(StyleDefinitions.getThemeModal);
             this.pickerStyle = StyleManager.request(StyleDefinitions.getColorPicker);
 
@@ -13776,7 +13837,7 @@
                 isSaving: false,
             };
 
-            const primaryBtnClass = this.commonStyle.classes.primaryBtn;
+            const primaryBtnClass = StyleDefinitions.COMMON_CLASSES.primaryBtn;
             const cls = this.style.classes;
 
             // Prepare Listener Keys
@@ -13834,7 +13895,7 @@
                     // Clear conflict notification if present
                     if (this.modal && this.modal.dom.footerMessage) {
                         this.modal.dom.footerMessage.textContent = '';
-                        this.modal.dom.footerMessage.classList.remove(this.commonStyle.classes.conflictText);
+                        this.modal.dom.footerMessage.classList.remove(StyleDefinitions.COMMON_CLASSES.conflictText);
                     }
                 },
                 configUpdateListenerKey
@@ -13843,7 +13904,7 @@
             this.modal = new CustomModal({
                 title: `${APPNAME} - Theme settings`,
                 width: ThemeModalComponent.DEFAULTS.WIDTH,
-                id: this.style.classes.dialogId,
+                id: this.style.rootId, // Use rootId from style definition
                 zIndex: CONSTANTS.Z_INDICES.THEME_MODAL,
                 closeOnBackdropClick: false,
                 buttons: [
@@ -13921,7 +13982,6 @@
             // BaseManager handles disposal of managed resources.
             // Only non-managed references need explicit clearing here.
             this.style = null;
-            this.commonStyle = null;
             this.pickerStyle = null;
             super._onDestroy();
         }
@@ -13967,12 +14027,13 @@
 
                 const context = {
                     styles: {
-                        ...this.commonStyle.classes,
+                        ...StyleDefinitions.COMMON_CLASSES,
                         ...this.style.classes,
                         ...this.pickerStyle.classes,
                     },
                     siteStyles: SITE_STYLES,
                     fileHandler: this._handleLocalFileSelect.bind(this),
+                    pickerRootId: StyleDefinitions.ROOT_IDS.COLOR_PICKER,
                 };
 
                 const ui = new UIBuilder(this.store, context, this.addStoreSubscription.bind(this));
@@ -14395,7 +14456,7 @@
                 if (isSizeExceeded) {
                     footerMessage.textContent = 'Configuration size limit exceeded. Please reduce size via JSON or Delete.';
                     footerMessage.style.color = SITE_STYLES.PALETTE.error_text;
-                } else if (!footerMessage.classList.contains(this.commonStyle.classes.conflictText)) {
+                } else if (!footerMessage.classList.contains(StyleDefinitions.COMMON_CLASSES.conflictText)) {
                     // Clear only if it's not a conflict message
                     footerMessage.textContent = '';
                 }
@@ -14479,7 +14540,7 @@
         async _handleThemeAction(shouldClose) {
             const footerMessage = this.modal?.dom?.footerMessage;
             // Guard: Do not clear the footer message if it is a conflict warning (waiting for reload)
-            if (footerMessage && !footerMessage.classList.contains(this.commonStyle.classes.conflictText)) {
+            if (footerMessage && !footerMessage.classList.contains(StyleDefinitions.COMMON_CLASSES.conflictText)) {
                 footerMessage.textContent = '';
             }
 
@@ -14793,6 +14854,7 @@
 
         render() {
             const cls = this.styleHandle.classes;
+            const rootId = this.styleHandle.rootId;
 
             // 1. The inner list (ul) acts as a "sizer" or "spacer".
             this.listElement = h(`ul#${cls.listId}`, {
@@ -14830,7 +14892,8 @@
             const inputContainer = h(`div.${cls.filterContainer}`, [filterInput, modeLabel]);
 
             // 4. The main element (div) handles the overall layout using flexbox.
-            this.element = h(`div#${cls.containerId}`, {
+            // Use rootId for the container ID to match scoped CSS.
+            this.element = h(`div#${rootId}`, {
                 onclick: this._handleClick,
                 style: {
                     display: 'flex',
@@ -16086,9 +16149,6 @@
         }
 
         async _onInit() {
-            // Initialize global common styles immediately to ensure availability
-            StyleManager.request(StyleDefinitions.getCommon);
-
             // Initialize Sub-Controllers
             this.widgetController = this.manageFactory(
                 CONSTANTS.RESOURCE_KEYS.WIDGET_CONTROLLER,
@@ -16442,15 +16502,19 @@
             }
 
             // Also remove any fading-out elements that might still be in the DOM
-            // (e.g. from a hide() call that was interrupted by destroy)
+            // Target by ID since we switched to ID-based scoping
             if (this.styleHandle) {
-                const cls = this.styleHandle.classes;
-                document.querySelectorAll(`.${cls.container}`).forEach((el) => el.remove());
+                const rootId = this.styleHandle.rootId;
+                const el = document.getElementById(rootId);
+                if (el) el.remove();
             }
         }
 
         _renderToast(message, showCancelButton) {
             const cls = this.styleHandle.classes;
+            // Use rootId for the container ID to match scoped CSS.
+            const rootId = this.styleHandle.rootId;
+
             const children = [h('span', message)];
             if (showCancelButton) {
                 const cancelButton = h(
@@ -16464,7 +16528,8 @@
                 );
                 children.push(cancelButton);
             }
-            return h(`div.${cls.container}`, children);
+            // Use ID selector for the root element, not class
+            return h(`div#${rootId}`, children);
         }
 
         show(message, showCancelButton) {

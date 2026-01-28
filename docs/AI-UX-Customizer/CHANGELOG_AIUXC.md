@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b432] - 2026-01-28
+- **Refactoring**
+  - **[CSS Architecture]** Implemented a **Component Root Scoping** strategy to improve style stability. This major refactor replaces the reliance on `!important` with specific Root IDs for UI components (Settings Panel, Modals, Fixed Nav, etc.), ensuring custom styles apply reliably without brute force.
+
 ## [1.0.0-b431] - 2026-01-28
 - **Refactoring**
   - **[Core]** Major refactor of the styling architecture to centralize CSS generation. This change reduces code duplication and improves internal maintainability.

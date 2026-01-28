@@ -84,13 +84,15 @@ interface StyleHandle {
     prefix: string;
     classes: Record<string, string>;
     vars: Record<string, string>;
+    rootId: string | null;
 }
 
 interface StyleDefinition {
     key: string;
     classes: Record<string, string>;
     vars: Record<string, string>;
-    generator: (cls: Record<string, string>) => string;
+    rootId: string | null;
+    generator: ((cls: Record<string, string>, activeVars?: Set<string>) => string) | (() => string);
 }
 
 interface ThemeSet {
@@ -316,10 +318,10 @@ declare class ThemeService {
 declare class StyleDefinitions {
     static ICONS: Record<string, any>;
     static COMMON_CLASSES: Record<string, string>;
-    static getCommon(): StyleDefinition;
+    static MODAL_CLASSES: Record<string, string>;
+    static ROOT_IDS: Record<string, string>;
     static getStaticBase(): StyleDefinition;
     static getDynamicRules(): StyleDefinition;
-    static getModal(): StyleDefinition;
     static getSettingsButton(): StyleDefinition;
     static getSettingsPanel(): StyleDefinition;
     static getJsonModal(): StyleDefinition;
