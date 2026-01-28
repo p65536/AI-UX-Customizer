@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b430
+// @version      1.0.0-b431
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -775,19 +775,1301 @@
      * @description Shared CSS generation logic to reduce code duplication between platforms.
      */
     const StyleTemplates = {
-        /**
-         * Generates the CSS for Bubble UI features (Collapsible & Navigation).
-         * @param {Record<string, string>} cls - The class map.
-         * @param {Record<string, string>} palette - The platform-specific UI palette.
-         * @param {object} constants - The platform-specific constants.
-         * @param {object} options - Platform-specific overrides.
-         * @param {string} [options.collapsibleParentSelector] - Selector for the collapsible parent.
-         * @param {string} [options.collapsibleBtnExtraCss] - Extra CSS for the toggle button position.
-         * @param {string} [options.collapsibleCollapsedContentExtraCss] - Extra CSS for the content area (collapsed state).
-         * @returns {string} The generated CSS.
-         */
-        getBubbleUiCss(cls, palette, constants, options = {}) {
+        getCommonCss(cls) {
+            const palette = SITE_STYLES.PALETTE;
+            return `
+                /* --- Common Modal Buttons --- */
+                .${cls.modalButton} {
+                    background: ${palette.btn_bg};
+                    border: 1px solid ${palette.btn_border};
+                    border-radius: var(--radius-md, 5px);
+                    color: ${palette.btn_text};
+                    cursor: pointer;
+                    font-size: 13px;
+                    padding: 5px 16px;
+                    transition: background 0.12s;
+                    min-width: 80px;
+                }
+                .${cls.modalButton}:hover {
+                    background: ${palette.btn_hover_bg} !important;
+                    border-color: ${palette.btn_border};
+                }
+                .${cls.modalButton}:disabled {
+                    background: ${palette.btn_bg} !important;
+                    cursor: not-allowed;
+                    opacity: 0.5;
+                }
+                /* --- Utility Buttons --- */
+                .${cls.primaryBtn} {
+                    background-color: #1a73e8 !important;
+                    color: #ffffff !important;
+                    border: 1px solid transparent !important;
+                }
+                .${cls.primaryBtn}:hover {
+                    background-color: #1557b0 !important;
+                }
+                .${cls.pushRightBtn} {
+                    margin-left: auto !important;
+                }
+                /* Danger Button (Red/Warning) */
+                .${cls.dangerBtn} {
+                    background-color: ${palette.delete_confirm_btn_bg} !important;
+                    color: ${palette.delete_confirm_btn_text} !important;
+                }
+                .${cls.dangerBtn}:hover {
+                    background-color: ${palette.delete_confirm_btn_hover_bg} !important;
+                    color: ${palette.delete_confirm_btn_hover_text} !important;
+                }
+
+                /* --- Common Sliders --- */
+                .${cls.sliderSubgroupControl} {
+                    align-items: center;
+                    display: flex;
+                    gap: 6px;
+                }
+                .${cls.sliderSubgroupControl} input[type=range] {
+                    flex-grow: 1;
+                    min-width: 0;
+                }
+                .${cls.sliderDisplay} {
+                    color: ${palette.slider_display_text};
+                    font-family: monospace;
+                    min-width: 7ch;
+                    text-align: right;
+                }
+                .${cls.sliderSubgroupControl}.${cls.sliderDefault} .${cls.sliderDisplay} {
+                    color: ${palette.label_text};
+                }
+                .${cls.sliderContainer} {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: stretch;
+                    gap: 4px;
+                    margin-top: 8px;
+                }
+                .${cls.sliderContainer} input[type="range"] {
+                    flex-grow: 1;
+                    margin: 0;
+                }
+                .${cls.sliderContainer} label {
+                    margin-inline-end: 0;
+                    flex-shrink: 1;
+                    color: ${palette.text_secondary};
+                }
+                .${cls.compoundSliderContainer} {
+                    display: flex;
+                    gap: 16px;
+                    margin-top: 4px;
+                }
+                .${cls.sliderSubgroup} {
+                    flex: 1;
+                    min-width: 0;
+                }
+                .${cls.sliderSubgroup} > label {
+                    color: ${palette.text_secondary};
+                    display: block;
+                    font-size: 0.9em;
+                    margin-bottom: 4px;
+                }
+
+                /* --- Toggle Switch --- */
+                .${cls.toggleSwitch} {
+                    position: relative;
+                    display: inline-block;
+                    width: 40px;
+                    height: 22px;
+                    flex-shrink: 0;
+                }
+                .${cls.toggleSwitch} input {
+                    opacity: 0;
+                    width: 0;
+                    height: 0;
+                }
+                .${cls.toggleSlider} {
+                    position: absolute;
+                    cursor: pointer;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background-color: ${palette.toggle_bg_off};
+                    transition: .3s;
+                    border-radius: 22px;
+                }
+                .${cls.toggleSlider}:before {
+                    position: absolute;
+                    content: "";
+                    height: 16px;
+                    width: 16px;
+                    left: 3px;
+                    top: 0;
+                    bottom: 0;
+                    margin: auto 0;
+                    background-color: ${palette.toggle_knob};
+                    transition: .3s;
+                    border-radius: 50%;
+                }
+                .${cls.toggleSwitch} input:checked + .${cls.toggleSlider} {
+                    background-color: ${palette.toggle_bg_on};
+                }
+                .${cls.toggleSwitch} input:checked + .${cls.toggleSlider}:before {
+                    transform: translateX(18px);
+                }
+
+                /* --- Form Fields & Layout --- */
+                .${cls.formField} {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 4px;
+                }
+                .${cls.formField} > label {
+                    color: ${palette.text_secondary};
+                    font-size: 0.9em;
+                }
+                .${cls.labelRow} {
+                    display: flex;
+                    align-items: baseline;
+                    gap: 8px;
+                }
+                .${cls.labelRow} > label {
+                    color: ${palette.text_secondary};
+                    font-size: 0.9em;
+                    margin: 0;
+                }
+                .${cls.statusText} {
+                    font-size: 0.8em;
+                    font-weight: 500;
+                    /* No auto margin to keep it next to the label */
+                }
+                .${cls.inputWrapper} {
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                }
+                .${cls.inputWrapper} input {
+                    flex-grow: 1;
+                }
+                .${cls.formErrorMsg} {
+                    color: ${palette.error_text};
+                    font-size: 0.8em;
+                    margin-top: 2px;
+                    white-space: pre-wrap;
+                }
+                .${cls.compoundFormFieldContainer} {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 16px;
+                }
+                
+                /* Common Inputs */
+                .${cls.commonInput},
+                .${cls.formField} input[type="text"], 
+                .${cls.formField} textarea, 
+                .${cls.formField} select,
+                .${cls.submenuRow} select {
+                    background: ${palette.input_bg};
+                    border: 1px solid ${palette.border};
+                    border-radius: 4px;
+                    box-sizing: border-box;
+                    color: ${palette.text_primary};
+                    padding: 6px 8px;
+                    width: 100%;
+                }
+                /* Submenu Row Select Specific Sizing */
+                .${cls.submenuRow} select {
+                    width: auto;
+                    min-width: 120px;
+                    max-width: 50%;
+                }
+
+                .${cls.formField} input[type="text"].${cls.invalidInput}, 
+                .${cls.formField} textarea.${cls.invalidInput} {
+                    border-color: ${palette.error_text} !important;
+                    outline: 1px solid ${palette.error_text};
+                }
+                .${cls.formField} textarea {
+                    resize: vertical;
+                }
+
+                /* --- Local File Button --- */
+                .${cls.localFileBtn} {
+                    flex-shrink: 0;
+                    padding: 4px 6px;
+                    height: 32px;
+                    line-height: 1;
+                    font-size: 16px;
+                    background: ${palette.btn_bg};
+                    border: 1px solid ${palette.btn_border};
+                    border-radius: 4px;
+                    cursor: pointer;
+                    color: ${palette.btn_text};
+                }
+                .${cls.localFileBtn}:hover {
+                    background: ${palette.btn_hover_bg};
+                }
+
+                /* --- Color Picker Fields --- */
+                .${cls.colorFieldWrapper} {
+                    display: flex;
+                    gap: 8px;
+                }
+                .${cls.colorFieldWrapper} input[type="text"] {
+                    flex-grow: 1;
+                }
+                .${cls.colorSwatch} {
+                    background-color: transparent;
+                    border: 1px solid ${palette.border};
+                    border-radius: 4px;
+                    cursor: pointer;
+                    flex-shrink: 0;
+                    height: 32px;
+                    padding: 2px;
+                    position: relative;
+                    width: 32px;
+                }
+                .${cls.colorSwatchChecker}, .${cls.colorSwatchValue} {
+                    border-radius: 2px;
+                    height: auto;
+                    inset: 2px;
+                    position: absolute;
+                    width: auto;
+                }
+                .${cls.colorSwatchChecker} {
+                    background-image: repeating-conic-gradient(#808080 0% 25%, #c0c0c0 0% 50%);
+                    background-size: 12px 12px;
+                }
+                .${cls.colorSwatchValue} {
+                    transition: background-color: 0.1s;
+                }
+
+                /* --- Preview Components --- */
+                .${cls.previewContainer} {
+                    margin-top: 0;
+                }
+                .${cls.previewContainer} > label {
+                    color: ${palette.text_secondary};
+                    display: block;
+                    font-size: 0.9em;
+                    margin-bottom: 4px;
+                }
+                .${cls.previewBubbleWrapper} {
+                    background-image: repeating-conic-gradient(#cccccc 0% 25%, #a9a9a9 0% 50%);
+                    background-size: 20px 20px;
+                    border-radius: 4px;
+                    box-sizing: border-box;
+                    min-height: 80px;
+                    overflow: hidden;
+                    padding: 16px;
+                    text-align: left;
+                    width: 100%;
+                }
+                .${cls.previewBubbleWrapper}.${cls.userPreview} {
+                    text-align: right;
+                }
+                .${cls.previewBubble} {
+                    box-sizing: border-box;
+                    display: inline-block;
+                    text-align: left;
+                    transition: all 0.1s linear;
+                    word-break: break-all;
+                }
+                .${cls.previewInputArea} {
+                    display: block;
+                    width: 75%;
+                    margin: 0 auto;
+                    padding: 8px;
+                    border-radius: 6px;
+                    background: ${palette.input_bg};
+                    color: ${palette.text_primary};
+                    border: 1px solid ${palette.border};
+                    transition: all 0.1s linear;
+                }
+                .${cls.previewBackground} {
+                    width: 100%;
+                    height: 100%;
+                    border-radius: 4px;
+                    transition: all 0.1s linear;
+                    border: 1px solid ${palette.border};
+                }
+                .${cls.compoundFormFieldContainer} .${cls.formField} > .${cls.previewBubbleWrapper} {
+                    flex-grow: 1;
+                }
+
+                /* --- Submenu / Panels --- */
+                .${cls.submenuRow} {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 8px;
+                    margin-top: 8px;
+                }
+                /* Reset margin for nested rows to prevent double spacing/misalignment */
+                .${cls.submenuRow} .${cls.submenuRow} {
+                    margin-top: 0;
+                }
+                .${cls.submenuRow} label {
+                    flex-shrink: 0;
+                    margin: 0;
+                    padding: 0;
+                    line-height: 1.5;
+                }
+                .${cls.submenuFieldset} {
+                    border: 1px solid ${palette.border};
+                    border-radius: 4px;
+                    padding: 8px 12px 12px;
+                    margin: 0 0 12px 0;
+                    min-width: 0;
+                }
+                .${cls.submenuFieldset} legend {
+                    padding: 0 4px;
+                    font-weight: 500;
+                    color: ${palette.text_secondary};
+                }
+                .${cls.submenuSeparator} {
+                    border-top: 1px solid ${palette.border_light};
+                    margin: 4px 0;
+                }
+                .${cls.featureGroup} {
+                    padding: 6px 0;
+                }
+                .${cls.featureGroup}:not(:first-child) {
+                    border-top: 1px solid ${palette.border_light};
+                }
+                .${cls.featureGroup}.${cls.submenuRow} {
+                    margin-top: 0;
+                }
+
+                /* --- Warnings & Notifications --- */
+                .${cls.warningBanner} {
+                    background-color: var(--bg-danger, #ffdddd);
+                    color: var(--text-on-danger, #a00);
+                    padding: 8px 12px;
+                    font-size: 0.85em;
+                    text-align: center;
+                    border-radius: 4px;
+                    margin: 0 0 12px 0;
+                    border: 1px solid var(--border-danger-heavy, #c00);
+                    white-space: pre-wrap;
+                }
+                .${cls.conflictText} {
+                    color: ${palette.error_text} !important;
+                }
+            `;
+        },
+
+        getModalCss(cls) {
+            const palette = SITE_STYLES.PALETTE;
+            return `
+                dialog.${cls.dialog} {
+                    padding: 0;
+                    border: none;
+                    background: transparent;
+                    max-width: 100vw;
+                    max-height: 100vh;
+                    overflow: visible;
+                }
+                dialog.${cls.dialog}::backdrop {
+                    background: rgb(0 0 0 / 0.5);
+                    pointer-events: auto;
+                }
+                .${cls.box} {
+                    display: flex;
+                    flex-direction: column;
+                    background: ${palette.bg};
+                    color: ${palette.text_primary};
+                    border: 1px solid ${palette.border};
+                    border-radius: 8px;
+                    box-shadow: 0 4px 16px rgb(0 0 0 / 0.2);
+                    max-height: 90vh; /* Limit height to viewport */
+                    width: 100%;
+                }
+                .${cls.header}, .${cls.footer} {
+                    flex-shrink: 0;
+                    padding: 12px 16px;
+                }
+                .${cls.header} {
+                    font-size: 1.1em;
+                    font-weight: 600;
+                    border-bottom: 1px solid ${palette.border};
+                }
+                .${cls.content} {
+                    flex-grow: 1;
+                    padding: 0;
+                    overflow: hidden;
+                    display: flex;
+                    flex-direction: column;
+                    min-height: 0;
+                }
+                .${cls.footer} {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    gap: 16px;
+                    border-top: 1px solid ${palette.border};
+                }
+                .${cls.footerMessage} {
+                    flex-grow: 1;
+                    font-size: 0.9em;
+                }
+                .${cls.buttonGroup} {
+                    display: flex;
+                    gap: 8px;
+                }
+            `;
+        },
+
+        getSettingsPanelCss(cls) {
+            const common = StyleDefinitions.COMMON_CLASSES;
+            const palette = SITE_STYLES.PALETTE;
+            const zIndex = SITE_STYLES.Z_INDICES.SETTINGS_PANEL;
+            return `
+                #${cls.panel} {
+                    position: fixed;
+                    width: min(340px, 95vw);
+                    max-height: 85vh;
+                    overflow-y: auto;
+                    overscroll-behavior: contain;
+                    background: ${palette.bg};
+                    color: ${palette.text_primary};
+                    border-radius: 0.5rem;
+                    box-shadow: 0 4px 20px 0 rgb(0 0 0 / 15%);
+                    padding: 12px;
+                    z-index: ${zIndex};
+                    border: 1px solid ${palette.border_medium};
+                    font-size: 0.9em;
+                }
+                #${cls.appliedThemeName} {
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+                .${cls.topRow} {
+                    display: flex;
+                    gap: 12px;
+                    margin-bottom: 12px;
+                }
+                /* Target the common fieldset within the top row */
+                .${cls.topRow} .${common.submenuFieldset} {
+                    flex: 1 1 0px;
+                    margin-bottom: 0;
+                }
+                
+                /* Target common slider display within the panel */
+                .${common.sliderSubgroupControl}.is-default .${common.sliderDisplay} {
+                    color: ${palette.text_secondary};
+                }
+            `;
+        },
+
+        getJsonModalCss(cls, prefix) {
+            const modalId = StyleDefinitions.MODAL_CLASSES.dialog;
+            const modal = StyleDefinitions.MODAL_CLASSES;
+            const common = StyleDefinitions.COMMON_CLASSES;
+            const palette = SITE_STYLES.PALETTE;
+
+            return `
+                /* Hide footer message area to allow buttons to take full width, unless conflict text is present */
+                #${modalId} .${modal.footerMessage}:not(.${common.conflictText}) {
+                    display: none !important;
+                }
+
+                /* Explicitly show and style the conflict message when present */
+                #${modalId} .${modal.footerMessage}.${common.conflictText} {
+                    display: flex !important;
+                    width: 100%;
+                }
+                
+                /* Allow the button group to expand and fill the footer */
+                #${modalId} .${modal.buttonGroup} {
+                    flex-grow: 1;
+                    width: 100%;
+                }
+
+                /* Allow wrapping in footer to prevent overflow when warning message is displayed */
+                #${modalId} .${modal.footer} {
+                    flex-wrap: wrap;
+                }
+
+                /* Editor Style */
+                .${cls.jsonEditor} {
+                    width: 100%;
+                    height: 200px;
+                    box-sizing: border-box;
+                    font-family: monospace, Consolas, "Courier New";
+                    font-size: 13px;
+                    line-height: 1.4;
+                    white-space: pre-wrap; /* Enable wrapping */
+                    overflow-y: auto;
+                    overflow-x: hidden;
+                    margin-bottom: 0;
+                    border: 1px solid ${palette.border};
+                    background: ${palette.input_bg};
+                    color: ${palette.text_primary};
+                    border-radius: 4px;
+                    resize: none !important;
+                    padding: 8px;
+                }
+                .${cls.jsonEditor}:focus {
+                    outline: 1px solid ${palette.accent_text};
+                }
+
+                /* Status container specific style */
+                .${cls.statusContainer} {
+                    width: 100%;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    margin-top: 6px;
+                    font-size: 0.85em;
+                }
+                
+                /* Mapped from UI Schema className */
+                .${prefix}-form-field {
+                    width: 100%;
+                }
+                .status-msg-display {
+                    flex: 1;
+                    margin-right: 8px;
+                }
+                .size-info-display {
+                    white-space: nowrap;
+                    text-align: right;
+                }
+            `;
+        },
+
+        getThemeModalCss(cls) {
+            const common = StyleDefinitions.COMMON_CLASSES;
+            const palette = SITE_STYLES.PALETTE;
+            return `
+                /* Make the content area expand to fill the modal */
+                .${cls.content} {
+                  display: flex;
+                  flex-direction: column;
+                  gap: 16px;
+                  height: 100%;
+                  min-height: 0;
+                  overflow: hidden;
+                }
+
+                /* Header Controls Layout */
+                .${cls.headerControls} {
+                  display: flex;
+                  flex-direction: column;
+                  gap: 12px;
+                  flex-shrink: 0;
+                }
+                .${cls.headerRow} {
+                  display: grid;
+                  grid-template-columns: auto 1fr auto;
+                  gap: 8px;
+                  align-items: center;
+                  padding-left: 1.2rem;
+                }
+                .${cls.headerRow} > label {
+                  grid-column: 1;
+                  text-align: left;
+                  color: ${palette.text_secondary};
+                  font-size: 0.9em;
+                  white-space: nowrap;
+                }
+                .${cls.headerRow} > .${cls.renameArea} {
+                  grid-column: 2;
+                  min-width: 180px;
+                }
+                .${cls.headerRow} > .${cls.actionArea} {
+                  grid-column: 3;
+                  display: grid;
+                  align-items: center;
+                }
+                .${cls.actionArea} > * {
+                    grid-area: 1 / 1;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+
+                /* Content Areas */
+                .${cls.generalSettings} {
+                  display: grid;
+                  gap: 16px;
+                  grid-template-columns: 1fr;
+                  transition: opacity 0.2s;
+                  flex-shrink: 0;
+                }
+                .${cls.scrollableArea} {
+                  flex-grow: 1;
+                  overflow-y: auto;
+                  overflow-x: hidden; /* Prevent horizontal scroll */
+                  padding: 16px;
+                  transition: opacity 0.2s;
+                  min-height: 0; /* Enable scrolling */
+                }
+                .${cls.scrollableArea}:focus {
+                  outline: none;
+                }
+                .${cls.grid} {
+                  display: grid;
+                  gap: 16px;
+                  grid-template-columns: 1fr 1fr;
+                }
+                @media (max-width: 800px) {
+                    .${cls.grid} {
+                        grid-template-columns: 1fr !important;
+                    }
+                }
+
+                /* Separator */
+                .${cls.separator} {
+                  border: none;
+                  border-top: 1px solid ${palette.border};
+                  margin: 0;
+                  flex-shrink: 0;
+                }
+                /* Reset separator margins inside fieldset to rely on gap */
+                fieldset > .${cls.separator} {
+                  margin: 0;
+                }
+
+                /* Spacing Overrides for Theme Editor Forms (Scoped to Theme Modal) */
+                .${cls.content} .${common.submenuFieldset} {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                }
+                /* Reset individual margins to rely on the parent gap */
+                .${cls.content} .${common.sliderContainer},
+                .${cls.content} .${common.submenuRow},
+                .${cls.content} .${common.compoundSliderContainer} {
+                    margin-top: 0;
+                }
+
+                /* Disabled State */
+                .${cls.generalSettings}.is-disabled,
+                .${cls.scrollableArea}.is-disabled {
+                  pointer-events: none;
+                  opacity: 0.5;
+                }
+
+                /* Move Buttons (Arrows) */
+                .${common.modalButton}.${cls.moveBtn} {
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  line-height: 1;
+                  min-width: 24px;
+                  padding: 4px;
+                  height: 24px;
+                  width: 24px;
+                }
+
+                /* Delete Confirm Group */
+                .${cls.deleteConfirmGroup} {
+                    display: none;
+                }
+                .${cls.deleteConfirmGroup}:not([hidden]) {
+                  align-items: center;
+                  display: flex;
+                  gap: 8px;
+                }
+                .${cls.deleteConfirmLabel} {
+                  color: ${palette.danger_text};
+                  font-style: italic;
+                  margin-right: auto;
+                }
+
+                /* Mobile Responsive Styles */
+                @media (max-width: 600px) {
+                    .${cls.headerRow} {
+                        grid-template-columns: 1fr;
+                        gap: 12px;
+                        padding-left: 0;
+                    }
+                    .${cls.headerRow} > label {
+                        grid-column: 1;
+                        text-align: left;
+                    }
+                    .${cls.headerRow} > .${cls.renameArea} {
+                        grid-column: 1;
+                        min-width: 0;
+                    }
+                    .${cls.headerRow} > .${cls.actionArea} {
+                        grid-column: 1;
+                    }
+                    /* Allow button groups to wrap */
+                    .${cls.actionArea} > * {
+                        flex-wrap: wrap;
+                    }
+                }
+            `;
+        },
+
+        getColorPickerCss(cls) {
+            const palette = SITE_STYLES.PALETTE;
+            const zIndex = SITE_STYLES.Z_INDICES.COLOR_PICKER;
+            return `
+                /* Popup Wrapper Style */
+                .${cls.colorPickerPopup} {
+                    background-color: ${palette.bg};
+                    border: 1px solid ${palette.border};
+                    border-radius: 4px;
+                    box-shadow: 0 4px 12px rgb(0 0 0 / 0.2);
+                    padding: 16px;
+                    position: fixed; /* Fixed positioning to handle scroll/overflow issues */
+                    width: 280px;
+                    z-index: ${zIndex};
+                }
+                .${cls.picker} { display: flex;  flex-direction: column; gap: 16px; }
+                .${cls.svPlane} { position: relative;  width: 100%; aspect-ratio: 1 / 1; cursor: crosshair; touch-action: none; border-radius: 4px; overflow: hidden; flex-shrink: 0; }
+                .${cls.svPlane}:focus { outline: 2px solid ${palette.accent_text};  }
+                .${cls.svPlane} .${cls.gradientWhite}, .${cls.svPlane} .${cls.gradientBlack} { position: absolute;  inset: 0; pointer-events: none; }
+                .${cls.svPlane} .${cls.gradientWhite} { background: linear-gradient(to right, white, transparent);  }
+                .${cls.svPlane} .${cls.gradientBlack} { background: linear-gradient(to top, black, transparent);  }
+                .${cls.svThumb} { position: absolute;  width: 20px; height: 20px; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 2px 1px rgb(0 0 0 / 0.5);  box-sizing: border-box; transform: translate(-50%, -50%); pointer-events: none; }
+                .${cls.sliderGroup} { position: relative;  cursor: pointer; height: 20px; flex-shrink: 0; }
+                .${cls.sliderGroup} .${cls.sliderTrack}, .${cls.sliderGroup} .${cls.alphaCheckerboard} { position: absolute;  top: 50%; transform: translateY(-50%); width: 100%; height: 12px; border-radius: 6px; pointer-events: none;  }
+                .${cls.sliderGroup} .${cls.alphaCheckerboard} { background-image: repeating-conic-gradient(#808080 0% 25%, #c0c0c0 0% 50%);  background-size: 12px 12px; }
+                .${cls.sliderGroup} .${cls.hueTrack} { background: linear-gradient( to right, hsl(0 100% 50%), hsl(60 100% 50%), hsl(120 100% 50%), hsl(180 100% 50%), hsl(240 100% 50%), hsl(300 100% 50%), hsl(360 100% 50%) );  }
+                .${cls.sliderGroup} input[type="range"] { -webkit-appearance: none;  appearance: none; position: relative; width: 100%; height: 100%; margin: 0; padding: 0; background-color: transparent; cursor: pointer;  }
+                .${cls.sliderGroup} input[type="range"]:focus { outline: none;  }
+                .${cls.sliderGroup} input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none;  appearance: none; width: 20px; height: 20px; border: 2px solid white; border-radius: 50%; background-color: #fff;  box-shadow: 0 0 2px 1px rgb(0 0 0 / 0.5);  }
+                .${cls.sliderGroup} input[type="range"]::-moz-range-thumb { width: 20px;  height: 20px; border: 2px solid white; border-radius: 50%; background-color: #fff; box-shadow: 0 0 2px 1px rgb(0 0 0 / 0.5);  }
+                .${cls.sliderGroup} input[type="range"]:focus::-webkit-slider-thumb { outline: 2px solid ${palette.accent_text};  outline-offset: 1px; }
+                .${cls.sliderGroup} input[type="range"]:focus::-moz-range-thumb { outline: 2px solid ${palette.accent_text};  outline-offset: 1px; }
+            `;
+        },
+
+        getFixedNavCss(cls) {
+            const palette = SITE_STYLES.PALETTE;
+            const zIndex = SITE_STYLES.Z_INDICES.NAV_CONSOLE;
+            const selectors = CONSTANTS.SELECTORS;
+            const highlightRule = `
+                .${cls.highlightMessage} ${selectors.RAW_USER_BUBBLE}, 
+                .${cls.highlightMessage} ${selectors.RAW_ASSISTANT_BUBBLE}, 
+                .${cls.highlightMessage} ${selectors.RAW_USER_IMAGE_BUBBLE}, 
+                .${cls.highlightTurn} ${selectors.RAW_ASSISTANT_IMAGE_BUBBLE}
+            `;
+
+            return `
+                /* --- Fixed Nav Container --- */
+                #${cls.consoleId} .${cls.isHidden} {
+                    display: none !important;
+                }
+                #${cls.consoleId}.${cls.unpositioned} {
+                    visibility: hidden;
+                    opacity: 0;
+                }
+                #${cls.consoleId} {
+                    position: fixed;
+                    z-index: ${zIndex};
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    background-color: ${palette.fixed_nav_bg};
+                    padding: 4px 8px;
+                    border-radius: 8px;
+                    border: 1px solid ${palette.fixed_nav_border};
+                    box-shadow: 0 2px 10px rgb(0 0 0 / 0.05);
+                    font-size: 0.8rem;
+                    opacity: 1;
+                    transform-origin: bottom;
+                }
+                /* Embedded Mode (Header Integration) */
+                #${cls.consoleId}.is-embedded {
+                    position: static !important;
+                    background-color: transparent !important;
+                    border: none !important;
+                    box-shadow: none !important;
+                    padding: 0 8px !important;
+                    height: 100%;
+                    z-index: auto;
+                }
+                #${cls.consoleId}.${cls.hidden} {
+                    display: none !important;
+                }
+
+                /* --- Fixed Nav Content --- */
+                #${cls.consoleId} .${cls.group} {
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                }
+                #${cls.consoleId} .${cls.separator} {
+                    width: 1px;
+                    height: 20px;
+                    background-color: ${palette.fixed_nav_separator_bg};
+                }
+                #${cls.consoleId} .${cls.roleBtn} {
+                    color: ${palette.fixed_nav_label_text};
+                    font-weight: 500;
+                    cursor: pointer;
+                    user-select: none;
+                    background: transparent;
+                    border: none;
+                    padding: 2px;
+                    border-radius: 4px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: background-color 0.1s;
+                    width: 24px;
+                    height: 24px;
+                }
+                #${cls.consoleId} .${cls.roleBtn}:hover {
+                    background-color: ${palette.btn_hover_bg};
+                }
+                #${cls.consoleId} .${cls.roleBtn} svg {
+                    width: 20px;
+                    height: 20px;
+                    fill: currentColor;
+                }
+                
+                /* Role Colors */
+                #${cls.consoleId} .${cls.roleTotal} {
+                    color: ${palette.text_secondary} !important;
+                }
+                #${cls.consoleId} .${cls.roleUser} {
+                    color: ${palette.accent_text} !important;
+                }
+                #${cls.consoleId} .${cls.roleAssistant} {
+                    color: ${palette.fixed_nav_assistant_text} !important;
+                }
+
+                #${cls.consoleId} .${cls.counter},
+                #${cls.consoleId} .${cls.jumpInput} {
+                    box-sizing: border-box;
+                    width: 85px;
+                    height: 24px;
+                    margin: 0;
+                    background-color: ${palette.fixed_nav_counter_bg};
+                    color: ${palette.fixed_nav_counter_text};
+                    padding: 1px 4px;
+                    border: 1px solid transparent;
+                    border-color: ${palette.fixed_nav_counter_border};
+                    border-radius: 4px;
+                    text-align: center;
+                    vertical-align: middle;
+                    font-family: monospace;
+                    font: inherit;
+                    user-select: none;
+                }
+                #${cls.consoleId} .${cls.btn} {
+                    background-color: ${palette.btn_bg};
+                    color: ${palette.btn_text};
+                    border: 1px solid ${palette.btn_border};
+                    border-radius: 5px;
+                    width: 24px;
+                    height: 24px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    padding: 0;
+                    transition: background-color 0.1s, color 0.1s;
+                }
+                #${cls.consoleId} .${cls.btn}:hover {
+                    background-color: ${palette.btn_hover_bg};
+                }
+                #${cls.consoleId} .${cls.btn} svg {
+                    width: 20px;
+                    height: 20px;
+                    fill: currentColor;
+                }
+                #${cls.bulkCollapseBtnId} svg {
+                    width: 100%;
+                    height: 100%;
+                }
+                #${cls.bulkCollapseBtnId}[data-state="expanded"] .icon-expand { display: none; }
+                #${cls.bulkCollapseBtnId}[data-state="expanded"] .icon-collapse { display: block; }
+                #${cls.bulkCollapseBtnId}[data-state="collapsed"] .icon-expand { display: block; }
+                #${cls.bulkCollapseBtnId}[data-state="collapsed"] .icon-collapse { display: none; }
+                
+                #${cls.consoleId} .${cls.btn}.${cls.btnAccent} {
+                    color: ${palette.fixed_nav_btn_accent_text};
+                }
+                #${cls.consoleId} .${cls.btn}.${cls.btnDanger} {
+                    color: ${palette.fixed_nav_btn_danger_text};
+                }
+                #${cls.autoscrollBtnId}:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                }
+
+                /* --- Highlight --- */
+                ${highlightRule} {
+                    outline: 2px solid ${palette.fixed_nav_highlight_outline} !important;
+                    outline-offset: -2px;
+                    border-radius: ${palette.fixed_nav_highlight_radius} !important;
+                    box-shadow: 0 0 8px ${palette.fixed_nav_highlight_outline} !important;
+                }
+            `;
+        },
+
+        getJumpListCss(cls) {
+            const palette = SITE_STYLES.PALETTE;
+            const zIndex = SITE_STYLES.Z_INDICES.NAV_CONSOLE + 1;
+            const firefoxScrollbarFix = /firefox/i.test(navigator.userAgent) ? `.${cls.scrollbox} { padding-right: 12px; }` : '';
+
+            return `
+                /* --- Jump List Container --- */
+                #${cls.containerId} {
+                    position: fixed;
+                    z-index: ${zIndex};
+                    background: ${palette.jump_list_bg};
+                    border: 1px solid ${palette.jump_list_border};
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgb(0 0 0 / 15%);
+                    padding: 4px;
+                    opacity: 0;
+                    transform-origin: bottom;
+                    transform: translateY(10px);
+                    transition: opacity 0.15s ease, transform 0.15s ease;
+                    visibility: hidden;
+                    display: flex;
+                    flex-direction: column;
+                }
+                #${cls.containerId}.${cls.expandDown} {
+                    transform-origin: top;
+                    transform: translateY(-10px);
+                }
+                #${cls.containerId}:focus, #${cls.listId}:focus, .${cls.scrollbox}:focus {
+                    outline: none;
+                }
+                #${cls.containerId}.${cls.visible} {
+                    opacity: 1;
+                    transform: translateY(0);
+                    visibility: visible;
+                }
+                .${cls.scrollbox} {
+                    flex: 1 1 auto;
+                    position: relative;
+                }
+                ${firefoxScrollbarFix}
+
+                /* --- Jump List Items --- */
+                #${cls.listId} {
+                    list-style: none;
+                    margin: 0;
+                    padding: 0;
+                }
+                .${cls.filterContainer} {
+                    position: relative;
+                    display: flex;
+                    align-items: center;
+                    border-top: 1px solid ${palette.jump_list_border};
+                    margin: 4px 0 0 0;
+                    flex-shrink: 0;
+                }
+                .${cls.filter} {
+                    border: none;
+                    background-color: transparent;
+                    color: inherit;
+                    padding: 8px 60px 8px 8px;
+                    outline: none;
+                    font-size: 0.85rem;
+                    border-radius: 0 0 4px 4px;
+                    width: 100%;
+                    box-sizing: border-box;
+                }
+                .${cls.filter}.${cls.filterRegexValid} {
+                    border-color: ${palette.jump_list_current_outline};
+                }
+                .${cls.modeLabel} {
+                    position: absolute;
+                    right: 8px;
+                    padding: 1px 6px;
+                    border-radius: 4px;
+                    font-size: 0.75rem;
+                    font-weight: bold;
+                    pointer-events: none;
+                    transition: background-color 0.2s, color 0.2s;
+                    line-height: 1.5;
+                }
+                .${cls.modeLabel}.${cls.modeString} {
+                    background-color: transparent;
+                    color: ${palette.label_text};
+                }
+                .${cls.modeLabel}.${cls.modeRegex} {
+                    background-color: #28a745;
+                    color: #ffffff;
+                }
+                .${cls.modeLabel}.${cls.modeInvalid} {
+                    background-color: #dc3545;
+                    color: #ffffff;
+                }
+                #${cls.listId} li {
+                    padding: 6px 10px;
+                    cursor: pointer;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    border-radius: 4px;
+                    font-size: 0.85rem;
+                }
+                #${cls.listId} li:hover, #${cls.listId} li.${cls.focused} {
+                    outline: 1px solid ${palette.jump_list_hover_outline};
+                    outline-offset: -1px;
+                }
+                #${cls.listId} li.${cls.current} {
+                    outline: 2px solid ${palette.jump_list_current_outline};
+                    outline-offset: -2px;
+                }
+                #${cls.listId} li.${cls.current}:hover, #${cls.listId} li.${cls.current}.${cls.focused} {
+                    outline-width: 2px;
+                    outline-offset: -2px;
+                }
+                #${cls.listId} li.${cls.userItem} {
+                    background-color: var(${CSS_VARS.USER_BUBBLE_BG}, transparent);
+                    color: var(${CSS_VARS.USER_TEXT_COLOR}, inherit);
+                }
+                #${cls.listId} li.${cls.asstItem} {
+                    background-color: var(${CSS_VARS.ASSISTANT_BUBBLE_BG}, transparent);
+                    color: var(${CSS_VARS.ASSISTANT_TEXT_COLOR}, inherit);
+                }
+
+                /* --- Jump List Preview --- */
+                #${cls.previewId} {
+                    position: fixed;
+                    z-index: ${CONSTANTS.Z_INDICES.JUMP_LIST_PREVIEW};
+                    background: ${palette.jump_list_bg};
+                    border: 1px solid ${palette.jump_list_border};
+                    border-radius: 8px;
+                    box-shadow: 0 2px 8px rgb(0 0 0 / 10%);
+                    padding: 8px 12px;
+                    max-width: 400px;
+                    max-height: 300px;
+                    overflow-y: auto;
+                    font-size: 0.85rem;
+                    opacity: 0;
+                    transition: opacity 0.15s ease-in-out;
+                    white-space: pre-wrap;
+                    word-break: break-word;
+                    visibility: hidden;
+                    user-select: text;
+                    cursor: auto;
+                    contain: layout;
+                }
+                #${cls.previewId} strong {
+                    color: ${palette.jump_list_current_outline};
+                    font-weight: bold;
+                    background-color: transparent;
+                }
+                #${cls.previewId}.${cls.visible} {
+                    opacity: 1;
+                    visibility: visible;
+                }
+            `;
+        },
+
+        getSettingsButtonCss(cls, prefix) {
+            const palette = SITE_STYLES.PALETTE;
+            const zIndex = SITE_STYLES.Z_INDICES.SETTINGS_BUTTON;
+            const animationName = `${prefix}-spin`;
+
+            return `
+                @keyframes ${animationName} {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+                #${cls.buttonId} {
+                    z-index: ${zIndex};
+                    background: transparent;
+                    border: none;
+                    border-radius: 50%;
+                    border-color: transparent;
+                    position: static;
+                    margin: 0 2px 0 0;
+                    width: ${palette.settings_btn_width};
+                    height: ${palette.settings_btn_height};
+                    align-self: center;
+                    color: ${palette.settings_btn_color};
+                    /* Fixed base styles */
+                    font-size: 16px;
+                    cursor: pointer;
+                    box-shadow: var(--drop-shadow-xs, 0 1px 1px #0000000d);
+                    transition: background 0.12s, border-color 0.12s, box-shadow 0.12s, color 0.2s ease;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 0;
+                    pointer-events: auto !important;
+                }
+                #${cls.buttonId}:hover {
+                    background: ${palette.settings_btn_hover_bg};
+                    border-color: transparent;
+                }
+                #${cls.buttonId}.is-loading {
+                    color: ${palette.loading_spinner};
+                }
+                #${cls.buttonId}.is-loading svg {
+                    animation: ${animationName} 1.5s linear infinite;
+                }
+            `;
+        },
+
+        getToastCss(cls) {
+            const zIndex = SITE_STYLES.Z_INDICES.TOAST;
+            return `
+                .${cls.container} {
+                    position: fixed;
+                    top: 30%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    z-index: ${zIndex};
+                    background-color: rgb(255 165 0 / 0.9);
+                    color: #ffffff;
+                    padding: 15px 25px;
+                    border-radius: 12px;
+                    border: 1px solid #ffa000;
+                    box-shadow: 0 6px 20px rgb(0 0 0 / 0.2);
+                    display: flex;
+                    align-items: center;
+                    gap: 15px;
+                    font-size: 1.1em;
+                    font-weight: bold;
+                    opacity: 0;
+                    transition: opacity 0.4s ease, transform 0.4s ease;
+                    pointer-events: none;
+                    white-space: nowrap;
+                }
+                .${cls.container}.${cls.visible} {
+                    opacity: 1;
+                    transform: translate(-50%, 0);
+                    pointer-events: auto;
+                }
+                .${cls.cancelBtn} {
+                    background: rgb(255 255 255 / 0.2);
+                    color: #ffffff;
+                    border: none;
+                    padding: 8px 15px;
+                    margin-left: 10px;
+                    cursor: pointer;
+                    font-weight: bold;
+                    border-radius: 6px;
+                    transition: background-color 0.2s ease;
+                }
+                .${cls.cancelBtn}:hover {
+                    background-color: rgb(255 255 255 / 0.3);
+                }
+            `;
+        },
+
+        getTimestampCss(cls) {
+            return `
+                .${cls.container} {
+                    font-size: 10px;
+                    line-height: 1.2;
+                    padding: 0;
+                    margin: 0;                    
+                    color: rgb(255 255 255 / 0.7);
+                    border-radius: 4px;
+                    white-space: pre;
+                    display: flex;
+                    position: absolute;
+                    top: -20px; /* Align vertically with the 24px collapse button */
+                }
+                .${cls.container}.${cls.assistant} {
+                    left: 30px; /* (button left 4px + width 24px + margin 2px) */
+                }
+                .${cls.container}.${cls.user} {
+                    right: 30px; /* (button right 4px + width 24px + margin 2px) */
+                }
+                .${cls.text} {
+                    background-color: rgb(0 0 0 / 0.4);
+                    padding: 0px 4px;
+                    border-radius: 4px;
+                    pointer-events: none;
+                }
+                .${cls.hidden} {
+                    display: none !important;
+                }
+            `;
+        },
+
+        getMessageNumberCss(cls) {
+            return `
+                .${cls.parent} {
+                    position: relative !important;
+                }
+                .${cls.number} {
+                    position: absolute;
+                    font-size: 0.6rem;
+                    font-weight: bold;
+                    color: rgb(255 255 255 / 0.7);
+                    background-color: rgb(0 0 0 / 0.4);
+                    padding: 0px 4px;
+                    border-radius: 4px;
+                    line-height: 1.5;
+                    pointer-events: none;
+                    z-index: 1;
+                    white-space: nowrap;
+                }
+                .${cls.number}.${cls.assistant} {
+                    top: -16px;
+                    right: 100%;
+                    margin-right: 0px;
+                }
+                .${cls.number}.${cls.user} {
+                    top: -16px;
+                    left: 100%;
+                    margin-left: 0px;
+                }
+                .${cls.hidden} {
+                    display: none !important;
+                }
+            `;
+        },
+
+        getStandingImageCss(cls) {
+            const zIndex = SITE_STYLES.Z_INDICES.STANDING_IMAGE;
+            const assistantImage = CSS_VARS.ASSISTANT_STANDING_IMAGE;
+            const userImage = CSS_VARS.USER_STANDING_IMAGE;
+            const assistantWidth = CSS_VARS.STANDING_IMG_ASST_WIDTH;
+            const assistantLeft = CSS_VARS.STANDING_IMG_ASST_LEFT;
+            const assistantMask = CSS_VARS.STANDING_IMG_ASST_MASK;
+            const userWidth = CSS_VARS.STANDING_IMG_USER_WIDTH;
+            const userMask = CSS_VARS.STANDING_IMG_USER_MASK;
+
+            return `
+                #${cls.userImageId},
+                #${cls.assistantImageId} {
+                    position: fixed;
+                    bottom: 0;
+                    height: 100vh;
+                    max-height: 100vh;
+                    pointer-events: none;
+                    z-index: ${zIndex};
+                    margin: 0;
+                    padding: 0;
+                    opacity: 0;
+                    transition: opacity 0.3s, background-image 0.3s ease-in-out;
+                    background-repeat: no-repeat;
+                    background-position: bottom center;
+                    background-size: contain;
+                }
+                #${cls.assistantImageId} {
+                    background-image: var(${assistantImage}, none);
+                    left: var(${assistantLeft}, 0px);
+                    width: var(${assistantWidth}, 0px);
+                    max-width: var(${assistantWidth}, 0px);
+                    mask-image: var(${assistantMask}, none);
+                    -webkit-mask-image: var(${assistantMask}, none);
+                }
+                #${cls.userImageId} {
+                    background-image: var(${userImage}, none);
+                    right: 0;
+                    width: var(${userWidth}, 0px);
+                    max-width: var(${userWidth}, 0px);
+                    mask-image: var(${userMask}, none);
+                    -webkit-mask-image: var(${userMask}, none);
+                }
+            `;
+        },
+
+        getBubbleUiCss(cls, options = {}) {
             const { collapsibleParentSelector, collapsibleCollapsedContentExtraCss, collapsibleBtnExtraCss } = options;
+            const palette = SITE_STYLES.PALETTE;
+            const selectors = CONSTANTS.SELECTORS;
 
             return `
                 /* --- Collapsible Button --- */
@@ -850,7 +2132,7 @@
                 }
                 
                 .${cls.collapsibleParent}.${cls.collapsed} .${cls.collapsibleContent} {
-                    max-height: ${constants.UI_SPECS.COLLAPSIBLE.HEIGHT_THRESHOLD}px;
+                    max-height: ${CONSTANTS.UI_SPECS.COLLAPSIBLE.HEIGHT_THRESHOLD}px;
                     border: 1px dashed ${palette.text_secondary};
                     box-sizing: border-box;
                     ${collapsibleCollapsedContentExtraCss}
@@ -865,7 +2147,7 @@
                     top: 0;
                     bottom: 0;
                     width: 24px;
-                    z-index: ${constants.Z_INDICES.BUBBLE_NAVIGATION};
+                    z-index: ${CONSTANTS.Z_INDICES.BUBBLE_NAVIGATION};
                 }
                 .${cls.navButtons} {
                     position: relative;
@@ -887,10 +2169,10 @@
                 }
                 
                 /* Nav container positioning */
-                ${constants.SELECTORS.ASSISTANT_MESSAGE} .${cls.navContainer} {
+                ${selectors.ASSISTANT_MESSAGE} .${cls.navContainer} {
                     left: -25px;
                 }
-                ${constants.SELECTORS.USER_MESSAGE} .${cls.navContainer} {
+                ${selectors.USER_MESSAGE} .${cls.navContainer} {
                     right: -25px;
                 }
 
@@ -938,13 +2220,8 @@
             `;
         },
 
-        /**
-         * Generates the CSS for Avatars.
-         * @param {object} selectors - The platform-specific selectors.
-         * @param {string} extraCss - Platform-specific CSS overrides.
-         * @returns {string} The generated CSS.
-         */
-        getAvatarCss(selectors, extraCss) {
+        getAvatarCss(extraCss) {
+            const selectors = CONSTANTS.SELECTORS;
             return `
                 /* Common Avatar CSS */
                 ${selectors.AVATAR_USER},
@@ -1027,6 +2304,76 @@
 
                 /* Platform Specific Overrides */
                 ${extraCss}
+            `;
+        },
+
+        getThemeBaseCss(cls, activeVars) {
+            const important = SITE_STYLES.CSS_IMPORTANT_FLAG || '';
+            const overrides = PlatformAdapters.ThemeManager.getStyleOverrides();
+            const selectors = CONSTANTS.SELECTORS;
+
+            // Helper to generate CSS property only if the variable is active
+            const prop = (propName, varName) => {
+                if (activeVars && !activeVars.has(varName)) return '';
+                return `${propName}: var(${varName})${important};`;
+            };
+
+            // Generate assistant text color selectors for all child elements.
+            const assistantTextSelectors = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul li', 'ol li', 'ul li::marker', 'ol li::marker', 'strong', 'em', 'blockquote', 'table', 'th', 'td']
+                .map((tag) => `${selectors.ASSISTANT_MESSAGE} ${selectors.ASSISTANT_TEXT_CONTENT} ${tag}`)
+                .join(',\n');
+
+            // Generate CSS with conditional properties
+            return `
+                /* --- Window Background --- */
+                ${selectors.MAIN_APP_CONTAINER} {
+                    ${prop('background-color', CSS_VARS.WINDOW_BG_COLOR)}
+                    ${prop('background-image', CSS_VARS.WINDOW_BG_IMAGE)}
+                    ${prop('background-size', CSS_VARS.WINDOW_BG_SIZE)}
+                    ${prop('background-position', CSS_VARS.WINDOW_BG_POS)}
+                    ${prop('background-repeat', CSS_VARS.WINDOW_BG_REPEAT)}
+                    ${activeVars && activeVars.has(CSS_VARS.WINDOW_BG_IMAGE) ? `background-attachment: fixed${important};` : ''}
+                }
+
+                /* --- Input Area --- */
+                ${selectors.INPUT_AREA_BG_TARGET} {
+                    ${prop('background-color', CSS_VARS.INPUT_BG)}
+                }
+                ${selectors.INPUT_TEXT_FIELD_TARGET} {
+                    /* Variable --input-field-bg is set to 'transparent' via transformer when bg color is active */
+                    ${prop('background-color', CSS_VARS.INPUT_FIELD_BG)} 
+                    ${prop('color', CSS_VARS.INPUT_COLOR)}
+                }
+
+                /* --- Assistant Bubble & Text --- */
+                ${selectors.ASSISTANT_MESSAGE} ${selectors.RAW_ASSISTANT_BUBBLE} {
+                    ${prop('background-color', CSS_VARS.ASSISTANT_BUBBLE_BG)}
+                    ${prop('padding', CSS_VARS.ASSISTANT_BUBBLE_PADDING)}
+                    ${prop('border-radius', CSS_VARS.ASSISTANT_BUBBLE_RADIUS)}
+                    ${prop('max-width', CSS_VARS.ASSISTANT_BUBBLE_MAXWIDTH)}
+                    ${overrides.assistant || ''}
+                }
+                ${selectors.ASSISTANT_MESSAGE} ${selectors.ASSISTANT_TEXT_CONTENT} {
+                    ${prop('color', CSS_VARS.ASSISTANT_TEXT_COLOR)}
+                    ${prop('font-family', CSS_VARS.ASSISTANT_FONT)}
+                }
+                /* Assistant Child Elements Text Color */
+                ${assistantTextSelectors} {
+                    ${prop('color', CSS_VARS.ASSISTANT_TEXT_COLOR)}
+                }
+
+                /* --- User Bubble & Text --- */
+                ${selectors.USER_MESSAGE} ${selectors.RAW_USER_BUBBLE} {
+                    ${prop('background-color', CSS_VARS.USER_BUBBLE_BG)}
+                    ${prop('padding', CSS_VARS.USER_BUBBLE_PADDING)}
+                    ${prop('border-radius', CSS_VARS.USER_BUBBLE_RADIUS)}
+                    ${prop('max-width', CSS_VARS.USER_BUBBLE_MAXWIDTH)}
+                    ${overrides.user || ''}
+                }
+                ${selectors.USER_MESSAGE} ${selectors.USER_TEXT_CONTENT} {
+                    ${prop('color', CSS_VARS.USER_TEXT_COLOR)}
+                    ${prop('font-family', CSS_VARS.USER_FONT)}
+                }
             `;
         },
     };
@@ -2770,6 +4117,7 @@
                 modalButton: `${prefix}-btn`,
                 primaryBtn: `${prefix}-btn-primary`,
                 pushRightBtn: `${prefix}-btn-push-right`,
+                dangerBtn: `${prefix}-btn-danger`,
 
                 // Sliders
                 sliderSubgroupControl: `${prefix}-slider-control`,
@@ -2790,6 +4138,7 @@
                 compoundFormFieldContainer: `${prefix}-compound-form-container`,
                 localFileBtn: `${prefix}-local-file-btn`,
                 invalidInput: 'is-invalid',
+                commonInput: `${prefix}-input`,
 
                 // Form Labels & Status
                 labelRow: `${prefix}-label-row`,
@@ -2838,21 +4187,7 @@
 
         static getCommon() {
             const key = 'common';
-            // prettier-ignore
-            const cssGenerator = (cls) => {
-                return [
-                    StyleDefinitions._getModalButtonCss(cls),
-                    StyleDefinitions._getSliderCss(cls),
-                    StyleDefinitions._getToggleSwitchCss(cls),
-                    StyleDefinitions._getFormFieldCss(cls),
-                    StyleDefinitions._getLocalFileButtonCss(cls),
-                    StyleDefinitions._getColorPickerFieldCss(cls),
-                    StyleDefinitions._getPreviewCss(cls),
-                    StyleDefinitions._getSubmenuCss(cls),
-                    StyleDefinitions._getNotificationCss(cls),
-                ].join('\n');
-            };
-
+            const cssGenerator = (cls) => StyleTemplates.getCommonCss(cls);
             return { key, classes: StyleDefinitions.COMMON_CLASSES, vars: {}, generator: cssGenerator };
         }
 
@@ -2877,20 +4212,13 @@
         static getDynamicRules() {
             const key = 'dynamic-rules';
             // Generator accepts activeVars set to filter outputs
-            const cssGenerator = (cls, activeVars) => StyleDefinitions._getThemeBaseCss(cls, activeVars);
+            const cssGenerator = (cls, activeVars) => StyleTemplates.getThemeBaseCss(cls, activeVars);
             return { key, classes: {}, vars: {}, generator: cssGenerator };
         }
 
         static getModal() {
             const key = 'modal';
-            // prettier-ignore
-            const cssGenerator = (cls) => {
-                return [
-                    StyleDefinitions._getModalDialogCss(cls),
-                    StyleDefinitions._getModalLayoutCss(cls),
-                ].join('\n');
-            };
-
+            const cssGenerator = (cls) => StyleTemplates.getModalCss(cls);
             return { key, classes: StyleDefinitions.MODAL_CLASSES, vars: {}, generator: cssGenerator };
         }
 
@@ -2902,51 +4230,7 @@
                 buttonId: `${prefix}-btn`,
             };
 
-            const cssGenerator = (cls) => {
-                const zIndex = SITE_STYLES.Z_INDICES.SETTINGS_BUTTON;
-                const palette = SITE_STYLES.PALETTE;
-                const animationName = `${prefix}-spin`;
-
-                return `
-                @keyframes ${animationName} {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                }
-                #${cls.buttonId} {
-                    z-index: ${zIndex};
-                    background: transparent;
-                    border: none;
-                    border-radius: 50%;
-                    border-color: transparent;
-                    position: static;
-                    margin: 0 2px 0 0;
-                    width: ${palette.settings_btn_width};
-                    height: ${palette.settings_btn_height};
-                    align-self: center;
-                    color: ${palette.settings_btn_color};
-                    /* Fixed base styles */
-                    font-size: 16px;
-                    cursor: pointer;
-                    box-shadow: var(--drop-shadow-xs, 0 1px 1px #0000000d);
-                    transition: background 0.12s, border-color 0.12s, box-shadow 0.12s, color 0.2s ease;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    padding: 0;
-                    pointer-events: auto !important;
-                }
-                #${cls.buttonId}:hover {
-                    background: ${palette.settings_btn_hover_bg};
-                    border-color: transparent;
-                }
-                #${cls.buttonId}.is-loading {
-                    color: ${palette.loading_spinner};
-                }
-                #${cls.buttonId}.is-loading svg {
-                    animation: ${animationName} 1.5s linear infinite;
-                }
-            `;
-            };
+            const cssGenerator = (cls) => StyleTemplates.getSettingsButtonCss(cls, prefix);
 
             return { key, classes, vars: {}, generator: cssGenerator };
         }
@@ -2963,13 +4247,7 @@
                 topRow: `${prefix}-top-row`,
             };
 
-            // prettier-ignore
-            const cssGenerator = (cls) => {
-                return [
-                    StyleDefinitions._getSettingsPanelContainerCss(cls),
-                    StyleDefinitions._getSettingsPanelContentCss(cls),
-                ].join('\n');
-            };
+            const cssGenerator = (cls) => StyleTemplates.getSettingsPanelCss(cls);
 
             return { key, classes, vars: {}, generator: cssGenerator };
         }
@@ -2992,80 +4270,7 @@
                 saveBtn: `${prefix}-save-btn`,
             };
 
-            const cssGenerator = (cls) => {
-                const modal = StyleDefinitions.MODAL_CLASSES;
-                const common = StyleDefinitions.COMMON_CLASSES;
-                const palette = SITE_STYLES.PALETTE;
-                return `
-                /* Hide footer message area to allow buttons to take full width, unless conflict text is present */
-                #${modalId} .${modal.footerMessage}:not(.${common.conflictText}) {
-                    display: none !important;
-                }
-
-                /* Explicitly show and style the conflict message when present */
-                #${modalId} .${modal.footerMessage}.${common.conflictText} {
-                    display: flex !important;
-                    width: 100%;
-                }
-                
-                /* Allow the button group to expand and fill the footer */
-                #${modalId} .${modal.buttonGroup} {
-                    flex-grow: 1;
-                    width: 100%;
-                }
-
-                /* Allow wrapping in footer to prevent overflow when warning message is displayed */
-                #${modalId} .${modal.footer} {
-                    flex-wrap: wrap;
-                }
-
-                /* Editor Style */
-                .${cls.jsonEditor} {
-                    width: 100%;
-                    height: 200px;
-                    box-sizing: border-box;
-                    font-family: monospace, Consolas, "Courier New";
-                    font-size: 13px;
-                    line-height: 1.4;
-                    white-space: pre-wrap; /* Enable wrapping */
-                    overflow-y: auto;
-                    overflow-x: hidden;
-                    margin-bottom: 0;
-                    border: 1px solid ${palette.border};
-                    background: ${palette.input_bg};
-                    color: ${palette.text_primary};
-                    border-radius: 4px;
-                    resize: none !important;
-                    padding: 8px;
-                }
-                .${cls.jsonEditor}:focus {
-                    outline: 1px solid ${palette.accent_text};
-                }
-
-                /* Status container specific style */
-                .${cls.statusContainer} {
-                    width: 100%;
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: flex-start;
-                    margin-top: 6px;
-                    font-size: 0.85em;
-                }
-                
-                /* Mapped from UI Schema className */
-                .${prefix}-form-field {
-                    width: 100%;
-                }
-                .status-msg-display {
-                    flex: 1;
-                    margin-right: 8px;
-                }
-                .size-info-display {
-                    white-space: nowrap;
-                    text-align: right;
-                }
-            `;
-            };
+            const cssGenerator = (cls) => StyleTemplates.getJsonModalCss(cls, prefix);
 
             return { key, classes, vars: {}, generator: cssGenerator };
         }
@@ -3123,14 +4328,7 @@
                 renameActionsId: `${prefix}-actions-rename`,
             };
 
-            // prettier-ignore
-            const cssGenerator = (cls) => {
-                return [
-                    StyleDefinitions._getThemeModalContentLayoutCss(cls),
-                    StyleDefinitions._getThemeModalControlsCss(cls),
-                    StyleDefinitions._getThemeModalResponsiveCss(cls),
-                ].join('\n');
-            };
+            const cssGenerator = (cls) => StyleTemplates.getThemeModalCss(cls);
 
             return { key, classes, vars: {}, generator: cssGenerator };
         }
@@ -3153,13 +4351,7 @@
                 colorPickerPopup: `${prefix}-popup`,
             };
 
-            // prettier-ignore
-            const cssGenerator = (cls) => {
-                return [
-                    StyleDefinitions._getColorPickerPopupCss(cls),
-                    StyleDefinitions._getColorPickerControlsCss(cls),
-                ].join('\n');
-            };
+            const cssGenerator = (cls) => StyleTemplates.getColorPickerCss(cls);
 
             return { key, classes, vars: {}, generator: cssGenerator };
         }
@@ -3174,52 +4366,7 @@
                 cancelBtn: `${prefix}-cancel-btn`,
             };
 
-            const cssGenerator = (cls) => {
-                const zIndex = SITE_STYLES.Z_INDICES.TOAST;
-                return `
-                    .${cls.container} {
-                        position: fixed;
-                        top: 30%;
-                        left: 50%;
-                        transform: translate(-50%, -50%);
-                        z-index: ${zIndex};
-                        background-color: rgb(255 165 0 / 0.9);
-                        color: #ffffff;
-                        padding: 15px 25px;
-                        border-radius: 12px;
-                        border: 1px solid #ffa000;
-                        box-shadow: 0 6px 20px rgb(0 0 0 / 0.2);
-                        display: flex;
-                        align-items: center;
-                        gap: 15px;
-                        font-size: 1.1em;
-                        font-weight: bold;
-                        opacity: 0;
-                        transition: opacity 0.4s ease, transform 0.4s ease;
-                        pointer-events: none;
-                        white-space: nowrap;
-                    }
-                    .${cls.container}.${cls.visible} {
-                        opacity: 1;
-                        transform: translate(-50%, 0);
-                        pointer-events: auto;
-                    }
-                    .${cls.cancelBtn} {
-                        background: rgb(255 255 255 / 0.2);
-                        color: #ffffff;
-                        border: none;
-                        padding: 8px 15px;
-                        margin-left: 10px;
-                        cursor: pointer;
-                        font-weight: bold;
-                        border-radius: 6px;
-                        transition: background-color 0.2s ease;
-                    }
-                    .${cls.cancelBtn}:hover {
-                        background-color: rgb(255 255 255 / 0.3);
-                    }
-                `;
-            };
+            const cssGenerator = (cls) => StyleTemplates.getToastCss(cls);
 
             return { key, classes, vars: {}, generator: cssGenerator };
         }
@@ -3262,14 +4409,7 @@
             };
 
             // 2. CSS Generator using the class map
-            // prettier-ignore
-            const cssGenerator = (cls) => {
-                return [
-                    StyleDefinitions._getFixedNavContainerCss(cls),
-                    StyleDefinitions._getFixedNavContentCss(cls),
-                    StyleDefinitions._getFixedNavHighlightCss(cls),
-                ].join('\n');
-            };
+            const cssGenerator = (cls) => StyleTemplates.getFixedNavCss(cls);
 
             return { key, classes, vars: {}, generator: cssGenerator };
         }
@@ -3301,14 +4441,7 @@
                 expandDown: 'expand-down',
             };
 
-            // prettier-ignore
-            const cssGenerator = (cls) => {
-                return [
-                    StyleDefinitions._getJumpListContainerCss(cls),
-                    StyleDefinitions._getJumpListListCss(cls),
-                    StyleDefinitions._getJumpListPreviewCss(cls),
-                ].join('\n');
-            };
+            const cssGenerator = (cls) => StyleTemplates.getJumpListCss(cls);
 
             return { key, classes, vars: {}, generator: cssGenerator };
         }
@@ -3324,35 +4457,7 @@
                 hidden: `${prefix}-hidden`,
             };
 
-            const cssGenerator = (cls) => `
-                .${cls.container} {
-                    font-size: 10px;
-                    line-height: 1.2;
-                    padding: 0;
-                    margin: 0;                    
-                    color: rgb(255 255 255 / 0.7);
-                    border-radius: 4px;
-                    white-space: pre;
-                    display: flex;
-                    position: absolute;
-                    top: -20px; /* Align vertically with the 24px collapse button */
-                }
-                .${cls.container}.${cls.assistant} {
-                    left: 30px; /* (button left 4px + width 24px + margin 2px) */
-                }
-                .${cls.container}.${cls.user} {
-                    right: 30px; /* (button right 4px + width 24px + margin 2px) */
-                }
-                .${cls.text} {
-                    background-color: rgb(0 0 0 / 0.4);
-                    padding: 0px 4px;
-                    border-radius: 4px;
-                    pointer-events: none;
-                }
-                .${cls.hidden} {
-                    display: none !important;
-                }
-            `;
+            const cssGenerator = (cls) => StyleTemplates.getTimestampCss(cls);
             return { key, classes, vars: {}, generator: cssGenerator };
         }
 
@@ -3367,37 +4472,7 @@
                 hidden: `${prefix}-hidden`,
             };
 
-            const cssGenerator = (cls) => `
-                .${cls.parent} {
-                    position: relative !important;
-                }
-                .${cls.number} {
-                    position: absolute;
-                    font-size: 0.6rem;
-                    font-weight: bold;
-                    color: rgb(255 255 255 / 0.7);
-                    background-color: rgb(0 0 0 / 0.4);
-                    padding: 0px 4px;
-                    border-radius: 4px;
-                    line-height: 1.5;
-                    pointer-events: none;
-                    z-index: 1;
-                    white-space: nowrap;
-                }
-                .${cls.number}.${cls.assistant} {
-                    top: -16px;
-                    right: 100%;
-                    margin-right: 0px;
-                }
-                .${cls.number}.${cls.user} {
-                    top: -16px;
-                    left: 100%;
-                    margin-left: 0px;
-                }
-                .${cls.hidden} {
-                    display: none !important;
-                }
-            `;
+            const cssGenerator = (cls) => StyleTemplates.getMessageNumberCss(cls);
             return { key, classes, vars: {}, generator: cssGenerator };
         }
 
@@ -3422,43 +4497,7 @@
                 rightSidebarWidth: CSS_VARS.RIGHT_SIDEBAR_WIDTH,
             };
 
-            const cssGenerator = (cls) => {
-                const zIndex = SITE_STYLES.Z_INDICES.STANDING_IMAGE;
-                return `
-                #${cls.userImageId},
-                #${cls.assistantImageId} {
-                    position: fixed;
-                    bottom: 0;
-                    height: 100vh;
-                    max-height: 100vh;
-                    pointer-events: none;
-                    z-index: ${zIndex};
-                    margin: 0;
-                    padding: 0;
-                    opacity: 0;
-                    transition: opacity 0.3s, background-image 0.3s ease-in-out;
-                    background-repeat: no-repeat;
-                    background-position: bottom center;
-                    background-size: contain;
-                }
-                #${cls.assistantImageId} {
-                    background-image: var(${vars.assistantImage}, none);
-                    left: var(${vars.assistantLeft}, 0px);
-                    width: var(${vars.assistantWidth}, 0px);
-                    max-width: var(${vars.assistantWidth}, 0px);
-                    mask-image: var(${vars.assistantMask}, none);
-                    -webkit-mask-image: var(${vars.assistantMask}, none);
-                }
-                #${cls.userImageId} {
-                    background-image: var(${vars.userImage}, none);
-                    right: 0;
-                    width: var(${vars.userWidth}, 0px);
-                    max-width: var(${vars.userWidth}, 0px);
-                    mask-image: var(${vars.userMask}, none);
-                    -webkit-mask-image: var(${vars.userMask}, none);
-                }
-            `;
-            };
+            const cssGenerator = (cls) => StyleTemplates.getStandingImageCss(cls);
 
             return { key, classes, vars, generator: cssGenerator };
         }
@@ -3512,1180 +4551,6 @@
             const cssGenerator = () => PlatformAdapters.Avatar.getCss();
 
             return { key, classes, vars, generator: cssGenerator };
-        }
-
-        static _getModalButtonCss(cls) {
-            const palette = SITE_STYLES.PALETTE;
-            return `
-                /* --- Common Modal Buttons --- */
-                .${cls.modalButton} {
-                    background: ${palette.btn_bg};
-                    border: 1px solid ${palette.btn_border};
-                    border-radius: var(--radius-md, 5px);
-                    color: ${palette.btn_text};
-                    cursor: pointer;
-                    font-size: 13px;
-                    padding: 5px 16px;
-                    transition: background 0.12s;
-                    min-width: 80px;
-                }
-                .${cls.modalButton}:hover {
-                    background: ${palette.btn_hover_bg} !important;
-                    border-color: ${palette.btn_border};
-                }
-                .${cls.modalButton}:disabled {
-                    background: ${palette.btn_bg} !important;
-                    cursor: not-allowed;
-                    opacity: 0.5;
-                }
-                /* --- Utility Buttons --- */
-                .${cls.primaryBtn} {
-                    background-color: #1a73e8 !important;
-                    color: #ffffff !important;
-                    border: 1px solid transparent !important;
-                }
-                .${cls.primaryBtn}:hover {
-                    background-color: #1557b0 !important;
-                }
-                .${cls.pushRightBtn} {
-                    margin-left: auto !important;
-                }
-            `;
-        }
-
-        static _getSliderCss(cls) {
-            const palette = SITE_STYLES.PALETTE;
-            return `
-                /* --- Common Sliders --- */
-                .${cls.sliderSubgroupControl} {
-                    align-items: center;
-                    display: flex;
-                    gap: 6px;
-                }
-                .${cls.sliderSubgroupControl} input[type=range] {
-                    flex-grow: 1;
-                    min-width: 0;
-                }
-                .${cls.sliderDisplay} {
-                    color: ${palette.slider_display_text};
-                    font-family: monospace;
-                    min-width: 7ch;
-                    text-align: right;
-                }
-                .${cls.sliderSubgroupControl}.${cls.sliderDefault} .${cls.sliderDisplay} {
-                    color: ${palette.label_text};
-                }
-                .${cls.sliderContainer} {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: stretch;
-                    gap: 4px;
-                    margin-top: 8px;
-                }
-                .${cls.sliderContainer} input[type="range"] {
-                    flex-grow: 1;
-                    margin: 0;
-                }
-                .${cls.sliderContainer} label {
-                    margin-inline-end: 0;
-                    flex-shrink: 1;
-                    color: ${palette.text_secondary};
-                }
-                .${cls.compoundSliderContainer} {
-                    display: flex;
-                    gap: 16px;
-                    margin-top: 4px;
-                }
-                .${cls.sliderSubgroup} {
-                    flex: 1;
-                    min-width: 0;
-                }
-                .${cls.sliderSubgroup} > label {
-                    color: ${palette.text_secondary};
-                    display: block;
-                    font-size: 0.9em;
-                    margin-bottom: 4px;
-                }
-            `;
-        }
-
-        static _getToggleSwitchCss(cls) {
-            const palette = SITE_STYLES.PALETTE;
-            return `
-                /* --- Toggle Switch --- */
-                .${cls.toggleSwitch} {
-                    position: relative;
-                    display: inline-block;
-                    width: 40px;
-                    height: 22px;
-                    flex-shrink: 0;
-                }
-                .${cls.toggleSwitch} input {
-                    opacity: 0;
-                    width: 0;
-                    height: 0;
-                }
-                .${cls.toggleSlider} {
-                    position: absolute;
-                    cursor: pointer;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    bottom: 0;
-                    background-color: ${palette.toggle_bg_off};
-                    transition: .3s;
-                    border-radius: 22px;
-                }
-                .${cls.toggleSlider}:before {
-                    position: absolute;
-                    content: "";
-                    height: 16px;
-                    width: 16px;
-                    left: 3px;
-                    top: 0;
-                    bottom: 0;
-                    margin: auto 0;
-                    background-color: ${palette.toggle_knob};
-                    transition: .3s;
-                    border-radius: 50%;
-                }
-                .${cls.toggleSwitch} input:checked + .${cls.toggleSlider} {
-                    background-color: ${palette.toggle_bg_on};
-                }
-                .${cls.toggleSwitch} input:checked + .${cls.toggleSlider}:before {
-                    transform: translateX(18px);
-                }
-            `;
-        }
-
-        static _getFormFieldCss(cls) {
-            const palette = SITE_STYLES.PALETTE;
-            return `
-                /* --- Form Fields & Layout --- */
-                .${cls.formField} {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 4px;
-                }
-                .${cls.formField} > label {
-                    color: ${palette.text_secondary};
-                    font-size: 0.9em;
-                }
-                .${cls.labelRow} {
-                    display: flex;
-                    align-items: baseline;
-                    gap: 8px;
-                }
-                .${cls.labelRow} > label {
-                    color: ${palette.text_secondary};
-                    font-size: 0.9em;
-                    margin: 0;
-                }
-                .${cls.statusText} {
-                    font-size: 0.8em;
-                    font-weight: 500;
-                    /* No auto margin to keep it next to the label */
-                }
-                .${cls.inputWrapper} {
-                    display: flex;
-                    align-items: center;
-                    gap: 4px;
-                }
-                .${cls.inputWrapper} input {
-                    flex-grow: 1;
-                }
-                .${cls.formErrorMsg} {
-                    color: ${palette.error_text};
-                    font-size: 0.8em;
-                    margin-top: 2px;
-                    white-space: pre-wrap;
-                }
-                .${cls.compoundFormFieldContainer} {
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 16px;
-                }
-                
-                /* Common Inputs */
-                .${cls.formField} input[type="text"], 
-                .${cls.formField} textarea, 
-                .${cls.formField} select,
-                .${cls.submenuRow} select {
-                    background: ${palette.input_bg};
-                    border: 1px solid ${palette.border};
-                    border-radius: 4px;
-                    box-sizing: border-box;
-                    color: ${palette.text_primary};
-                    padding: 6px 8px;
-                    width: 100%;
-                }
-                /* Submenu Row Select Specific Sizing */
-                .${cls.submenuRow} select {
-                    width: auto;
-                    min-width: 120px;
-                    max-width: 50%;
-                }
-
-                .${cls.formField} input[type="text"].${cls.invalidInput}, 
-                .${cls.formField} textarea.${cls.invalidInput} {
-                    border-color: ${palette.error_text} !important;
-                    outline: 1px solid ${palette.error_text};
-                }
-                .${cls.formField} textarea {
-                    resize: vertical;
-                }
-            `;
-        }
-
-        static _getLocalFileButtonCss(cls) {
-            const palette = SITE_STYLES.PALETTE;
-            return `
-                /* --- Local File Button --- */
-                .${cls.localFileBtn} {
-                    flex-shrink: 0;
-                    padding: 4px 6px;
-                    height: 32px;
-                    line-height: 1;
-                    font-size: 16px;
-                    background: ${palette.btn_bg};
-                    border: 1px solid ${palette.btn_border};
-                    border-radius: 4px;
-                    cursor: pointer;
-                    color: ${palette.btn_text};
-                }
-                .${cls.localFileBtn}:hover {
-                    background: ${palette.btn_hover_bg};
-                }
-            `;
-        }
-
-        static _getColorPickerFieldCss(cls) {
-            const palette = SITE_STYLES.PALETTE;
-            return `
-                /* --- Color Picker Fields --- */
-                .${cls.colorFieldWrapper} {
-                    display: flex;
-                    gap: 8px;
-                }
-                .${cls.colorFieldWrapper} input[type="text"] {
-                    flex-grow: 1;
-                }
-                .${cls.colorSwatch} {
-                    background-color: transparent;
-                    border: 1px solid ${palette.border};
-                    border-radius: 4px;
-                    cursor: pointer;
-                    flex-shrink: 0;
-                    height: 32px;
-                    padding: 2px;
-                    position: relative;
-                    width: 32px;
-                }
-                .${cls.colorSwatchChecker}, .${cls.colorSwatchValue} {
-                    border-radius: 2px;
-                    height: auto;
-                    inset: 2px;
-                    position: absolute;
-                    width: auto;
-                }
-                .${cls.colorSwatchChecker} {
-                    background-image: repeating-conic-gradient(#808080 0% 25%, #c0c0c0 0% 50%);
-                    background-size: 12px 12px;
-                }
-                .${cls.colorSwatchValue} {
-                    transition: background-color: 0.1s;
-                }
-            `;
-        }
-
-        static _getPreviewCss(cls) {
-            const palette = SITE_STYLES.PALETTE;
-            return `
-                /* --- Preview Components --- */
-                .${cls.previewContainer} {
-                    margin-top: 0;
-                }
-                .${cls.previewContainer} > label {
-                    color: ${palette.text_secondary};
-                    display: block;
-                    font-size: 0.9em;
-                    margin-bottom: 4px;
-                }
-                .${cls.previewBubbleWrapper} {
-                    background-image: repeating-conic-gradient(#cccccc 0% 25%, #a9a9a9 0% 50%);
-                    background-size: 20px 20px;
-                    border-radius: 4px;
-                    box-sizing: border-box;
-                    min-height: 80px;
-                    overflow: hidden;
-                    padding: 16px;
-                    text-align: left;
-                    width: 100%;
-                }
-                .${cls.previewBubbleWrapper}.${cls.userPreview} {
-                    text-align: right;
-                }
-                .${cls.previewBubble} {
-                    box-sizing: border-box;
-                    display: inline-block;
-                    text-align: left;
-                    transition: all 0.1s linear;
-                    word-break: break-all;
-                }
-                .${cls.previewInputArea} {
-                    display: block;
-                    width: 75%;
-                    margin: 0 auto;
-                    padding: 8px;
-                    border-radius: 6px;
-                    background: ${palette.input_bg};
-                    color: ${palette.text_primary};
-                    border: 1px solid ${palette.border};
-                    transition: all 0.1s linear;
-                }
-                .${cls.previewBackground} {
-                    width: 100%;
-                    height: 100%;
-                    border-radius: 4px;
-                    transition: all 0.1s linear;
-                    border: 1px solid ${palette.border};
-                }
-                .${cls.compoundFormFieldContainer} .${cls.formField} > .${cls.previewBubbleWrapper} {
-                    flex-grow: 1;
-                }
-            `;
-        }
-
-        static _getSubmenuCss(cls) {
-            const palette = SITE_STYLES.PALETTE;
-            return `
-                /* --- Submenu / Panels --- */
-                .${cls.submenuRow} {
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    gap: 8px;
-                    margin-top: 8px;
-                }
-                /* Reset margin for nested rows to prevent double spacing/misalignment */
-                .${cls.submenuRow} .${cls.submenuRow} {
-                    margin-top: 0;
-                }
-                .${cls.submenuRow} label {
-                    flex-shrink: 0;
-                    margin: 0;
-                    padding: 0;
-                    line-height: 1.5;
-                }
-                .${cls.submenuFieldset} {
-                    border: 1px solid ${palette.border};
-                    border-radius: 4px;
-                    padding: 8px 12px 12px;
-                    margin: 0 0 12px 0;
-                    min-width: 0;
-                }
-                .${cls.submenuFieldset} legend {
-                    padding: 0 4px;
-                    font-weight: 500;
-                    color: ${palette.text_secondary};
-                }
-                .${cls.submenuSeparator} {
-                    border-top: 1px solid ${palette.border_light};
-                    margin: 4px 0;
-                }
-                .${cls.featureGroup} {
-                    padding: 6px 0;
-                }
-                .${cls.featureGroup}:not(:first-child) {
-                    border-top: 1px solid ${palette.border_light};
-                }
-                .${cls.featureGroup}.${cls.submenuRow} {
-                    margin-top: 0;
-                }
-            `;
-        }
-
-        static _getNotificationCss(cls) {
-            const palette = SITE_STYLES.PALETTE;
-            return `
-                /* --- Warnings & Notifications --- */
-                .${cls.warningBanner} {
-                    background-color: var(--bg-danger, #ffdddd);
-                    color: var(--text-on-danger, #a00);
-                    padding: 8px 12px;
-                    font-size: 0.85em;
-                    text-align: center;
-                    border-radius: 4px;
-                    margin: 0 0 12px 0;
-                    border: 1px solid var(--border-danger-heavy, #c00);
-                    white-space: pre-wrap;
-                }
-                .${cls.conflictText} {
-                    color: ${palette.error_text} !important;
-                }
-            `;
-        }
-
-        static _getModalDialogCss(cls) {
-            const palette = SITE_STYLES.PALETTE;
-            return `
-                dialog.${cls.dialog} {
-                    padding: 0;
-                    border: none;
-                    background: transparent;
-                    max-width: 100vw;
-                    max-height: 100vh;
-                    overflow: visible;
-                }
-                dialog.${cls.dialog}::backdrop {
-                    background: rgb(0 0 0 / 0.5);
-                    pointer-events: auto;
-                }
-                .${cls.box} {
-                    display: flex;
-                    flex-direction: column;
-                    background: ${palette.bg};
-                    color: ${palette.text_primary};
-                    border: 1px solid ${palette.border};
-                    border-radius: 8px;
-                    box-shadow: 0 4px 16px rgb(0 0 0 / 0.2);
-                    max-height: 90vh; /* Limit height to viewport */
-                    width: 100%;
-                }
-            `;
-        }
-
-        static _getModalLayoutCss(cls) {
-            const palette = SITE_STYLES.PALETTE;
-            return `
-                .${cls.header}, .${cls.footer} {
-                    flex-shrink: 0;
-                    padding: 12px 16px;
-                }
-                .${cls.header} {
-                    font-size: 1.1em;
-                    font-weight: 600;
-                    border-bottom: 1px solid ${palette.border};
-                }
-                .${cls.content} {
-                    flex-grow: 1;
-                    padding: 0;
-                    overflow: hidden;
-                    display: flex;
-                    flex-direction: column;
-                    min-height: 0;
-                }
-                .${cls.footer} {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    gap: 16px;
-                    border-top: 1px solid ${palette.border};
-                }
-                .${cls.footerMessage} {
-                    flex-grow: 1;
-                    font-size: 0.9em;
-                }
-                .${cls.buttonGroup} {
-                    display: flex;
-                    gap: 8px;
-                }
-            `;
-        }
-
-        static _getSettingsPanelContainerCss(cls) {
-            const palette = SITE_STYLES.PALETTE;
-            const zIndex = SITE_STYLES.Z_INDICES.SETTINGS_PANEL;
-            return `
-                #${cls.panel} {
-                    position: fixed;
-                    width: min(340px, 95vw);
-                    max-height: 85vh;
-                    overflow-y: auto;
-                    overscroll-behavior: contain;
-                    background: ${palette.bg};
-                    color: ${palette.text_primary};
-                    border-radius: 0.5rem;
-                    box-shadow: 0 4px 20px 0 rgb(0 0 0 / 15%);
-                    padding: 12px;
-                    z-index: ${zIndex};
-                    border: 1px solid ${palette.border_medium};
-                    font-size: 0.9em;
-                }
-            `;
-        }
-
-        static _getSettingsPanelContentCss(cls) {
-            const common = StyleDefinitions.COMMON_CLASSES;
-            const palette = SITE_STYLES.PALETTE;
-            return `
-                #${cls.appliedThemeName} {
-                    white-space: nowrap;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                }
-                .${cls.topRow} {
-                    display: flex;
-                    gap: 12px;
-                    margin-bottom: 12px;
-                }
-                /* Target the common fieldset within the top row */
-                .${cls.topRow} .${common.submenuFieldset} {
-                    flex: 1 1 0px;
-                    margin-bottom: 0;
-                }
-                
-                /* Target common slider display within the panel */
-                .${common.sliderSubgroupControl}.is-default .${common.sliderDisplay} {
-                    color: ${palette.text_secondary};
-                }
-            `;
-        }
-
-        static _getThemeModalContentLayoutCss(cls) {
-            const common = StyleDefinitions.COMMON_CLASSES;
-            const palette = SITE_STYLES.PALETTE;
-            return `
-                /* Make the content area expand to fill the modal */
-                .${cls.content} {
-                  display: flex;
-                  flex-direction: column;
-                  gap: 16px;
-                  height: 100%;
-                  min-height: 0;
-                  overflow: hidden;
-                }
-
-                /* Header Controls Layout */
-                .${cls.headerControls} {
-                  display: flex;
-                  flex-direction: column;
-                  gap: 12px;
-                  flex-shrink: 0;
-                }
-                .${cls.headerRow} {
-                  display: grid;
-                  grid-template-columns: auto 1fr auto;
-                  gap: 8px;
-                  align-items: center;
-                  padding-left: 1.2rem;
-                }
-                .${cls.headerRow} > label {
-                  grid-column: 1;
-                  text-align: left;
-                  color: ${palette.text_secondary};
-                  font-size: 0.9em;
-                  white-space: nowrap;
-                }
-                .${cls.headerRow} > .${cls.renameArea} {
-                  grid-column: 2;
-                  min-width: 180px;
-                }
-                .${cls.headerRow} > .${cls.actionArea} {
-                  grid-column: 3;
-                  display: grid;
-                  align-items: center;
-                }
-                .${cls.actionArea} > * {
-                    grid-area: 1 / 1;
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                }
-
-                /* Content Areas */
-                .${cls.generalSettings} {
-                  display: grid;
-                  gap: 16px;
-                  grid-template-columns: 1fr;
-                  transition: opacity 0.2s;
-                  flex-shrink: 0;
-                }
-                .${cls.scrollableArea} {
-                  flex-grow: 1;
-                  overflow-y: auto;
-                  overflow-x: hidden; /* Prevent horizontal scroll */
-                  padding: 16px;
-                  transition: opacity 0.2s;
-                  min-height: 0; /* Enable scrolling */
-                }
-                .${cls.scrollableArea}:focus {
-                  outline: none;
-                }
-                .${cls.grid} {
-                  display: grid;
-                  gap: 16px;
-                  grid-template-columns: 1fr 1fr;
-                }
-                @media (max-width: 800px) {
-                    .${cls.grid} {
-                        grid-template-columns: 1fr !important;
-                    }
-                }
-
-                /* Separator */
-                .${cls.separator} {
-                  border: none;
-                  border-top: 1px solid ${palette.border};
-                  margin: 0;
-                  flex-shrink: 0;
-                }
-                /* Reset separator margins inside fieldset to rely on gap */
-                fieldset > .${cls.separator} {
-                  margin: 0;
-                }
-
-                /* Spacing Overrides for Theme Editor Forms (Scoped to Theme Modal) */
-                .${cls.content} .${common.submenuFieldset} {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 8px;
-                }
-                /* Reset individual margins to rely on the parent gap */
-                .${cls.content} .${common.sliderContainer},
-                .${cls.content} .${common.submenuRow},
-                .${cls.content} .${common.compoundSliderContainer} {
-                    margin-top: 0;
-                }
-            `;
-        }
-
-        static _getThemeModalControlsCss(cls) {
-            const common = StyleDefinitions.COMMON_CLASSES;
-            const palette = SITE_STYLES.PALETTE;
-            return `
-                /* Header Inputs Styling */
-                #${cls.themeSelect}, #${cls.renameInput} {
-                    background: ${palette.input_bg};
-                    border: 1px solid ${palette.border};
-                    border-radius: 4px;
-                    box-sizing: border-box;
-                    color: ${palette.text_primary};
-                    padding: 6px 8px;
-                    width: 100%;
-                }
-
-                /* Disabled State */
-                .${cls.generalSettings}.is-disabled,
-                .${cls.scrollableArea}.is-disabled {
-                  pointer-events: none;
-                  opacity: 0.5;
-                }
-
-                /* Move Buttons (Arrows) */
-                .${common.modalButton}.${cls.moveBtn} {
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  line-height: 1;
-                  min-width: 24px;
-                  padding: 4px;
-                  height: 24px;
-                  width: 24px;
-                }
-
-                /* Delete Confirm Group */
-                .${cls.deleteConfirmGroup} {
-                    display: none;
-                }
-                .${cls.deleteConfirmGroup}:not([hidden]) {
-                  align-items: center;
-                  display: flex;
-                  gap: 8px;
-                }
-                .${cls.deleteConfirmLabel} {
-                  color: ${palette.danger_text};
-                  font-style: italic;
-                  margin-right: auto;
-                }
-                .${cls.deleteConfirmBtnYes} {
-                  background-color: ${palette.delete_confirm_btn_bg} !important;
-                  color: ${palette.delete_confirm_btn_text} !important;
-                }
-                .${cls.deleteConfirmBtnYes}:hover {
-                  background-color: ${palette.delete_confirm_btn_hover_bg} !important;
-                  color: ${palette.delete_confirm_btn_hover_text} !important;
-                }
-            `;
-        }
-
-        static _getThemeModalResponsiveCss(cls) {
-            return `
-                /* Mobile Responsive Styles */
-                @media (max-width: 600px) {
-                    .${cls.headerRow} {
-                        grid-template-columns: 1fr;
-                        gap: 12px;
-                        padding-left: 0;
-                    }
-                    .${cls.headerRow} > label {
-                        grid-column: 1;
-                        text-align: left;
-                    }
-                    .${cls.headerRow} > .${cls.renameArea} {
-                        grid-column: 1;
-                        min-width: 0;
-                    }
-                    .${cls.headerRow} > .${cls.actionArea} {
-                        grid-column: 1;
-                    }
-                    /* Allow button groups to wrap */
-                    .${cls.actionArea} > * {
-                        flex-wrap: wrap;
-                    }
-                }
-            `;
-        }
-
-        static _getColorPickerPopupCss(cls) {
-            const palette = SITE_STYLES.PALETTE;
-            const zIndex = SITE_STYLES.Z_INDICES.COLOR_PICKER;
-            return `
-                /* Popup Wrapper Style */
-                .${cls.colorPickerPopup} {
-                    background-color: ${palette.bg};
-                    border: 1px solid ${palette.border};
-                    border-radius: 4px;
-                    box-shadow: 0 4px 12px rgb(0 0 0 / 0.2);
-                    padding: 16px;
-                    position: fixed; /* Fixed positioning to handle scroll/overflow issues */
-                    width: 280px;
-                    z-index: ${zIndex};
-                }
-            `;
-        }
-
-        static _getColorPickerControlsCss(cls) {
-            const palette = SITE_STYLES.PALETTE;
-            return `
-                .${cls.picker} { display: flex;  flex-direction: column; gap: 16px; }
-                .${cls.svPlane} { position: relative;  width: 100%; aspect-ratio: 1 / 1; cursor: crosshair; touch-action: none; border-radius: 4px; overflow: hidden; flex-shrink: 0; }
-                .${cls.svPlane}:focus { outline: 2px solid ${palette.accent_text};  }
-                .${cls.svPlane} .${cls.gradientWhite}, .${cls.svPlane} .${cls.gradientBlack} { position: absolute;  inset: 0; pointer-events: none; }
-                .${cls.svPlane} .${cls.gradientWhite} { background: linear-gradient(to right, white, transparent);  }
-                .${cls.svPlane} .${cls.gradientBlack} { background: linear-gradient(to top, black, transparent);  }
-                .${cls.svThumb} { position: absolute;  width: 20px; height: 20px; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 2px 1px rgb(0 0 0 / 0.5);  box-sizing: border-box; transform: translate(-50%, -50%); pointer-events: none; }
-                .${cls.sliderGroup} { position: relative;  cursor: pointer; height: 20px; flex-shrink: 0; }
-                .${cls.sliderGroup} .${cls.sliderTrack}, .${cls.sliderGroup} .${cls.alphaCheckerboard} { position: absolute;  top: 50%; transform: translateY(-50%); width: 100%; height: 12px; border-radius: 6px; pointer-events: none;  }
-                .${cls.sliderGroup} .${cls.alphaCheckerboard} { background-image: repeating-conic-gradient(#808080 0% 25%, #c0c0c0 0% 50%);  background-size: 12px 12px; }
-                .${cls.sliderGroup} .${cls.hueTrack} { background: linear-gradient( to right, hsl(0 100% 50%), hsl(60 100% 50%), hsl(120 100% 50%), hsl(180 100% 50%), hsl(240 100% 50%), hsl(300 100% 50%), hsl(360 100% 50%) );  }
-                .${cls.sliderGroup} input[type="range"] { -webkit-appearance: none;  appearance: none; position: relative; width: 100%; height: 100%; margin: 0; padding: 0; background-color: transparent; cursor: pointer;  }
-                .${cls.sliderGroup} input[type="range"]:focus { outline: none;  }
-                .${cls.sliderGroup} input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none;  appearance: none; width: 20px; height: 20px; border: 2px solid white; border-radius: 50%; background-color: #fff;  box-shadow: 0 0 2px 1px rgb(0 0 0 / 0.5);  }
-                .${cls.sliderGroup} input[type="range"]::-moz-range-thumb { width: 20px;  height: 20px; border: 2px solid white; border-radius: 50%; background-color: #fff; box-shadow: 0 0 2px 1px rgb(0 0 0 / 0.5);  }
-                .${cls.sliderGroup} input[type="range"]:focus::-webkit-slider-thumb { outline: 2px solid ${palette.accent_text};  outline-offset: 1px; }
-                .${cls.sliderGroup} input[type="range"]:focus::-moz-range-thumb { outline: 2px solid ${palette.accent_text};  outline-offset: 1px; }
-            `;
-        }
-
-        static _getFixedNavContainerCss(cls) {
-            const palette = SITE_STYLES.PALETTE;
-            const zIndex = SITE_STYLES.Z_INDICES.NAV_CONSOLE;
-            return `
-                    #${cls.consoleId} .${cls.isHidden} {
-                        display: none !important;
-                    }
-                    #${cls.consoleId}.${cls.unpositioned} {
-                        visibility: hidden;
-                        opacity: 0;
-                    }
-                    #${cls.consoleId} {
-                        position: fixed;
-                        z-index: ${zIndex};
-                        display: flex;
-                        align-items: center;
-                        gap: 6px;
-                        background-color: ${palette.fixed_nav_bg};
-                        padding: 4px 8px;
-                        border-radius: 8px;
-                        border: 1px solid ${palette.fixed_nav_border};
-                        box-shadow: 0 2px 10px rgb(0 0 0 / 0.05);
-                        font-size: 0.8rem;
-                        opacity: 1;
-                        transform-origin: bottom;
-                    }
-                    /* Embedded Mode (Header Integration) */
-                    #${cls.consoleId}.is-embedded {
-                        position: static !important;
-                        background-color: transparent !important;
-                        border: none !important;
-                        box-shadow: none !important;
-                        padding: 0 8px !important;
-                        height: 100%;
-                        z-index: auto;
-                    }
-                    #${cls.consoleId}.${cls.hidden} {
-                        display: none !important;
-                    }
-            `;
-        }
-
-        static _getFixedNavContentCss(cls) {
-            const palette = SITE_STYLES.PALETTE;
-            return `
-                    #${cls.consoleId} .${cls.group} {
-                        display: flex;
-                        align-items: center;
-                        gap: 6px;
-                    }
-                    #${cls.consoleId} .${cls.separator} {
-                        width: 1px;
-                        height: 20px;
-                        background-color: ${palette.fixed_nav_separator_bg};
-                    }
-                    #${cls.consoleId} .${cls.roleBtn} {
-                        color: ${palette.fixed_nav_label_text};
-                        font-weight: 500;
-                        cursor: pointer;
-                        user-select: none;
-                        background: transparent;
-                        border: none;
-                        padding: 2px;
-                        border-radius: 4px;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        transition: background-color 0.1s;
-                        width: 24px;
-                        height: 24px;
-                    }
-                    #${cls.consoleId} .${cls.roleBtn}:hover {
-                        background-color: ${palette.btn_hover_bg};
-                    }
-                    #${cls.consoleId} .${cls.roleBtn} svg {
-                        width: 20px;
-                        height: 20px;
-                        fill: currentColor;
-                    }
-                    
-                    /* Role Colors */
-                    #${cls.consoleId} .${cls.roleTotal} {
-                        color: ${palette.text_secondary} !important;
-                    }
-                    #${cls.consoleId} .${cls.roleUser} {
-                        color: ${palette.accent_text} !important;
-                    }
-                    #${cls.consoleId} .${cls.roleAssistant} {
-                        color: ${palette.fixed_nav_assistant_text} !important;
-                    }
-
-                    #${cls.consoleId} .${cls.counter},
-                    #${cls.consoleId} .${cls.jumpInput} {
-                        box-sizing: border-box;
-                        width: 85px;
-                        height: 24px;
-                        margin: 0;
-                        background-color: ${palette.fixed_nav_counter_bg};
-                        color: ${palette.fixed_nav_counter_text};
-                        padding: 1px 4px;
-                        border: 1px solid transparent;
-                        border-color: ${palette.fixed_nav_counter_border};
-                        border-radius: 4px;
-                        text-align: center;
-                        vertical-align: middle;
-                        font-family: monospace;
-                        font: inherit;
-                        user-select: none;
-                    }
-                    #${cls.consoleId} .${cls.btn} {
-                        background-color: ${palette.btn_bg};
-                        color: ${palette.btn_text};
-                        border: 1px solid ${palette.btn_border};
-                        border-radius: 5px;
-                        width: 24px;
-                        height: 24px;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        cursor: pointer;
-                        padding: 0;
-                        transition: background-color 0.1s, color 0.1s;
-                    }
-                    #${cls.consoleId} .${cls.btn}:hover {
-                        background-color: ${palette.btn_hover_bg};
-                    }
-                    #${cls.consoleId} .${cls.btn} svg {
-                        width: 20px;
-                        height: 20px;
-                        fill: currentColor;
-                    }
-                    #${cls.bulkCollapseBtnId} svg {
-                        width: 100%;
-                        height: 100%;
-                    }
-                    #${cls.bulkCollapseBtnId}[data-state="expanded"] .icon-expand { display: none; }
-                    #${cls.bulkCollapseBtnId}[data-state="expanded"] .icon-collapse { display: block; }
-                    #${cls.bulkCollapseBtnId}[data-state="collapsed"] .icon-expand { display: block; }
-                    #${cls.bulkCollapseBtnId}[data-state="collapsed"] .icon-collapse { display: none; }
-                    
-                    #${cls.consoleId} .${cls.btn}.${cls.btnAccent} {
-                        color: ${palette.fixed_nav_btn_accent_text};
-                    }
-                    #${cls.consoleId} .${cls.btn}.${cls.btnDanger} {
-                        color: ${palette.fixed_nav_btn_danger_text};
-                    }
-                    #${cls.autoscrollBtnId}:disabled {
-                        opacity: 0.5;
-                        cursor: not-allowed;
-                    }
-            `;
-        }
-
-        static _getFixedNavHighlightCss(cls) {
-            const palette = SITE_STYLES.PALETTE;
-            const highlightRule = `
-                .${cls.highlightMessage} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE}, 
-                .${cls.highlightMessage} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE}, 
-                .${cls.highlightMessage} ${CONSTANTS.SELECTORS.RAW_USER_IMAGE_BUBBLE}, 
-                .${cls.highlightTurn} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE}
-            `;
-            return `
-                    ${highlightRule} {
-                        outline: 2px solid ${palette.fixed_nav_highlight_outline} !important;
-                        outline-offset: -2px;
-                        border-radius: ${palette.fixed_nav_highlight_radius} !important;
-                        box-shadow: 0 0 8px ${palette.fixed_nav_highlight_outline} !important;
-                    }
-            `;
-        }
-
-        static _getJumpListContainerCss(cls) {
-            const palette = SITE_STYLES.PALETTE;
-            const zIndex = SITE_STYLES.Z_INDICES.NAV_CONSOLE + 1;
-
-            const firefoxScrollbarFix = /firefox/i.test(navigator.userAgent)
-                ? `
-                .${cls.scrollbox} {
-                    padding-right: 12px;
-                }`
-                : '';
-
-            return `
-                    #${cls.containerId} {
-                        position: fixed;
-                        z-index: ${zIndex};
-                        background: ${palette.jump_list_bg};
-                        border: 1px solid ${palette.jump_list_border};
-                        border-radius: 8px;
-                        box-shadow: 0 4px 12px rgb(0 0 0 / 15%);
-                        padding: 4px;
-                        opacity: 0;
-                        transform-origin: bottom;
-                        transform: translateY(10px);
-                        transition: opacity 0.15s ease, transform 0.15s ease;
-                        visibility: hidden;
-                        display: flex;
-                        flex-direction: column;
-                    }
-                    #${cls.containerId}.${cls.expandDown} {
-                        transform-origin: top;
-                        transform: translateY(-10px);
-                    }
-                    #${cls.containerId}:focus, #${cls.listId}:focus, .${cls.scrollbox}:focus {
-                        outline: none;
-                    }
-                    /* Ensure 'visible' overrides the transform to 0 */
-                    #${cls.containerId}.${cls.visible} {
-                        opacity: 1;
-                        transform: translateY(0);
-                        visibility: visible;
-                    }
-                    .${cls.scrollbox} {
-                        flex: 1 1 auto;
-                        position: relative;
-                    }
-                    ${firefoxScrollbarFix}
-            `;
-        }
-
-        static _getJumpListListCss(cls) {
-            const palette = SITE_STYLES.PALETTE;
-            return `
-                    #${cls.listId} {
-                        list-style: none;
-                        margin: 0;
-                        padding: 0;
-                    }
-                    .${cls.filterContainer} {
-                        position: relative;
-                        display: flex;
-                        align-items: center;
-                        border-top: 1px solid ${palette.jump_list_border};
-                        margin: 4px 0 0 0;
-                        flex-shrink: 0;
-                    }
-                    .${cls.filter} {
-                        border: none;
-                        background-color: transparent;
-                        color: inherit;
-                        padding: 8px 60px 8px 8px;
-                        outline: none;
-                        font-size: 0.85rem;
-                        border-radius: 0 0 4px 4px;
-                        width: 100%;
-                        box-sizing: border-box;
-                    }
-                    .${cls.filter}.${cls.filterRegexValid} {
-                        border-color: ${palette.jump_list_current_outline};
-                    }
-                    .${cls.modeLabel} {
-                        position: absolute;
-                        right: 8px;
-                        padding: 1px 6px;
-                        border-radius: 4px;
-                        font-size: 0.75rem;
-                        font-weight: bold;
-                        pointer-events: none;
-                        transition: background-color 0.2s, color 0.2s;
-                        line-height: 1.5;
-                    }
-                    .${cls.modeLabel}.${cls.modeString} {
-                        background-color: transparent;
-                        color: ${palette.label_text};
-                    }
-                    .${cls.modeLabel}.${cls.modeRegex} {
-                        background-color: #28a745;
-                        color: #ffffff;
-                    }
-                    .${cls.modeLabel}.${cls.modeInvalid} {
-                        background-color: #dc3545;
-                        color: #ffffff;
-                    }
-                    #${cls.listId} li {
-                        padding: 6px 10px;
-                        cursor: pointer;
-                        white-space: nowrap;
-                        overflow: hidden;
-                        text-overflow: ellipsis;
-                        border-radius: 4px;
-                        font-size: 0.85rem;
-                    }
-                    #${cls.listId} li:hover, #${cls.listId} li.${cls.focused} {
-                        outline: 1px solid ${palette.jump_list_hover_outline};
-                        outline-offset: -1px;
-                    }
-                    #${cls.listId} li.${cls.current} {
-                        outline: 2px solid ${palette.jump_list_current_outline};
-                        outline-offset: -2px;
-                    }
-                    #${cls.listId} li.${cls.current}:hover, #${cls.listId} li.${cls.current}.${cls.focused} {
-                        outline-width: 2px;
-                        outline-offset: -2px;
-                    }
-                    #${cls.listId} li.${cls.userItem} {
-                        background-color: var(${CSS_VARS.USER_BUBBLE_BG}, transparent);
-                        color: var(${CSS_VARS.USER_TEXT_COLOR}, inherit);
-                    }
-                    #${cls.listId} li.${cls.asstItem} {
-                        background-color: var(${CSS_VARS.ASSISTANT_BUBBLE_BG}, transparent);
-                        color: var(${CSS_VARS.ASSISTANT_TEXT_COLOR}, inherit);
-                    }
-            `;
-        }
-
-        static _getJumpListPreviewCss(cls) {
-            const palette = SITE_STYLES.PALETTE;
-            return `
-                    #${cls.previewId} {
-                        position: fixed;
-                        z-index: ${CONSTANTS.Z_INDICES.JUMP_LIST_PREVIEW};
-                        background: ${palette.jump_list_bg};
-                        border: 1px solid ${palette.jump_list_border};
-                        border-radius: 8px;
-                        box-shadow: 0 2px 8px rgb(0 0 0 / 10%);
-                        padding: 8px 12px;
-                        max-width: 400px;
-                        max-height: 300px;
-                        overflow-y: auto;
-                        font-size: 0.85rem;
-                        opacity: 0;
-                        transition: opacity 0.15s ease-in-out;
-                        white-space: pre-wrap;
-                        word-break: break-word;
-                        visibility: hidden;
-                        user-select: text;
-                        cursor: auto;
-                        contain: layout;
-                    }
-                    #${cls.previewId} strong {
-                        color: ${palette.jump_list_current_outline};
-                        font-weight: bold;
-                        background-color: transparent;
-                    }
-                    #${cls.previewId}.${cls.visible} {
-                        opacity: 1;
-                        visibility: visible;
-                    }
-            `;
-        }
-
-        static _getThemeBaseCss(cls, activeVars) {
-            const important = SITE_STYLES.CSS_IMPORTANT_FLAG || '';
-            const overrides = PlatformAdapters.ThemeManager.getStyleOverrides();
-
-            // Helper to generate CSS property only if the variable is active
-            const prop = (propName, varName) => {
-                if (activeVars && !activeVars.has(varName)) return '';
-                return `${propName}: var(${varName})${important};`;
-            };
-
-            // Generate assistant text color selectors for all child elements.
-            const assistantTextSelectors = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul li', 'ol li', 'ul li::marker', 'ol li::marker', 'strong', 'em', 'blockquote', 'table', 'th', 'td']
-                .map((tag) => `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT} ${tag}`)
-                .join(',\n');
-
-            // Generate CSS with conditional properties
-            return `
-                /* --- Window Background --- */
-                ${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} {
-                    ${prop('background-color', CSS_VARS.WINDOW_BG_COLOR)}
-                    ${prop('background-image', CSS_VARS.WINDOW_BG_IMAGE)}
-                    ${prop('background-size', CSS_VARS.WINDOW_BG_SIZE)}
-                    ${prop('background-position', CSS_VARS.WINDOW_BG_POS)}
-                    ${prop('background-repeat', CSS_VARS.WINDOW_BG_REPEAT)}
-                    ${activeVars && activeVars.has(CSS_VARS.WINDOW_BG_IMAGE) ? `background-attachment: fixed${important};` : ''}
-                }
-
-                /* --- Input Area --- */
-                ${CONSTANTS.SELECTORS.INPUT_AREA_BG_TARGET} {
-                    ${prop('background-color', CSS_VARS.INPUT_BG)}
-                }
-                ${CONSTANTS.SELECTORS.INPUT_TEXT_FIELD_TARGET} {
-                    /* Variable --input-field-bg is set to 'transparent' via transformer when bg color is active */
-                    ${prop('background-color', CSS_VARS.INPUT_FIELD_BG)} 
-                    ${prop('color', CSS_VARS.INPUT_COLOR)}
-                }
-
-                /* --- Assistant Bubble & Text --- */
-                ${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE} {
-                    ${prop('background-color', CSS_VARS.ASSISTANT_BUBBLE_BG)}
-                    ${prop('padding', CSS_VARS.ASSISTANT_BUBBLE_PADDING)}
-                    ${prop('border-radius', CSS_VARS.ASSISTANT_BUBBLE_RADIUS)}
-                    ${prop('max-width', CSS_VARS.ASSISTANT_BUBBLE_MAXWIDTH)}
-                    ${overrides.assistant || ''}
-                }
-                ${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT} {
-                    ${prop('color', CSS_VARS.ASSISTANT_TEXT_COLOR)}
-                    ${prop('font-family', CSS_VARS.ASSISTANT_FONT)}
-                }
-                /* Assistant Child Elements Text Color */
-                ${assistantTextSelectors} {
-                    ${prop('color', CSS_VARS.ASSISTANT_TEXT_COLOR)}
-                }
-
-                /* --- User Bubble & Text --- */
-                ${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE} {
-                    ${prop('background-color', CSS_VARS.USER_BUBBLE_BG)}
-                    ${prop('padding', CSS_VARS.USER_BUBBLE_PADDING)}
-                    ${prop('border-radius', CSS_VARS.USER_BUBBLE_RADIUS)}
-                    ${prop('max-width', CSS_VARS.USER_BUBBLE_MAXWIDTH)}
-                    ${overrides.user || ''}
-                }
-                ${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.USER_TEXT_CONTENT} {
-                    ${prop('color', CSS_VARS.USER_TEXT_COLOR)}
-                    ${prop('font-family', CSS_VARS.USER_FONT)}
-                }
-            `;
         }
     }
 
@@ -11560,10 +11425,21 @@
                         };
                         setTimeout(() => document.addEventListener('click', outsideClick, true), 0);
 
+                        // ESC key close
+                        const onKeyDown = (ev) => {
+                            if (ev.key === 'Escape') {
+                                ev.preventDefault();
+                                ev.stopPropagation();
+                                closePicker();
+                            }
+                        };
+                        document.addEventListener('keydown', onKeyDown, true);
+
                         activePicker = {
                             destroy: () => {
                                 picker.destroy();
                                 document.removeEventListener('click', outsideClick, true);
+                                document.removeEventListener('keydown', onKeyDown, true);
                             },
                             popup: popupWrapper,
                         };
@@ -14529,13 +14405,16 @@
         _createHeaderControls() {
             const cls = this.style.classes;
             const commonBtn = StyleDefinitions.COMMON_CLASSES.modalButton;
+            const commonInput = StyleDefinitions.COMMON_CLASSES.commonInput;
+            const dangerBtn = StyleDefinitions.COMMON_CLASSES.dangerBtn;
+
             const moveBtnClass = `${commonBtn} ${cls.moveBtn}`;
-            const deleteConfirmBtnClass = `${commonBtn} ${cls.deleteConfirmBtnYes}`;
+            const deleteConfirmBtnClass = `${commonBtn} ${dangerBtn}`;
 
             return h(`div.${cls.headerControls}`, [
                 h(`div.${cls.headerRow}`, [
                     h('label', { htmlFor: cls.themeSelect }, 'Theme:'),
-                    h(`div.${cls.renameArea}`, [h(`select#${cls.themeSelect}`), h('input', { type: 'text', id: cls.renameInput, style: { display: 'none' } })]),
+                    h(`div.${cls.renameArea}`, [h(`select#${cls.themeSelect}.${commonInput}`), h('input', { type: 'text', id: cls.renameInput, className: commonInput, style: { display: 'none' } })]),
                     h(`div.${cls.actionArea}`, [
                         h(`div#${cls.mainActionsId}`, [
                             h(`button#${cls.renameBtn}.${commonBtn}`, 'Rename'),
@@ -17854,7 +17733,7 @@
 
             /** @override */
             getBubbleCss(cls) {
-                return StyleTemplates.getBubbleUiCss(cls, UI_PALETTE, CONSTANTS, {
+                return StyleTemplates.getBubbleUiCss(cls, {
                     // ChatGPT: Default class selector is sufficient for parent
                     collapsibleParentSelector: `.${cls.collapsibleParent}`,
                     // ChatGPT: Button positioning depends on role attribute
@@ -18215,7 +18094,7 @@
                         position: relative !important;
                     }
                 `;
-                return StyleTemplates.getAvatarCss(CONSTANTS.SELECTORS, extraCss);
+                return StyleTemplates.getAvatarCss(extraCss);
             }
 
             /** @override */
@@ -19362,7 +19241,7 @@
 
             /** @override */
             getBubbleCss(cls) {
-                return StyleTemplates.getBubbleUiCss(cls, UI_PALETTE, CONSTANTS, {
+                return StyleTemplates.getBubbleUiCss(cls, {
                     // Gemini: Parent is specifically the model-response element
                     collapsibleParentSelector: `model-response.${cls.collapsibleParent}`,
                     // Gemini: Collapsible button is only for assistant
@@ -19746,7 +19625,7 @@
                         align-self: flex-start !important;
                     }
                 `;
-                return StyleTemplates.getAvatarCss(CONSTANTS.SELECTORS, extraCss);
+                return StyleTemplates.getAvatarCss(extraCss);
             }
 
             /** @override */

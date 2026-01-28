@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.0-b431] - 2026-01-28
+- **Refactoring**
+  - **[Core]** Major refactor of the styling architecture to centralize CSS generation. This change reduces code duplication and improves internal maintainability.
+  - **[UI]** Standardized the design of common UI elements (such as buttons and input fields) across the Settings Panel and Theme Editor, ensuring a consistent appearance.
+  - **[Internal]** Improved the robustness of style generation logic by explicitly handling component prefixes.
+- **Bug Fixes**
+  - **[UI]** Restored the ability to close the Color Picker popup by pressing the `Esc` key.
+
 ## [1.0.0-b430] - 2026-01-27
 - **UI Improvements**
   - **[Settings]** Improved the vertical alignment of toggle buttons in the settings panel to ensure they are centered within their rows.
