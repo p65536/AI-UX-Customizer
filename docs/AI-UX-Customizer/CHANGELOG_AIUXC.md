@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.0-b439] - 2026-01-29
+- **Performance & UX**
+  - **[ChatGPT]** Optimized the "Layout Scan" (Auto-Scroll) feature for smoother performance and reduced system load.
+  - **[Gemini]** The chat history loading process now temporarily fades out content, matching ChatGPT's behavior for a cleaner look.
+  - Reduced visual clutter during layout scans and history loading by temporarily hiding the Navigation Console and Standing Images.
+- **Bug Fixes**
+  - Fixed Toast Notification alignment (e.g., "Scanning layout...") to center correctly over the chat input area, ensuring proper positioning regardless of sidebar state.
+
 ## [1.0.0-b438] - 2026-01-29
 - **Core Changes**
   - **[Performance]** Optimized the CSS selectors used by the Sentinel system for detecting new messages. By removing complex negation rules, browser style calculation overhead is reduced, improving rendering performance.

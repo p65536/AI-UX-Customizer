@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b438
+// @version      1.0.0-b439
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -2699,6 +2699,14 @@
          */
         getAutoScrollMessage() {
             throw new Error('getAutoScrollMessage must be implemented by the platform adapter.');
+        }
+
+        /**
+         * Calculates the horizontal center of the input area to align the toast.
+         * @returns {number | null} The X coordinate, or null to fallback to CSS default.
+         */
+        getToastPositionX() {
+            return null;
         }
     }
 
@@ -7998,6 +8006,7 @@
             this.messageCacheManager = messageCacheManager;
             this.themeManager = themeManager;
             this.isUpdateScheduled = false;
+            this.isAutoScrolling = false;
             this.scheduleUpdate = this.scheduleUpdate.bind(this);
             this.anchorSelectors = [];
             this.style = null; // Handle for styles and class names
@@ -8027,6 +8036,21 @@
             this._subscribe(EVENTS.UI_REPOSITION, this.scheduleUpdate);
             this._subscribe(EVENTS.CHAT_CONTENT_WIDTH_UPDATED, this.scheduleUpdate);
             this._subscribe(EVENTS.DEFERRED_LAYOUT_UPDATE, this.scheduleUpdate);
+
+            // Auto-scroll visibility handling
+            this._subscribe(EVENTS.AUTO_SCROLL_START, () => {
+                this.isAutoScrolling = true;
+                this.updateVisibility();
+            });
+            this._subscribe(EVENTS.AUTO_SCROLL_COMPLETE, () => {
+                this.isAutoScrolling = false;
+                this.updateVisibility();
+            });
+
+            // Safety reset on navigation start to ensure visibility is restored if scroll is interrupted
+            this._subscribe(EVENTS.NAVIGATION_START, () => {
+                this.isAutoScrolling = false;
+            });
 
             // Anchor Detection using Sentinel
             // Automatically detect when the layout anchor element appears or is re-inserted into the DOM.
@@ -9366,10 +9390,8 @@
             // Capture previous hidden state to trigger repositioning on appearance
             const wasHidden = this.navConsole.classList.contains(cls.hidden);
 
-            // Hide if it's explicitly a new chat page.
-            // If not a new chat page, only hide if there are NO messages in cache AND no message elements in the DOM.
-            // This prevents the console from disappearing during cache rebuilds or temporary state inconsistencies.
-            if (isNewChat || (!hasCachedMessages && !hasDomMessages)) {
+            // Hide if auto-scrolling (scanning), explicitly a new chat page, or no messages found.
+            if (this.state.isAutoScrolling || isNewChat || (!hasCachedMessages && !hasDomMessages)) {
                 this.navConsole.classList.add(cls.hidden);
                 // Mark as unpositioned to ensure it stays transparent until the next layout calculation finishes
                 this.navConsole.classList.add(cls.unpositioned);
@@ -16454,6 +16476,16 @@
             const message = PlatformAdapters.Toast.getAutoScrollMessage();
             this._subscribe(EVENTS.AUTO_SCROLL_START, () => this.show(message, true));
             this._subscribe(EVENTS.AUTO_SCROLL_COMPLETE, () => this.hide());
+
+            // Bind position updates to layout changes
+            const updatePosition = () => {
+                if (this.toastElement && this.toastElement.classList.contains(this.styleHandle.classes.visible)) {
+                    this._updatePosition();
+                }
+            };
+            this._subscribe(EVENTS.WINDOW_RESIZED, updatePosition);
+            this._subscribe(EVENTS.SIDEBAR_LAYOUT_CHANGED, updatePosition);
+            this._subscribe(EVENTS.INPUT_AREA_RESIZED, updatePosition);
         }
 
         _onDestroy() {
@@ -16500,6 +16532,25 @@
             return h(`div#${rootId}`, children);
         }
 
+        /**
+         * @private
+         * Updates the horizontal position of the toast to align with the input area.
+         */
+        _updatePosition() {
+            EventBus.queueUIWork(() => {
+                if (!this.toastElement) return;
+
+                // Adapter method might not exist on Base adapter if not defined, so check safely or assume platform implementation
+                const centerX = PlatformAdapters.Toast.getToastPositionX ? PlatformAdapters.Toast.getToastPositionX() : null;
+
+                if (typeof centerX === 'number') {
+                    this.toastElement.style.left = `${centerX}px`;
+                } else {
+                    this.toastElement.style.left = ''; // Reset to CSS default (50%)
+                }
+            });
+        }
+
         show(message, showCancelButton) {
             const cls = this.styleHandle.classes;
             // Remove existing toast if any
@@ -16510,8 +16561,10 @@
             this.toastElement = this._renderToast(message, showCancelButton);
             document.body.appendChild(this.toastElement);
 
-            // Use double requestAnimationFrame to ensure the element is rendered
-            // and the browser registers the initial state before adding the class.
+            // Initial positioning
+            this._updatePosition();
+
+            // Use double requestAnimationFrame to ensure the element is rendered and the browser registers the initial state before adding the class.
             // This guarantees the CSS transition will fire.
             this._requestAnimationFrame(() => {
                 this._requestAnimationFrame(() => {
@@ -17898,6 +17951,20 @@
             getAutoScrollMessage() {
                 return 'Scanning layout to prevent scroll issues...';
             }
+
+            /**
+             * Calculates the horizontal center of the input area to align the toast.
+             * @returns {number | null} The X coordinate, or null to fallback to CSS default.
+             */
+            getToastPositionX() {
+                // Use the input resize target (form container) as it spans the correct width
+                const inputArea = document.querySelector(CONSTANTS.SELECTORS.INPUT_RESIZE_TARGET);
+                if (inputArea instanceof HTMLElement && inputArea.offsetWidth > 0) {
+                    const rect = inputArea.getBoundingClientRect();
+                    return rect.left + rect.width / 2;
+                }
+                return null;
+            }
         }
 
         class ChatGPTAppControllerAdapter extends BaseAppControllerAdapter {
@@ -17951,7 +18018,7 @@
 
                         // Set the flag immediately to prevent re-entrancy from other events (e.g. button mashing).
                         this.isScrolling = true;
-                        Logger.log('', '', 'AutoScrollManager: Starting layout scan.');
+                        Logger.log('', '', 'AutoScrollManager: Starting layout scan (Unthrottled rAF).');
 
                         const scrollContainerEl = document.querySelector(CONSTANTS.SELECTORS.SCROLL_CONTAINER);
                         if (!(scrollContainerEl instanceof HTMLElement)) {
@@ -17992,13 +18059,13 @@
                             // Scroll up by one page (client height)
                             this.scrollContainer.scrollTop = Math.max(0, currentTop - this.scrollContainer.clientHeight);
 
-                            // Continue loop after interval
-                            this.scanLoopId = setTimeout(scanPageUp, AutoScrollManager.CONFIG.SCAN_INTERVAL_MS);
+                            // Continue loop via requestAnimationFrame
+                            this.scanLoopId = requestAnimationFrame(scanPageUp);
                         };
 
                         // Start the loop
                         // Add a minimal delay to ensure scrollTop change is registered before scan starts
-                        this.scanLoopId = setTimeout(scanPageUp, CONSTANTS.TIMING.DEBOUNCE_DELAYS.LAYOUT_RECALCULATION);
+                        this.scanLoopId = requestAnimationFrame(scanPageUp);
                     }
 
                     stop(isNavigation) {
@@ -18008,7 +18075,7 @@
                         this.isScrolling = false;
 
                         if (this.scanLoopId) {
-                            clearTimeout(this.scanLoopId);
+                            cancelAnimationFrame(this.scanLoopId);
                             this.scanLoopId = null;
                         }
 
@@ -18317,7 +18384,7 @@
                     const varName = isUser ? v.userImage : v.assistantImage;
 
                     const hasImage = !!document.documentElement.style.getPropertyValue(varName);
-                    imgElement.style.opacity = hasImage && !isCanvasActive ? '1' : '0';
+                    imgElement.style.opacity = hasImage && !isCanvasActive && !instance.isAutoScrolling ? '1' : '0';
                 });
             }
         }
@@ -19334,6 +19401,20 @@
             getAutoScrollMessage() {
                 return 'Auto-scrolling to load history...';
             }
+
+            /**
+             * Calculates the horizontal center of the input area to align the toast.
+             * @returns {number | null} The X coordinate, or null to fallback to CSS default.
+             */
+            getToastPositionX() {
+                // Use the input resize target (input-area-v2)
+                const inputArea = document.querySelector(CONSTANTS.SELECTORS.INPUT_RESIZE_TARGET);
+                if (inputArea instanceof HTMLElement && inputArea.offsetWidth > 0) {
+                    const rect = inputArea.getBoundingClientRect();
+                    return rect.left + rect.width / 2;
+                }
+                return null;
+            }
         }
 
         class GeminiAppControllerAdapter extends BaseAppControllerAdapter {
@@ -19431,20 +19512,25 @@
                         // Guard against cancellation during await
                         if (!this.isScrolling) return;
 
-                        this.scrollContainer = this.observerContainer?.querySelector(CONSTANTS.SELECTORS.CHAT_HISTORY_SCROLL_CONTAINER);
+                        const scrollContainerEl = this.observerContainer?.querySelector(CONSTANTS.SELECTORS.CHAT_HISTORY_SCROLL_CONTAINER);
 
-                        if (!this.observerContainer || !this.scrollContainer) {
+                        if (!this.observerContainer || !(scrollContainerEl instanceof HTMLElement)) {
                             Logger.warn('AUTOSCROLL WARN', LOG_STYLES.YELLOW, 'Could not find required containers.');
                             // Reset flags to allow re-triggering
                             this.isInitialScrollCheckDone = false;
                             this.isScrolling = false;
                             return;
                         }
+                        this.scrollContainer = scrollContainerEl;
 
                         Logger.log('', '', 'AutoScrollManager: Starting auto-scroll with MutationObserver.');
                         this.toastShown = false;
 
                         EventBus.publish(EVENTS.SUSPEND_OBSERVERS);
+
+                        // Hide the container to prevent visual flickering
+                        this.scrollContainer.style.transition = 'none';
+                        this.scrollContainer.style.opacity = '0';
 
                         this.boundStop = () => this.stop(false);
                         this.scrollContainer.addEventListener('wheel', this.boundStop, { passive: true, once: true });
@@ -19460,6 +19546,12 @@
                         Logger.log('', '', 'AutoScrollManager: Stopping auto-scroll.');
                         this.isScrolling = false;
                         this.toastShown = false;
+
+                        // Restore visibility
+                        if (this.scrollContainer instanceof HTMLElement) {
+                            this.scrollContainer.style.opacity = '1';
+                            this.scrollContainer.style.transition = '';
+                        }
 
                         // Cleanup listeners and observers
                         if (this.boundStop) {
@@ -19769,7 +19861,7 @@
                     const varName = isUser ? v.userImage : v.assistantImage;
 
                     const hasImage = !!document.documentElement.style.getPropertyValue(varName);
-                    imgElement.style.opacity = hasImage && !isCanvasActive && !isFilePanelActive ? '1' : '0';
+                    imgElement.style.opacity = hasImage && !isCanvasActive && !isFilePanelActive && !instance.isAutoScrolling ? '1' : '0';
                 });
             }
 

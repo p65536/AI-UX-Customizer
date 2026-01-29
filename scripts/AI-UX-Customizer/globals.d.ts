@@ -410,6 +410,7 @@ interface BubbleUIAdapter {
 
 interface ToastAdapter {
     getAutoScrollMessage(): string;
+    getToastPositionX(): number | null;
 }
 
 interface AppControllerAdapter {
