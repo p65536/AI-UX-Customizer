@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b436] - 2026-01-29
+- **Documentation**
+  - Fixed internal JSDoc definition for the `REMOTE_CONFIG_CHANGED` event to correctly state that it does not carry a payload, aligning the documentation with the actual code behavior.
+
 ## [1.0.0-b435] - 2026-01-29
 - **UI/UX Improvements**
   - **[Theme Editor]** Added clear visual feedback for disabled inputs. Fields and buttons now appear dimmed with a "not-allowed" cursor to indicate they cannot be interacted with.
