@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b438] - 2026-01-29
+- **Core Changes**
+  - **[Performance]** Optimized the CSS selectors used by the Sentinel system for detecting new messages. By removing complex negation rules, browser style calculation overhead is reduced, improving rendering performance.
+
 ## [1.0.0-b437] - 2026-01-29
 - **Performance Improvements**
   - Optimized the message monitoring system by replacing continuous background observation with an efficient periodic cleanup strategy.
