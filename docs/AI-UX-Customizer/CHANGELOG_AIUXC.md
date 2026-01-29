@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-b437] - 2026-01-29
+- **Performance Improvements**
+  - Optimized the message monitoring system by replacing continuous background observation with an efficient periodic cleanup strategy.
+  - Reduced CPU overhead during message streaming, resulting in a smoother and more responsive experience, particularly in long conversations.
+
 ## [1.0.0-b436] - 2026-01-29
 - **Documentation**
   - Fixed internal JSDoc definition for the `REMOTE_CONFIG_CHANGED` event to correctly state that it does not carry a payload, aligning the documentation with the actual code behavior.

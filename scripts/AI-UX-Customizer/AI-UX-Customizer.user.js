@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b436
+// @version      1.0.0-b437
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -7299,8 +7299,6 @@
         constructor(messageCacheManager, streamingState) {
             super();
             // Initialize observers to null; they will be created in _onInit via manageFactory
-            this.mainObserver = null;
-            this.mainObserverContainer = null;
             this.layoutResizeObserver = null;
             this.observedElements = new Map();
             this.processedTurnNodes = new Set();
@@ -7316,8 +7314,6 @@
             this.messageCacheManager = messageCacheManager;
             // Bound listener for navigation-related cache updates
             this.boundHandleCacheUpdateForNavigation = this._handleCacheUpdateForNavigation.bind(this);
-            // Bound listener for Sentinel main observer setup
-            this.boundSetupMainObserver = this._setupMainObserver.bind(this);
         }
 
         /**
@@ -7327,33 +7323,9 @@
         _onInit() {
             // Create observers using manageFactory
             // This ensures they are automatically disconnected when the manager is destroyed.
-            this.mainObserver = this.manageFactory(CONSTANTS.RESOURCE_KEYS.MAIN_OBSERVER, () => {
-                return new MutationObserver((mutations) => this._handleMainMutations(mutations));
-            });
-
             this.layoutResizeObserver = this.manageFactory(CONSTANTS.RESOURCE_KEYS.LAYOUT_RESIZE_OBSERVER, () => {
                 return new ResizeObserver(this._handleResize.bind(this));
             });
-
-            this._subscribe(EVENTS.SUSPEND_OBSERVERS, () => this.stopMainObserver());
-            this._subscribe(EVENTS.RESUME_OBSERVERS_AND_REFRESH, () => {
-                if (this.mainObserverContainer) {
-                    this.startMainObserver(this.mainObserverContainer);
-                    // Manually trigger a full refresh.
-                    this.debouncedCacheUpdate.bind(this)();
-                }
-            });
-
-            // Start the observers immediately upon initialization
-            // Use Sentinel to detect the main container.
-            sentinel.on(CONSTANTS.SELECTORS.MESSAGE_CONTAINER_PARENT, this.boundSetupMainObserver);
-            this.addDisposable(() => sentinel.off(CONSTANTS.SELECTORS.MESSAGE_CONTAINER_PARENT, this.boundSetupMainObserver));
-
-            // Immediate check in case the element already exists.
-            const existingContainer = document.querySelector(CONSTANTS.SELECTORS.MESSAGE_CONTAINER_PARENT);
-            if (existingContainer instanceof HTMLElement) {
-                this.boundSetupMainObserver(existingContainer);
-            }
 
             // Centralized ResizeObserver for layout changes
             this.observeElement(document.body, CONSTANTS.OBSERVED_ELEMENT_TYPES.BODY);
@@ -7392,28 +7364,13 @@
             }
             this.sentinelTurnListeners.clear();
 
-            // mainObserver and layoutResizeObserver are automatically disconnected by BaseManager
+            // layoutResizeObserver is automatically disconnected by BaseManager
 
             // Page-specific observers are automatically disposed by BaseManager via PageObserverScope
 
             // Clear element caches to allow GC
             this.observedElements.clear();
             this.processedTurnNodes.clear();
-            this.mainObserverContainer = null;
-        }
-
-        /**
-         * @private
-         * @description Callback for Sentinel to set up the main observer when the container is detected.
-         * @param {HTMLElement} container The detected container element.
-         */
-        _setupMainObserver(container) {
-            // Prevent duplicate setup for the same container reference
-            if (!container || this.mainObserverContainer === container) return;
-
-            Logger.debug('Observer', LOG_STYLES.CYAN, 'Main app container detected. Starting observers.');
-            this.mainObserverContainer = container;
-            this.startMainObserver(container);
         }
 
         /**
@@ -7591,17 +7548,6 @@
                 // Register the scope with BaseManager (auto-cleanup on destroy) and keep the cleaner
                 this.pageScopeCleaner = this.addDisposable(scope);
 
-                this.stopMainObserver();
-
-                // Only restart the main observer if the container is still connected to the DOM.
-                // This prevents holding onto "zombie" containers during SPA transitions (especially on ChatGPT).
-                if (this.mainObserverContainer && this.mainObserverContainer.isConnected) {
-                    this.startMainObserver(this.mainObserverContainer);
-                } else {
-                    // If disconnected, clear the reference. Sentinel will re-detect the new container when it appears.
-                    this.mainObserverContainer = null;
-                }
-
                 // Clean up any lingering turn completion listeners from the previous page.
                 for (const [selector, callback] of this.sentinelTurnListeners.values()) {
                     sentinel.off(selector, callback);
@@ -7753,66 +7699,6 @@
         }
 
         /**
-         * Starts the main MutationObserver to watch for DOM changes.
-         * @param {HTMLElement} container The main container element to observe.
-         */
-        startMainObserver(container) {
-            // Guard: Ensure the container is valid and actually connected to the DOM.
-            // This prevents starting observers on stale elements or null references.
-            if (!container || !container.isConnected) {
-                Logger.debug('Observer', '', 'startMainObserver skipped: Container is invalid or disconnected.');
-                return;
-            }
-
-            if (this.mainObserver) {
-                this.mainObserver.observe(container, CONSTANTS.OBSERVER_OPTIONS);
-            }
-        }
-
-        /**
-         * Stops the main MutationObserver.
-         */
-        stopMainObserver() {
-            if (this.mainObserver) {
-                this.mainObserver.disconnect();
-            }
-        }
-
-        /**
-         * @private
-         * @description Callback for the main MutationObserver, now specialized to handle only message deletions.
-         * Message additions are handled exclusively by the Sentinel class for performance.
-         * If a deletion of a message node is detected, it triggers a debounced update of the message cache
-         * to keep the application state consistent.
-         * @param {MutationRecord[]} mutations An array of MutationRecord objects provided by the observer.
-         */
-        _handleMainMutations(mutations) {
-            // PERFORMANCE OPTIMIZATION:
-            if (this.streamingState.isActive) return;
-
-            // Check only for removed nodes that are message containers.
-            // Additions are handled exclusively by Sentinel for better performance.
-            const hasDeletion = mutations.some((mutation) => Array.from(mutation.removedNodes).some((node) => node instanceof Element && node.matches(CONSTANTS.SELECTORS.MESSAGE_ROOT_NODE)));
-
-            if (hasDeletion) {
-                Logger.debug('MUTATION', LOG_STYLES.CYAN, 'Message deletion detected.');
-
-                // Sweep for detached turn nodes that are still being observed.
-                // This prevents memory leaks when chat history is cleared or during navigation.
-                for (const [turnNode, [selector, callback]] of this.sentinelTurnListeners) {
-                    if (!turnNode.isConnected) {
-                        sentinel.off(selector, callback);
-                        this.sentinelTurnListeners.delete(turnNode);
-                        Logger.debug('Observer', LOG_STYLES.CYAN, 'Cleaned up observer for detached turn node.');
-                    }
-                }
-
-                // A deletion occurred, so a full cache rebuild is necessary.
-                this.debouncedCacheUpdate();
-            }
-        }
-
-        /**
          * @description Processes a turn node, handling both completed and streaming turns.
          * If the turn is already complete, it triggers final updates (e.g., for navigation).
          * If the turn is streaming, it attaches a dedicated MutationObserver to watch for its completion.
@@ -7887,8 +7773,39 @@
             return PlatformAdapters.Observer.isTurnComplete(turnNode);
         }
 
+        /**
+         * @private
+         * @description Scans internal collections for elements that are no longer connected to the DOM and cleans up their associated resources.
+         */
+        _cleanupDisconnectedElements() {
+            // 1. Cleanup Turn Listeners (Sentinel)
+            for (const [turnNode, [selector, callback]] of this.sentinelTurnListeners) {
+                if (!turnNode.isConnected) {
+                    sentinel.off(selector, callback);
+                    this.sentinelTurnListeners.delete(turnNode);
+                }
+            }
+
+            // 2. Cleanup Processed Turn Nodes (Set)
+            for (const turnNode of this.processedTurnNodes) {
+                if (!turnNode.isConnected) {
+                    this.processedTurnNodes.delete(turnNode);
+                }
+            }
+
+            // 3. Cleanup Observed Elements (ResizeObserver)
+            for (const element of this.observedElements.keys()) {
+                if (!element.isConnected) {
+                    this.layoutResizeObserver.unobserve(element);
+                    this.observedElements.delete(element);
+                }
+            }
+        }
+
         /** @private */
         _publishCacheUpdate() {
+            // Perform garbage collection before notifying other managers
+            this._cleanupDisconnectedElements();
             EventBus.publish(EVENTS.CACHE_UPDATE_REQUEST);
         }
     }
