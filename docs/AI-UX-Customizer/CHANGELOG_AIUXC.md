@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-b441] - 2026-01-29
+- **Performance & Stability**
+  - Optimized the internal layout observation system to reduce processing overhead during window resizing or UI updates.
+  - Implemented stricter resource cleanup logic to prevent memory leaks, improving stability during long sessions and frequent chat navigation.
+
 ## [1.0.0-b440] - 2026-01-29
 - **Performance Improvements**
   - Optimized the mechanism for detecting when message generation completes, resulting in lower CPU usage during streaming.

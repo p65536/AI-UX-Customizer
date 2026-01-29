@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b440
+// @version      1.0.0-b441
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -7541,6 +7541,16 @@
                 this.streamingState.isActive = false;
                 this.processedTurnNodes.clear();
 
+                // Clean up non-persistent observers (everything except BODY)
+                // Use a snapshot of keys to avoid modification during iteration
+                const elements = Array.from(this.observedElements.keys());
+                for (const element of elements) {
+                    const type = this.observedElements.get(element);
+                    if (type !== CONSTANTS.OBSERVED_ELEMENT_TYPES.BODY) {
+                        this.unobserveElement(element);
+                    }
+                }
+
                 // Clean up all resources from the previous page using the scope cleaner.
                 // This disposes the previous PageObserverScope and removes it from BaseManager.
                 if (this.pageScopeCleaner) {
@@ -7651,19 +7661,34 @@
         }
 
         _handleResize(entries) {
+            const eventsToPublish = new Set();
+
             for (const entry of entries) {
+                // Self-healing: If the element is detached from DOM, stop observing it immediately.
+                if (!entry.target.isConnected) {
+                    this.unobserveElement(entry.target);
+                    continue;
+                }
+
                 const type = this.observedElements.get(entry.target);
+                if (!type) continue;
+
                 switch (type) {
                     case CONSTANTS.OBSERVED_ELEMENT_TYPES.BODY:
-                        EventBus.publish(EVENTS.WINDOW_RESIZED);
+                        eventsToPublish.add(EVENTS.WINDOW_RESIZED);
                         break;
                     case CONSTANTS.OBSERVED_ELEMENT_TYPES.INPUT_AREA:
-                        EventBus.publish(EVENTS.INPUT_AREA_RESIZED);
+                        eventsToPublish.add(EVENTS.INPUT_AREA_RESIZED);
                         break;
                     case CONSTANTS.OBSERVED_ELEMENT_TYPES.SIDE_PANEL:
-                        EventBus.publish(EVENTS.UI_REPOSITION);
+                        eventsToPublish.add(EVENTS.UI_REPOSITION);
                         break;
                 }
+            }
+
+            // Publish collected unique events once per frame
+            for (const event of eventsToPublish) {
+                EventBus.publish(event);
             }
         }
 
