@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b434
+// @version      1.0.0-b435
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -984,6 +984,17 @@
                     width: auto;
                     min-width: 120px;
                     max-width: 50%;
+                }
+
+                /* Disabled State for Inputs */
+                ${root} .${cls.commonInput}:disabled,
+                ${root} .${cls.formField} input[type="text"]:disabled, 
+                ${root} .${cls.formField} textarea:disabled, 
+                ${root} .${cls.formField} select:disabled,
+                ${root} .${cls.submenuRow} select:disabled {
+                    opacity: 0.6;
+                    cursor: not-allowed;
+                    color: ${palette.text_secondary};
                 }
 
                 ${root} .${cls.formField} input[type="text"].${cls.invalidInput}, 
@@ -4347,7 +4358,6 @@
                 // Delete Confirm Group
                 deleteConfirmGroup: `${prefix}-delete-confirm-group`,
                 deleteConfirmLabel: `${prefix}-delete-confirm-label`,
-                deleteConfirmBtnYes: `${prefix}-delete-confirm-btn-yes`,
 
                 // Input wrappers
                 renameInput: `${prefix}-rename-input`,
@@ -14429,6 +14439,7 @@
             const headerRow = this.modal.element.querySelector(`.${cls.headerRow}`);
 
             // --- UI Element References ---
+            const label = headerRow.querySelector('label');
             const select = headerRow.querySelector('select');
             const renameInput = headerRow.querySelector('input[type="text"]');
             const mainActions = headerRow.querySelector(`#${cls.mainActionsId}`);
@@ -14466,6 +14477,10 @@
             // --- Set enabled/disabled state of all controls ---
             const isActionInProgress = uiMode !== ThemeModalComponent.UI_MODES.NORMAL || isSaving;
             const index = config.themeSets.findIndex((t) => t.metadata.id === activeThemeKey);
+
+            // Block theme selection during actions
+            select.disabled = isActionInProgress;
+            if (label) label.style.opacity = isActionInProgress ? '0.5' : '';
 
             // Block structural changes if size is exceeded
             headerRow.querySelector(`#${cls.upBtn}`).disabled = isActionInProgress || isDefault || index <= 0 || isSizeExceeded;
@@ -14520,7 +14535,7 @@
                             h(`button#${cls.deleteBtn}.${commonBtn}`, 'Delete'),
                         ]),
                         h(`div#${cls.renameActionsId}`, { style: { display: 'none' } }, [h(`button#${cls.renameOkBtn}.${commonBtn}`, 'OK'), h(`button#${cls.renameCancelBtn}.${commonBtn}`, 'Cancel')]),
-                        h(`div#${cls.deleteConfirmGroup}`, { style: { display: 'none' } }, [
+                        h('div', { id: cls.deleteConfirmGroup, className: cls.deleteConfirmGroup, style: { display: 'none' } }, [
                             h(`span.${cls.deleteConfirmLabel}`, 'Are you sure?'),
                             h('button', { id: cls.deleteConfirmBtn, className: deleteConfirmBtnClass }, 'Confirm Delete'),
                             h(`button#${cls.deleteCancelBtn}.${commonBtn}`, 'Cancel'),

@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-b435] - 2026-01-29
+- **UI/UX Improvements**
+  - **[Theme Editor]** Added clear visual feedback for disabled inputs. Fields and buttons now appear dimmed with a "not-allowed" cursor to indicate they cannot be interacted with.
+  - **[Theme Editor]** Prevented theme selection changes while a Rename or Delete action is in progress to avoid accidental state inconsistencies.
+
 ## [1.0.0-b434] - 2026-01-28
 - **Internal Improvements**
   - Optimized the internal CSS generation engine to eliminate redundant style definitions, reducing the overall script footprint and improving performance.
