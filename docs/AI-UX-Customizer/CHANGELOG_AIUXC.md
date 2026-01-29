@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-b440] - 2026-01-29
+- **Performance Improvements**
+  - Optimized the mechanism for detecting when message generation completes, resulting in lower CPU usage during streaming.
+  - Removed redundant background polling processes, switching to a more efficient event-driven detection method.
+
 ## [1.0.0-b439] - 2026-01-29
 - **Performance & UX**
   - **[ChatGPT]** Optimized the "Layout Scan" (Auto-Scroll) feature for smoother performance and reduced system load.

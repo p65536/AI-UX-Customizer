@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b439
+// @version      1.0.0-b440
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -7539,7 +7539,6 @@
             try {
                 // Reset streaming state on navigation to prevent locks
                 this.streamingState.isActive = false;
-                this.stopStreamCheck();
                 this.processedTurnNodes.clear();
 
                 // Clean up all resources from the previous page using the scope cleaner.
@@ -7591,14 +7590,6 @@
         }
 
         /**
-         * @private
-         * Stops the polling interval for streaming completion.
-         */
-        stopStreamCheck() {
-            this.manageResource(CONSTANTS.RESOURCE_KEYS.STREAM_CHECK, null);
-        }
-
-        /**
          * @description Evaluates a newly completed message element to determine if a streaming session has started.
          * Implements self-healing logic to reset stuck streaming flags if a new turn begins unexpectedly.
          * @param {HTMLElement} messageElement The message element that was just processed.
@@ -7617,28 +7608,10 @@
                 if (this.streamingState.isActive) {
                     Logger.warn('Observer', '', 'New streaming started while flag was stuck. Resetting.');
                     this.streamingState.isActive = false;
-                    this.stopStreamCheck(); // Ensure old poll is stopped
                 }
 
                 this.streamingState.isActive = true;
                 EventBus.publish(EVENTS.STREAMING_START);
-
-                // Start backup polling to detect completion in case Sentinel fails
-                this.stopStreamCheck(); // Safety clear
-                const id = setInterval(() => {
-                    const completionElement = turnNode.querySelector(CONSTANTS.SELECTORS.TURN_COMPLETE_SELECTOR);
-                    if (completionElement) {
-                        Logger.debug('STREAM_POLL', LOG_STYLES.GRAY, 'Completion detected via polling. Cleaning up.');
-                        // Logic similar to the sentinel callback
-                        this.streamingState.isActive = false;
-                        this.stopStreamCheck();
-                        EventBus.publish(EVENTS.STREAMING_END);
-                        EventBus.publish(EVENTS.DEFERRED_LAYOUT_UPDATE);
-                        this.debouncedCacheUpdate();
-                    }
-                }, CONSTANTS.TIMING.POLLING.STREAM_COMPLETION_CHECK_MS);
-
-                this.manageResource(CONSTANTS.RESOURCE_KEYS.STREAM_CHECK, () => clearInterval(id));
             }
         }
 
@@ -7731,7 +7704,6 @@
                 // Handle logic if we were tracking a stream that finished instantly or externally
                 if (this.streamingState.isActive) {
                     this.streamingState.isActive = false;
-                    this.stopStreamCheck();
                     EventBus.publish(EVENTS.STREAMING_END);
                     EventBus.publish(EVENTS.DEFERRED_LAYOUT_UPDATE);
                 }
@@ -7751,7 +7723,6 @@
                     // End streaming state if active
                     if (this.streamingState.isActive) {
                         this.streamingState.isActive = false;
-                        this.stopStreamCheck();
                         EventBus.publish(EVENTS.STREAMING_END);
                         EventBus.publish(EVENTS.DEFERRED_LAYOUT_UPDATE);
                     }
