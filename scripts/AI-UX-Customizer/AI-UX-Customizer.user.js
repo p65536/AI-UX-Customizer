@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b442
+// @version      1.0.0-b443
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -14788,26 +14788,32 @@
             this.styleHandle = styleHandle;
 
             // Use the shared cache to build the searchable list efficiently.
-            // If a message is not yet in the cache (e.g. indexing incomplete), verify and add it on the fly.
+            // If a message is not yet in the cache, has empty text (streaming),
+            // OR if it is the latest message (volatile), fetch data from DOM and update the cache.
             const cls = this.styleHandle.classes;
             this.searchableMessages = this.messages.map((msg, originalIndex) => {
                 let cachedData = searchCache.get(msg);
+                const isLatest = originalIndex === this.messages.length - 1;
 
-                if (!cachedData) {
-                    // Fallback: Generate data synchronously for uncached items
+                // 1. Force refresh for the latest message to ensure real-time consistency during streaming.
+                // 2. Fallback generation for uncached items or items with empty text (previously cached during streaming).
+                if (isLatest || !cachedData || !cachedData.displayText) {
                     const role = PlatformAdapters.General.getMessageRole(msg);
                     const roleClass = role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER ? cls.userItem : role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT ? cls.asstItem : null;
 
                     const rawText = PlatformAdapters.General.getJumpListDisplayText(msg);
                     const displayText = (rawText || '').replace(/\s+/g, ' ').trim();
 
-                    cachedData = {
-                        displayText: displayText,
-                        lowerText: displayText.toLowerCase(),
-                        roleClass: roleClass,
-                    };
-                    // Update cache to prevent future re-calculation
-                    searchCache.set(msg, cachedData);
+                    // Only update/set cache if data is missing or has changed (for latest message)
+                    if (!cachedData || cachedData.displayText !== displayText) {
+                        cachedData = {
+                            displayText: displayText,
+                            lowerText: displayText.toLowerCase(),
+                            roleClass: roleClass,
+                        };
+                        // Update shared cache
+                        searchCache.set(msg, cachedData);
+                    }
                 }
 
                 return {

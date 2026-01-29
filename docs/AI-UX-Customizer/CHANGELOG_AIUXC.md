@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b443] - 2026-01-30
+- **Fixes**
+  - **[Navigation]** Fixed an issue where assistant messages appeared empty in the Jump List during active sessions (origin of regression unknown). The list now automatically refreshes the text for the latest or incomplete messages when opened.
+
 ## [1.0.0-b442] - 2026-01-30
 - **Bug Fixes**
   - Fixed layout synchronization issues where UI elements failed to adjust correctly during CSS transition animations. This ensures smoother tracking and correct positioning for panels like the Gemini Canvas/Immersive Panel.
