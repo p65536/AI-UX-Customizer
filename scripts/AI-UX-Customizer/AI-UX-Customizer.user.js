@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b441
+// @version      1.0.0-b442
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -7440,11 +7440,67 @@
          */
         startGenericPanelObserver(config) {
             const { triggerSelector, observerType, targetResolver, immediateCallback } = config;
-
             let isPanelVisible = false;
             let isStateUpdating = false; // Lock to prevent race conditions
             let disappearanceObserver = null;
             let observedPanel = null;
+            let animationLoopId = null;
+            const STABILIZATION_MS = CONSTANTS.TIMING.ANIMATIONS.LAYOUT_STABILIZATION_MS;
+            const MAX_DURATION_MS = 5000; // Hard limit to prevent infinite loops
+            let loopEndTime = 0;
+            let lastRectString = '';
+
+            // Helper to run updates
+            const triggerUpdates = () => {
+                if (immediateCallback) immediateCallback();
+                EventBus.publish(EVENTS.UI_REPOSITION);
+            };
+
+            // Helper to serialize rect for comparison
+            const getRectString = (el) => {
+                if (!el || !el.isConnected) return '';
+                const r = el.getBoundingClientRect();
+                return `${r.left},${r.top},${r.width},${r.height}`;
+            };
+
+            // Function to run the layout update loop with dynamic extension and hard limit
+            const startUpdateLoop = (targetPanel) => {
+                if (animationLoopId) cancelAnimationFrame(animationLoopId);
+
+                const startTime = Date.now();
+                // Initial deadline
+                loopEndTime = startTime + STABILIZATION_MS;
+                lastRectString = getRectString(targetPanel);
+
+                const loop = () => {
+                    triggerUpdates();
+
+                    const now = Date.now();
+
+                    // Check for geometric changes to extend the deadline
+                    if (targetPanel) {
+                        const currentRectString = getRectString(targetPanel);
+                        if (currentRectString !== lastRectString) {
+                            // Extend deadline if geometry is changing
+                            loopEndTime = now + STABILIZATION_MS;
+                            lastRectString = currentRectString;
+                        }
+                    }
+
+                    // Check continuation conditions:
+                    // 1. Within the dynamic deadline
+                    // 2. Within the hard limit (MAX_DURATION_MS)
+                    if (now < loopEndTime && now - startTime < MAX_DURATION_MS) {
+                        animationLoopId = requestAnimationFrame(loop);
+                    } else {
+                        // Ensure one final update after stabilization or timeout
+                        animationLoopId = null;
+                        triggerUpdates();
+                    }
+                };
+
+                loop();
+            };
 
             // This is the single source of truth for updating the UI based on panel visibility.
             const updatePanelState = () => {
@@ -7478,7 +7534,11 @@
 
                     isPanelVisible = isNowVisible;
 
-                    if (immediateCallback) immediateCallback();
+                    // Trigger animation loop to handle transition, targeting the relevant panel
+                    // If appearing, target the new panel. If disappearing, target the old observedPanel to track its exit.
+                    const trackingTarget = panel || observedPanel;
+                    startUpdateLoop(trackingTarget);
+
                     EventBus.publish(EVENTS.UI_REPOSITION);
 
                     if (isNowVisible && panel) {
@@ -7527,6 +7587,7 @@
                 if (observedPanel) {
                     this.unobserveElement(observedPanel);
                 }
+                if (animationLoopId) cancelAnimationFrame(animationLoopId);
             };
         }
 

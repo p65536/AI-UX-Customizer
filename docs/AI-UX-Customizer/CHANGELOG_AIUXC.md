@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b442] - 2026-01-30
+- **Bug Fixes**
+  - Fixed layout synchronization issues where UI elements failed to adjust correctly during CSS transition animations. This ensures smoother tracking and correct positioning for panels like the Gemini Canvas/Immersive Panel.
+
 ## [1.0.0-b441] - 2026-01-29
 - **Performance & Stability**
   - Optimized the internal layout observation system to reduce processing overhead during window resizing or UI updates.
