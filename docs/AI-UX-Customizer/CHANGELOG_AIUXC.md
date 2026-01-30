@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.0.0-b443] - 2026-01-31
+## [1.0.0-b444] - 2026-01-31
 - **Fixes**
   - **[ChatGPT]** Fixed an issue where custom background colors and images were not applying due to changes in ChatGPT's site structure.
   - **[ChatGPT]** Fixed the Navigation Console failing to scroll to messages, also caused by the recent site structure updates.
