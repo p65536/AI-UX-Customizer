@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b443
+// @version      1.0.0-b444
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -17409,7 +17409,7 @@
             },
             SELECTORS: {
                 // --- Main containers ---
-                MAIN_APP_CONTAINER: 'div[data-scroll-root="true"]',
+                MAIN_APP_CONTAINER: 'div:has(> main#main)',
                 MESSAGE_WRAPPER_FINDER: '.w-full',
                 MESSAGE_WRAPPER: 'chat-wrapper',
                 // Root container for message search optimization
@@ -17458,7 +17458,7 @@
                 SIDEBAR_STATE_INDICATOR: '#stage-sidebar-tiny-bar',
                 RIGHT_SIDEBAR: 'div.bg-token-sidebar-surface-primary.shrink-0:not(#stage-slideover-sidebar)',
                 CHAT_CONTENT_MAX_WIDTH: '.group\\/turn-messages, div[class*="--thread-content-max-width"].grid',
-                SCROLL_CONTAINER: 'div[data-scroll-root="true"]',
+                SCROLL_CONTAINER: 'div:has(> main#main)',
                 STANDING_IMAGE_ANCHOR: '.group\\/turn-messages, div[class*="--thread-content-max-width"].grid',
                 PLACEHOLDER_PREFIX: 'placeholder-request-',
                 SCROLL_TO_BOTTOM_BUTTON: '#thread-bottom-container button.absolute.z-30.rounded-full',

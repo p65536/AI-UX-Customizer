@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-b443] - 2026-01-31
+- **Fixes**
+  - **[ChatGPT]** Fixed an issue where custom background colors and images were not applying due to changes in ChatGPT's site structure.
+  - **[ChatGPT]** Fixed the Navigation Console failing to scroll to messages, also caused by the recent site structure updates.
+
 ## [1.0.0-b443] - 2026-01-30
 - **Fixes**
   - **[Navigation]** Fixed an issue where assistant messages appeared empty in the Jump List during active sessions (origin of regression unknown). The list now automatically refreshes the text for the latest or incomplete messages when opened.
