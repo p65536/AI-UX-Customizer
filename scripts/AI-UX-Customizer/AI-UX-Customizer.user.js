@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b447
+// @version      1.0.0-b448
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -6608,7 +6608,8 @@
             this.totalMessages = [];
             this.elementMap = new Map();
             this.streamingState = streamingState;
-            this.debouncedRebuildCache = debounce(this._rebuildCache.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.CACHE_UPDATE, true);
+            this.debouncedRebuildCache = debounce(this.rebuild.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.CACHE_UPDATE, true);
+            this.debouncedNotify = debounce(this.notify.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.CACHE_UPDATE, true);
         }
 
         _onInit() {
@@ -6623,9 +6624,16 @@
             this._subscribe(EVENTS.STREAMING_END, () => {
                 this.debouncedRebuildCache();
             });
-            this._rebuildCache();
+
+            this._subscribe(EVENTS.RAW_MESSAGE_ADDED, (element) => {
+                // Determine dynamically whether to append or rebuild based on DOM position.
+                this.append(element);
+            });
+
+            this.rebuild();
 
             this.addDisposable(this.debouncedRebuildCache.cancel);
+            this.addDisposable(this.debouncedNotify.cancel);
         }
 
         _onDestroy() {
@@ -6635,7 +6643,7 @@
             this.elementMap.clear();
         }
 
-        _rebuildCache() {
+        rebuild() {
             Logger.info('CACHE', LOG_STYLES.TEAL, 'Rebuilding cache...');
 
             // Guard clause: If no conversation turns are on the page (e.g., on the homepage), clear the cache and exit.
@@ -6701,7 +6709,70 @@
                 }
             }
 
-            this.notify();
+            this.debouncedNotify();
+        }
+
+        /**
+         * Appends a new message element to the cache if it follows the last known message.
+         * If the message appears earlier in the DOM (e.g., history load), triggers a full rebuild.
+         * @param {HTMLElement} rawElement - The raw element detected by Sentinel.
+         */
+        append(rawElement) {
+            // 1. Resolve the message container from the raw element
+            const messageElement = PlatformAdapters.General.findMessageElement(rawElement);
+            if (!messageElement || !messageElement.isConnected) return;
+
+            // 2. Check for duplicates
+            if (this.elementMap.has(messageElement)) return;
+
+            // 3. Filter out invalid or ghost messages
+            if (!PlatformAdapters.General.filterMessage(messageElement)) return;
+
+            // 4. Validate Order and Cache Integrity
+            // If the cache is empty, we can't determine order relative to "last". Fallback to rebuild.
+            if (this.totalMessages.length === 0) {
+                this.debouncedRebuildCache();
+                return;
+            }
+
+            const lastMessage = this.totalMessages[this.totalMessages.length - 1];
+
+            // Check if the new message is strictly AFTER the last cached message in the DOM.
+            // DOCUMENT_POSITION_FOLLOWING (4): The node (messageElement) follows the reference node (lastMessage).
+            const position = lastMessage.compareDocumentPosition(messageElement);
+            if (!(position & Node.DOCUMENT_POSITION_FOLLOWING)) {
+                // The new message is BEFORE the last message (e.g. history loaded at top).
+                // Our append-only assumption is violated. Force a full rebuild to sort everything correctly.
+                this.debouncedRebuildCache();
+                return;
+            }
+
+            // 5. Determine the role (User or Assistant)
+            let role = null;
+            if (messageElement.matches(CONSTANTS.SELECTORS.USER_MESSAGE)) {
+                role = CONSTANTS.INTERNAL_ROLES.USER;
+            } else if (messageElement.matches(CONSTANTS.SELECTORS.ASSISTANT_MESSAGE)) {
+                role = CONSTANTS.INTERNAL_ROLES.ASSISTANT;
+            }
+
+            if (!role) return;
+
+            // 6. Safe Append
+            if (role === CONSTANTS.INTERNAL_ROLES.USER) {
+                this.userMessages.push(messageElement);
+            } else {
+                this.assistantMessages.push(messageElement);
+            }
+            this.totalMessages.push(messageElement);
+
+            // 7. Update indices
+            const roleIndex = (role === CONSTANTS.INTERNAL_ROLES.USER ? this.userMessages : this.assistantMessages).length - 1;
+            const totalIndex = this.totalMessages.length - 1;
+
+            this.elementMap.set(messageElement, { role, index: roleIndex, totalIndex });
+
+            // 8. Trigger UI update
+            this.debouncedNotify();
         }
 
         /**

@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.0-b448] - 2026-01-31
+- **Performance Improvements**
+  - Optimized the message caching mechanism to reduce browser load when scrolling through chat history, while maintaining instant responsiveness for real-time messages.
+- **Core Changes**
+  - Implemented a "Smart Append" logic that dynamically verifies the order of messages in the DOM, ensuring the internal data remains consistent regardless of how messages are loaded.
+
 ## [1.0.0-b447] - 2026-01-31
 - **Performance Improvements**
   - Optimized the rendering process for the **Settings Panel** and **Theme Editor**, reducing overhead when opening these menus.
