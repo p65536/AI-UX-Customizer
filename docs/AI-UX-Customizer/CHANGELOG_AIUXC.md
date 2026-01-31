@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b445] - 2026-01-31
+- **Fixes**
+  - **[ChatGPT]** Updated the root container detection to use a robust fallback strategy (prioritizing attribute existence, falling back to structure) to prevent future breakages.
+
 ## [1.0.0-b444] - 2026-01-31
 - **Fixes**
   - **[ChatGPT]** Fixed an issue where custom background colors and images were not applying due to changes in ChatGPT's site structure.
