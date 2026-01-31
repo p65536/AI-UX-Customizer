@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b446
+// @version      1.0.0-b447
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -11028,6 +11028,16 @@
         }
 
         /**
+         * Returns a direct reference to the current state object.
+         * WARNING: The returned object MUST be treated as Read-Only. Do not mutate directly.
+         * Use this for performance-critical reads where deep cloning is too expensive.
+         * @returns {Readonly<object>}
+         */
+        getStateRef() {
+            return this.state;
+        }
+
+        /**
          * Replaces the entire state with a new object and notifies listeners.
          * Triggers notifications for all top-level keys in both old and new states.
          * @param {object} newState - The new full state object. Must be a valid object (null is ignored).
@@ -11119,7 +11129,7 @@
         observe(paths, callback) {
             const pathList = Array.isArray(paths) ? paths : [paths];
             // Initial call
-            callback(this.store.getData());
+            callback(this.store.getStateRef());
 
             const unsub = this.store.subscribe((state, changedPath) => {
                 // Check if changedPath matches or is parent/child of any observed path

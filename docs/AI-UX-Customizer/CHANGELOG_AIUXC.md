@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.0-b447] - 2026-01-31
+- **Performance Improvements**
+  - Optimized the rendering process for the **Settings Panel** and **Theme Editor**, reducing overhead when opening these menus.
+- **Core Changes**
+  - Refactored the internal state management system (`ReactiveStore`) to minimize unnecessary data copying, improving overall UI responsiveness and memory efficiency.
+
 ## [1.0.0-b446] - 2026-01-31
 - **Refactoring**
   - Simplified internal CSS generation logic by removing redundant constants. This improves code maintainability without changing any functionality.
