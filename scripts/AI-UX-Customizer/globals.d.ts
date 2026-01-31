@@ -680,7 +680,6 @@ interface PlatformConstants {
 interface SiteStyles {
     PALETTE: Record<string, string>;
     Z_INDICES: Record<string, any>;
-    CSS_IMPORTANT_FLAG: string;
 }
 
 interface PlatformAdapters {

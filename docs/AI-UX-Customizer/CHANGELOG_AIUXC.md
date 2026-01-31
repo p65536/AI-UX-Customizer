@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b446] - 2026-01-31
+- **Refactoring**
+  - Simplified internal CSS generation logic by removing redundant constants. This improves code maintainability without changing any functionality.
+
 ## [1.0.0-b445] - 2026-01-31
 - **Fixes**
   - **[ChatGPT]** Updated the root container detection to use a robust fallback strategy (prioritizing attribute existence, falling back to structure) to prevent future breakages.

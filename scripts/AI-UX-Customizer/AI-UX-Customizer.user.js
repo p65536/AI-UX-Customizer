@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b445
+// @version      1.0.0-b446
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -2350,14 +2350,13 @@
         },
 
         getThemeBaseCss(cls, activeVars) {
-            const important = SITE_STYLES.CSS_IMPORTANT_FLAG || '';
             const overrides = PlatformAdapters.ThemeManager.getStyleOverrides();
             const selectors = CONSTANTS.SELECTORS;
 
             // Helper to generate CSS property only if the variable is active
             const prop = (propName, varName) => {
                 if (activeVars && !activeVars.has(varName)) return '';
-                return `${propName}: var(${varName})${important};`;
+                return `${propName}: var(${varName}) !important;`;
             };
 
             // Generate assistant text color selectors for all child elements.
@@ -2374,7 +2373,7 @@
                     ${prop('background-size', CSS_VARS.WINDOW_BG_SIZE)}
                     ${prop('background-position', CSS_VARS.WINDOW_BG_POS)}
                     ${prop('background-repeat', CSS_VARS.WINDOW_BG_REPEAT)}
-                    ${activeVars && activeVars.has(CSS_VARS.WINDOW_BG_IMAGE) ? `background-attachment: fixed${important};` : ''}
+                    ${activeVars && activeVars.has(CSS_VARS.WINDOW_BG_IMAGE) ? `background-attachment: fixed !important;` : ''}
                 }
 
                 /* --- Input Area --- */
@@ -17564,7 +17563,6 @@
         const SITE_STYLES = {
             PALETTE: UI_PALETTE,
             Z_INDICES: CONSTANTS.Z_INDICES,
-            CSS_IMPORTANT_FLAG: ' !important',
         };
 
         // =================================================================================
@@ -19203,7 +19201,6 @@
         const SITE_STYLES = {
             PALETTE: UI_PALETTE,
             Z_INDICES: CONSTANTS.Z_INDICES,
-            CSS_IMPORTANT_FLAG: ' !important',
         };
 
         // =================================================================================
