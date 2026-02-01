@@ -73,9 +73,9 @@ interface ActorConfig {
     textColor: string | null;
     font: string | null;
     bubbleBackgroundColor: string | null;
-    bubblePadding: string | null;
-    bubbleBorderRadius: string | null;
-    bubbleMaxWidth: string | null;
+    bubblePadding: number | null;
+    bubbleBorderRadius: number | null;
+    bubbleMaxWidth: number | null;
     standingImageUrl: string | null;
 }
 
@@ -120,7 +120,7 @@ interface ThemeSet {
 interface PlatformSettings {
     options: {
         icon_size: number;
-        chat_content_max_width: string | null;
+        chat_content_max_width: number | null;
         respect_avatar_space: boolean;
     };
     features: {
@@ -165,7 +165,7 @@ interface AppEventMap {
     'aiuxc:titleChanged': null;
     'aiuxc:themeUpdate': null;
     'aiuxc:themeApplied': { theme: ThemeSet; config: AppConfig };
-    'aiuxc:widthPreview': string | null;
+    'aiuxc:widthPreview': number | null;
 
     // UI & Layout
     'aiuxc:chatContentWidthUpdated': null;
@@ -284,7 +284,7 @@ interface IThemeManager {
     getThemeSet(): ThemeSet;
     lastAppliedThemeSet: ThemeSet | null;
     updateTheme(force: boolean): void;
-    applyChatContentMaxWidth(forcedWidth?: string | null): void;
+    applyChatContentMaxWidth(): void;
 }
 
 interface IStandingImageManager {

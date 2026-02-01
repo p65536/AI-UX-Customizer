@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b449
+// @version      1.0.0-b450
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -359,8 +359,8 @@
                         textColor: null,
                         font: null,
                         bubbleBackgroundColor: null,
-                        bubblePadding: '8px',
-                        bubbleBorderRadius: '10px',
+                        bubblePadding: 8,
+                        bubbleBorderRadius: 10,
                         bubbleMaxWidth: null,
                         standingImageUrl: null,
                     },
@@ -370,8 +370,8 @@
                         textColor: null,
                         font: null,
                         bubbleBackgroundColor: null,
-                        bubblePadding: '8px',
-                        bubbleBorderRadius: '10px',
+                        bubblePadding: 8,
+                        bubbleBorderRadius: 10,
                         bubbleMaxWidth: null,
                         standingImageUrl: null,
                     },
@@ -415,8 +415,8 @@
                         textColor: null,
                         font: null,
                         bubbleBackgroundColor: null,
-                        bubblePadding: '8px',
-                        bubbleBorderRadius: '10px',
+                        bubblePadding: 8,
+                        bubbleBorderRadius: 10,
                         bubbleMaxWidth: null,
                         standingImageUrl: null,
                     },
@@ -426,8 +426,8 @@
                         textColor: null,
                         font: null,
                         bubbleBackgroundColor: null,
-                        bubblePadding: '8px',
-                        bubbleBorderRadius: '10px',
+                        bubblePadding: 8,
+                        bubbleBorderRadius: 10,
                         bubbleMaxWidth: null,
                         standingImageUrl: null,
                     },
@@ -733,11 +733,15 @@
 
     // ---- Validation Schema ----
     /**
-     * @constant THEME_VALIDATION_SCHEMA
+     * @constant CONFIG_SCHEMA
      * @description Centralized validation rules for theme properties.
      * Used by ConfigProcessor to validate and sanitize user inputs.
+     * * [RULE] For 'numeric' type fields, the 'unit' property is MANDATORY to ensure centralized unit management.
+     * - If a unit is required (e.g. pixels), set unit: 'px'.
+     * - If no unit is required (unitless number), set unit: '' (empty string).
+     * - DO NOT omit the 'unit' property. The application logic assumes it exists and will NOT fallback.
      */
-    const THEME_VALIDATION_SCHEMA = {
+    const CONFIG_SCHEMA = {
         // --- Numeric Fields ---
         'assistant.bubblePadding': { type: 'numeric', unit: 'px', min: -1, max: 50, nullable: true },
         'user.bubblePadding': { type: 'numeric', unit: 'px', min: -1, max: 50, nullable: true },
@@ -747,9 +751,7 @@
         'user.bubbleMaxWidth': { type: 'numeric', unit: '%', min: 29, max: 100, nullable: true },
 
         // --- Platform Options ---
-        // icon_size uses allowedValues for strict validation and returns the raw number (no string cast)
-        'options.icon_size': { type: 'numeric', allowedValues: SHARED_CONSTANTS.UI_SPECS.AVATAR.SIZE_OPTIONS, nullable: false },
-        // chat_content_max_width min is set to 30 (NULL_THRESHOLD) so values < 30 become null (default/auto)
+        'options.icon_size': { type: 'numeric', unit: 'px', allowedValues: SHARED_CONSTANTS.UI_SPECS.AVATAR.SIZE_OPTIONS, nullable: false },
         'options.chat_content_max_width': { type: 'numeric', unit: 'vw', min: 30, max: 80, nullable: true },
 
         // --- Color Fields ---
@@ -3322,6 +3324,11 @@
      */
     function createActorStyleDefinitions(actor) {
         const actorUpper = actor.toUpperCase();
+
+        // Helper to get unit from schema directly
+        const getUnit = (key) => CONFIG_SCHEMA[`${actor}.${key}`]?.unit;
+        const unitTransformer = (key) => (value) => (value !== null && value !== undefined ? `${value}${getUnit(key)}` : null);
+
         return [
             {
                 configKey: `${actor}.name`,
@@ -3372,16 +3379,19 @@
                 configKey: `${actor}.bubblePadding`,
                 fallbackKey: `platforms.${PLATFORM}.defaultSet.${actor}.bubblePadding`,
                 cssVar: CSS_VARS[`${actorUpper}_BUBBLE_PADDING`],
+                transformer: unitTransformer('bubblePadding'),
             },
             {
                 configKey: `${actor}.bubbleBorderRadius`,
                 fallbackKey: `platforms.${PLATFORM}.defaultSet.${actor}.bubbleBorderRadius`,
                 cssVar: CSS_VARS[`${actorUpper}_BUBBLE_RADIUS`],
+                transformer: unitTransformer('bubbleBorderRadius'),
             },
             {
                 configKey: `${actor}.bubbleMaxWidth`,
                 fallbackKey: `platforms.${PLATFORM}.defaultSet.${actor}.bubbleMaxWidth`,
                 cssVar: CSS_VARS[`${actorUpper}_BUBBLE_MAXWIDTH`],
+                transformer: unitTransformer('bubbleMaxWidth'),
             },
         ];
     }
@@ -5691,7 +5701,7 @@
 
     /**
      * @description A centralized utility for validating and sanitizing configuration objects.
-     * Uses THEME_VALIDATION_SCHEMA to drive validation logic generically.
+     * Uses CONFIG_SCHEMA to drive validation logic generically.
      */
     const ConfigProcessor = {
         /**
@@ -5705,7 +5715,7 @@
             const errors = [];
 
             // Iterate over the schema to validate fields present in the themeData
-            for (const [configKey, rule] of Object.entries(THEME_VALIDATION_SCHEMA)) {
+            for (const [configKey, rule] of Object.entries(CONFIG_SCHEMA)) {
                 // Skip metadata pattern validation for defaultSet
                 if (isDefaultSet && rule.type === 'regexArray') continue;
 
@@ -5753,7 +5763,7 @@
          */
         normalize(themeData) {
             const normalized = deepClone(themeData);
-            const schema = THEME_VALIDATION_SCHEMA;
+            const schema = CONFIG_SCHEMA;
 
             for (const key in schema) {
                 if (Object.prototype.hasOwnProperty.call(schema, key)) {
@@ -5826,7 +5836,7 @@
                     }
 
                     // Sanitize options using SCHEMA (icon_size, chat_content_max_width)
-                    for (const [configKey, rule] of Object.entries(THEME_VALIDATION_SCHEMA)) {
+                    for (const [configKey, rule] of Object.entries(CONFIG_SCHEMA)) {
                         if (configKey.startsWith('options.')) {
                             const value = getPropertyByPath(platformConfig, configKey);
 
@@ -5849,7 +5859,7 @@
                 if (!theme) continue;
 
                 // Iterate over schema to sanitize known properties
-                for (const [configKey, rule] of Object.entries(THEME_VALIDATION_SCHEMA)) {
+                for (const [configKey, rule] of Object.entries(CONFIG_SCHEMA)) {
                     // Skip options validation for themes
                     if (configKey.startsWith('options.')) continue;
 
@@ -5903,8 +5913,9 @@
         /**
          * @private
          * Validates and sanitizes a numeric property based on the provided rule.
+         * Includes migration logic to salvage numeric values from legacy string formats (e.g. "10px").
          * @param {string | number | null} value The value to sanitize.
-         * @param {object} rule The validation rule from THEME_VALIDATION_SCHEMA.
+         * @param {object} rule The validation rule from CONFIG_SCHEMA.
          * @param {any} defaultValue The fallback value.
          * @returns {any} The sanitized value.
          */
@@ -5925,29 +5936,25 @@
                 return matched;
             }
 
-            // If unit is defined, value must be a string ending with that unit
-            if (rule.unit) {
-                // Strict check: Value must be strictly numeric followed by unit (e.g. "8px").
-                const regex = new RegExp(`^-?\\d+(?:\\.\\d+)?${escapeRegExp(rule.unit)}$`);
-
-                if (typeof value !== 'string' || !regex.test(value)) {
-                    return defaultValue === null ? null : String(defaultValue);
-                }
-                const numVal = parseInt(value, 10);
-                if (isNaN(numVal) || numVal < rule.min || numVal > rule.max) {
-                    return defaultValue === null ? null : String(defaultValue);
-                }
-                return String(value);
-            }
-
-            // Raw numeric check (if no unit specified in future)
+            // 1. Numeric check (Ideal case)
             if (typeof value === 'number') {
                 if (value < rule.min || value > rule.max) {
-                    return defaultValue === null ? null : String(defaultValue);
+                    return defaultValue === null ? null : defaultValue;
                 }
-                return String(value);
+                return value;
             }
-            return defaultValue === null ? null : String(defaultValue);
+
+            // 2. Migration Logic: Attempt to parse string (e.g. "10px" -> 10)
+            // This saves user settings from previous versions instead of resetting to default.
+            if (typeof value === 'string') {
+                const parsed = parseFloat(value);
+                if (!isNaN(parsed) && parsed >= rule.min && parsed <= rule.max) {
+                    return parsed;
+                }
+            }
+
+            // Fallback: If value is invalid or cannot be parsed within range, revert to default.
+            return defaultValue === null ? null : defaultValue;
         },
     };
 
@@ -7328,7 +7335,9 @@
                         const totalRequiredMargin = sidebarWidth + requiredMarginPerSide * 2;
                         const maxAllowedWidth = windowWidth - totalRequiredMargin;
                         // Use CSS min() to ensure the user's value does not exceed the calculated available space.
-                        const finalMaxWidth = `min(${userMaxWidth}, ${maxAllowedWidth}px)`;
+                        // Get unit dynamically from schema.
+                        const unit = CONFIG_SCHEMA['options.chat_content_max_width'].unit;
+                        const finalMaxWidth = `min(${userMaxWidth}${unit}, ${maxAllowedWidth}${unit})`;
                         rootStyle.setProperty(maxWidthVar, finalMaxWidth);
                     }
                 },
@@ -11895,12 +11904,26 @@
          * @param {HTMLElement} element - The target element.
          * @param {object} config - The current config object.
          * @param {object} defaultConfig - The default config object.
+         * @param {string} schemaPrefix - The prefix for schema lookup (e.g. 'user', 'window').
          * @param {Record<string, string>} mapping - Map of CSS property to config key.
          */
-        _applyStyles(element, config, defaultConfig, mapping) {
+        _applyStyles(element, config, defaultConfig, schemaPrefix, mapping) {
             const style = element.style;
             for (const [cssProp, configKey] of Object.entries(mapping)) {
-                style[cssProp] = this._resolveValue(config, defaultConfig, configKey) || '';
+                const val = this._resolveValue(config, defaultConfig, configKey);
+                if (val !== null && val !== undefined) {
+                    if (typeof val === 'number') {
+                        // Numeric values MUST have a unit defined in the schema.
+                        const schemaKey = `${schemaPrefix}.${configKey}`;
+                        const unit = CONFIG_SCHEMA[schemaKey]?.unit;
+                        style[cssProp] = `${val}${unit}`;
+                    } else {
+                        // String values (colors, fonts, images) are applied as-is.
+                        style[cssProp] = String(val);
+                    }
+                } else {
+                    style[cssProp] = '';
+                }
             }
         }
 
@@ -11918,7 +11941,7 @@
             const defaultConfig = this.defaultSet[actor] || {};
 
             // Apply standard styles
-            this._applyStyles(element, currentConfig, defaultConfig, {
+            this._applyStyles(element, currentConfig, defaultConfig, actor, {
                 color: 'textColor',
                 backgroundColor: 'bubbleBackgroundColor',
                 fontFamily: 'font',
@@ -11931,7 +11954,10 @@
             // to mimic the behavior of previous versions (user: 50%, assistant: 90%).
             const resolvedWidth = this._resolveValue(currentConfig, defaultConfig, 'bubbleMaxWidth');
             const maxWidthDefault = actor === 'user' ? CONSTANTS.UI_SPECS.PREVIEW_BUBBLE_MAX_WIDTH.USER : CONSTANTS.UI_SPECS.PREVIEW_BUBBLE_MAX_WIDTH.ASSISTANT;
-            const maxWidth = resolvedWidth ?? maxWidthDefault;
+
+            // Get unit from schema
+            const unit = CONFIG_SCHEMA[`${actor}.bubbleMaxWidth`].unit;
+            const maxWidth = resolvedWidth !== null ? `${resolvedWidth}${unit}` : maxWidthDefault;
 
             element.style.width = maxWidth;
             element.style.maxWidth = maxWidth;
@@ -11949,7 +11975,7 @@
             const currentConfig = config || {};
             const defaultConfig = this.defaultSet.inputArea || {};
 
-            this._applyStyles(element, currentConfig, defaultConfig, {
+            this._applyStyles(element, currentConfig, defaultConfig, 'inputArea', {
                 color: 'textColor',
                 backgroundColor: 'backgroundColor',
             });
@@ -11968,7 +11994,7 @@
             const defaultConfig = this.defaultSet.window || {};
 
             // Only background-color is previewed for window
-            this._applyStyles(element, currentConfig, defaultConfig, {
+            this._applyStyles(element, currentConfig, defaultConfig, 'window', {
                 backgroundColor: 'backgroundColor',
             });
         }
@@ -12896,6 +12922,7 @@
                     ui.range(`${p}.options.icon_size`, 'Icon size:', 0, CONSTANTS.UI_SPECS.AVATAR.SIZE_OPTIONS.length - 1, {
                         step: 1,
                         tooltip: 'Specifies the size of the chat icons in pixels.',
+                        // Convert index <-> actual pixel value for slider
                         transformValue: (index) => CONSTANTS.UI_SPECS.AVATAR.SIZE_OPTIONS[index] ?? CONSTANTS.UI_SPECS.AVATAR.DEFAULT_SIZE,
                         toInputValue: (pixelVal) => {
                             const idx = CONSTANTS.UI_SPECS.AVATAR.SIZE_OPTIONS.indexOf(pixelVal);
@@ -12905,16 +12932,21 @@
                     }),
                     ui.range(`${p}.options.chat_content_max_width`, 'Chat content max width:', widthConfig.MIN, widthConfig.MAX, {
                         step: 1,
-                        tooltip: `Adjusts the maximum width of the chat content.\nMove slider to the far left for default.\nRange: ${widthConfig.NULL_THRESHOLD}vw to ${widthConfig.MAX}vw.`,
+                        tooltip: `Adjusts the maximum width of the chat content.\nMove slider to the far left for default.\nRange: ${widthConfig.NULL_THRESHOLD} to ${widthConfig.MAX}.`,
+                        // Value < Threshold becomes null (Auto)
                         transformValue: (val) => {
                             if (val < widthConfig.NULL_THRESHOLD) return null;
-                            return `${val}vw`;
+                            return val;
                         },
                         toInputValue: (val) => {
                             if (val === null) return widthConfig.MIN;
-                            return parseInt(val, 10);
+                            return val;
                         },
-                        valueLabelFormatter: (val) => (!val ? 'Auto' : val),
+                        valueLabelFormatter: (val) => {
+                            if (!val) return 'Auto';
+                            const unit = CONFIG_SCHEMA['options.chat_content_max_width'].unit;
+                            return `${val}${unit}`;
+                        },
                     }),
                     ui.separator({ className: 'submenuSeparator' }),
                     ui.row([
@@ -14259,20 +14291,15 @@
             const prefix = actor;
             const bubbleWidthConfig = CONSTANTS.SLIDER_CONFIGS.BUBBLE_MAX_WIDTH;
 
-            // Helper for pixel transformers
-            const pxTransform = {
-                transformValue: (val) => (val < 0 ? null : `${val}px`),
-                toInputValue: (val) => {
-                    if (typeof val === 'string' && val.endsWith('px')) {
-                        const match = String(val).match(/^(-?\d+)/);
-                        if (match) return parseInt(match[1], 10);
-                        return -1;
-                    }
-                    if (typeof val === 'number') return val;
-                    return -1; // null -> -1 (Auto)
-                },
-                valueLabelFormatter: (val) => (val === null ? 'Auto' : val),
-            };
+            // Helper for unit formatters (for UI display only)
+            const createFormatter =
+                (key, defaultLabel = 'Auto') =>
+                (val) => {
+                    if (val === null) return defaultLabel;
+                    const schemaKey = `${actor}.${key}`;
+                    const unit = CONFIG_SCHEMA[schemaKey].unit;
+                    return `${val}${unit}`;
+                };
 
             return ui.group(title, [
                 ui.text(`${prefix}.name`, 'Name:', { tooltip: `The name displayed for the ${actor}.`, fieldType: 'name' }),
@@ -14291,13 +14318,17 @@
                                 step: 1,
                                 tooltip: 'Adjusts padding for all sides.\nSet to the far left for (auto).',
                                 containerClass: 'sliderSubgroup',
-                                ...pxTransform,
+                                transformValue: (val) => (val < 0 ? null : val),
+                                toInputValue: (val) => (val === null ? -1 : val),
+                                valueLabelFormatter: createFormatter('bubblePadding'),
                             }),
                             ui.range(`${prefix}.bubbleBorderRadius`, 'Radius:', -1, 50, {
                                 step: 1,
                                 tooltip: 'Corner roundness of the bubble (e.g., 10px).\nSet to the far left for (auto).',
                                 containerClass: 'sliderSubgroup',
-                                ...pxTransform,
+                                transformValue: (val) => (val < 0 ? null : val),
+                                toInputValue: (val) => (val === null ? -1 : val),
+                                valueLabelFormatter: createFormatter('bubbleBorderRadius'),
                             }),
                         ],
                         { className: 'compoundSliderContainer' }
@@ -14307,13 +14338,9 @@
                         step: 1,
                         tooltip: 'Maximum width of the bubble.\nSet to the far left for (auto).',
                         containerClass: 'sliderContainer',
-                        transformValue: (val) => (val < bubbleWidthConfig.NULL_THRESHOLD ? null : `${val}%`),
-                        toInputValue: (val) => {
-                            if (typeof val === 'string' && val.endsWith('%')) return parseInt(val, 10);
-                            if (typeof val === 'number') return val;
-                            return bubbleWidthConfig.MIN;
-                        },
-                        valueLabelFormatter: (val) => (val === null ? 'Auto' : val),
+                        transformValue: (val) => (val < bubbleWidthConfig.NULL_THRESHOLD ? null : val),
+                        toInputValue: (val) => (val === null ? bubbleWidthConfig.MIN : val),
+                        valueLabelFormatter: createFormatter('bubbleMaxWidth'),
                     }),
 
                     ui.separator({ className: 'separator' }),

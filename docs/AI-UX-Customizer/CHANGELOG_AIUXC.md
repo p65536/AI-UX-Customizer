@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.0-b450] - 2026-02-01
+- **Core Changes**
+  - Refactored the configuration system to store style values (such as padding, border radius, and chat width) as pure numbers instead of text strings. This improves data consistency and validation.
+  - Centralized the management of CSS units (e.g., `px`, `vw`), separating raw data from visual presentation for better maintainability.
+- **UI Improvements**
+  - Streamlined the logic for sliders in the **Settings Panel** and **Theme Editor**, binding them directly to numeric values for more robust operation and accurate live previews.
+
 ## [1.0.0-b449] - 2026-02-01
 - **Core Changes (Config)**
   - Refactored configuration validation to use a centralized schema, improving the reliability and consistency of settings storage.
