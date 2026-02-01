@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b452] - 2026-02-02
+- **Core Changes**
+  - Refactored the script initialization process to validate the platform environment earlier. This internal change improves code logical flow and maintainability.
+
 ## [1.0.0-b451] - 2026-02-01
 - **Improvements**
   - Centralized the configuration logic for UI sliders (Chat Width, Bubble Padding, Border Radius). This ensures consistent range limits and behavior across the Settings Panel and Theme Editor.

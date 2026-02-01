@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b451
+// @version      1.0.0-b452
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -49,6 +49,33 @@
             HOST: 'gemini.google.com',
         },
     };
+
+    /**
+     * Identifies the current platform based on the hostname.
+     * @returns {string | null}
+     */
+    function identifyPlatform() {
+        const hostname = window.location.hostname;
+        if (hostname.endsWith(PLATFORM_DEFS.CHATGPT.HOST)) {
+            return PLATFORM_DEFS.CHATGPT.NAME;
+        }
+        if (hostname.endsWith(PLATFORM_DEFS.GEMINI.HOST)) {
+            return PLATFORM_DEFS.GEMINI.NAME;
+        }
+        return null;
+    }
+
+    /**
+     * Identify the current platform based on the hostname.
+     * The implementation uses function hoisting and is defined at the bottom of the file.
+     * @returns {string | null}
+     */
+    const PLATFORM = identifyPlatform();
+
+    if (!PLATFORM) {
+        console.warn(`${APPID} Unsupported platform. Script execution stopped.`);
+        return;
+    }
 
     /**
      * @constant CSS_VARS
@@ -718,7 +745,6 @@
         AUTO_SCROLL_COMPLETE: `${APPID}:autoScrollComplete`,
     };
 
-    // ---- Validation Schema ----
     /**
      * @constant CONFIG_SCHEMA
      * @description Centralized validation rules for theme properties.
@@ -2974,18 +3000,6 @@
     // =================================================================================
     // SECTION: Platform Configuration & Constants Loader
     // =================================================================================
-
-    /**
-     * Identify the current platform based on the hostname.
-     * The implementation uses function hoisting and is defined at the bottom of the file.
-     * @returns {string | null}
-     */
-    const PLATFORM = identifyPlatform();
-
-    if (!PLATFORM) {
-        console.warn(`${APPID} Unsupported platform. Script execution stopped.`);
-        return;
-    }
 
     // Load platform-specific definitions using factory functions.
     // These functions are defined at the bottom of the file to keep the entry point clean.
@@ -17499,21 +17513,6 @@
     // SECTION: Platform Definition Factories
     // Description: Encapsulates platform-specific constants and adapters to abstract site differences.
     // =================================================================================
-
-    /**
-     * Identifies the current platform based on the hostname.
-     * @returns {string | null}
-     */
-    function identifyPlatform() {
-        const hostname = window.location.hostname;
-        if (hostname.endsWith(PLATFORM_DEFS.CHATGPT.HOST)) {
-            return PLATFORM_DEFS.CHATGPT.NAME;
-        }
-        if (hostname.endsWith(PLATFORM_DEFS.GEMINI.HOST)) {
-            return PLATFORM_DEFS.GEMINI.NAME;
-        }
-        return null;
-    }
 
     /**
      * Returns definitions and adapters specifically for ChatGPT.
