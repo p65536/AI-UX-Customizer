@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-b451] - 2026-02-01
+- **Improvements**
+  - Centralized the configuration logic for UI sliders (Chat Width, Bubble Padding, Border Radius). This ensures consistent range limits and behavior across the Settings Panel and Theme Editor.
+  - Optimized the handling of "Auto" values in slider controls, eliminating hardcoded limits and ensuring smoother interaction.
+
 ## [1.0.0-b450] - 2026-02-01
 - **Core Changes**
   - Refactored the configuration system to store style values (such as padding, border radius, and chat width) as pure numbers instead of text strings. This improves data consistency and validation.

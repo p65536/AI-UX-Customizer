@@ -568,19 +568,6 @@ interface PlatformConstants {
         INPUT_AREA: string;
         SIDE_PANEL: string;
     };
-    SLIDER_CONFIGS: {
-        CHAT_WIDTH: {
-            MIN: number;
-            MAX: number;
-            NULL_THRESHOLD: number;
-            DEFAULT: string | null;
-        };
-        BUBBLE_MAX_WIDTH: {
-            MIN: number;
-            MAX: number;
-            NULL_THRESHOLD: number;
-        };
-    };
     Z_INDICES: Record<string, number | string>;
     INTERNAL_ROLES: {
         USER: string;

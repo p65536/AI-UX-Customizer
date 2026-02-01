@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b450
+// @version      1.0.0-b451
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -199,19 +199,6 @@
             BODY: 'body',
             INPUT_AREA: 'inputArea',
             SIDE_PANEL: 'sidePanel',
-        },
-        SLIDER_CONFIGS: {
-            CHAT_WIDTH: {
-                MIN: 29,
-                MAX: 80,
-                NULL_THRESHOLD: 30,
-                DEFAULT: null,
-            },
-            BUBBLE_MAX_WIDTH: {
-                MIN: 29,
-                MAX: 100,
-                NULL_THRESHOLD: 30,
-            },
         },
         Z_INDICES: {
             // Some settings are configured on the SECTION: Platform Constants
@@ -743,16 +730,16 @@
      */
     const CONFIG_SCHEMA = {
         // --- Numeric Fields ---
-        'assistant.bubblePadding': { type: 'numeric', unit: 'px', min: -1, max: 50, nullable: true },
-        'user.bubblePadding': { type: 'numeric', unit: 'px', min: -1, max: 50, nullable: true },
-        'assistant.bubbleBorderRadius': { type: 'numeric', unit: 'px', min: -1, max: 50, nullable: true },
-        'user.bubbleBorderRadius': { type: 'numeric', unit: 'px', min: -1, max: 50, nullable: true },
-        'assistant.bubbleMaxWidth': { type: 'numeric', unit: '%', min: 29, max: 100, nullable: true },
-        'user.bubbleMaxWidth': { type: 'numeric', unit: '%', min: 29, max: 100, nullable: true },
+        'assistant.bubblePadding': { type: 'numeric', unit: 'px', min: -1, max: 50, step: 1, nullable: true },
+        'user.bubblePadding': { type: 'numeric', unit: 'px', min: -1, max: 50, step: 1, nullable: true },
+        'assistant.bubbleBorderRadius': { type: 'numeric', unit: 'px', min: -1, max: 50, step: 1, nullable: true },
+        'user.bubbleBorderRadius': { type: 'numeric', unit: 'px', min: -1, max: 50, step: 1, nullable: true },
+        'assistant.bubbleMaxWidth': { type: 'numeric', unit: '%', min: 29, max: 100, step: 1, nullable: true },
+        'user.bubbleMaxWidth': { type: 'numeric', unit: '%', min: 29, max: 100, step: 1, nullable: true },
 
         // --- Platform Options ---
-        'options.icon_size': { type: 'numeric', unit: 'px', allowedValues: SHARED_CONSTANTS.UI_SPECS.AVATAR.SIZE_OPTIONS, nullable: false },
-        'options.chat_content_max_width': { type: 'numeric', unit: 'vw', min: 30, max: 80, nullable: true },
+        'options.icon_size': { type: 'numeric', unit: 'px', allowedValues: SHARED_CONSTANTS.UI_SPECS.AVATAR.SIZE_OPTIONS, step: 1, nullable: false },
+        'options.chat_content_max_width': { type: 'numeric', unit: 'vw', min: 30, max: 80, step: 1, nullable: true },
 
         // --- Color Fields ---
         'assistant.bubbleBackgroundColor': { type: 'color', label: 'Bubble bg color:' },
@@ -5704,6 +5691,41 @@
      * Uses CONFIG_SCHEMA to drive validation logic generically.
      */
     const ConfigProcessor = {
+        /**
+         * Generates slider properties (min, max, step, transformers) from the schema definition.
+         * Handles the logic for "Auto" (null) values by extending the minimum range.
+         * @param {string} configKey - The configuration key to look up in CONFIG_SCHEMA.
+         * @returns {object|null} Slider properties or null if not a valid numeric field.
+         */
+        getSliderProps(configKey) {
+            const rule = CONFIG_SCHEMA[configKey];
+            if (!rule || rule.type !== 'numeric') {
+                return null;
+            }
+
+            const min = rule.nullable ? rule.min - 1 : rule.min;
+            const max = rule.max;
+            const step = rule.step;
+
+            return {
+                min,
+                max,
+                step,
+                transformValue: (uiValue) => {
+                    // Convert UI value to Store value
+                    // If UI value is below the schema minimum, treat it as null (Auto)
+                    if (uiValue < rule.min) return null;
+                    return uiValue;
+                },
+                toInputValue: (storeValue) => {
+                    // Convert Store value to UI value
+                    // If Store value is null/undefined, return the UI minimum (Auto position)
+                    if (storeValue === null || storeValue === undefined) return min;
+                    return storeValue;
+                },
+            };
+        },
+
         /**
          * Validates a single theme object and returns user-facing errors. Does not mutate the object.
          * @param {object} themeData The theme data to validate.
@@ -12910,7 +12932,8 @@
 
             // --- 4. Options Section ---
             const p = `platforms.${PLATFORM}`;
-            const widthConfig = CONSTANTS.SLIDER_CONFIGS.CHAT_WIDTH;
+            const widthKey = `${p}.options.chat_content_max_width`;
+            const widthProps = ConfigProcessor.getSliderProps('options.chat_content_max_width');
             const sizeCheck = {
                 dependencies: [CONSTANTS.STORE_KEYS.SIZE_EXCEEDED_PATH],
                 disabledIf: (data) => getPropertyByPath(data, CONSTANTS.STORE_KEYS.SIZE_EXCEEDED_PATH),
@@ -12930,18 +12953,11 @@
                         },
                         valueLabelFormatter: (val) => `${val}px`,
                     }),
-                    ui.range(`${p}.options.chat_content_max_width`, 'Chat content max width:', widthConfig.MIN, widthConfig.MAX, {
-                        step: 1,
-                        tooltip: `Adjusts the maximum width of the chat content.\nMove slider to the far left for default.\nRange: ${widthConfig.NULL_THRESHOLD} to ${widthConfig.MAX}.`,
-                        // Value < Threshold becomes null (Auto)
-                        transformValue: (val) => {
-                            if (val < widthConfig.NULL_THRESHOLD) return null;
-                            return val;
-                        },
-                        toInputValue: (val) => {
-                            if (val === null) return widthConfig.MIN;
-                            return val;
-                        },
+                    ui.range(widthKey, 'Chat content max width:', widthProps.min, widthProps.max, {
+                        step: widthProps.step,
+                        tooltip: `Adjusts the maximum width of the chat content.\nMove slider to the far left for default.\nRange: ${widthProps.min} to ${widthProps.max}.`,
+                        transformValue: widthProps.transformValue,
+                        toInputValue: widthProps.toInputValue,
                         valueLabelFormatter: (val) => {
                             if (!val) return 'Auto';
                             const unit = CONFIG_SCHEMA['options.chat_content_max_width'].unit;
@@ -14246,10 +14262,6 @@
          * @private
          * Renders the theme editor form using UIBuilder.
          */
-        /**
-         * @private
-         * Renders the theme editor form using UIBuilder.
-         */
         _renderThemeForm(ui, themeKey) {
             const isNotDefault = themeKey !== CONSTANTS.THEME_IDS.DEFAULT;
 
@@ -14289,7 +14301,9 @@
 
         _renderActorGroup(ui, actor, title) {
             const prefix = actor;
-            const bubbleWidthConfig = CONSTANTS.SLIDER_CONFIGS.BUBBLE_MAX_WIDTH;
+            const paddingProps = ConfigProcessor.getSliderProps(`${actor}.bubblePadding`);
+            const radiusProps = ConfigProcessor.getSliderProps(`${actor}.bubbleBorderRadius`);
+            const widthProps = ConfigProcessor.getSliderProps(`${actor}.bubbleMaxWidth`);
 
             // Helper for unit formatters (for UI display only)
             const createFormatter =
@@ -14314,32 +14328,32 @@
                     // Compound container for Padding & Radius
                     ui.container(
                         [
-                            ui.range(`${prefix}.bubblePadding`, 'Padding:', -1, 30, {
-                                step: 1,
+                            ui.range(`${prefix}.bubblePadding`, 'Padding:', paddingProps.min, paddingProps.max, {
+                                step: paddingProps.step,
                                 tooltip: 'Adjusts padding for all sides.\nSet to the far left for (auto).',
                                 containerClass: 'sliderSubgroup',
-                                transformValue: (val) => (val < 0 ? null : val),
-                                toInputValue: (val) => (val === null ? -1 : val),
+                                transformValue: paddingProps.transformValue,
+                                toInputValue: paddingProps.toInputValue,
                                 valueLabelFormatter: createFormatter('bubblePadding'),
                             }),
-                            ui.range(`${prefix}.bubbleBorderRadius`, 'Radius:', -1, 50, {
-                                step: 1,
+                            ui.range(`${prefix}.bubbleBorderRadius`, 'Radius:', radiusProps.min, radiusProps.max, {
+                                step: radiusProps.step,
                                 tooltip: 'Corner roundness of the bubble (e.g., 10px).\nSet to the far left for (auto).',
                                 containerClass: 'sliderSubgroup',
-                                transformValue: (val) => (val < 0 ? null : val),
-                                toInputValue: (val) => (val === null ? -1 : val),
+                                transformValue: radiusProps.transformValue,
+                                toInputValue: radiusProps.toInputValue,
                                 valueLabelFormatter: createFormatter('bubbleBorderRadius'),
                             }),
                         ],
                         { className: 'compoundSliderContainer' }
                     ),
 
-                    ui.range(`${prefix}.bubbleMaxWidth`, 'max Width:', bubbleWidthConfig.MIN, bubbleWidthConfig.MAX, {
-                        step: 1,
+                    ui.range(`${prefix}.bubbleMaxWidth`, 'max Width:', widthProps.min, widthProps.max, {
+                        step: widthProps.step,
                         tooltip: 'Maximum width of the bubble.\nSet to the far left for (auto).',
                         containerClass: 'sliderContainer',
-                        transformValue: (val) => (val < bubbleWidthConfig.NULL_THRESHOLD ? null : val),
-                        toInputValue: (val) => (val === null ? bubbleWidthConfig.MIN : val),
+                        transformValue: widthProps.transformValue,
+                        toInputValue: widthProps.toInputValue,
                         valueLabelFormatter: createFormatter('bubbleMaxWidth'),
                     }),
 
