@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.0-b449] - 2026-02-01
+- **Core Changes (Config)**
+  - Refactored configuration validation to use a centralized schema, improving the reliability and consistency of settings storage.
+  - Implemented strict validation for settings like **Icon Size** to ensure values match predefined options exactly.
+  - Fixed data type inconsistencies where numeric settings were treated as strings, ensuring proper behavior with UI sliders.
+  - Adjusted validation thresholds for **Chat Content Max Width** to correctly handle the "Auto" default state.
+
 ## [1.0.0-b448] - 2026-01-31
 - **Performance Improvements**
   - Optimized the message caching mechanism to reduce browser load when scrolling through chat history, while maintaining instant responsiveness for real-time messages.

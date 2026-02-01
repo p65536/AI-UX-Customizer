@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b448
+// @version      1.0.0-b449
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -745,6 +745,12 @@
         'user.bubbleBorderRadius': { type: 'numeric', unit: 'px', min: -1, max: 50, nullable: true },
         'assistant.bubbleMaxWidth': { type: 'numeric', unit: '%', min: 29, max: 100, nullable: true },
         'user.bubbleMaxWidth': { type: 'numeric', unit: '%', min: 29, max: 100, nullable: true },
+
+        // --- Platform Options ---
+        // icon_size uses allowedValues for strict validation and returns the raw number (no string cast)
+        'options.icon_size': { type: 'numeric', allowedValues: SHARED_CONSTANTS.UI_SPECS.AVATAR.SIZE_OPTIONS, nullable: false },
+        // chat_content_max_width min is set to 30 (NULL_THRESHOLD) so values < 30 become null (default/auto)
+        'options.chat_content_max_width': { type: 'numeric', unit: 'vw', min: 30, max: 80, nullable: true },
 
         // --- Color Fields ---
         'assistant.bubbleBackgroundColor': { type: 'color', label: 'Bubble bg color:' },
@@ -5703,6 +5709,9 @@
                 // Skip metadata pattern validation for defaultSet
                 if (isDefaultSet && rule.type === 'regexArray') continue;
 
+                // Skip platform options validation during theme validation
+                if (configKey.startsWith('options.')) continue;
+
                 const value = getPropertyByPath(themeData, configKey);
 
                 // Skip validation if value is undefined (not present in this update)
@@ -5816,26 +5825,20 @@
                         }
                     }
 
-                    // Sanitize icon_size
-                    if (!CONSTANTS.UI_SPECS.AVATAR.SIZE_OPTIONS.includes(platformConfig.options.icon_size)) {
-                        platformConfig.options.icon_size = CONSTANTS.UI_SPECS.AVATAR.DEFAULT_SIZE;
-                    }
+                    // Sanitize options using SCHEMA (icon_size, chat_content_max_width)
+                    for (const [configKey, rule] of Object.entries(THEME_VALIDATION_SCHEMA)) {
+                        if (configKey.startsWith('options.')) {
+                            const value = getPropertyByPath(platformConfig, configKey);
 
-                    // Sanitize chat_content_max_width
-                    const width = platformConfig.options.chat_content_max_width;
-                    const widthConfig = CONSTANTS.SLIDER_CONFIGS.CHAT_WIDTH;
-                    const defaultValue = widthConfig.DEFAULT;
-                    let sanitized = false;
-                    if (width === null) {
-                        sanitized = true;
-                    } else if (typeof width === 'string' && width.endsWith('vw')) {
-                        const numVal = parseInt(width, 10);
-                        if (!isNaN(numVal) && numVal >= widthConfig.NULL_THRESHOLD && numVal <= widthConfig.MAX) {
-                            sanitized = true;
+                            // IMPORTANT: For options, the default value comes from the platform root defaults, not defaultSet
+                            const platformDefaultRoot = DEFAULT_THEME_CONFIG.platforms[platformName];
+                            const factoryDefaultValue = getPropertyByPath(platformDefaultRoot, configKey);
+
+                            const sanitizedValue = this._sanitizeNumericProperty(value, rule, factoryDefaultValue);
+
+                            // Apply sanitized value back to the platformConfig
+                            setPropertyByPath(platformConfig, configKey, sanitizedValue);
                         }
-                    }
-                    if (!sanitized) {
-                        platformConfig.options.chat_content_max_width = defaultValue;
                     }
                 });
             }
@@ -5847,6 +5850,9 @@
 
                 // Iterate over schema to sanitize known properties
                 for (const [configKey, rule] of Object.entries(THEME_VALIDATION_SCHEMA)) {
+                    // Skip options validation for themes
+                    if (configKey.startsWith('options.')) continue;
+
                     if (rule.type === 'numeric') {
                         const value = getPropertyByPath(theme, configKey);
                         // Fallback logic for sanitization relies on the hardcoded DEFAULT_THEME_CONFIG structure.
@@ -5899,12 +5905,24 @@
          * Validates and sanitizes a numeric property based on the provided rule.
          * @param {string | number | null} value The value to sanitize.
          * @param {object} rule The validation rule from THEME_VALIDATION_SCHEMA.
-         * @param {string | null} defaultValue The fallback value.
-         * @returns {string | null} The sanitized value.
+         * @param {any} defaultValue The fallback value.
+         * @returns {any} The sanitized value.
          */
         _sanitizeNumericProperty(value, rule, defaultValue) {
             if (rule.nullable && value === null) {
                 return null;
+            }
+
+            // Check against allowed values (enum)
+            if (rule.allowedValues && Array.isArray(rule.allowedValues)) {
+                // Check if value loosely matches any allowed value
+                const isValid = rule.allowedValues.some((v) => String(v) === String(value));
+                if (!isValid) {
+                    return defaultValue === null ? null : defaultValue;
+                }
+                // Return the matching value from allowedValues to ensure type consistency (e.g. Number vs String)
+                const matched = rule.allowedValues.find((v) => String(v) === String(value));
+                return matched;
             }
 
             // If unit is defined, value must be a string ending with that unit
