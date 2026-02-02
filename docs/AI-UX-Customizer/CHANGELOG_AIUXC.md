@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-b453] - 2026-02-02
+- **Core Changes**
+  - **[Refactor]** Centralized configuration definitions into a unified `CONFIG_SCHEMA`, improving system stability and developer maintainability.
+  - **[UI]** Settings menus are now dynamically generated from the schema, ensuring consistent validation and display logic.
+
 ## [1.0.0-b452] - 2026-02-02
 - **Core Changes**
   - Refactored the script initialization process to validate the platform environment earlier. This internal change improves code logical flow and maintainability.

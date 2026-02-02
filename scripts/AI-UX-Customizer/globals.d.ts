@@ -468,16 +468,7 @@ interface ObserverAdapter {
 
 interface SettingsPanelAdapter {
     getPlatformSpecificFeatureToggles(): Array<{
-        type: string;
         configKey: string;
-        label: string;
-        title?: string;
-        tooltip?: string;
-        className?: string;
-        visibleIf?: (data: any) => boolean;
-        disabledIf?: (data: any) => boolean;
-        dependencies?: string[];
-        onChange?: (value: any, data: any) => void;
     }>;
 }
 

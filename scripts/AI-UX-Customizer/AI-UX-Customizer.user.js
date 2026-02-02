@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b452
+// @version      1.0.0-b453
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -747,47 +747,280 @@
 
     /**
      * @constant CONFIG_SCHEMA
-     * @description Centralized validation rules for theme properties.
-     * Used by ConfigProcessor to validate and sanitize user inputs.
-     * * [RULE] For 'numeric' type fields, the 'unit' property is MANDATORY to ensure centralized unit management.
-     * - If a unit is required (e.g. pixels), set unit: 'px'.
-     * - If no unit is required (unitless number), set unit: '' (empty string).
-     * - DO NOT omit the 'unit' property. The application logic assumes it exists and will NOT fallback.
+     * @description Centralized definition of configuration properties, validation rules, and UI metadata.
+     * Structured into 'theme' (per-theme settings) and 'platform' (global settings).
      */
     const CONFIG_SCHEMA = {
-        // --- Numeric Fields ---
-        'assistant.bubblePadding': { type: 'numeric', unit: 'px', min: -1, max: 50, step: 1, nullable: true },
-        'user.bubblePadding': { type: 'numeric', unit: 'px', min: -1, max: 50, step: 1, nullable: true },
-        'assistant.bubbleBorderRadius': { type: 'numeric', unit: 'px', min: -1, max: 50, step: 1, nullable: true },
-        'user.bubbleBorderRadius': { type: 'numeric', unit: 'px', min: -1, max: 50, step: 1, nullable: true },
-        'assistant.bubbleMaxWidth': { type: 'numeric', unit: '%', min: 29, max: 100, step: 1, nullable: true },
-        'user.bubbleMaxWidth': { type: 'numeric', unit: '%', min: 29, max: 100, step: 1, nullable: true },
+        // ========================================================================
+        // THEME SCOPE
+        // Used by ThemeModal and ThemeManager. Paths are relative to the theme object root.
+        // ========================================================================
+        theme: {
+            // --- Numeric Fields ---
+            'assistant.bubblePadding': {
+                type: 'numeric',
+                def: { unit: 'px', nullable: true },
+                validators: { min: -1, max: 50, step: 1 },
+                ui: { label: 'Padding:' },
+            },
+            'user.bubblePadding': {
+                type: 'numeric',
+                def: { unit: 'px', nullable: true },
+                validators: { min: -1, max: 50, step: 1 },
+                ui: { label: 'Padding:' },
+            },
+            'assistant.bubbleBorderRadius': {
+                type: 'numeric',
+                def: { unit: 'px', nullable: true },
+                validators: { min: -1, max: 50, step: 1 },
+                ui: { label: 'Radius:' },
+            },
+            'user.bubbleBorderRadius': {
+                type: 'numeric',
+                def: { unit: 'px', nullable: true },
+                validators: { min: -1, max: 50, step: 1 },
+                ui: { label: 'Radius:' },
+            },
+            'assistant.bubbleMaxWidth': {
+                type: 'numeric',
+                def: { unit: '%', nullable: true },
+                validators: { min: 29, max: 100, step: 1 },
+                ui: { label: 'max Width:' },
+            },
+            'user.bubbleMaxWidth': {
+                type: 'numeric',
+                def: { unit: '%', nullable: true },
+                validators: { min: 29, max: 100, step: 1 },
+                ui: { label: 'max Width:' },
+            },
 
-        // --- Platform Options ---
-        'options.icon_size': { type: 'numeric', unit: 'px', allowedValues: SHARED_CONSTANTS.UI_SPECS.AVATAR.SIZE_OPTIONS, step: 1, nullable: false },
-        'options.chat_content_max_width': { type: 'numeric', unit: 'vw', min: 30, max: 80, step: 1, nullable: true },
+            // --- Color Fields ---
+            'assistant.bubbleBackgroundColor': {
+                type: 'color',
+                ui: { label: 'Bubble bg color:', tooltip: 'Background color of the message bubble.' },
+            },
+            'user.bubbleBackgroundColor': {
+                type: 'color',
+                ui: { label: 'Bubble bg color:', tooltip: 'Background color of the message bubble.' },
+            },
+            'assistant.textColor': {
+                type: 'color',
+                ui: { label: 'Text color:', tooltip: 'Color of the text inside the bubble.' },
+            },
+            'user.textColor': {
+                type: 'color',
+                ui: { label: 'Text color:', tooltip: 'Color of the text inside the bubble.' },
+            },
+            'window.backgroundColor': {
+                type: 'color',
+                ui: { label: 'Window bg color:', tooltip: 'Main background color of the chat window.' },
+            },
+            'inputArea.backgroundColor': {
+                type: 'color',
+                ui: { label: 'Input bg color:', tooltip: 'Background color of the text input area.' },
+            },
+            'inputArea.textColor': {
+                type: 'color',
+                ui: { label: 'Input text color:', tooltip: 'Color of the text you type.' },
+            },
 
-        // --- Color Fields ---
-        'assistant.bubbleBackgroundColor': { type: 'color', label: 'Bubble bg color:' },
-        'user.bubbleBackgroundColor': { type: 'color', label: 'Bubble bg color:' },
-        'assistant.textColor': { type: 'color', label: 'Text color:' },
-        'user.textColor': { type: 'color', label: 'Text color:' },
-        'window.backgroundColor': { type: 'color', label: 'Window bg color:' },
-        'inputArea.backgroundColor': { type: 'color', label: 'Input bg color:' },
-        'inputArea.textColor': { type: 'color', label: 'Input text color:' },
+            // --- Image Fields ---
+            'assistant.icon': {
+                type: 'image',
+                def: { imageType: 'icon' },
+                ui: { label: 'Icon:', tooltip: "URL, Data URI, or <svg> for the assistant's icon." },
+            },
+            'user.icon': {
+                type: 'image',
+                def: { imageType: 'icon' },
+                ui: { label: 'Icon:', tooltip: "URL, Data URI, or <svg> for the user's icon." },
+            },
+            'assistant.standingImageUrl': {
+                type: 'image',
+                def: { imageType: 'image' },
+                ui: { label: 'Standing image:', tooltip: "URL or Data URI for the assistant's standing image." },
+            },
+            'user.standingImageUrl': {
+                type: 'image',
+                def: { imageType: 'image' },
+                ui: { label: 'Standing image:', tooltip: "URL or Data URI for the user's standing image." },
+            },
+            'window.backgroundImageUrl': {
+                type: 'image',
+                def: { imageType: 'image' },
+                ui: { label: 'Background image:', tooltip: 'URL or Data URI for the main background image.' },
+            },
 
-        // --- Image Fields (Icon) ---
-        'assistant.icon': { type: 'image', imageType: 'icon', label: 'Icon:' },
-        'user.icon': { type: 'image', imageType: 'icon', label: 'Icon:' },
+            // --- Text/Pattern Fields ---
+            'assistant.name': {
+                type: 'text',
+                ui: { label: 'Name:', tooltip: 'The name displayed for the assistant.' },
+            },
+            'user.name': {
+                type: 'text',
+                ui: { label: 'Name:', tooltip: 'The name displayed for the user.' },
+            },
+            'assistant.font': {
+                type: 'text',
+                ui: { label: 'Font:', tooltip: 'Font family for the text.\nFont names with spaces must be quoted (e.g., "Times New Roman").' },
+            },
+            'user.font': {
+                type: 'text',
+                ui: { label: 'Font:', tooltip: 'Font family for the text.\nFont names with spaces must be quoted (e.g., "Times New Roman").' },
+            },
+            'metadata.matchPatterns': {
+                type: 'regexArray',
+                ui: { label: 'Title Patterns' },
+            },
+            'metadata.urlPatterns': {
+                type: 'regexArray',
+                ui: { label: 'URL Patterns' },
+            },
 
-        // --- Image Fields (Standing Image) ---
-        'assistant.standingImageUrl': { type: 'image', imageType: 'image', label: 'Standing image:' },
-        'user.standingImageUrl': { type: 'image', imageType: 'image', label: 'Standing image:' },
-        'window.backgroundImageUrl': { type: 'image', imageType: 'image', label: 'Background image:' },
+            // --- Select Fields (Window Background) ---
+            'window.backgroundSize': {
+                type: 'select',
+                def: { options: ['', 'auto', 'cover', 'contain'] },
+                ui: { label: 'Size:', tooltip: 'How the background image is sized.' },
+            },
+            'window.backgroundPosition': {
+                type: 'select',
+                def: { options: ['', 'top left', 'top center', 'top right', 'center left', 'center center', 'center right', 'bottom left', 'bottom center', 'bottom right'] },
+                ui: { label: 'Position:', tooltip: 'Position of the background image.' },
+            },
+            'window.backgroundRepeat': {
+                type: 'select',
+                def: { options: ['', 'no-repeat', 'repeat'] },
+                ui: { label: 'Repeat:', tooltip: 'How the background image is repeated.' },
+            },
+        },
 
-        // --- Pattern Fields ---
-        'metadata.matchPatterns': { type: 'regexArray', label: 'Title Patterns' },
-        'metadata.urlPatterns': { type: 'regexArray', label: 'URL Patterns' },
+        // ========================================================================
+        // PLATFORM SCOPE
+        // Used by SettingsPanel and Platform Adapters. Paths are relative to `platforms.${PLATFORM}.`.
+        // ========================================================================
+        platform: {
+            // --- Options ---
+            'options.icon_size': {
+                type: 'numeric',
+                def: { unit: 'px', default: 64 },
+                validators: { allowedValues: SHARED_CONSTANTS.UI_SPECS.AVATAR.SIZE_OPTIONS, step: 1 },
+                ui: { label: 'Icon size:', tooltip: 'Specifies the size of the chat icons in pixels.' },
+            },
+            'options.chat_content_max_width': {
+                type: 'numeric',
+                def: { unit: 'vw', nullable: true },
+                validators: { min: 30, max: 80, step: 1 },
+                ui: { label: 'Chat content max width:', tooltip: 'Adjusts the maximum width of the chat content.\nMove slider to the far left for default.' },
+            },
+            'options.respect_avatar_space': {
+                type: 'toggle',
+                def: { default: true },
+                ui: {
+                    label: 'Prevent image/avatar overlap',
+                    title: 'When enabled, adjusts the standing image area to not overlap the avatar icon.\nWhen disabled, the standing image is maximized but may overlap the icon.',
+                },
+            },
+
+            // --- Features ---
+            'features.timestamp.enabled': {
+                type: 'toggle',
+                def: { default: true },
+                ui: { label: 'Show timestamp', title: 'Displays the timestamp for each message.' },
+            },
+            'features.collapsible_button.enabled': {
+                type: 'toggle',
+                def: { default: true },
+                ui: { label: 'Collapsible button', title: 'Enables a button to collapse large message bubbles.' },
+            },
+            'features.collapsible_button.auto_collapse_user_message.enabled': {
+                type: 'toggle',
+                def: { default: false },
+                ui: {
+                    label: 'Auto collapse user message',
+                    title: 'Automatically collapses user messages that exceed the height threshold.\nApplies to new messages and existing history on load.\nRequires "Collapsible button" to be enabled.',
+                    dependencies: ['features.collapsible_button.enabled'],
+                    disabledIf: (pConfig) => !getPropertyByPath(pConfig, 'features.collapsible_button.enabled'),
+                },
+            },
+            'features.bubble_nav_buttons.enabled': {
+                type: 'toggle',
+                def: { default: true },
+                ui: { label: 'Bubble nav buttons', title: 'Enables navigation buttons (Prev/Next/Top) attached to each message.' },
+            },
+            'features.fixed_nav_console.enabled': {
+                type: 'toggle',
+                def: { default: true },
+                ui: { label: 'Navigation console', title: 'When enabled, a navigation console with message counters will be displayed.' },
+            },
+            'features.fixed_nav_console.keyboard_shortcuts.enabled': {
+                type: 'toggle',
+                def: { default: true },
+                ui: {
+                    label: 'Keyboard shortcuts',
+                    title: 'Enable keyboard shortcuts for message navigation and Jump List.\n\nAlt + ↑ / ↓ : Previous / Next message\nAlt + Shift + ↑ / ↓ : First / Last message\nAlt + J : Open Jump List\nAlt + N : Input message number\n\nRequires "Navigation console" to be enabled.',
+                    dependencies: ['features.fixed_nav_console.enabled'],
+                    disabledIf: (pConfig) => !getPropertyByPath(pConfig, 'features.fixed_nav_console.enabled'),
+                },
+            },
+            'features.fixed_nav_console.position': {
+                type: 'select',
+                def: { options: [SHARED_CONSTANTS.CONSOLE_POSITIONS.INPUT_TOP, SHARED_CONSTANTS.CONSOLE_POSITIONS.HEADER] },
+                ui: {
+                    label: 'Console Position',
+                    title: 'Choose where to display the navigation console.\nInput Top: Floating above the input area (Default).\nHeader: Embedded in the top toolbar.',
+                    dependencies: ['features.fixed_nav_console.enabled'],
+                    disabledIf: (pConfig) => !getPropertyByPath(pConfig, 'features.fixed_nav_console.enabled'),
+                },
+            },
+            'features.load_full_history_on_chat_load.enabled': {
+                type: 'toggle',
+                def: { default: true },
+                ui: {
+                    label: 'Load full history/Scan layout',
+                    title: 'When enabled, automatically scrolls back (Gemini) or scans layout (ChatGPT) on chat load.',
+                },
+            },
+        },
+    };
+
+    /**
+     * @constant ConfigPathResolver
+     * @description Centralizes logic for resolving configuration paths based on scope.
+     * Abstraction layer to prevent hardcoding paths like `platforms.${PLATFORM}`.
+     */
+    const ConfigPathResolver = {
+        /**
+         * Returns the root path prefix for the current platform's settings.
+         * @returns {string} e.g., "platforms.ChatGPT"
+         */
+        get PLATFORM_ROOT() {
+            return `platforms.${PLATFORM}`;
+        },
+
+        /**
+         * Converts a schema key to a full storage path (dot-notation).
+         * @param {'theme'|'platform'} scope - The scope of the setting.
+         * @param {string} key - The relative key defined in CONFIG_SCHEMA.
+         * @returns {string} The full path for accessing the value in the store.
+         */
+        resolve(scope, key) {
+            if (scope === 'platform') {
+                return `${this.PLATFORM_ROOT}.${key}`;
+            }
+            // Theme scope paths are already relative to the theme object root
+            return key;
+        },
+
+        /**
+         * Retrieves the platform-specific configuration object from the full app config.
+         * @param {AppConfig} config - The full configuration object.
+         * @returns {object} The platform specific config (e.g. config.platforms.ChatGPT).
+         */
+        getPlatformConfig(config) {
+            if (!config || !config.platforms) return {};
+            return config.platforms[PLATFORM] || {};
+        },
     };
 
     /**
@@ -2856,7 +3089,7 @@
     class BaseSettingsPanelAdapter {
         /**
          * Returns platform-specific feature toggles for the settings panel.
-         * @returns {Array<{type: string, configKey: string, label: string, title?: string, disabledIf?: (data: any) => boolean, dependencies?: string[]}>} Array of toggle definitions.
+         * @returns {Array<{configKey: string}>} Array of toggle definitions.
          */
         getPlatformSpecificFeatureToggles() {
             return [];
@@ -3327,7 +3560,7 @@
         const actorUpper = actor.toUpperCase();
 
         // Helper to get unit from schema directly
-        const getUnit = (key) => CONFIG_SCHEMA[`${actor}.${key}`]?.unit;
+        const getUnit = (key) => CONFIG_SCHEMA.theme[`${actor}.${key}`]?.def?.unit;
         const unitTransformer = (key) => (value) => (value !== null && value !== undefined ? `${value}${getUnit(key)}` : null);
 
         return [
@@ -5708,33 +5941,40 @@
         /**
          * Generates slider properties (min, max, step, transformers) from the schema definition.
          * Handles the logic for "Auto" (null) values by extending the minimum range.
+         * Searches both theme and platform scopes.
          * @param {string} configKey - The configuration key to look up in CONFIG_SCHEMA.
          * @returns {object|null} Slider properties or null if not a valid numeric field.
          */
         getSliderProps(configKey) {
-            const rule = CONFIG_SCHEMA[configKey];
-            if (!rule || rule.type !== 'numeric') {
+            // Search in both scopes
+            const schemaItem = CONFIG_SCHEMA.theme[configKey] || CONFIG_SCHEMA.platform[configKey];
+
+            if (!schemaItem || schemaItem.type !== 'numeric' || !schemaItem.validators) {
                 return null;
             }
 
-            const min = rule.nullable ? rule.min - 1 : rule.min;
-            const max = rule.max;
-            const step = rule.step;
+            const { min, max, step } = schemaItem.validators;
+            const isNullable = schemaItem.def?.nullable;
+
+            // If allowedValues is present, it's not a range slider (handled by select logic usually, but here for completeness)
+            if (schemaItem.validators.allowedValues) return null;
+
+            const uiMin = isNullable ? min - 1 : min;
 
             return {
-                min,
+                min: uiMin,
                 max,
                 step,
                 transformValue: (uiValue) => {
                     // Convert UI value to Store value
                     // If UI value is below the schema minimum, treat it as null (Auto)
-                    if (uiValue < rule.min) return null;
+                    if (uiValue < min) return null;
                     return uiValue;
                 },
                 toInputValue: (storeValue) => {
                     // Convert Store value to UI value
                     // If Store value is null/undefined, return the UI minimum (Auto position)
-                    if (storeValue === null || storeValue === undefined) return min;
+                    if (storeValue === null || storeValue === undefined) return uiMin;
                     return storeValue;
                 },
             };
@@ -5750,26 +5990,23 @@
             /** @type {Array<{field: string, message: string}>} */
             const errors = [];
 
-            // Iterate over the schema to validate fields present in the themeData
-            for (const [configKey, rule] of Object.entries(CONFIG_SCHEMA)) {
+            // Iterate over the theme schema
+            for (const [configKey, schemaItem] of Object.entries(CONFIG_SCHEMA.theme)) {
                 // Skip metadata pattern validation for defaultSet
-                if (isDefaultSet && rule.type === 'regexArray') continue;
-
-                // Skip platform options validation during theme validation
-                if (configKey.startsWith('options.')) continue;
+                if (isDefaultSet && schemaItem.type === 'regexArray') continue;
 
                 const value = getPropertyByPath(themeData, configKey);
 
                 // Skip validation if value is undefined (not present in this update)
-                // Note: null is a valid value for some fields (reset to default), so we check against undefined.
                 if (value === undefined) continue;
 
-                if (rule.type === 'image') {
-                    const result = validateImageString(value, rule.imageType);
+                if (schemaItem.type === 'image') {
+                    const imageType = schemaItem.def?.imageType || 'image';
+                    const result = validateImageString(value, imageType);
                     if (!result.isValid) {
-                        errors.push({ field: configKey, message: `${rule.label} ${result.message}` });
+                        errors.push({ field: configKey, message: `${schemaItem.ui?.label || configKey} ${result.message}` });
                     }
-                } else if (rule.type === 'regexArray') {
+                } else if (schemaItem.type === 'regexArray') {
                     if (Array.isArray(value)) {
                         for (const p of value) {
                             try {
@@ -5780,10 +6017,16 @@
                             }
                         }
                     }
-                } else if (rule.type === 'color') {
+                } else if (schemaItem.type === 'color') {
                     // Allow null/empty for optional colors, but if set, must be valid
                     if (value && !validateColorString(value)) {
-                        errors.push({ field: configKey, message: `${rule.label} Invalid color format.` });
+                        errors.push({ field: configKey, message: `${schemaItem.ui?.label || configKey} Invalid color format.` });
+                    }
+                } else if (schemaItem.type === 'numeric' && schemaItem.validators) {
+                    const { min, max } = schemaItem.validators;
+                    // Check range if value is numeric
+                    if (typeof value === 'number' && (value < min || value > max)) {
+                        errors.push({ field: configKey, message: `${schemaItem.ui?.label || configKey} Must be between ${min} and ${max}.` });
                     }
                 }
             }
@@ -5793,24 +6036,19 @@
 
         /**
          * Normalizes theme data by cleaning up array fields.
-         * Specifically removes empty strings from regex pattern arrays.
          * @param {object} themeData The theme data to normalize.
          * @returns {object} The normalized theme data.
          */
         normalize(themeData) {
             const normalized = deepClone(themeData);
-            const schema = CONFIG_SCHEMA;
 
-            for (const key in schema) {
-                if (Object.prototype.hasOwnProperty.call(schema, key)) {
-                    const rule = schema[key];
-                    if (rule.type === 'regexArray') {
-                        const value = getPropertyByPath(normalized, key);
-                        if (Array.isArray(value)) {
-                            // Remove empty strings or strings with only whitespace
-                            const cleanValue = value.filter((v) => v && v.trim() !== '');
-                            setPropertyByPath(normalized, key, cleanValue);
-                        }
+            for (const [key, schemaItem] of Object.entries(CONFIG_SCHEMA.theme)) {
+                if (schemaItem.type === 'regexArray') {
+                    const value = getPropertyByPath(normalized, key);
+                    if (Array.isArray(value)) {
+                        // Remove empty strings or strings with only whitespace
+                        const cleanValue = value.filter((v) => v && v.trim() !== '');
+                        setPropertyByPath(normalized, key, cleanValue);
                     }
                 }
             }
@@ -5824,120 +6062,93 @@
          * @returns {AppConfig} The sanitized configuration object.
          */
         process(config) {
-            // 1. Sanitize Platform Specific Options & Collect defaultSets
-            const platformDefaultSets = [];
+            // 1. Sanitize Platform Specific Options
             if (config.platforms) {
-                // Use Object.entries to access the platform key (e.g., "ChatGPT") for default lookup
                 Object.entries(config.platforms).forEach(([platformName, platformConfig]) => {
-                    // Define critical sections to check and auto-repair.
-                    // We check not just for existence, but also that they are valid objects.
+                    // Critical section check
                     const criticalSections = ['options', 'features', 'defaultSet'];
-
                     criticalSections.forEach((section) => {
-                        // If section is missing, null, or not an object (e.g. string/number corrupted)
                         if (!isObject(platformConfig[section])) {
-                            // Attempt to restore from the source code default constant
                             const defaultSection = DEFAULT_THEME_CONFIG.platforms[platformName]?.[section];
                             if (defaultSection) {
-                                // Restoration successful: Deep clone to avoid reference issues
                                 platformConfig[section] = deepClone(defaultSection);
                                 Logger.warn('Config', '', `Restored corrupted section "${section}" for ${platformName} from defaults.`);
                             }
                         }
                     });
 
-                    // Collect defaultSet AFTER potential restoration
-                    if (platformConfig.defaultSet) {
-                        platformDefaultSets.push(platformConfig.defaultSet);
-                    }
+                    // Sanitize Platform Settings using Platform Schema
+                    for (const [key, schemaItem] of Object.entries(CONFIG_SCHEMA.platform)) {
+                        const value = getPropertyByPath(platformConfig, key);
+                        // Default comes from schema definition
+                        const factoryDefaultValue = schemaItem.def?.default ?? null;
 
-                    // Validate Features
-                    if (platformConfig.features) {
-                        // Ensure fixed_nav_console feature object is valid before checking position
-                        if (!isObject(platformConfig.features.fixed_nav_console)) {
-                            const defaultFeature = DEFAULT_THEME_CONFIG.platforms[platformName]?.features?.fixed_nav_console;
-                            if (defaultFeature) {
-                                platformConfig.features.fixed_nav_console = deepClone(defaultFeature);
+                        if (schemaItem.type === 'numeric') {
+                            const sanitizedValue = this._sanitizeNumericProperty(value, schemaItem, factoryDefaultValue);
+                            setPropertyByPath(platformConfig, key, sanitizedValue);
+                        } else if (schemaItem.type === 'toggle') {
+                            if (typeof value !== 'boolean') {
+                                setPropertyByPath(platformConfig, key, factoryDefaultValue);
                             }
-                        }
-
-                        const consoleFeature = platformConfig.features.fixed_nav_console;
-                        // Check position enum if feature exists (it should now, unless default is also missing)
-                        if (consoleFeature) {
-                            const validPositions = Object.values(CONSTANTS.CONSOLE_POSITIONS);
-                            if (!validPositions.includes(consoleFeature.position)) {
-                                consoleFeature.position = CONSTANTS.CONSOLE_POSITIONS.INPUT_TOP;
+                        } else if (schemaItem.type === 'select') {
+                            const options = schemaItem.def?.options || [];
+                            if (!options.includes(value)) {
+                                setPropertyByPath(platformConfig, key, factoryDefaultValue || options[0]);
                             }
-                        }
-                    }
-
-                    // Sanitize options using SCHEMA (icon_size, chat_content_max_width)
-                    for (const [configKey, rule] of Object.entries(CONFIG_SCHEMA)) {
-                        if (configKey.startsWith('options.')) {
-                            const value = getPropertyByPath(platformConfig, configKey);
-
-                            // IMPORTANT: For options, the default value comes from the platform root defaults, not defaultSet
-                            const platformDefaultRoot = DEFAULT_THEME_CONFIG.platforms[platformName];
-                            const factoryDefaultValue = getPropertyByPath(platformDefaultRoot, configKey);
-
-                            const sanitizedValue = this._sanitizeNumericProperty(value, rule, factoryDefaultValue);
-
-                            // Apply sanitized value back to the platformConfig
-                            setPropertyByPath(platformConfig, configKey, sanitizedValue);
                         }
                     }
                 });
             }
 
-            // 2. Sanitize all theme sets and the platform default sets using the Schema
+            // 2. Sanitize Themes (ThemeSets + DefaultSets)
+            const platformDefaultSets = [];
+            if (config.platforms) {
+                Object.values(config.platforms).forEach((pConfig) => {
+                    if (pConfig.defaultSet) platformDefaultSets.push(pConfig.defaultSet);
+                });
+            }
             const allThemes = [...(config.themeSets || []), ...platformDefaultSets];
+
             for (const theme of allThemes) {
                 if (!theme) continue;
 
-                // Iterate over schema to sanitize known properties
-                for (const [configKey, rule] of Object.entries(CONFIG_SCHEMA)) {
-                    // Skip options validation for themes
-                    if (configKey.startsWith('options.')) continue;
+                for (const [key, schemaItem] of Object.entries(CONFIG_SCHEMA.theme)) {
+                    // Note: Theme defaults are handled by ThemeManager fallback logic, not here.
+                    // Here we only ensure data integrity (type safety).
 
-                    if (rule.type === 'numeric') {
-                        const value = getPropertyByPath(theme, configKey);
-                        // Fallback logic for sanitization relies on the hardcoded DEFAULT_THEME_CONFIG structure.
-                        // We use the current platform's default set as the source of truth for "factory defaults".
-                        const factoryDefaultValue = getPropertyByPath(DEFAULT_THEME_CONFIG.platforms[PLATFORM].defaultSet, configKey);
-                        const sanitizedValue = this._sanitizeNumericProperty(value, rule, factoryDefaultValue);
-
-                        // Apply sanitized value back to the object
-                        setPropertyByPath(theme, configKey, sanitizedValue);
-                    } else if (rule.type === 'image') {
-                        const value = getPropertyByPath(theme, configKey);
-                        const result = validateImageString(value, rule.imageType);
-                        // If invalid format, throw error to prevent saving (Storage integrity)
-                        // Note: User typing in modal is handled by validate(), this is for load-time/import checks.
+                    if (schemaItem.type === 'numeric') {
+                        const value = getPropertyByPath(theme, key);
+                        // For themes, if value is invalid, we reset to null (inherit from default)
+                        // unless it's a non-nullable field, but currently all numeric theme fields are nullable.
+                        const sanitizedValue = this._sanitizeNumericProperty(value, schemaItem, null);
+                        setPropertyByPath(theme, key, sanitizedValue);
+                    } else if (schemaItem.type === 'image') {
+                        const value = getPropertyByPath(theme, key);
+                        const imageType = schemaItem.def?.imageType || 'image';
+                        const result = validateImageString(value, imageType);
                         if (!result.isValid) {
-                            // Reset to null if invalid to prevent app crash, but log warning
-                            Logger.warn('Config', '', `Invalid image in config [${configKey}]: ${result.message}. Resetting to null.`);
-                            setPropertyByPath(theme, configKey, null);
+                            Logger.warn('Config', '', `Invalid image in config [${key}]: ${result.message}. Resetting to null.`);
+                            setPropertyByPath(theme, key, null);
                         }
-                    } else if (rule.type === 'regexArray') {
-                        const value = getPropertyByPath(theme, configKey);
+                    } else if (schemaItem.type === 'regexArray') {
+                        const value = getPropertyByPath(theme, key);
                         if (Array.isArray(value)) {
-                            // Filter out invalid regexes
                             const validPatterns = value.filter((p) => {
                                 try {
                                     parseRegexPattern(p);
                                     return true;
                                 } catch (e) {
-                                    Logger.warn('Config', '', `Invalid pattern in config [${configKey}]: ${e.message}. Removing.`);
+                                    Logger.warn('Config', '', `Invalid pattern in config [${key}]: ${e.message}. Removing.`);
                                     return false;
                                 }
                             });
-                            setPropertyByPath(theme, configKey, validPatterns);
+                            setPropertyByPath(theme, key, validPatterns);
                         }
-                    } else if (rule.type === 'color') {
-                        const value = getPropertyByPath(theme, configKey);
+                    } else if (schemaItem.type === 'color') {
+                        const value = getPropertyByPath(theme, key);
                         if (value && !validateColorString(value)) {
-                            Logger.warn('Config', '', `Invalid color in config [${configKey}]: "${value}". Resetting to null.`);
-                            setPropertyByPath(theme, configKey, null);
+                            Logger.warn('Config', '', `Invalid color in config [${key}]: "${value}". Resetting to null.`);
+                            setPropertyByPath(theme, key, null);
                         }
                     }
                 }
@@ -5948,48 +6159,45 @@
 
         /**
          * @private
-         * Validates and sanitizes a numeric property based on the provided rule.
-         * Includes migration logic to salvage numeric values from legacy string formats (e.g. "10px").
+         * Validates and sanitizes a numeric property based on the provided schema item.
          * @param {string | number | null} value The value to sanitize.
-         * @param {object} rule The validation rule from CONFIG_SCHEMA.
+         * @param {object} schemaItem The schema item containing validator rules.
          * @param {any} defaultValue The fallback value.
          * @returns {any} The sanitized value.
          */
-        _sanitizeNumericProperty(value, rule, defaultValue) {
-            if (rule.nullable && value === null) {
+        _sanitizeNumericProperty(value, schemaItem, defaultValue) {
+            const { validators, def } = schemaItem;
+            const isNullable = def?.nullable;
+
+            if (isNullable && value === null) {
                 return null;
             }
 
-            // Check against allowed values (enum)
-            if (rule.allowedValues && Array.isArray(rule.allowedValues)) {
-                // Check if value loosely matches any allowed value
-                const isValid = rule.allowedValues.some((v) => String(v) === String(value));
+            if (validators?.allowedValues && Array.isArray(validators.allowedValues)) {
+                const isValid = validators.allowedValues.some((v) => String(v) === String(value));
                 if (!isValid) {
                     return defaultValue === null ? null : defaultValue;
                 }
-                // Return the matching value from allowedValues to ensure type consistency (e.g. Number vs String)
-                const matched = rule.allowedValues.find((v) => String(v) === String(value));
+                // Return consistent type
+                const matched = validators.allowedValues.find((v) => String(v) === String(value));
                 return matched;
             }
 
-            // 1. Numeric check (Ideal case)
             if (typeof value === 'number') {
-                if (value < rule.min || value > rule.max) {
+                if (validators && (value < validators.min || value > validators.max)) {
                     return defaultValue === null ? null : defaultValue;
                 }
                 return value;
             }
 
-            // 2. Migration Logic: Attempt to parse string (e.g. "10px" -> 10)
-            // This saves user settings from previous versions instead of resetting to default.
+            // Migration Logic (String -> Number)
             if (typeof value === 'string') {
                 const parsed = parseFloat(value);
-                if (!isNaN(parsed) && parsed >= rule.min && parsed <= rule.max) {
+                if (!isNaN(parsed) && validators && parsed >= validators.min && parsed <= validators.max) {
                     return parsed;
                 }
             }
 
-            // Fallback: If value is invalid or cannot be parsed within range, revert to default.
             return defaultValue === null ? null : defaultValue;
         },
     };
@@ -7371,8 +7579,8 @@
                         const totalRequiredMargin = sidebarWidth + requiredMarginPerSide * 2;
                         const maxAllowedWidth = windowWidth - totalRequiredMargin;
                         // Use CSS min() to ensure the user's value does not exceed the calculated available space.
-                        // Get unit dynamically from schema.
-                        const unit = CONFIG_SCHEMA['options.chat_content_max_width'].unit;
+                        // Get unit dynamically from schema (Platform Scope).
+                        const unit = CONFIG_SCHEMA.platform['options.chat_content_max_width'].def.unit;
                         const finalMaxWidth = `min(${userMaxWidth}${unit}, ${maxAllowedWidth}${unit})`;
                         rootStyle.setProperty(maxWidthVar, finalMaxWidth);
                     }
@@ -11789,42 +11997,6 @@
     }
 
     /**
-     * @class SchemaBuilder
-     * @description Helper functions to create type-safe schema objects.
-     */
-    const SchemaBuilder = {
-        /**
-         * @typedef {object} CommonOptions
-         * @property {string} [tooltip] - Tooltip text.
-         * @property {string} [title] - Title text.
-         * @property {string} [className] - Custom CSS class.
-         * @property {(data: any) => boolean} [visibleIf] - Conditional visibility.
-         * @property {(data: any) => boolean} [disabledIf] - Conditional disabled state.
-         * @property {string[]} [dependencies] - Array of config keys to observe.
-         * @property {(value: any, data: any) => void} [onChange] - Side effect callback.
-         */
-
-        /**
-         * @param {string} type
-         * @param {string} [id]
-         * @param {object} props
-         */
-        create(type, id, props = {}) {
-            return { type, id, ...props };
-        },
-
-        // --- Controls ---
-        /**
-         * @param {string} key
-         * @param {string} label
-         * @param {CommonOptions} [options]
-         */
-        Toggle(key, label, options = {}) {
-            return { type: 'toggle', configKey: key, label, ...options };
-        },
-    };
-
-    /**
      * @class ThemePreviewController
      * @description Manages the live preview updates within the Theme Modal.
      * It decouples DOM manipulation from the Modal component logic by reacting to Store changes.
@@ -11951,7 +12123,7 @@
                     if (typeof val === 'number') {
                         // Numeric values MUST have a unit defined in the schema.
                         const schemaKey = `${schemaPrefix}.${configKey}`;
-                        const unit = CONFIG_SCHEMA[schemaKey]?.unit;
+                        const unit = CONFIG_SCHEMA.theme[schemaKey]?.def?.unit;
                         style[cssProp] = `${val}${unit}`;
                     } else {
                         // String values (colors, fonts, images) are applied as-is.
@@ -11991,8 +12163,8 @@
             const resolvedWidth = this._resolveValue(currentConfig, defaultConfig, 'bubbleMaxWidth');
             const maxWidthDefault = actor === 'user' ? CONSTANTS.UI_SPECS.PREVIEW_BUBBLE_MAX_WIDTH.USER : CONSTANTS.UI_SPECS.PREVIEW_BUBBLE_MAX_WIDTH.ASSISTANT;
 
-            // Get unit from schema
-            const unit = CONFIG_SCHEMA[`${actor}.bubbleMaxWidth`].unit;
+            // Get unit from schema (Theme Scope)
+            const unit = CONFIG_SCHEMA.theme[`${actor}.bubbleMaxWidth`].def.unit;
             const maxWidth = resolvedWidth !== null ? `${resolvedWidth}${unit}` : maxWidthDefault;
 
             element.style.width = maxWidth;
@@ -12921,7 +13093,7 @@
             const prefix = this.style.prefix;
             const context = { styles: cls, siteStyles: SITE_STYLES };
 
-            // UIBuilder instance: Pass a wrapper to register transient subscriptions
+            // UIBuilder instance
             const uiDisposer = (unsub) => {
                 if (typeof unsub === 'function') {
                     this._uiSubscriptions.push(unsub);
@@ -12945,8 +13117,17 @@
             );
 
             // --- 4. Options Section ---
-            const p = `platforms.${PLATFORM}`;
-            const widthKey = `${p}.options.chat_content_max_width`;
+
+            // Schema References
+            const iconSizeSchema = CONFIG_SCHEMA.platform['options.icon_size'];
+            const chatWidthSchema = CONFIG_SCHEMA.platform['options.chat_content_max_width'];
+            const avatarSpaceSchema = CONFIG_SCHEMA.platform['options.respect_avatar_space'];
+
+            // Resolve paths using ConfigPathResolver
+            const widthKey = ConfigPathResolver.resolve('platform', 'options.chat_content_max_width');
+            const iconSizeKey = ConfigPathResolver.resolve('platform', 'options.icon_size');
+            const avatarSpaceKey = ConfigPathResolver.resolve('platform', 'options.respect_avatar_space');
+
             const widthProps = ConfigProcessor.getSliderProps('options.chat_content_max_width');
             const sizeCheck = {
                 dependencies: [CONSTANTS.STORE_KEYS.SIZE_EXCEEDED_PATH],
@@ -12956,35 +13137,37 @@
             const optionsSection = ui.group(
                 'Options',
                 [
-                    ui.range(`${p}.options.icon_size`, 'Icon size:', 0, CONSTANTS.UI_SPECS.AVATAR.SIZE_OPTIONS.length - 1, {
+                    ui.range(iconSizeKey, iconSizeSchema.ui.label, 0, CONSTANTS.UI_SPECS.AVATAR.SIZE_OPTIONS.length - 1, {
                         step: 1,
-                        tooltip: 'Specifies the size of the chat icons in pixels.',
-                        // Convert index <-> actual pixel value for slider
+                        tooltip: iconSizeSchema.ui.tooltip,
                         transformValue: (index) => CONSTANTS.UI_SPECS.AVATAR.SIZE_OPTIONS[index] ?? CONSTANTS.UI_SPECS.AVATAR.DEFAULT_SIZE,
                         toInputValue: (pixelVal) => {
                             const idx = CONSTANTS.UI_SPECS.AVATAR.SIZE_OPTIONS.indexOf(pixelVal);
                             return idx !== -1 ? idx : 0;
                         },
-                        valueLabelFormatter: (val) => `${val}px`,
+                        valueLabelFormatter: (val) => {
+                            const unit = iconSizeSchema.def?.unit;
+                            return `${val}${unit}`;
+                        },
                     }),
-                    ui.range(widthKey, 'Chat content max width:', widthProps.min, widthProps.max, {
+                    ui.range(widthKey, chatWidthSchema.ui.label, widthProps.min, widthProps.max, {
                         step: widthProps.step,
-                        tooltip: `Adjusts the maximum width of the chat content.\nMove slider to the far left for default.\nRange: ${widthProps.min} to ${widthProps.max}.`,
+                        tooltip: chatWidthSchema.ui.tooltip,
                         transformValue: widthProps.transformValue,
                         toInputValue: widthProps.toInputValue,
                         valueLabelFormatter: (val) => {
                             if (!val) return 'Auto';
-                            const unit = CONFIG_SCHEMA['options.chat_content_max_width'].unit;
+                            const unit = chatWidthSchema.def?.unit;
                             return `${val}${unit}`;
                         },
                     }),
                     ui.separator({ className: 'submenuSeparator' }),
                     ui.row([
-                        ui.label('Prevent image/avatar overlap:', {
-                            title: 'When enabled, adjusts the standing image area to not overlap the avatar icon.\nWhen disabled, the standing image is maximized but may overlap the icon.',
+                        ui.label(avatarSpaceSchema.ui.label, {
+                            title: avatarSpaceSchema.ui.title,
                         }),
-                        ui.toggle(`${p}.options.respect_avatar_space`, '', {
-                            title: 'When enabled, adjusts the standing image area to not overlap the avatar icon.\nWhen disabled, the standing image is maximized but may overlap the icon.',
+                        ui.toggle(avatarSpaceKey, '', {
+                            title: avatarSpaceSchema.ui.title,
                         }),
                     ]),
                 ],
@@ -12994,84 +13177,59 @@
             // --- 5. Features Section ---
             const featureRows = [];
 
-            // Platform Specific Features (Adapter returns Schema objects, convert them to UIBuilder calls)
+            // Helper to render schema-driven toggles
+            const renderSchemaToggle = (schemaKey) => {
+                const schema = CONFIG_SCHEMA.platform[schemaKey];
+                if (!schema) return document.createDocumentFragment();
+
+                const fullKey = ConfigPathResolver.resolve('platform', schemaKey);
+
+                // Resolve dependencies
+                const dependencies = schema.ui.dependencies ? schema.ui.dependencies.map((d) => ConfigPathResolver.resolve('platform', d)) : [];
+
+                return ui.row(
+                    [
+                        ui.label(schema.ui.label, { title: schema.ui.title }),
+                        ui.toggle(fullKey, '', {
+                            title: schema.ui.title,
+                            // Use Resolver to extract platform config for disabledIf check
+                            disabledIf: schema.ui.disabledIf ? (data) => schema.ui.disabledIf(ConfigPathResolver.getPlatformConfig(data)) : undefined,
+                            dependencies: dependencies,
+                        }),
+                    ],
+                    { className: 'featureGroup' }
+                );
+            };
+
+            // Platform Specific Features
             const platformFeatures = PlatformAdapters.SettingsPanel.getPlatformSpecificFeatureToggles();
             platformFeatures.forEach((feat) => {
-                featureRows.push(
-                    ui.row(
-                        [
-                            ui.label(feat.label, { title: feat.title }),
-                            ui.toggle(feat.configKey, '', {
-                                title: feat.title,
-                                disabledIf: feat.disabledIf,
-                                dependencies: feat.dependencies,
-                            }),
-                        ],
-                        { className: 'featureGroup' }
-                    )
-                );
+                featureRows.push(renderSchemaToggle(feat.configKey));
             });
 
             // Common Features
-            // Collapsible
-            featureRows.push(
-                ui.row(
-                    [
-                        ui.label('Collapsible button', { title: 'Enables a button to collapse large message bubbles.' }),
-                        ui.toggle(`${p}.features.collapsible_button.enabled`, '', { title: 'Enables a button to collapse large message bubbles.' }),
-                    ],
-                    { className: 'featureGroup' }
-                )
-            );
-
-            // Bubble Nav
-            featureRows.push(
-                ui.row(
-                    [
-                        ui.label('Bubble nav buttons', { title: 'Enables navigation buttons (Prev/Next/Top) attached to each message.' }),
-                        ui.toggle(`${p}.features.bubble_nav_buttons.enabled`, '', { title: 'Enables navigation buttons (Prev/Next/Top) attached to each message.' }),
-                    ],
-                    { className: 'featureGroup' }
-                )
-            );
-
-            // Keyboard Shortcuts
-            featureRows.push(
-                ui.row(
-                    [
-                        ui.label('Keyboard shortcuts', {
-                            title: 'Enable keyboard shortcuts for message navigation and Jump List.\n\nAlt + ↑ / ↓ : Previous / Next message\nAlt + Shift + ↑ / ↓ : First / Last message\nAlt + J : Open Jump List\nAlt + N : Input message number\n\nRequires "Navigation console" to be enabled.',
-                        }),
-                        ui.toggle(`${p}.features.fixed_nav_console.keyboard_shortcuts.enabled`, '', {
-                            title: 'Enable keyboard shortcuts for message navigation and Jump List.\n\nAlt + ↑ / ↓ : Previous / Next message\nAlt + Shift + ↑ / ↓ : First / Last message\nAlt + J : Open Jump List\nAlt + N : Input message number',
-                            disabledIf: (data) => !getPropertyByPath(data, `${p}.features.fixed_nav_console.enabled`),
-                            dependencies: [`${p}.features.fixed_nav_console.enabled`],
-                        }),
-                    ],
-                    { className: 'featureGroup' }
-                )
-            );
-
-            featureRows.push(
-                ui.row(
-                    [
-                        ui.label('Navigation console', { title: 'When enabled, a navigation console with message counters will be displayed.' }),
-                        ui.toggle(`${p}.features.fixed_nav_console.enabled`, '', { title: 'When enabled, a navigation console with message counters will be displayed.' }),
-                    ],
-                    { className: 'featureGroup' }
-                )
-            );
+            featureRows.push(renderSchemaToggle('features.collapsible_button.enabled'));
+            featureRows.push(renderSchemaToggle('features.bubble_nav_buttons.enabled'));
+            // Keyboard shortcuts
+            featureRows.push(renderSchemaToggle('features.fixed_nav_console.keyboard_shortcuts.enabled'));
+            featureRows.push(renderSchemaToggle('features.fixed_nav_console.enabled'));
 
             // Console Position (Select)
+            const consolePosKeyRaw = 'features.fixed_nav_console.position';
+            const consolePosSchema = CONFIG_SCHEMA.platform[consolePosKeyRaw];
+            const consolePosKey = ConfigPathResolver.resolve('platform', consolePosKeyRaw);
+            const consolePosDeps = [`features.fixed_nav_console.enabled`].map((d) => ConfigPathResolver.resolve('platform', d));
+
             featureRows.push(
                 ui.row(
                     [
-                        ui.label('Console Position', { title: 'Choose where to display the navigation console.' }),
-                        ui.select(`${p}.features.fixed_nav_console.position`, '', {
-                            options: [CONSTANTS.CONSOLE_POSITIONS.INPUT_TOP, CONSTANTS.CONSOLE_POSITIONS.HEADER],
-                            title: 'Choose where to display the navigation console.\nInput Top: Floating above the input area (Default).\nHeader: Embedded in the top toolbar.',
-                            dependencies: [`${p}.features.fixed_nav_console.enabled`],
-                            disabledIf: (data) => !getPropertyByPath(data, `${p}.features.fixed_nav_console.enabled`),
+                        ui.label(consolePosSchema.ui.label, { title: consolePosSchema.ui.title }),
+                        ui.select(consolePosKey, '', {
+                            options: consolePosSchema.def.options,
+                            title: consolePosSchema.ui.title,
+                            dependencies: consolePosDeps,
+                            // Explicit check using Resolver
+                            disabledIf: (data) => !getPropertyByPath(ConfigPathResolver.getPlatformConfig(data), 'features.fixed_nav_console.enabled'),
                         }),
                     ],
                     { className: 'featureGroup' }
@@ -14325,7 +14483,7 @@
                 (val) => {
                     if (val === null) return defaultLabel;
                     const schemaKey = `${actor}.${key}`;
-                    const unit = CONFIG_SCHEMA[schemaKey].unit;
+                    const unit = CONFIG_SCHEMA.theme[schemaKey]?.def?.unit;
                     return `${val}${unit}`;
                 };
 
@@ -18805,24 +18963,13 @@
         class ChatGPTSettingsPanelAdapter extends BaseSettingsPanelAdapter {
             /** @override */
             getPlatformSpecificFeatureToggles() {
-                const p = `platforms.${PLATFORM}`;
-                const timestampFeature = SchemaBuilder.Toggle(`${p}.features.timestamp.enabled`, 'Show timestamp', { title: 'Displays the timestamp for each message.' });
+                const toggles = [{ configKey: 'features.timestamp.enabled' }, { configKey: 'features.collapsible_button.auto_collapse_user_message.enabled' }];
 
-                const autoCollapseFeature = SchemaBuilder.Toggle(`${p}.features.collapsible_button.auto_collapse_user_message.enabled`, 'Auto collapse user message', {
-                    title: 'Automatically collapses user messages that exceed the height threshold.\nApplies to new messages and existing history on load.\nRequires "Collapsible button" to be enabled.',
-                    disabledIf: (data) => !getPropertyByPath(data, `${p}.features.collapsible_button.enabled`),
-                    dependencies: [`${p}.features.collapsible_button.enabled`],
-                });
-
-                if (!isFirefox()) {
-                    return [timestampFeature, autoCollapseFeature];
+                if (isFirefox()) {
+                    toggles.unshift({ configKey: 'features.load_full_history_on_chat_load.enabled' });
                 }
 
-                const scanLayoutFeature = SchemaBuilder.Toggle(`${p}.features.load_full_history_on_chat_load.enabled`, 'Scan layout on chat load', {
-                    title: 'When enabled, automatically scans the layout of all messages when a chat is opened. This prevents layout shifts from images loading later.',
-                });
-
-                return [scanLayoutFeature, timestampFeature, autoCollapseFeature];
+                return toggles;
             }
         }
 
@@ -20205,12 +20352,7 @@
         class GeminiSettingsPanelAdapter extends BaseSettingsPanelAdapter {
             /** @override */
             getPlatformSpecificFeatureToggles() {
-                const p = `platforms.${PLATFORM}`;
-                return [
-                    SchemaBuilder.Toggle(`${p}.features.load_full_history_on_chat_load.enabled`, 'Load full history on chat load', {
-                        title: 'When enabled, automatically scrolls back through the history when a chat is opened to load all messages.',
-                    }),
-                ];
+                return [{ configKey: 'features.load_full_history_on_chat_load.enabled' }];
             }
         }
 
