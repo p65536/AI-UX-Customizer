@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b454
+// @version      1.0.0-b455
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -870,11 +870,17 @@
             },
             'metadata.matchPatterns': {
                 type: 'regexArray',
-                ui: { label: 'Title Patterns' },
+                ui: {
+                    label: 'Title Patterns (one per line):',
+                    tooltip: 'Enter one RegEx pattern per line to automatically apply this theme (e.g., /My Project/i).\nNote: "g" (global) and "y" (sticky) flags are ignored for performance.',
+                },
             },
             'metadata.urlPatterns': {
                 type: 'regexArray',
-                ui: { label: 'URL Patterns' },
+                ui: {
+                    label: 'URL Patterns (one per line):',
+                    tooltip: 'Enter one RegEx pattern per line to match against the decoded URL path.\nExample: /\\/c\\/.*$/i\nNote: "g" (global) and "y" (sticky) flags are ignored for performance.',
+                },
             },
 
             // --- Select Fields (Window Background) ---
@@ -14436,6 +14442,21 @@
         }
 
         /**
+         * Retrieves the schema definition securely with logging and fallback.
+         * @param {string} key - The config key (e.g. 'window.backgroundSize').
+         * @returns {object} The schema definition or a fallback object.
+         * @private
+         */
+        _getSchemaDef(key) {
+            const def = CONFIG_SCHEMA.theme[key];
+            if (!def) {
+                Logger.warn('ThemeModal', '', `Schema definition not found for ${key}`);
+                return { ui: { label: 'Unknown', tooltip: '' }, def: { options: [], unit: '' } };
+            }
+            return def;
+        }
+
+        /**
          * @private
          * Renders the theme editor form using UIBuilder.
          */
@@ -14446,16 +14467,19 @@
 
             // 1. General Settings (Patterns) - Only for custom themes
             if (isNotDefault) {
+                const matchSchema = this._getSchemaDef('metadata.matchPatterns');
+                const urlSchema = this._getSchemaDef('metadata.urlPatterns');
+
                 const patternsGroup = ui.container(
                     [
-                        ui.textarea('metadata.matchPatterns', 'Title Patterns (one per line):', {
-                            tooltip: 'Enter one RegEx pattern per line to automatically apply this theme (e.g., /My Project/i).\nNote: "g" (global) and "y" (sticky) flags are ignored for performance.',
+                        ui.textarea('metadata.matchPatterns', matchSchema.ui.label, {
+                            tooltip: matchSchema.ui.tooltip,
                             rows: 3,
                             transformValue: (val) => (val ? val.split('\n') : []),
                             toInputValue: (val) => (Array.isArray(val) ? val.join('\n') : val || ''),
                         }),
-                        ui.textarea('metadata.urlPatterns', 'URL Patterns (one per line):', {
-                            tooltip: 'Enter one RegEx pattern per line to match against the decoded URL path.\nExample: /\\/c\\/.*$/i\nNote: "g" (global) and "y" (sticky) flags are ignored for performance.',
+                        ui.textarea('metadata.urlPatterns', urlSchema.ui.label, {
+                            tooltip: urlSchema.ui.tooltip,
                             rows: 3,
                             transformValue: (val) => (val ? val.split('\n') : []),
                             toInputValue: (val) => (Array.isArray(val) ? val.join('\n') : val || ''),
@@ -14478,60 +14502,65 @@
 
         _renderActorGroup(ui, actor, title) {
             const prefix = actor;
+
+            // Helper to retrieve schema definition locally
+            const getSchema = (prop) => this._getSchemaDef(`${actor}.${prop}`);
+
             const paddingProps = ConfigProcessor.getSliderProps(`${actor}.bubblePadding`);
             const radiusProps = ConfigProcessor.getSliderProps(`${actor}.bubbleBorderRadius`);
             const widthProps = ConfigProcessor.getSliderProps(`${actor}.bubbleMaxWidth`);
 
-            // Helper for unit formatters (for UI display only)
-            const createFormatter =
-                (key, defaultLabel = 'Auto') =>
-                (val) => {
-                    if (val === null) return defaultLabel;
-                    const schemaKey = `${actor}.${key}`;
-                    const unit = CONFIG_SCHEMA.theme[schemaKey]?.def?.unit;
-                    return `${val}${unit}`;
-                };
+            // Retrieve schemas
+            const nameS = getSchema('name');
+            const iconS = getSchema('icon');
+            const imgS = getSchema('standingImageUrl');
+            const bgS = getSchema('bubbleBackgroundColor');
+            const textS = getSchema('textColor');
+            const fontS = getSchema('font');
+            const padS = getSchema('bubblePadding');
+            const radS = getSchema('bubbleBorderRadius');
+            const maxWS = getSchema('bubbleMaxWidth');
 
             return ui.group(title, [
-                ui.text(`${prefix}.name`, 'Name:', { tooltip: `The name displayed for the ${actor}.`, fieldType: 'name' }),
-                ui.text(`${prefix}.icon`, 'Icon:', { tooltip: `URL, Data URI, or <svg> for the ${actor}'s icon.`, fieldType: 'icon' }),
-                ui.text(`${prefix}.standingImageUrl`, 'Standing image:', { tooltip: `URL or Data URI for the character's standing image.`, fieldType: 'image' }),
+                ui.text(`${prefix}.name`, nameS.ui.label, { tooltip: nameS.ui.tooltip }),
+                ui.text(`${prefix}.icon`, iconS.ui.label, { tooltip: iconS.ui.tooltip, fieldType: iconS.def?.imageType || 'icon' }),
+                ui.text(`${prefix}.standingImageUrl`, imgS.ui.label, { tooltip: imgS.ui.tooltip, fieldType: imgS.def?.imageType || 'image' }),
 
                 ui.group('Bubble Settings', [
-                    ui.color(`${prefix}.bubbleBackgroundColor`, 'Background color:', { tooltip: 'Background color of the message bubble.' }),
-                    ui.color(`${prefix}.textColor`, 'Text color:', { tooltip: 'Color of the text inside the bubble.' }),
-                    ui.text(`${prefix}.font`, 'Font:', { tooltip: 'Font family for the text.\nFont names with spaces must be quoted (e.g., "Times New Roman").' }),
+                    ui.color(`${prefix}.bubbleBackgroundColor`, bgS.ui.label, { tooltip: bgS.ui.tooltip }),
+                    ui.color(`${prefix}.textColor`, textS.ui.label, { tooltip: textS.ui.tooltip }),
+                    ui.text(`${prefix}.font`, fontS.ui.label, { tooltip: fontS.ui.tooltip }),
 
                     // Compound container for Padding & Radius
                     ui.container(
                         [
-                            ui.range(`${prefix}.bubblePadding`, 'Padding:', paddingProps.min, paddingProps.max, {
+                            ui.range(`${prefix}.bubblePadding`, padS.ui.label, paddingProps.min, paddingProps.max, {
                                 step: paddingProps.step,
-                                tooltip: 'Adjusts padding for all sides.\nSet to the far left for (auto).',
+                                tooltip: padS.ui.tooltip,
                                 containerClass: 'sliderSubgroup',
                                 transformValue: paddingProps.transformValue,
                                 toInputValue: paddingProps.toInputValue,
-                                valueLabelFormatter: createFormatter('bubblePadding'),
+                                valueLabelFormatter: (val) => (val === null ? 'Auto' : `${val}${padS.def.unit}`),
                             }),
-                            ui.range(`${prefix}.bubbleBorderRadius`, 'Radius:', radiusProps.min, radiusProps.max, {
+                            ui.range(`${prefix}.bubbleBorderRadius`, radS.ui.label, radiusProps.min, radiusProps.max, {
                                 step: radiusProps.step,
-                                tooltip: 'Corner roundness of the bubble (e.g., 10px).\nSet to the far left for (auto).',
+                                tooltip: radS.ui.tooltip,
                                 containerClass: 'sliderSubgroup',
                                 transformValue: radiusProps.transformValue,
                                 toInputValue: radiusProps.toInputValue,
-                                valueLabelFormatter: createFormatter('bubbleBorderRadius'),
+                                valueLabelFormatter: (val) => (val === null ? 'Auto' : `${val}${radS.def.unit}`),
                             }),
                         ],
                         { className: 'compoundSliderContainer' }
                     ),
 
-                    ui.range(`${prefix}.bubbleMaxWidth`, 'max Width:', widthProps.min, widthProps.max, {
+                    ui.range(`${prefix}.bubbleMaxWidth`, maxWS.ui.label, widthProps.min, widthProps.max, {
                         step: widthProps.step,
-                        tooltip: 'Maximum width of the bubble.\nSet to the far left for (auto).',
+                        tooltip: maxWS.ui.tooltip,
                         containerClass: 'sliderContainer',
                         transformValue: widthProps.transformValue,
                         toInputValue: widthProps.toInputValue,
-                        valueLabelFormatter: createFormatter('bubbleMaxWidth'),
+                        valueLabelFormatter: (val) => (val === null ? 'Auto' : `${val}${maxWS.def.unit}`),
                     }),
 
                     ui.separator({ className: 'separator' }),
@@ -14541,20 +14570,35 @@
         }
 
         _renderWindowGroup(ui) {
+            const bgKey = 'window.backgroundColor';
+            const bgSchema = this._getSchemaDef(bgKey);
+
+            const imgKey = 'window.backgroundImageUrl';
+            const imgSchema = this._getSchemaDef(imgKey);
+
+            const sizeKey = 'window.backgroundSize';
+            const sizeSchema = this._getSchemaDef(sizeKey);
+
+            const posKey = 'window.backgroundPosition';
+            const posSchema = this._getSchemaDef(posKey);
+
+            const repeatKey = 'window.backgroundRepeat';
+            const repeatSchema = this._getSchemaDef(repeatKey);
+
             return ui.group('Background', [
-                ui.color('window.backgroundColor', 'Background color:', { tooltip: 'Main background color of the chat window.' }),
-                ui.text('window.backgroundImageUrl', 'Background image:', { tooltip: 'URL or Data URI for the main background image.', fieldType: 'image' }),
+                ui.color(bgKey, bgSchema.ui.label, { tooltip: bgSchema.ui.tooltip }),
+                ui.text(imgKey, imgSchema.ui.label, { tooltip: imgSchema.ui.tooltip, fieldType: imgSchema.def?.imageType }),
 
                 ui.container(
                     [
-                        ui.select('window.backgroundSize', 'Size:', {
-                            options: ['', 'auto', 'cover', 'contain'],
-                            tooltip: 'How the background image is sized.',
+                        ui.select(sizeKey, sizeSchema.ui.label, {
+                            options: sizeSchema.def.options,
+                            tooltip: sizeSchema.ui.tooltip,
                             showLabel: true,
                         }),
-                        ui.select('window.backgroundPosition', 'Position:', {
-                            options: ['', 'top left', 'top center', 'top right', 'center left', 'center center', 'center right', 'bottom left', 'bottom center', 'bottom right'],
-                            tooltip: 'Position of the background image.',
+                        ui.select(posKey, posSchema.ui.label, {
+                            options: posSchema.def.options,
+                            tooltip: posSchema.ui.tooltip,
                             showLabel: true,
                         }),
                     ],
@@ -14563,9 +14607,9 @@
 
                 ui.container(
                     [
-                        ui.select('window.backgroundRepeat', 'Repeat:', {
-                            options: ['', 'no-repeat', 'repeat'],
-                            tooltip: 'How the background image is repeated.',
+                        ui.select(repeatKey, repeatSchema.ui.label, {
+                            options: repeatSchema.def.options,
+                            tooltip: repeatSchema.ui.tooltip,
                             showLabel: true,
                         }),
                         this._renderPreviewBackground(ui),
@@ -14576,9 +14620,15 @@
         }
 
         _renderInputGroup(ui) {
+            const bgKey = 'inputArea.backgroundColor';
+            const bgSchema = this._getSchemaDef(bgKey);
+
+            const textKey = 'inputArea.textColor';
+            const textSchema = this._getSchemaDef(textKey);
+
             return ui.group('Input area', [
-                ui.color('inputArea.backgroundColor', 'Background color:', { tooltip: 'Background color of the text input area.' }),
-                ui.color('inputArea.textColor', 'Text color:', { tooltip: 'Color of the text you type.' }),
+                ui.color(bgKey, bgSchema.ui.label, { tooltip: bgSchema.ui.tooltip }),
+                ui.color(textKey, textSchema.ui.label, { tooltip: textSchema.ui.tooltip }),
                 ui.separator({ className: 'separator' }),
                 this._renderPreviewInput(ui),
             ]);

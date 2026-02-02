@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b455] - 2026-02-02
+- **Improvements**
+  - **[Theme Editor]** Refactored the internal logic to dynamically generate UI labels, tooltips, and options directly from the central configuration schema. This ensures complete consistency between the settings logic and the displayed interface.
+
 ## [1.0.0-b454] - 2026-02-02
 - **Core Changes**
   - **[Config]** Hardened configuration validation logic. Importing JSON settings containing invalid values (e.g., selection options that do not exist) will now automatically reset those fields to safe defaults instead of causing errors.
