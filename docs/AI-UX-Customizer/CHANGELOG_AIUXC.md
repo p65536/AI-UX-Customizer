@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-b454] - 2026-02-02
+- **Core Changes**
+  - **[Config]** Hardened configuration validation logic. Importing JSON settings containing invalid values (e.g., selection options that do not exist) will now automatically reset those fields to safe defaults instead of causing errors.
+  - **[Refactor]** Centralized the management of default configuration values to a single source of truth, eliminating redundancy and ensuring consistency across the application.
+
 ## [1.0.0-b453] - 2026-02-02
 - **Core Changes**
   - **[Refactor]** Centralized configuration definitions into a unified `CONFIG_SCHEMA`, improving system stability and developer maintainability.

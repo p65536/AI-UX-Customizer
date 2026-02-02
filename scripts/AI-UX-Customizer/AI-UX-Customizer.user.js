@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b453
+// @version      1.0.0-b454
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -903,7 +903,7 @@
             // --- Options ---
             'options.icon_size': {
                 type: 'numeric',
-                def: { unit: 'px', default: 64 },
+                def: { unit: 'px' },
                 validators: { allowedValues: SHARED_CONSTANTS.UI_SPECS.AVATAR.SIZE_OPTIONS, step: 1 },
                 ui: { label: 'Icon size:', tooltip: 'Specifies the size of the chat icons in pixels.' },
             },
@@ -915,7 +915,6 @@
             },
             'options.respect_avatar_space': {
                 type: 'toggle',
-                def: { default: true },
                 ui: {
                     label: 'Prevent image/avatar overlap',
                     title: 'When enabled, adjusts the standing image area to not overlap the avatar icon.\nWhen disabled, the standing image is maximized but may overlap the icon.',
@@ -925,17 +924,14 @@
             // --- Features ---
             'features.timestamp.enabled': {
                 type: 'toggle',
-                def: { default: true },
                 ui: { label: 'Show timestamp', title: 'Displays the timestamp for each message.' },
             },
             'features.collapsible_button.enabled': {
                 type: 'toggle',
-                def: { default: true },
                 ui: { label: 'Collapsible button', title: 'Enables a button to collapse large message bubbles.' },
             },
             'features.collapsible_button.auto_collapse_user_message.enabled': {
                 type: 'toggle',
-                def: { default: false },
                 ui: {
                     label: 'Auto collapse user message',
                     title: 'Automatically collapses user messages that exceed the height threshold.\nApplies to new messages and existing history on load.\nRequires "Collapsible button" to be enabled.',
@@ -945,17 +941,14 @@
             },
             'features.bubble_nav_buttons.enabled': {
                 type: 'toggle',
-                def: { default: true },
                 ui: { label: 'Bubble nav buttons', title: 'Enables navigation buttons (Prev/Next/Top) attached to each message.' },
             },
             'features.fixed_nav_console.enabled': {
                 type: 'toggle',
-                def: { default: true },
                 ui: { label: 'Navigation console', title: 'When enabled, a navigation console with message counters will be displayed.' },
             },
             'features.fixed_nav_console.keyboard_shortcuts.enabled': {
                 type: 'toggle',
-                def: { default: true },
                 ui: {
                     label: 'Keyboard shortcuts',
                     title: 'Enable keyboard shortcuts for message navigation and Jump List.\n\nAlt + ↑ / ↓ : Previous / Next message\nAlt + Shift + ↑ / ↓ : First / Last message\nAlt + J : Open Jump List\nAlt + N : Input message number\n\nRequires "Navigation console" to be enabled.',
@@ -975,7 +968,6 @@
             },
             'features.load_full_history_on_chat_load.enabled': {
                 type: 'toggle',
-                def: { default: true },
                 ui: {
                     label: 'Load full history/Scan layout',
                     title: 'When enabled, automatically scrolls back (Gemini) or scans layout (ChatGPT) on chat load.',
@@ -6080,20 +6072,23 @@
                     // Sanitize Platform Settings using Platform Schema
                     for (const [key, schemaItem] of Object.entries(CONFIG_SCHEMA.platform)) {
                         const value = getPropertyByPath(platformConfig, key);
-                        // Default comes from schema definition
-                        const factoryDefaultValue = schemaItem.def?.default ?? null;
+
+                        const defaultValue = getPropertyByPath(DEFAULT_THEME_CONFIG.platforms[platformName], key);
 
                         if (schemaItem.type === 'numeric') {
-                            const sanitizedValue = this._sanitizeNumericProperty(value, schemaItem, factoryDefaultValue);
+                            const sanitizedValue = this._sanitizeNumericProperty(value, schemaItem, defaultValue);
                             setPropertyByPath(platformConfig, key, sanitizedValue);
                         } else if (schemaItem.type === 'toggle') {
                             if (typeof value !== 'boolean') {
-                                setPropertyByPath(platformConfig, key, factoryDefaultValue);
+                                setPropertyByPath(platformConfig, key, defaultValue);
                             }
                         } else if (schemaItem.type === 'select') {
-                            const options = schemaItem.def?.options || [];
-                            if (!options.includes(value)) {
-                                setPropertyByPath(platformConfig, key, factoryDefaultValue || options[0]);
+                            const options = schemaItem.def?.options;
+                            // Ensure options exist and are an array before validation
+                            if (Array.isArray(options)) {
+                                if (!options.includes(value)) {
+                                    setPropertyByPath(platformConfig, key, defaultValue || options[0]);
+                                }
                             }
                         }
                     }
@@ -6119,7 +6114,6 @@
                     if (schemaItem.type === 'numeric') {
                         const value = getPropertyByPath(theme, key);
                         // For themes, if value is invalid, we reset to null (inherit from default)
-                        // unless it's a non-nullable field, but currently all numeric theme fields are nullable.
                         const sanitizedValue = this._sanitizeNumericProperty(value, schemaItem, null);
                         setPropertyByPath(theme, key, sanitizedValue);
                     } else if (schemaItem.type === 'image') {
@@ -6149,6 +6143,17 @@
                         if (value && !validateColorString(value)) {
                             Logger.warn('Config', '', `Invalid color in config [${key}]: "${value}". Resetting to null.`);
                             setPropertyByPath(theme, key, null);
+                        }
+                    } else if (schemaItem.type === 'select') {
+                        const value = getPropertyByPath(theme, key);
+                        const options = schemaItem.def?.options;
+                        // Allow null/empty for theme inheritance, but if set, must be valid option
+                        // Only validate if options are explicitly defined as an array
+                        if (Array.isArray(options)) {
+                            if (value !== null && value !== undefined && value !== '' && !options.includes(value)) {
+                                Logger.warn('Config', '', `Invalid selection in config [${key}]: "${value}". Resetting to null.`);
+                                setPropertyByPath(theme, key, null);
+                            }
                         }
                     }
                 }
