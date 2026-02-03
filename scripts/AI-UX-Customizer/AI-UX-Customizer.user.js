@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b458
+// @version      1.0.0-b459
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -17778,14 +17778,12 @@
                 // --- Main containers ---
                 MAIN_APP_CONTAINER: 'div[data-scroll-root], div:has(> main#main)',
                 MESSAGE_WRAPPER_FINDER: '.w-full',
-                MESSAGE_WRAPPER: 'chat-wrapper',
                 // Root container for message search optimization
                 MESSAGES_ROOT: 'main',
 
                 // --- Message containers ---
                 CONVERSATION_UNIT: 'article[data-testid^="conversation-turn-"]',
                 MESSAGE_ID_HOLDER: '[data-message-id]',
-                MESSAGE_CONTAINER_PARENT: 'div:has(> article[data-testid^="conversation-turn-"])',
                 MESSAGE_ROOT_NODE: 'article[data-testid^="conversation-turn-"]',
 
                 // --- Selectors for messages ---
@@ -17848,12 +17846,10 @@
 
                 // --- BubbleFeature-specific Selectors ---
                 BUBBLE_FEATURE_MESSAGE_CONTAINERS: 'div[data-message-author-role]',
-                BUBBLE_FEATURE_TURN_CONTAINERS: 'article[data-testid^="conversation-turn-"]',
 
                 // --- FixedNav-specific Selectors ---
                 FIXED_NAV_INPUT_AREA_TARGET: 'form[data-type="unified-composer"]',
                 FIXED_NAV_MESSAGE_CONTAINERS: 'div[data-message-author-role]',
-                FIXED_NAV_TURN_CONTAINER: 'article[data-testid^="conversation-turn-"]',
                 FIXED_NAV_ROLE_USER: 'user',
                 FIXED_NAV_ROLE_ASSISTANT: 'assistant',
 
@@ -19459,7 +19455,6 @@
                 // --- Message containers ---
                 CONVERSATION_UNIT: 'user-query, model-response',
                 MESSAGE_ID_HOLDER: '[data-message-id]',
-                MESSAGE_CONTAINER_PARENT: 'div#chat-history',
                 MESSAGE_ROOT_NODE: 'user-query, model-response',
                 USER_QUERY_CONTAINER: 'user-query-content',
 
@@ -19515,12 +19510,10 @@
 
                 // --- BubbleFeature-specific Selectors ---
                 BUBBLE_FEATURE_MESSAGE_CONTAINERS: 'user-query, model-response',
-                BUBBLE_FEATURE_TURN_CONTAINERS: null, // Not applicable to Gemini
 
                 // --- FixedNav-specific Selectors ---
                 FIXED_NAV_INPUT_AREA_TARGET: 'input-area-v2',
                 FIXED_NAV_MESSAGE_CONTAINERS: 'user-query, model-response',
-                FIXED_NAV_TURN_CONTAINER: 'user-query, model-response',
                 FIXED_NAV_ROLE_USER: 'user-query',
                 FIXED_NAV_ROLE_ASSISTANT: 'model-response',
 

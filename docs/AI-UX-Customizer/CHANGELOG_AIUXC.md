@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b459] - 2026-02-03
+- **Refactoring**
+  - **[Internal]** Performed code cleanup by removing unused legacy selector definitions across both platforms.
+
 ## [1.0.0-b458] - 2026-02-03
 - **Performance Improvements**
   - **[ChatGPT]** Improved scrolling and rendering performance by optimizing the internal logic used to detect assistant message bubbles. This update removes computationally expensive CSS selectors (`:has()`) in favor of more efficient DOM traversal.
