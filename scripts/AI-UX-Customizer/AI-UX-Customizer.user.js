@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b455
+// @version      1.0.0-b456
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -264,6 +264,9 @@
         CLASSES: {
             PROCESSED: `${APPID}-processed`,
             COMPLETE_FIRED: `${APPID}-complete`,
+            ROLE_USER: `${APPID}-role-user`,
+            ROLE_ASSISTANT: `${APPID}-role-assistant`,
+            BUBBLE_ASSISTANT: `${APPID}-bubble-assistant`,
         },
         DATA_KEYS: {
             AVATAR_INJECT_ATTEMPTS: `${APPID}AvatarInjectAttempts`,
@@ -1829,9 +1832,13 @@
             const selectors = CONSTANTS.SELECTORS;
             const root = `#${rootId}`;
 
+            // Use optimized style selectors for text bubbles
+            const S_USER_BUBBLE = selectors.RAW_USER_BUBBLE_STYLE;
+            const S_ASST_BUBBLE = selectors.RAW_ASSISTANT_BUBBLE_STYLE;
+
             const highlightRule = `
-                .${cls.highlightMessage} ${selectors.RAW_USER_BUBBLE}, 
-                .${cls.highlightMessage} ${selectors.RAW_ASSISTANT_BUBBLE}, 
+                .${cls.highlightMessage} ${S_USER_BUBBLE}, 
+                .${cls.highlightMessage} ${S_ASST_BUBBLE}, 
                 .${cls.highlightMessage} ${selectors.RAW_USER_IMAGE_BUBBLE}, 
                 .${cls.highlightTurn} ${selectors.RAW_ASSISTANT_IMAGE_BUBBLE}
             `;
@@ -2605,6 +2612,12 @@
             const overrides = PlatformAdapters.ThemeManager.getStyleOverrides();
             const selectors = CONSTANTS.SELECTORS;
 
+            // Selectors for styling
+            const S_USER_MSG = selectors.USER_MESSAGE_STYLE;
+            const S_ASST_MSG = selectors.ASSISTANT_MESSAGE_STYLE;
+            const S_USER_BUBBLE = selectors.RAW_USER_BUBBLE_STYLE;
+            const S_ASST_BUBBLE = selectors.RAW_ASSISTANT_BUBBLE_STYLE;
+
             // Helper to generate CSS property only if the variable is active
             const prop = (propName, varName) => {
                 if (activeVars && !activeVars.has(varName)) return '';
@@ -2613,7 +2626,7 @@
 
             // Generate assistant text color selectors for all child elements.
             const assistantTextSelectors = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul li', 'ol li', 'ul li::marker', 'ol li::marker', 'strong', 'em', 'blockquote', 'table', 'th', 'td']
-                .map((tag) => `${selectors.ASSISTANT_MESSAGE} ${selectors.ASSISTANT_TEXT_CONTENT} ${tag}`)
+                .map((tag) => `${S_ASST_MSG} ${selectors.ASSISTANT_TEXT_CONTENT} ${tag}`)
                 .join(',\n');
 
             // Generate CSS with conditional properties
@@ -2639,14 +2652,14 @@
                 }
 
                 /* --- Assistant Bubble & Text --- */
-                ${selectors.ASSISTANT_MESSAGE} ${selectors.RAW_ASSISTANT_BUBBLE} {
+                ${S_ASST_MSG} ${S_ASST_BUBBLE} {
                     ${prop('background-color', CSS_VARS.ASSISTANT_BUBBLE_BG)}
                     ${prop('padding', CSS_VARS.ASSISTANT_BUBBLE_PADDING)}
                     ${prop('border-radius', CSS_VARS.ASSISTANT_BUBBLE_RADIUS)}
                     ${prop('max-width', CSS_VARS.ASSISTANT_BUBBLE_MAXWIDTH)}
                     ${overrides.assistant || ''}
                 }
-                ${selectors.ASSISTANT_MESSAGE} ${selectors.ASSISTANT_TEXT_CONTENT} {
+                ${S_ASST_MSG} ${selectors.ASSISTANT_TEXT_CONTENT} {
                     ${prop('color', CSS_VARS.ASSISTANT_TEXT_COLOR)}
                     ${prop('font-family', CSS_VARS.ASSISTANT_FONT)}
                 }
@@ -2656,14 +2669,14 @@
                 }
 
                 /* --- User Bubble & Text --- */
-                ${selectors.USER_MESSAGE} ${selectors.RAW_USER_BUBBLE} {
+                ${S_USER_MSG} ${S_USER_BUBBLE} {
                     ${prop('background-color', CSS_VARS.USER_BUBBLE_BG)}
                     ${prop('padding', CSS_VARS.USER_BUBBLE_PADDING)}
                     ${prop('border-radius', CSS_VARS.USER_BUBBLE_RADIUS)}
                     ${prop('max-width', CSS_VARS.USER_BUBBLE_MAXWIDTH)}
                     ${overrides.user || ''}
                 }
-                ${selectors.USER_MESSAGE} ${selectors.USER_TEXT_CONTENT} {
+                ${S_USER_MSG} ${selectors.USER_TEXT_CONTENT} {
                     ${prop('color', CSS_VARS.USER_TEXT_COLOR)}
                     ${prop('font-family', CSS_VARS.USER_FONT)}
                 }
@@ -2816,6 +2829,14 @@
          */
         performInitialScan(lifecycleManager) {
             return 0;
+        }
+
+        /**
+         * Applies performance-optimized classes to message elements to avoid expensive CSS selectors.
+         * @param {HTMLElement} messageElement The message container element.
+         */
+        optimizeMessageStyles(messageElement) {
+            // No-op by default
         }
 
         /**
@@ -6937,37 +6958,27 @@
             // Limit search scope to the messages root container
             const rootContainer = PlatformAdapters.General.getMessagesRoot();
 
-            // Filter explicitly for HTMLElements to satisfy TypeScript and allow dataset access later
-            this.userMessages = Array.from(rootContainer.querySelectorAll(CONSTANTS.SELECTORS.USER_MESSAGE)).filter((el) => el instanceof HTMLElement);
-            const rawAssistantMessages = Array.from(rootContainer.querySelectorAll(CONSTANTS.SELECTORS.ASSISTANT_MESSAGE)).filter((el) => el instanceof HTMLElement);
-            // Filter out empty, non-functional message containers that might appear in image-only turns.
-            this.assistantMessages = rawAssistantMessages.filter((msg) => PlatformAdapters.General.filterMessage(msg));
+            this.userMessages = [];
+            this.assistantMessages = [];
+            this.totalMessages = [];
 
-            // Construct totalMessages using a linear merge sort approach (O(N)).
-            // Since querySelectorAll returns elements in document order, userMessages and assistantMessages are already sorted.
-            const total = [];
-            let u = 0,
-                a = 0;
-            const uLen = this.userMessages.length;
-            const aLen = this.assistantMessages.length;
+            // Fetch all candidates in document order and classify using the adapter
+            const allCandidates = Array.from(rootContainer.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS)).filter((el) => el instanceof HTMLElement);
 
-            while (u < uLen && a < aLen) {
-                const uMsg = this.userMessages[u];
-                const aMsg = this.assistantMessages[a];
-                // Check position: Node.DOCUMENT_POSITION_FOLLOWING (4) means aMsg follows uMsg (uMsg comes first).
-                if (uMsg.compareDocumentPosition(aMsg) & Node.DOCUMENT_POSITION_FOLLOWING) {
-                    total.push(uMsg);
-                    u++;
-                } else {
-                    total.push(aMsg);
-                    a++;
+            for (const msg of allCandidates) {
+                const role = PlatformAdapters.General.getMessageRole(msg);
+
+                if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER) {
+                    this.userMessages.push(msg);
+                    this.totalMessages.push(msg);
+                } else if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT) {
+                    // Filter out empty, non-functional message containers
+                    if (PlatformAdapters.General.filterMessage(msg)) {
+                        this.assistantMessages.push(msg);
+                        this.totalMessages.push(msg);
+                    }
                 }
             }
-            // Append any remaining elements
-            while (u < uLen) total.push(this.userMessages[u++]);
-            while (a < aLen) total.push(this.assistantMessages[a++]);
-
-            this.totalMessages = total;
 
             // Rebuild the lookup map for O(1) access.
             // This must be done after the arrays are fully filtered and sorted to ensure consistency.
@@ -7028,10 +7039,12 @@
             }
 
             // 5. Determine the role (User or Assistant)
+            const rawRole = PlatformAdapters.General.getMessageRole(messageElement);
             let role = null;
-            if (messageElement.matches(CONSTANTS.SELECTORS.USER_MESSAGE)) {
+
+            if (rawRole === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER) {
                 role = CONSTANTS.INTERNAL_ROLES.USER;
-            } else if (messageElement.matches(CONSTANTS.SELECTORS.ASSISTANT_MESSAGE)) {
+            } else if (rawRole === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT) {
                 role = CONSTANTS.INTERNAL_ROLES.ASSISTANT;
             }
 
@@ -10593,6 +10606,9 @@
 
             // If we have a valid message container, proceed.
             if (messageElement) {
+                // Apply static classes to replace expensive CSS selectors
+                PlatformAdapters.General.optimizeMessageStyles(messageElement);
+
                 // Publish the timestamp for this message as soon as it's identified.
                 // This is for real-time messages; historical ones are loaded via API.
                 // Find the correct messageId from the parent element
@@ -17776,6 +17792,12 @@
                 USER_MESSAGE: 'div[data-message-author-role="user"]',
                 ASSISTANT_MESSAGE: 'div[data-message-author-role="assistant"]',
 
+                // --- Optimized Style Selectors ---
+                USER_MESSAGE_STYLE: `.${SHARED_CONSTANTS.CLASSES.ROLE_USER}`,
+                ASSISTANT_MESSAGE_STYLE: `.${SHARED_CONSTANTS.CLASSES.ROLE_ASSISTANT}`,
+                RAW_ASSISTANT_BUBBLE_STYLE: `.${SHARED_CONSTANTS.CLASSES.BUBBLE_ASSISTANT}`,
+                RAW_USER_BUBBLE_STYLE: 'div.user-message-bubble-color',
+
                 // --- Selectors for finding elements to tag ---
                 RAW_USER_BUBBLE: 'div.user-message-bubble-color',
                 RAW_ASSISTANT_BUBBLE: 'div:has(> .markdown)',
@@ -17963,13 +17985,21 @@
             /** @override */
             getMessageRole(messageElement) {
                 if (!messageElement) return null;
-                // First, check for the message role attribute (div[data-message-author-role])
+
+                // 1. Check for optimization classes first
+                if (messageElement.classList.contains(CONSTANTS.CLASSES.ROLE_USER)) {
+                    return CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER;
+                }
+                if (messageElement.classList.contains(CONSTANTS.CLASSES.ROLE_ASSISTANT)) {
+                    return CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT;
+                }
+
+                // 2. Fallback to attribute reading for unprocessed elements
                 const role = messageElement.getAttribute(CONSTANTS.ATTRIBUTES.MESSAGE_ROLE);
                 if (role) {
                     return role;
                 }
                 // If not found, check for the turn attribute (article[data-turn])
-                // This is used by the AvatarManager's self-healing Sentinel listener.
                 return messageElement.getAttribute(CONSTANTS.ATTRIBUTES.TURN_ROLE);
             }
 
@@ -17981,7 +18011,7 @@
 
             /** @override */
             getJumpListDisplayText(messageElement) {
-                const role = messageElement.getAttribute(CONSTANTS.ATTRIBUTES.MESSAGE_ROLE);
+                const role = this.getMessageRole(messageElement);
 
                 // 1. Check for text content first.
                 if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER) {
@@ -18115,6 +18145,24 @@
             }
 
             /** @override */
+            optimizeMessageStyles(messageElement) {
+                const cls = CONSTANTS.CLASSES;
+                const role = this.getMessageRole(messageElement);
+
+                if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER) {
+                    messageElement.classList.add(cls.ROLE_USER);
+                } else if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT) {
+                    messageElement.classList.add(cls.ROLE_ASSISTANT);
+
+                    const bubble = messageElement.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE);
+
+                    if (bubble) {
+                        bubble.classList.add(cls.BUBBLE_ASSISTANT);
+                    }
+                }
+            }
+
+            /** @override */
             onNavigationEnd(lifecycleManager) {
                 // Schedule integrity scan for all browsers on existing chat pages.
                 if (!isNewChatPage()) {
@@ -18147,6 +18195,7 @@
         class ChatGPTStyleManagerAdapter extends BaseStyleManagerAdapter {
             /** @override */
             getStaticCss(cls) {
+                const C = CONSTANTS.CLASSES;
                 return `
                     :root {
                         ${CSS_VARS.MESSAGE_MARGIN_TOP}: 24px;
@@ -18155,12 +18204,12 @@
                         transition: background-image 0.3s ease-in-out;
                     }
                     /* Add margin between messages to prevent overlap */
-                    ${CONSTANTS.SELECTORS.USER_MESSAGE},
-                    ${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} {
+                    .${C.ROLE_USER},
+                    .${C.ROLE_ASSISTANT} {
                         margin-top: var(${CSS_VARS.MESSAGE_MARGIN_TOP});
                     }
-                    ${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE},
-                    ${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE} {
+                    .${C.ROLE_USER} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE},
+                    .${C.ROLE_ASSISTANT} .${C.BUBBLE_ASSISTANT} {
                         box-sizing: border-box;
                     }
                     /* (2025/12/17 updated) Hide borders, shadows, and backgrounds on the header */
@@ -18222,15 +18271,16 @@
 
             /** @override */
             getBubbleCss(cls) {
+                const C = CONSTANTS.CLASSES;
                 return StyleTemplates.getBubbleUiCss(cls, {
                     // ChatGPT: Default class selector is sufficient for parent
                     collapsibleParentSelector: `.${cls.collapsibleParent}`,
                     // ChatGPT: Button positioning depends on role attribute
                     collapsibleBtnExtraCss: `
-                            [data-message-author-role="assistant"] .${cls.collapsibleBtn} {
+                            .${C.ROLE_ASSISTANT} .${cls.collapsibleBtn} {
                                 left: 4px;
                             }
-                            [data-message-author-role="user"] .${cls.collapsibleBtn} {
+                            .${C.ROLE_USER} .${cls.collapsibleBtn} {
                                 right: 4px;
                             }
                         `,
@@ -19404,6 +19454,13 @@
                 USER_MESSAGE: 'user-query',
                 ASSISTANT_MESSAGE: 'model-response',
 
+                // --- Optimized Style Selectors ---
+                // Use native tags/classes directly as they are already performant
+                USER_MESSAGE_STYLE: 'user-query',
+                ASSISTANT_MESSAGE_STYLE: 'model-response',
+                RAW_USER_BUBBLE_STYLE: '.user-query-bubble-with-background',
+                RAW_ASSISTANT_BUBBLE_STYLE: '.response-container-with-gpi',
+
                 // --- Selectors for finding elements to tag ---
                 RAW_USER_BUBBLE: '.user-query-bubble-with-background',
                 RAW_ASSISTANT_BUBBLE: '.response-container-with-gpi',
@@ -19726,7 +19783,7 @@
             getBubbleCss(cls) {
                 return StyleTemplates.getBubbleUiCss(cls, {
                     // Gemini: Parent is specifically the model-response element
-                    collapsibleParentSelector: `model-response.${cls.collapsibleParent}`,
+                    collapsibleParentSelector: `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE}.${cls.collapsibleParent}`,
                     // Gemini: Collapsible button is only for assistant
                     collapsibleBtnExtraCss: `
                             .${cls.collapsibleBtn} {

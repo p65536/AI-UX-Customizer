@@ -387,6 +387,7 @@ interface GeneralAdapter {
     ensureMessageContainerForImage(element: HTMLElement): HTMLElement | null;
     initializeSentinel(callback: (element: HTMLElement) => void): void;
     performInitialScan(lifecycleManager: IMessageLifecycleManager): number;
+    optimizeMessageStyles(messageElement: HTMLElement): void;
     onNavigationEnd(lifecycleManager: IMessageLifecycleManager): void;
     scrollTo(element: HTMLElement, options?: { offset?: number; smooth?: boolean }): void;
 }

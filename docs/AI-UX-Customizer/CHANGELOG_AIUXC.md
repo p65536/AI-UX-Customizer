@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-b456] - 2026-02-03
+- **Performance Improvements**
+  - **[ChatGPT]** Improved scrolling performance and responsiveness by optimizing how message styles are calculated and applied.
+  - **[Core]** Reduced CPU overhead during chat indexing and navigation by optimizing internal message role detection.
+
 ## [1.0.0-b455] - 2026-02-02
 - **Improvements**
   - **[Theme Editor]** Refactored the internal logic to dynamically generate UI labels, tooltips, and options directly from the central configuration schema. This ensures complete consistency between the settings logic and the displayed interface.
