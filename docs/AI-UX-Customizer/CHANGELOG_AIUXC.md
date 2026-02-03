@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b457] - 2026-02-03
+- **Performance**
+  - Optimized rendering performance by applying CSS containment to message containers. This reduces browser layout calculation overhead, resulting in smoother scrolling and better performance during long chats or streaming.
+
 ## [1.0.0-b456] - 2026-02-03
 - **Performance Improvements**
   - **[ChatGPT]** Improved scrolling performance and responsiveness by optimizing how message styles are calculated and applied.
