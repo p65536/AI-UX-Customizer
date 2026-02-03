@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b457
+// @version      1.0.0-b458
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -17800,7 +17800,8 @@
 
                 // --- Selectors for finding elements to tag ---
                 RAW_USER_BUBBLE: 'div.user-message-bubble-color',
-                RAW_ASSISTANT_BUBBLE: 'div:has(> .markdown)',
+                RAW_ASSISTANT_BUBBLE: 'div:has(> .markdown)', // Deprecated: Logic optimized to use RAW_ASSISTANT_BUBBLE_FINDER to avoid expensive :has() selector.
+                RAW_ASSISTANT_BUBBLE_FINDER: '.markdown',
                 ASSISTANT_MESSAGE_CONTENT: 'div.markdown.prose',
                 RAW_USER_IMAGE_BUBBLE: 'div.overflow-hidden:has(img)',
                 RAW_ASSISTANT_IMAGE_BUBBLE: 'div.group\\/imagegen-image',
@@ -18154,7 +18155,9 @@
                 } else if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT) {
                     messageElement.classList.add(cls.ROLE_ASSISTANT);
 
-                    const bubble = messageElement.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE);
+                    // Use Finder to locate the bubble element efficiently without :has()
+                    const content = messageElement.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE_FINDER);
+                    const bubble = content ? content.parentElement : null;
 
                     if (bubble) {
                         bubble.classList.add(cls.BUBBLE_ASSISTANT);
@@ -18180,9 +18183,18 @@
                 const scrollContainer = scrollContainerSelector ? document.querySelector(scrollContainerSelector) : null;
 
                 if (scrollContainer) {
-                    // Find the actual bubble element to be used as the scroll target.
-                    const bubbleSelector = `${CONSTANTS.SELECTORS.RAW_USER_BUBBLE}, ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE}`;
-                    const scrollTargetElement = element.querySelector(bubbleSelector) || element;
+                    let scrollTargetElement = element;
+
+                    // Determine the bubble element based on role to use as the scroll target
+                    const role = this.getMessageRole(element);
+                    if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER) {
+                        const bubble = element.querySelector(CONSTANTS.SELECTORS.RAW_USER_BUBBLE);
+                        if (bubble) scrollTargetElement = bubble;
+                    } else if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT) {
+                        const content = element.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE_FINDER);
+                        if (content && content.parentElement) scrollTargetElement = content.parentElement;
+                    }
+
                     const targetScrollTop = scrollContainer.scrollTop + scrollTargetElement.getBoundingClientRect().top - scrollContainer.getBoundingClientRect().top - offset;
                     scrollContainer.scrollTo({
                         top: targetScrollTop,

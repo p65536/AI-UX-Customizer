@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b458] - 2026-02-03
+- **Performance Improvements**
+  - **[ChatGPT]** Improved scrolling and rendering performance by optimizing the internal logic used to detect assistant message bubbles. This update removes computationally expensive CSS selectors (`:has()`) in favor of more efficient DOM traversal.
+
 ## [1.0.0-b457] - 2026-02-03
 - **Performance**
   - Optimized rendering performance by applying CSS containment to message containers. This reduces browser layout calculation overhead, resulting in smoother scrolling and better performance during long chats or streaming.
