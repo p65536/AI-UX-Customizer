@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b460] - 2026-02-04
+- **Improvements**
+  - Improved the internal logic for numeric sliders. The "Auto" (default) position is now calculated dynamically based on the step value, ensuring better compatibility with future configuration updates.
+
 ## [1.0.0-b459] - 2026-02-03
 - **Refactoring**
   - **[Internal]** Performed code cleanup by removing unused legacy selector definitions across both platforms.

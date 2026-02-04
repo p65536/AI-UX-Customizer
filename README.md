@@ -17,6 +17,9 @@ Each script is developed independently and can be installed separately.
 
 ## Recent Updates
 
+### 2026-02-04
+- Updated `AI UX Customizer` (b459 -> b460)
+
 ### 2026-02-03
 - Updated `AI UX Customizer` (b455 -> b459)
 
@@ -34,12 +37,6 @@ Each script is developed independently and can be installed separately.
 
 ### 2026-01-29
 - Updated `AI UX Customizer` (b434 -> b441)
-
-### 2026-01-28
-- Updated `AI UX Customizer` (b430 -> b434)
-
-### 2026-01-27
-- Updated `AI UX Customizer` (b427 -> b430)
 
 ### 2026-01-21
 - Updated `AI UX Customizer` (b329 -> b396)
@@ -74,7 +71,7 @@ Each script is developed independently and can be installed separately.
 
 | Platform | GitHub | Greasy Fork | Version | Last Updated | Changelog |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **ChatGPT** & **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/AI-UX-Customizer/AI-UX-Customizer.user.js) | (N/A in beta) | 1.0.0-b459 | 2026-02-03 | [View](./docs/AI-UX-Customizer/CHANGELOG_AIUXC.md) |
+| **ChatGPT** & **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/AI-UX-Customizer/AI-UX-Customizer.user.js) | (N/A in beta) | 1.0.0-b460 | 2026-02-04 | [View](./docs/AI-UX-Customizer/CHANGELOG_AIUXC.md) |
 
 **[View Detailed Features & Manual for AI UX Customizer](./docs/AI-UX-Customizer/README.md)**
 
