@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b461
+// @version      1.0.0-b462
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -5665,9 +5665,10 @@
      * @param {MessageCacheManager} messageCacheManager The instance of the message cache manager.
      */
     function syncCacheWithMessages(cacheMap, messageCacheManager) {
-        const currentMessages = new Set(messageCacheManager.getTotalMessages());
+        // Use direct access to elementMap for O(1) lookups instead of creating a new Set (O(N)).
+        // This trades encapsulation for performance in hot paths.
         for (const messageElement of cacheMap.keys()) {
-            if (!currentMessages.has(messageElement)) {
+            if (!messageCacheManager.elementMap.has(messageElement)) {
                 cacheMap.delete(messageElement);
             }
         }

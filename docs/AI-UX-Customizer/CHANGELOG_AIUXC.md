@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b462] - 2026-02-04
+- **Performance**
+  - Optimized internal message tracking logic to improve responsiveness in long conversations. This reduces lag during UI updates, such as resizing the window or changing settings.
+
 ## [1.0.0-b461] - 2026-02-04
 - **Bug Fixes**
   - **[Config]** Fixed a validation loophole where invalid numbers (`NaN`) could be saved, preventing potential layout issues in themes.
