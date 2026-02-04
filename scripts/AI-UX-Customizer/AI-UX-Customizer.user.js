@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b460
+// @version      1.0.0-b461
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -6043,9 +6043,10 @@
                     }
                 } else if (schemaItem.type === 'numeric' && schemaItem.validators) {
                     const { min, max } = schemaItem.validators;
-                    // Check range if value is numeric
-                    if (typeof value === 'number' && (value < min || value > max)) {
-                        errors.push({ field: configKey, message: `${schemaItem.ui?.label || configKey} Must be between ${min} and ${max}.` });
+                    if (typeof value === 'number') {
+                        if (Number.isNaN(value) || value < min || value > max) {
+                            errors.push({ field: configKey, message: `${schemaItem.ui?.label || configKey} Must be a valid number between ${min} and ${max}.` });
+                        }
                     }
                 }
             }
@@ -6216,7 +6217,7 @@
             }
 
             if (typeof value === 'number') {
-                if (validators && (value < validators.min || value > validators.max)) {
+                if (Number.isNaN(value) || (validators && (value < validators.min || value > validators.max))) {
                     return defaultValue === null ? null : defaultValue;
                 }
                 return value;

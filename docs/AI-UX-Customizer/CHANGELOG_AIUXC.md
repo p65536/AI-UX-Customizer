@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b461] - 2026-02-04
+- **Bug Fixes**
+  - **[Config]** Fixed a validation loophole where invalid numbers (`NaN`) could be saved, preventing potential layout issues in themes.
+
 ## [1.0.0-b460] - 2026-02-04
 - **Improvements**
   - Improved the internal logic for numeric sliders. The "Auto" (default) position is now calculated dynamically based on the step value, ensuring better compatibility with future configuration updates.
