@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b466] - 2026-02-05
+- **Core Changes**
+  - Further reduced script size by moving `EVENTS` documentation and `Disposable` type definitions to the external type definition file.
+
 ## [1.0.0-b465] - 2026-02-05
 - **Core Changes**
   - Reduced script size by removing redundant comments and simplifying JSDoc.

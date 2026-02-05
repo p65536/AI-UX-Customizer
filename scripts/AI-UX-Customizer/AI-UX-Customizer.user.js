@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b465
+// @version      1.0.0-b466
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -507,244 +507,55 @@
         ],
     };
 
+    /** @type {AppEvents} */
     const EVENTS = {
         // Theme & Style
-        /**
-         * @description Fired when the chat title changes, signaling a potential theme change.
-         * @event TITLE_CHANGED
-         * @property {null} detail - No payload.
-         */
         TITLE_CHANGED: `${APPID}:titleChanged`,
-        /**
-         * @description Requests a re-evaluation and application of the current theme.
-         * @event THEME_UPDATE
-         * @property {null} detail - No payload.
-         */
         THEME_UPDATE: `${APPID}:themeUpdate`,
-        /**
-         * @description Fired after all theme styles, including asynchronous images, have been fully applied.
-         * @event THEME_APPLIED
-         * @property {object} detail - Contains the theme and config objects.
-         * @property {ThemeSet} detail.theme - The theme set that was applied.
-         * @property {AppConfig} detail.config - The full application configuration.
-         */
         THEME_APPLIED: `${APPID}:themeApplied`,
-        /**
-         * @description Fired when a width-related slider in the settings panel is changed, to preview the new width.
-         * @event WIDTH_PREVIEW
-         * @property {string | null} detail - The new width value (e.g., '60vw') or null for default.
-         */
         WIDTH_PREVIEW: `${APPID}:widthPreview`,
 
         // UI & Layout
-        /**
-         * @description Fired by ThemeManager after it has applied a new chat content width.
-         * @event CHAT_CONTENT_WIDTH_UPDATED
-         * @property {null} detail - No payload.
-         */
         CHAT_CONTENT_WIDTH_UPDATED: `${APPID}:chatContentWidthUpdated`,
-        /**
-         * @description Fired when the main window is resized.
-         * @event WINDOW_RESIZED
-         * @property {null} detail - No payload.
-         */
         WINDOW_RESIZED: `${APPID}:windowResized`,
-        /**
-         * @description Fired when the sidebar's layout (width or visibility) changes.
-         * @event SIDEBAR_LAYOUT_CHANGED
-         * @property {null} detail - No payload.
-         */
         SIDEBAR_LAYOUT_CHANGED: `${APPID}:sidebarLayoutChanged`,
-        /**
-         * @description Requests a re-check of visibility-dependent UI elements (e.g., standing images when a panel appears).
-         * @event VISIBILITY_RECHECK
-         * @property {null} detail - No payload.
-         */
         VISIBILITY_RECHECK: `${APPID}:visibilityRecheck`,
-        /**
-         * @description Requests a check to ensure UI elements are correctly placed within their target containers.
-         * @event UI_REPOSITION
-         * @property {null} detail - No payload.
-         */
         UI_REPOSITION: `${APPID}:uiReposition`,
-        /**
-         * @description Fired when the chat input area is resized.
-         * @event INPUT_AREA_RESIZED
-         * @property {null} detail - No payload.
-         */
         INPUT_AREA_RESIZED: `${APPID}:inputAreaResized`,
 
         // Navigation & Cache
-        /**
-         * @description Fired when a page navigation is about to start.
-         * @event NAVIGATION_START
-         * @property {null} detail - No payload.
-         */
         NAVIGATION_START: `${APPID}:navigationStart`,
-        /**
-         * @description Fired after a page navigation has completed and the UI is stable.
-         * @event NAVIGATION_END
-         * @property {null} detail - No payload.
-         */
         NAVIGATION_END: `${APPID}:navigationEnd`,
-        /**
-         * @description Fired when a page navigation (URL change) is detected. Used to reset manager states.
-         * @event NAVIGATION
-         * @property {null} detail - No payload.
-         */
         NAVIGATION: `${APPID}:navigation`,
-        /**
-         * @description Fired to request an update of the message cache, typically after a DOM mutation.
-         * @event CACHE_UPDATE_REQUEST
-         * @property {null} detail - No payload.
-         */
         CACHE_UPDATE_REQUEST: `${APPID}:cacheUpdateRequest`,
-        /**
-         * @description Fired after the MessageCacheManager has finished rebuilding its cache.
-         * @event CACHE_UPDATED
-         * @property {null} detail - No payload.
-         */
         CACHE_UPDATED: `${APPID}:cacheUpdated`,
-        /**
-         * @description Requests that a specific message element be highlighted by the navigation system.
-         * @event NAV_HIGHLIGHT_MESSAGE
-         * @property {HTMLElement} detail - The message element to highlight.
-         */
         NAV_HIGHLIGHT_MESSAGE: `${APPID}:nav:highlightMessage`,
 
         // Message Lifecycle
-        /**
-         * @description Fired by Sentinel when a new message bubble's core content is added to the DOM.
-         * @event RAW_MESSAGE_ADDED
-         * @property {HTMLElement} detail - The raw bubble element that was added.
-         */
         RAW_MESSAGE_ADDED: `${APPID}:rawMessageAdded`,
-        /**
-         * @description Fired to request the injection of an avatar into a specific message element.
-         * @event AVATAR_INJECT
-         * @property {HTMLElement} detail - The message element (e.g., `user-query`) to inject the avatar into.
-         */
         AVATAR_INJECT: `${APPID}:avatarInject`,
-        /**
-         * @description Fired when a message container has been identified and is ready for further processing, such as the injection of UI addons (e.g., navigation buttons).
-         * @event MESSAGE_COMPLETE
-         * @property {HTMLElement} detail - The completed message element.
-         */
         MESSAGE_COMPLETE: `${APPID}:messageComplete`,
-        /**
-         * @description Fired when an entire conversation turn (user query and assistant response) is complete, including streaming.
-         * @event TURN_COMPLETE
-         * @property {HTMLElement} detail - The completed turn container element.
-         */
         TURN_COMPLETE: `${APPID}:turnComplete`,
-        /**
-         * @description Fired when an assistant response starts streaming.
-         * @event STREAMING_START
-         */
         STREAMING_START: `${APPID}:streamingStart`,
-        /**
-         * @description Fired when an assistant response finishes streaming.
-         * @event STREAMING_END
-         */
         STREAMING_END: `${APPID}:streamingEnd`,
-        /**
-         * @description Fired after streaming ends to trigger deferred layout updates.
-         * @event DEFERRED_LAYOUT_UPDATE
-         */
         DEFERRED_LAYOUT_UPDATE: `${APPID}:deferredLayoutUpdate`,
-        /**
-         * @description (ChatGPT-only) Fired when historical timestamps are loaded from the API.
-         * @event TIMESTAMPS_LOADED
-         * @property {object} detail - Contains the chat ID and timestamps map.
-         * @property {string} detail.chatId - The ID of the chat.
-         * @property {Map<string, Date>} detail.timestamps - The map of historical timestamps.
-         */
         TIMESTAMPS_LOADED: `${APPID}:timestampsLoaded`,
-        /**
-         * @description Fired when a new timestamp for a realtime message is recorded.
-         * @event TIMESTAMP_ADDED
-         * @property {object} detail - Contains the message ID.
-         * @property {string} detail.messageId - The ID of the message.
-         * @property {Date} detail.timestamp - The timestamp (Date object) of when the message was processed.
-         */
         TIMESTAMP_ADDED: `${APPID}:timestampAdded`,
 
         // System & Config
-        /**
-         * @description Fired when a remote configuration change is detected from another tab/window.
-         * @event REMOTE_CONFIG_CHANGED
-         * @property {null} detail - No payload.
-         */
         REMOTE_CONFIG_CHANGED: `${APPID}:remoteConfigChanged`,
-        /**
-         * @description Requests the temporary suspension of all major DOM observers (MutationObserver, Sentinel).
-         * @event SUSPEND_OBSERVERS
-         * @property {null} detail - No payload.
-         */
         SUSPEND_OBSERVERS: `${APPID}:suspendObservers`,
-        /**
-         * @description Requests the resumption of suspended observers and a forced refresh of the UI.
-         * @event RESUME_OBSERVERS_AND_REFRESH
-         * @property {null} detail - No payload.
-         */
         RESUME_OBSERVERS_AND_REFRESH: `${APPID}:resumeObserversAndRefresh`,
-        /**
-         * @description Fired when the configuration size exceeds the storage limit.
-         * @event CONFIG_SIZE_EXCEEDED
-         * @property {object} detail - Contains the error message.
-         * @property {string} detail.message - The warning message to display.
-         */
         CONFIG_SIZE_EXCEEDED: `${APPID}:configSizeExceeded`,
-        /**
-         * @description Fired to update the display state of a configuration-related warning.
-         * @event CONFIG_WARNING_UPDATE
-         * @property {object} detail - The warning state.
-         * @property {boolean} detail.show - Whether to show the warning.
-         * @property {string} detail.message - The message to display.
-         */
         CONFIG_WARNING_UPDATE: `${APPID}:configWarningUpdate`,
-        /**
-         * @description Fired when the configuration is successfully saved.
-         * @event CONFIG_SAVE_SUCCESS
-         * @property {null} detail - No payload.
-         */
         CONFIG_SAVE_SUCCESS: `${APPID}:configSaveSuccess`,
-        /**
-         * @description Fired when the configuration has been updated, signaling UI components to refresh.
-         * @event CONFIG_UPDATED
-         * @property {AppConfig} detail - The new, complete configuration object.
-         */
         CONFIG_UPDATED: `${APPID}:configUpdated`,
 
-        /**
-         * @description (ChatGPT-only) Fired by the polling scanner when it detects new messages.
-         * @event INTEGRITY_SCAN_MESSAGES_FOUND
-         * @property {null} detail - No payload.
-         */
+        // Platform Specific
         INTEGRITY_SCAN_MESSAGES_FOUND: `${APPID}:integrityScanMessagesFound`,
-        /**
-         * @description (Gemini-only) Requests the start of the auto-scroll process to load full chat history.
-         * @event AUTO_SCROLL_REQUEST
-         * @property {null} detail - No payload.
-         */
         AUTO_SCROLL_REQUEST: `${APPID}:autoScrollRequest`,
-        /**
-         * @description (Gemini-only) Requests the cancellation of an in-progress auto-scroll.
-         * @event AUTO_SCROLL_CANCEL_REQUEST
-         * @property {null} detail - No payload.
-         */
         AUTO_SCROLL_CANCEL_REQUEST: `${APPID}:autoScrollCancelRequest`,
-        /**
-         * @description (Gemini-only) Fired when the auto-scroll process has actively started (i.e., progress bar detected).
-         * @event AUTO_SCROLL_START
-         * @property {null} detail - No payload.
-         */
         AUTO_SCROLL_START: `${APPID}:autoScrollStart`,
-        /**
-         * @description (Gemini-only) Fired when the auto-scroll process has completed or been cancelled.
-         * @event AUTO_SCROLL_COMPLETE
-         * @property {null} detail - No payload.
-         */
         AUTO_SCROLL_COMPLETE: `${APPID}:autoScrollComplete`,
     };
 
@@ -3723,6 +3534,7 @@
         isUiWorkScheduled: false,
         _logAggregation: {},
         // prettier-ignore
+        /** @type {Set<string>} */
         _aggregatedEvents: new Set([
             EVENTS.RAW_MESSAGE_ADDED,
             EVENTS.AVATAR_INJECT,
@@ -3927,15 +3739,6 @@
     // =================================================================================
 
     /**
-     * @typedef {() => void} DisposableFn
-     * @typedef {{ dispose: () => void }} DisposableObj
-     * @typedef {{ disconnect: () => void }} DisconnectableObj
-     * @typedef {{ abort: () => void }} AbortableObj
-     * @typedef {{ destroy: () => void }} DestructibleObj
-     * @typedef {DisposableFn | DisposableObj | DisconnectableObj | AbortableObj | DestructibleObj} Disposable
-     */
-
-    /**
      * @class BaseManager
      * @description Provides common lifecycle and event subscription management capabilities.
      * Implements the Template Method pattern for init/destroy cycles.
@@ -3944,7 +3747,7 @@
     class BaseManager {
         constructor() {
             /**
-             * @type {Set<Disposable>}
+             * @type {Set<AppDisposable>}
              * Unified storage for all resources. Set preserves insertion order.
              */
             this._disposables = new Set();
@@ -3974,7 +3777,7 @@
 
         /**
          * Registers a resource to be disposed of when the manager is destroyed.
-         * @param {Disposable} disposable A function or object with dispose/disconnect/abort/destroy method.
+         * @param {AppDisposable} disposable A function or object with dispose/disconnect/abort/destroy method.
          * @returns {() => void} A function to dispose of the resource early.
          */
         addDisposable(disposable) {
@@ -4073,7 +3876,7 @@
          * Replaces any existing resource registered with the same key.
          * If null is passed as the resource, the existing resource (if any) is disposed and the key is removed; no new resource is registered.
          * @param {string} key Unique identifier.
-         * @param {Disposable | null} resource The new resource. Pass null to remove existing without replacing.
+         * @param {AppDisposable | null} resource The new resource. Pass null to remove existing without replacing.
          * @returns {() => void} A function to dispose of the resource early.
          */
         manageResource(key, resource) {
@@ -4106,7 +3909,7 @@
 
         /**
          * Manages a dynamic resource created by a factory function.
-         * @template {Disposable} T
+         * @template {AppDisposable} T
          * @param {string} key Unique identifier for the resource.
          * @param {() => T} factory A function that returns the resource.
          * @returns {T | null} The created resource, or null if destroyed.
@@ -4226,7 +4029,7 @@
         /**
          * Internal helper to register a resource into the Set and return a safe dispose function.
          * @private
-         * @param {Disposable} resource
+         * @param {AppDisposable} resource
          * @returns {() => void} A function that disposes the resource and removes it from the manager.
          */
         _registerDisposable(resource) {
@@ -4263,7 +4066,7 @@
          * 6. object.abort()
          * 7. object.destroy()
          * @private
-         * @param {Disposable} disposable
+         * @param {AppDisposable} disposable
          */
         _disposeResource(disposable) {
             try {
@@ -4291,7 +4094,7 @@
 
         /**
          * @param {unknown} obj
-         * @returns {obj is DestructibleObj}
+         * @returns {obj is AppDestructibleObj}
          */
         _isDestructibleObj(obj) {
             return typeof obj === 'object' && obj !== null && 'destroy' in obj && typeof (/** @type {{ destroy: unknown }} */ (obj).destroy) === 'function';
@@ -4299,7 +4102,7 @@
 
         /**
          * @param {unknown} obj
-         * @returns {obj is DisposableObj}
+         * @returns {obj is AppDisposableObj}
          */
         _isDisposableObj(obj) {
             return typeof obj === 'object' && obj !== null && 'dispose' in obj && typeof (/** @type {any} */ (obj).dispose) === 'function';
@@ -4307,7 +4110,7 @@
 
         /**
          * @param {unknown} obj
-         * @returns {obj is DisconnectableObj}
+         * @returns {obj is AppDisconnectableObj}
          */
         _isDisconnectableObj(obj) {
             return typeof obj === 'object' && obj !== null && 'disconnect' in obj && typeof (/** @type {any} */ (obj).disconnect) === 'function';
@@ -4315,7 +4118,7 @@
 
         /**
          * @param {unknown} obj
-         * @returns {obj is AbortableObj}
+         * @returns {obj is AppAbortableObj}
          */
         _isAbortableObj(obj) {
             return typeof obj === 'object' && obj !== null && 'abort' in obj && typeof (/** @type {any} */ (obj).abort) === 'function';
@@ -7604,7 +7407,7 @@
 
         /**
          * Registers a disposable resource.
-         * @param {Disposable} disposable
+         * @param {AppDisposable} disposable
          */
         add(disposable) {
             if (disposable) this.disposables.push(disposable);
