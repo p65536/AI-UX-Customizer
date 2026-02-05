@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b467
+// @version      1.0.0-b468
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -2443,9 +2443,10 @@
                 return `${propName}: var(${varName}) !important;`;
             };
 
-            // Generate assistant text color selectors for block-level elements only.
-            // Excluded inline/complex elements (table, th, td, strong, em, blockquote) to preserve native styling/highlighting.
-            const assistantTextSelectors = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul li', 'ol li', 'ul li::marker', 'ol li::marker'].map((tag) => `${S_ASST_MSG} ${selectors.ASSISTANT_TEXT_CONTENT} ${tag}`).join(',\n');
+            // Generate assistant text color selectors for all child elements.
+            const assistantTextSelectors = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul li', 'ol li', 'ul li::marker', 'ol li::marker', 'strong', 'em', 'blockquote', 'table', 'th', 'td']
+                .map((tag) => `${S_ASST_MSG} ${selectors.ASSISTANT_TEXT_CONTENT} ${tag}`)
+                .join(',\n');
 
             // Generate CSS with conditional properties
             return `
@@ -2484,6 +2485,32 @@
                 /* Assistant Child Elements Text Color */
                 ${assistantTextSelectors} {
                     ${prop('color', CSS_VARS.ASSISTANT_TEXT_COLOR)}
+                }
+
+                /* --- Assistant Rich Content Styling (Tone-on-Tone) --- */
+                /* Table: Header 10% opacity, Cell 5% opacity, Border 20% opacity */
+                ${S_ASST_MSG} ${selectors.ASSISTANT_TEXT_CONTENT} table,
+                ${S_ASST_MSG} ${selectors.ASSISTANT_TEXT_CONTENT} th,
+                ${S_ASST_MSG} ${selectors.ASSISTANT_TEXT_CONTENT} td {
+                    ${activeVars && activeVars.has(CSS_VARS.ASSISTANT_TEXT_COLOR) ? `border-color: color-mix(in srgb, var(${CSS_VARS.ASSISTANT_TEXT_COLOR}), transparent 80%) !important;` : ''}
+                }
+                ${S_ASST_MSG} ${selectors.ASSISTANT_TEXT_CONTENT} th {
+                    ${activeVars && activeVars.has(CSS_VARS.ASSISTANT_TEXT_COLOR) ? `background-color: color-mix(in srgb, var(${CSS_VARS.ASSISTANT_TEXT_COLOR}), transparent 90%) !important;` : ''}
+                }
+                ${S_ASST_MSG} ${selectors.ASSISTANT_TEXT_CONTENT} td {
+                    ${activeVars && activeVars.has(CSS_VARS.ASSISTANT_TEXT_COLOR) ? `background-color: color-mix(in srgb, var(${CSS_VARS.ASSISTANT_TEXT_COLOR}), transparent 95%) !important;` : ''}
+                }
+
+                /* Blockquote: Background 5% opacity, Border 30% opacity */
+                ${S_ASST_MSG} ${selectors.ASSISTANT_TEXT_CONTENT} blockquote {
+                    ${
+                        activeVars && activeVars.has(CSS_VARS.ASSISTANT_TEXT_COLOR)
+                            ? `
+                        background-color: color-mix(in srgb, var(${CSS_VARS.ASSISTANT_TEXT_COLOR}), transparent 95%) !important;
+                        border-left-color: color-mix(in srgb, var(${CSS_VARS.ASSISTANT_TEXT_COLOR}), transparent 70%) !important;
+                    `
+                            : ''
+                    }
                 }
 
                 /* --- User Bubble & Text --- */

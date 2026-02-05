@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.0-b468] - 2026-02-05
+- **Improvements**
+  - **[Theme]** Enhanced the styling for **Tables** and **Quotes** to better blend with your custom theme.
+    - Reverted the behavior from **b464** (which preserved native styles but caused disjointed designs). Instead, the script now automatically generates matching background colors based on your chosen text color.
+    - This "Tone-on-Tone" approach ensures that tables and quotes are clearly distinguishable and readable, regardless of the colors you select.
+
 ## [1.0.0-b467] - 2026-02-05
 - **Core Changes**
   - Reduced script size by removing redundant comments.
