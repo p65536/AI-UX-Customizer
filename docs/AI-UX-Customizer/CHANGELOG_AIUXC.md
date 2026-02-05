@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.0-b464] - 2026-02-05
+- **Improvements**
+  - **[Theme]** Refined the theme engine to better respect the native styling of **Tables** and **Emphasized text**.
+    - Table headers and bold/italic text will no longer be forcibly overwritten by the theme's text color.
+    - This fixes readability issues where table headers could become invisible (e.g., white text on white background) depending on the applied theme.
+
 ## [1.0.0-b463] - 2026-02-05
 - **Bug Fixes**
   - Fixed a style conflict where the navigation console's selection highlight ignored the custom **Border Radius** defined in themes. The highlight outline now correctly matches the shape of your message bubbles.
