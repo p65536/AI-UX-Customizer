@@ -40,8 +40,8 @@
           "textColor": "rgb(219 159 20)",
           "font": null,
           "bubbleBackgroundColor": "rgb(46 40 40)",
-          "bubblePadding": "8px",
-          "bubbleBorderRadius": "10px",
+          "bubblePadding": 8,
+          "bubbleBorderRadius": 10,
           "bubbleMaxWidth": null,
           "standingImageUrl": null
         },
@@ -51,8 +51,8 @@
           "textColor": "rgb(109 194 81)",
           "font": null,
           "bubbleBackgroundColor": "rgb(40 37 48)",
-          "bubblePadding": "8px",
-          "bubbleBorderRadius": "10px",
+          "bubblePadding": 8,
+          "bubbleBorderRadius": 10,
           "bubbleMaxWidth": null,
           "standingImageUrl": null
         },
@@ -106,8 +106,8 @@
           "textColor": "rgb(206 213 240)",
           "font": null,
           "bubbleBackgroundColor": "rgb(33 32 32)",
-          "bubblePadding": "8px",
-          "bubbleBorderRadius": "10px",
+          "bubblePadding": 8,
+          "bubbleBorderRadius": 10,
           "bubbleMaxWidth": null,
           "standingImageUrl": null
         },
@@ -117,8 +117,8 @@
           "textColor": null,
           "font": null,
           "bubbleBackgroundColor": null,
-          "bubblePadding": "8px",
-          "bubbleBorderRadius": "10px",
+          "bubblePadding": 8,
+          "bubbleBorderRadius": 10,
           "bubbleMaxWidth": null,
           "standingImageUrl": null
         },
@@ -151,8 +151,8 @@
         "textColor": "rgb(255 227 224)",
         "font": "Meiryo, sans-serif",
         "bubbleBackgroundColor": "rgb(56 66 82)",
-        "bubblePadding": "8px",
-        "bubbleBorderRadius": "16px",
+        "bubblePadding": 8,
+        "bubbleBorderRadius": 16,
         "bubbleMaxWidth": null
       },
       "user": {
@@ -162,8 +162,8 @@
         "textColor": "rgb(137 196 245)",
         "font": "Meiryo, sans-serif",
         "bubbleBackgroundColor": "rgb(35 45 59)",
-        "bubblePadding": "8px",
-        "bubbleBorderRadius": "16px",
+        "bubblePadding": 8,
+        "bubbleBorderRadius": 16,
         "bubbleMaxWidth": null
       },
       "window": {
@@ -192,9 +192,9 @@
         "textColor": "rgb(184 183 173)",
         "font": "Meiryo, sans-serif",
         "bubbleBackgroundColor": "rgb(36 39 41)",
-        "bubblePadding": "8px",
-        "bubbleBorderRadius": "16px",
-        "bubbleMaxWidth": "90%"
+        "bubblePadding": 8,
+        "bubbleBorderRadius": 16,
+        "bubbleMaxWidth": 90
       },
       "user": {
         "name": "Amateur",
@@ -203,9 +203,9 @@
         "textColor": "rgb(151 194 179)",
         "font": "Meiryo, sans-serif",
         "bubbleBackgroundColor": "rgb(36 39 41)",
-        "bubblePadding": "8px",
-        "bubbleBorderRadius": "16px",
-        "bubbleMaxWidth": "70%"
+        "bubblePadding": 8,
+        "bubbleBorderRadius": 16,
+        "bubbleMaxWidth": 70
       },
       "window": {
         "backgroundColor": "rgb(24 26 28)",
@@ -232,9 +232,9 @@
         "textColor": "rgb(175 195 222)",
         "font": "'Segoe UI', 'Yu Gothic UI', 'Meiryo', sans-serif",
         "bubbleBackgroundColor": "rgb(35 34 28 / 0.7)",
-        "bubblePadding": "8px",
-        "bubbleBorderRadius": "16px",
-        "bubbleMaxWidth": "100%",
+        "bubblePadding": 8,
+        "bubbleBorderRadius": 16,
+        "bubbleMaxWidth": 100,
         "standingImageUrl": "https://raw.githubusercontent.com/p65536/p65536/main/images/sample_standing_wizard.webp"
       },
       "user": {
@@ -243,9 +243,9 @@
         "textColor": "rgb(240 184 17)",
         "font": "'Meiryo', 'Yu Gothic UI', 'Segoe UI', sans-serif",
         "bubbleBackgroundColor": "rgb(53 51 44 / 0.7)",
-        "bubblePadding": "8px",
-        "bubbleBorderRadius": "16px",
-        "bubbleMaxWidth": "70%",
+        "bubblePadding": 8,
+        "bubbleBorderRadius": 16,
+        "bubbleMaxWidth": 70,
         "standingImageUrl": "https://raw.githubusercontent.com/p65536/p65536/main/images/sample_standing_sword.webp"
       },
       "window": {

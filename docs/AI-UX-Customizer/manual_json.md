@@ -112,9 +112,9 @@ The following is a sample to illustrate the JSON structure. **Ready-to-use sampl
         "textColor": "#89c4f4",
         "font": "Meiryo, sans-serif",
         "bubbleBackgroundColor": "#232e3b",
-        "bubblePadding": "10px 14px",
-        "bubbleBorderRadius": "16px",
-        "bubbleMaxWidth": "70%"
+        "bubblePadding": 10,
+        "bubbleBorderRadius": 16,
+        "bubbleMaxWidth": 70
       },
       "assistant": {
         "name": "Assistant",
@@ -123,9 +123,9 @@ The following is a sample to illustrate the JSON structure. **Ready-to-use sampl
         "textColor": "#ffe4e1",
         "font": "Meiryo, sans-serif",
         "bubbleBackgroundColor": "#384251",
-        "bubblePadding": "10px 14px",
-        "bubbleBorderRadius": "16px",
-        "bubbleMaxWidth": "90%"
+        "bubblePadding": 10,
+        "bubbleBorderRadius": 16,
+        "bubbleMaxWidth": 90
       },
       "window": {
         "backgroundColor": "#151b22",
@@ -162,7 +162,7 @@ The following is a sample to illustrate the JSON structure. **Ready-to-use sampl
 | Property Name | Description | Example | Notes/Allowed Values |
 | --- | --- | --- | --- |
 | `icon_size` | Icon size | `64` | Number. Default is `64`.<br>Values `64`, `96`, `128`, `160`, `192` are specified as allowed values for balanced display.  |
-| `chat_content_max_width` | Max width of the chat content area. | `'70vw'` | A valid CSS `max-width` value as a string. However, this script is limited to `vw` units.<br>Blank or `null` for the AI service's default.  |
+| `chat_content_max_width` | Max width of the chat content area. | `70` | Number (Unit is fixed to `vw`).<br>Blank or `null` for the AI service's default.  |
 | `respect_avatar_space` | Whether to consider avatar icon space when displaying standing images.  | `true` | `true`: Standing images are adjusted so they don't overlap avatar icons.<br>`false`: Standing images may overlap avatar icons. Set to `false` if you want to maximize standing image display size.<br>Default is `true`.  |
 
 -----
@@ -231,9 +231,9 @@ At the beginning of each theme object, describe the theme's information in `meta
 | `textColor` | Text color | `"#89c4f4"` | CSS color code (\# notation/rgb()/name, etc.)<br>Corresponding CSS property: `color`  |
 | `font` | Font for the bubble | `"Meiryo, sans-serif"` | CSS font declaration  |
 | `bubbleBackgroundColor` | Bubble background color | `"#222833"` | Corresponding CSS property: `background-color`  |
-| `bubblePadding` | Bubble inner padding | `"10px 14px"` | Corresponding CSS property: `padding`  |
-| `bubbleBorderRadius` | Bubble corner radius | `"16px"` | Corresponding CSS property: `border-radius`  |
-| `bubbleMaxWidth` | Bubble max width | `"70%"` | Corresponding CSS property: `max-width`  |
+| `bubblePadding` | Bubble inner padding | `10` | Number (Unit is fixed to `px`).<br>Corresponding CSS property: `padding` |
+| `bubbleBorderRadius` | Bubble corner radius | `16` | Number (Unit is fixed to `px`).<br>Corresponding CSS property: `border-radius` |
+| `bubbleMaxWidth` | Bubble max width | `70` | Number (Unit is fixed to `%`).<br>Corresponding CSS property: `max-width` |
 
 -----
 
