@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-b463] - 2026-02-05
+- **Bug Fixes**
+  - Fixed a style conflict where the navigation console's selection highlight ignored the custom **Border Radius** defined in themes. The highlight outline now correctly matches the shape of your message bubbles.
+  - Corrected the highlight behavior for image messages to preserve their native rectangular shape instead of forcing rounded corners.
+
 ## [1.0.0-b462] - 2026-02-04
 - **Performance**
   - Optimized internal message tracking logic to improve responsiveness in long conversations. This reduces lag during UI updates, such as resizing the window or changing settings.

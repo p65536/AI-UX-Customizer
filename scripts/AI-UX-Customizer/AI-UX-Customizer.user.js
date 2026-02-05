@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b462
+// @version      1.0.0-b463
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -1836,12 +1836,15 @@
             const S_USER_BUBBLE = selectors.RAW_USER_BUBBLE_STYLE;
             const S_ASST_BUBBLE = selectors.RAW_ASSISTANT_BUBBLE_STYLE;
 
-            const highlightRule = `
+            // Highlight Selectors
+            const highlightCommon = `
                 .${cls.highlightMessage} ${S_USER_BUBBLE}, 
                 .${cls.highlightMessage} ${S_ASST_BUBBLE}, 
                 .${cls.highlightMessage} ${selectors.RAW_USER_IMAGE_BUBBLE}, 
                 .${cls.highlightTurn} ${selectors.RAW_ASSISTANT_IMAGE_BUBBLE}
             `;
+            const highlightUserText = `.${cls.highlightMessage} ${S_USER_BUBBLE}`;
+            const highlightAsstText = `.${cls.highlightMessage} ${S_ASST_BUBBLE}`;
 
             return `
                 /* --- Fixed Nav Container --- */
@@ -1990,11 +1993,16 @@
 
                 /* --- Highlight (Global Scope) --- */
                 /* These rules target messages outside the root container, so they cannot use #rootId */
-                ${highlightRule} {
+                ${highlightCommon} {
                     outline: 2px solid ${palette.fixed_nav_highlight_outline} !important;
                     outline-offset: -2px;
-                    border-radius: ${palette.fixed_nav_highlight_radius} !important;
                     box-shadow: 0 0 8px ${palette.fixed_nav_highlight_outline} !important;
+                }
+                ${highlightUserText} {
+                    border-radius: var(${CSS_VARS.USER_BUBBLE_RADIUS}) !important;
+                }
+                ${highlightAsstText} {
+                    border-radius: var(${CSS_VARS.ASSISTANT_BUBBLE_RADIUS}) !important;
                 }
             `;
         },
