@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b465] - 2026-02-05
+- **Core Changes**
+  - Reduced script size by removing redundant comments and simplifying JSDoc.
+
 ## [1.0.0-b464] - 2026-02-05
 - **Improvements**
   - **[Theme]** Refined the theme engine to better respect the native styling of **Tables** and **Emphasized text**.

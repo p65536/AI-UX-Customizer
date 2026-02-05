@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b464
+// @version      1.0.0-b465
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -6354,13 +6354,9 @@
         }
 
         /**
-         * Saves the configuration object to storage.
-         * Splits data into Manifest and individual Theme keys.
-         * Performs dirty checking to minimize writes.
          * Enforces save order: Themes -> Manifest (Commit) -> GC (Cleanup).
-         * optimized to avoid deep cloning large theme data and includes optimistic locking for GC.
-         * @param {AppConfig} obj - The configuration object to save.
-         * @returns {Promise<void>} Resolves when save is successful.
+         * @param {AppConfig} obj
+         * @returns {Promise<void>}
          */
         async save(obj) {
             // 1. Sanitization & Normalization
@@ -6504,26 +6500,22 @@
         }
 
         /**
-         * Retrieves the current configuration object synchronously.
-         * @returns {AppConfig|null} The current configuration object, or null if not yet loaded.
+         * @returns {AppConfig|null}
          */
         get() {
             return this.config;
         }
 
         /**
-         * Helper to retrieve the current icon size setting.
-         * @returns {number} The icon size in pixels.
+         * @returns {number}
          */
         getIconSize() {
             return this.config?.platforms?.[PLATFORM]?.options?.icon_size || CONSTANTS.UI_SPECS.AVATAR.DEFAULT_SIZE;
         }
 
         /**
-         * Calculates the JSON string size of the configuration object.
-         * Applies sanitization to match the data that will actually be saved.
          * @param {AppConfig} config
-         * @returns {number} Size in bytes.
+         * @returns {number}
          */
         getConfigSize(config) {
             const cleanConfig = sanitizeConfigForSave(config);
@@ -6532,7 +6524,6 @@
         }
 
         /**
-         * Checks if the given size exceeds the storage limit.
          * @param {number} size
          * @returns {boolean}
          */
@@ -6731,10 +6722,8 @@
         }
 
         /**
-         * Ensures there is enough space in the cache for a new item.
-         * If not, it evicts the least recently used items until there is space.
          * @private
-         * @param {number} newItemSize - The size of the new item to be added.
+         * @param {number} newItemSize
          */
         _makeSpaceForNewItem(newItemSize) {
             if (newItemSize > CONSTANTS.STORAGE_SETTINGS.CACHE_SIZE_LIMIT_BYTES) {
@@ -6753,22 +6742,18 @@
             }
         }
 
-        /**
-         * Clears the record of failed URLs, allowing retry on next fetch attempt.
-         */
         clearFailedUrls() {
             this.failedUrls.clear();
         }
 
         /**
          * Gets an image as a data URL. Returns a cached version immediately if available.
-         * Can fetch and resize the image based on the provided options.
-         * @param {string} url The URL of the image to fetch.
-         * @param {object} resizeOptions Optional resizing parameters.
-         * @param {number} [resizeOptions.width] The target max width for resizing.
-         * @param {number} [resizeOptions.height] The target max height for resizing.
-         * @param {AbortSignal} [resizeOptions.signal] Signal to abort the request.
-         * @returns {Promise<string|null>} A promise that resolves with the data URL or null on failure.
+         * @param {string} url
+         * @param {object} resizeOptions
+         * @param {number} [resizeOptions.width]
+         * @param {number} [resizeOptions.height]
+         * @param {AbortSignal} [resizeOptions.signal]
+         * @returns {Promise<string|null>}
          */
         async getImageAsDataUrl(url, resizeOptions) {
             if (!url || typeof url !== 'string' || !url.startsWith('http')) {
@@ -7077,18 +7062,14 @@
             this.debouncedNotify();
         }
 
-        /**
-         * Publishes the :cacheUpdated event with the current cache state.
-         * Useful for notifying newly initialized components.
-         */
         notify() {
             EventBus.publish(EVENTS.CACHE_UPDATED);
         }
 
         /**
          * Finds the role and index of a given message element within the cached arrays.
-         * @param {HTMLElement} messageElement The element to find.
-         * @returns {{role: 'user'|'assistant', index: number, totalIndex: number} | null} An object with the role and index, or null if not found.
+         * @param {HTMLElement} messageElement
+         * @returns {{role: 'user'|'assistant', index: number, totalIndex: number} | null}
          */
         findMessageIndex(messageElement) {
             return this.elementMap.get(messageElement) || null;
@@ -7096,9 +7077,9 @@
 
         /**
          * Retrieves a message element at a specific index for a given role.
-         * @param {'user'|'assistant'} role The role of the message to retrieve.
-         * @param {number} index The index of the message in its role-specific array.
-         * @returns {HTMLElement | null} The element at the specified index, or null if out of bounds.
+         * @param {'user'|'assistant'} role
+         * @param {number} index
+         * @returns {HTMLElement | null}
          */
         getMessageAtIndex(role, index) {
             const targetArray = role === 'user' ? this.userMessages : this.assistantMessages;
@@ -7117,24 +7098,21 @@
         }
 
         /**
-         * Gets the cached user message elements.
-         * @returns {HTMLElement[]} An array of user message elements.
+         * @returns {HTMLElement[]}
          */
         getUserMessages() {
             return this.userMessages;
         }
 
         /**
-         * Gets the cached assistant message elements.
-         * @returns {HTMLElement[]} An array of assistant message elements.
+         * @returns {HTMLElement[]}
          */
         getAssistantMessages() {
             return this.assistantMessages;
         }
 
         /**
-         * Gets all cached message elements (user and assistant combined).
-         * @returns {HTMLElement[]} An array of all message elements.
+         * @returns {HTMLElement[]}
          */
         getTotalMessages() {
             return this.totalMessages;
@@ -7253,8 +7231,6 @@
 
         /**
          * @private
-         * Rebuilds the regex pattern cache from the provided configuration.
-         * Sanitizes flags (removes 'g' and 'y') to ensure stateless matching.
          * @param {AppConfig} config
          */
         _rebuildPatternCache(config) {
@@ -7296,7 +7272,6 @@
         /**
          * @private
          * Removes all CSS variables defined in ALL_STYLE_DEFINITIONS from the root element.
-         * This ensures a clean state when the manager is destroyed.
          */
         _cleanupCssVariables() {
             const rootStyle = document.documentElement.style;
@@ -7318,10 +7293,7 @@
             }
         }
 
-        /**
-         * Gets the title of the currently active chat from the page.
-         * @returns {string | null}
-         */
+        /** @returns {string | null} */
         getChatTitleAndCache() {
             const currentTitle = PlatformAdapters.General.getChatTitle();
             if (currentTitle !== this.cachedTitle) {
@@ -7373,8 +7345,7 @@
         }
 
         /**
-         * Main theme update handler.
-         * @param {boolean} force - If true, forces the theme to be reapplied even if no changes are detected.
+         * @param {boolean} force
          */
         updateTheme(force) {
             Logger.debug('THEME CHECK', LOG_STYLES.CYAN, 'Update triggered.');
@@ -7411,9 +7382,8 @@
         }
 
         /**
-         * Applies all theme-related styles to the document using CSS variables.
-         * @param {ThemeSet} currentThemeSet The active theme configuration.
-         * @param {AppConfig} fullConfig The entire configuration object, including defaultSet.
+         * @param {ThemeSet} currentThemeSet
+         * @param {AppConfig} fullConfig
          */
         async applyThemeStyles(currentThemeSet, fullConfig) {
             if (this.isDestroyed) return;
@@ -7451,7 +7421,7 @@
                     const lastVal = this.lastAppliedImageValues.get(definition.cssVar);
                     const isIcon = definition.configKey.endsWith('icon');
 
-                    // Optimization: Skip if the value hasn't changed.
+                    // Skip if the value hasn't changed.
                     // Exception: If it's an icon and the global icon size setting has changed, we must re-process it.
                     if (val === lastVal && (!isIcon || !iconSizeChanged)) {
                         if (val) activeVars.add(definition.cssVar); // Keep existing as active
@@ -7541,10 +7511,6 @@
             }
         }
 
-        /**
-         * Schedules a layout recalculation on the next UI work queue cycle.
-         * Prevents performance degradation from frequent events like resize.
-         */
         scheduleLayoutUpdate() {
             if (this.isLayoutUpdateScheduled) return;
             this.isLayoutUpdateScheduled = true;
@@ -7555,10 +7521,6 @@
             });
         }
 
-        /**
-         * Calculates and applies the dynamic max-width for the chat content area.
-         * Uses internal state (cachedPreviewWidth or config) to determine the target width.
-         */
         applyChatContentMaxWidth() {
             if (this.isDestroyed) return;
 
@@ -7698,10 +7660,6 @@
             this.boundHandleCacheUpdateForNavigation = this._handleCacheUpdateForNavigation.bind(this);
         }
 
-        /**
-         * Initializes the manager by subscribing to system-wide events.
-         * This method's functionality was previously part of start().
-         */
         _onInit() {
             // Create observers using manageFactory
             // This ensures they are automatically disconnected when the manager is destroyed.
@@ -7756,10 +7714,9 @@
         }
 
         /**
-         * @description Starts a generic observer for the input area to detect resizing and DOM reconstruction.
-         * @param {object} config - Configuration object.
-         * @param {string} config.triggerSelector - The selector for the element that triggers the observation (usually the anchor).
-         * @param {string} config.resizeTargetSelector - The selector for the element to observe for resizing.
+         * @param {object} config
+         * @param {string} config.triggerSelector
+         * @param {string} config.resizeTargetSelector
          * @returns {() => void} A cleanup function.
          */
         startGenericInputAreaObserver(config) {
@@ -7804,10 +7761,9 @@
         }
 
         /**
-         * @description A generic observer for side panels that handles appearance, disappearance, resizing, and immediate state callbacks.
-         * @param {object} config - Configuration object.
-         * @param {string} config.triggerSelector - The selector for the element that triggers the panel's existence check.
-         * @param {string} config.observerType - The type identifier for ObserverManager (e.g., CONSTANTS.OBSERVED_ELEMENT_TYPES.SIDE_PANEL).
+         * @param {object} config
+         * @param {string} config.triggerSelector
+         * @param {string} config.observerType
          * @param {function(HTMLElement): HTMLElement|null} config.targetResolver - A function to resolve the actual panel element from the trigger element.
          * @param {function(): void} [config.immediateCallback] - An optional callback executed immediately and repeatedly during the animation loop.
          * @returns {() => void} A cleanup function.
@@ -7967,8 +7923,7 @@
 
         /**
          * @private
-         * @description Handles the logic required when a navigation occurs or the app initializes.
-         * Resets observers and sets up page-specific listeners synchronously to avoid race conditions.
+         * @description Resets observers and sets up page-specific listeners synchronously to avoid race conditions.
          */
         _onNavigation() {
             try {
@@ -8204,18 +8159,15 @@
 
         /**
          * Checks if a conversation turn is complete by delegating to the platform-specific adapter.
-         * @param {HTMLElement} turnNode The turn container element.
-         * @returns {boolean} True if the turn is considered complete.
+         * @param {HTMLElement} turnNode
+         * @returns {boolean}
          * @private
          */
         _isTurnComplete(turnNode) {
             return PlatformAdapters.Observer.isTurnComplete(turnNode);
         }
 
-        /**
-         * @private
-         * @description Scans internal collections for elements that are no longer connected to the DOM and cleans up their associated resources.
-         */
+        /** @private */
         _cleanupDisconnectedElements() {
             // 1. Cleanup Turn Listeners (Sentinel)
             for (const [turnNode, [selector, callback]] of this.sentinelTurnListeners) {
@@ -8269,9 +8221,6 @@
             this.avatarTemplate = h(`div${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER}`, [h(`span${CONSTANTS.SELECTORS.SIDE_AVATAR_ICON}`), h(`div${CONSTANTS.SELECTORS.SIDE_AVATAR_NAME}`)]);
         }
 
-        /**
-         * Initializes the manager by injecting styles and subscribing to events.
-         */
         _onInit() {
             this.injectAvatarStyle();
             // Instead of processing immediately, queue the element for batch processing.
@@ -8303,8 +8252,7 @@
         }
 
         /**
-         * Adds a message element to the injection queue and triggers the debounced processor.
-         * @param {HTMLElement} msgElem The message element to process.
+         * @param {HTMLElement} msgElem
          */
         queueForInjection(msgElem) {
             const MAX_ATTEMPTS = CONSTANTS.RETRY.AVATAR_INJECTION_LIMIT;
@@ -8328,11 +8276,7 @@
             this._debouncedProcessQueue();
         }
 
-        /**
-         * Processes all queued avatar injection requests in a batch to optimize performance.
-         * Separates READ (measure) and WRITE (mutate) phases to prevent layout thrashing.
-         * @private
-         */
+        /** @private */
         _processInjectionQueue() {
             // Cancel any existing batch task immediately
             this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
@@ -8403,18 +8347,12 @@
             this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, cancelFn);
         }
 
-        /**
-         * Injects the CSS for avatar styling using StyleManager.
-         */
         injectAvatarStyle() {
             if (this.style) return;
             this.style = StyleManager.request(StyleDefinitions.getAvatar);
             this.updateIconSizeCss();
         }
 
-        /**
-         * Reads the icon size from config and applies it as a CSS variable via StyleManager's handle.
-         */
         updateIconSizeCss() {
             if (!this.style) return;
             const iconSize = this.configManager.getIconSize();
@@ -8443,9 +8381,6 @@
             this.style = null; // Handle for styles and class names
         }
 
-        /**
-         * Initializes the manager by injecting styles and subscribing to events.
-         */
         _onInit() {
             this.isUpdateScheduled = false;
             this.injectStyles(); // Inject styles first to generate IDs
@@ -8534,7 +8469,6 @@
         }
 
         /**
-         * Recalculates the layout for the standing images.
          * @returns {Promise<void>}
          */
         async recalculateStandingImagesLayout() {
@@ -8689,9 +8623,6 @@
             }));
         }
 
-        /**
-         * Initializes the manager by injecting styles and subscribing to events.
-         */
         _onInit() {
             this.injectStyle();
             this._createTemplates();
@@ -8705,9 +8636,6 @@
             this._subscribe(EVENTS.CACHE_UPDATED, () => this.updateAll());
         }
 
-        /**
-         * Removes injected UI elements from the DOM and clears caches.
-         */
         _onDestroy() {
             // Remove DOM elements to prevent artifacts
             this.navContainers.forEach((container) => container.remove());
@@ -8722,9 +8650,6 @@
             this.featureTemplates = {};
         }
 
-        /**
-         * Forces a re-processing of all visible messages, typically after a config change.
-         */
         updateAll() {
             this._syncCaches();
             const allMessages = this.messageCacheManager.getTotalMessages();
@@ -8734,8 +8659,7 @@
         }
 
         /**
-         * Processes a conversation turn after it has completed rendering.
-         * @param {HTMLElement} turnNode The turn container element.
+         * @param {HTMLElement} turnNode
          */
         processTurn(turnNode) {
             const allMessageElements = Array.from(turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS)).filter((el) => el instanceof HTMLElement);
@@ -8743,11 +8667,10 @@
         }
 
         /**
-         * Processes a list of messages in batches, separating Read (Measure) and Write (Mutate) operations.
          * @private
-         * @param {HTMLElement[]} messages - List of messages to process.
-         * @param {string} resourceKey - The resource key to manage this batch task (allows concurrency for different contexts).
-         * @param {() => void} [onComplete] - Callback when all batches are done.
+         * @param {HTMLElement[]} messages
+         * @param {string} resourceKey
+         * @param {() => void} [onComplete]
          */
         _processUpdateQueue(messages, resourceKey, onComplete) {
             // Cancel any existing batch task for this specific key
@@ -8780,7 +8703,6 @@
         }
 
         /**
-         * Gathers information required for UI injection without modifying the DOM.
          * @private
          * @param {HTMLElement} messageElement
          */
@@ -8826,7 +8748,6 @@
         }
 
         /**
-         * Applies DOM changes based on measurement data.
          * @private
          * @param {object} measurement
          */
@@ -8924,10 +8845,7 @@
             }
         }
 
-        /**
-         * Cleans up resources and DOM elements when navigation starts.
-         * @private
-         */
+        /** @private */
         _handleNavigationStart() {
             // Cancel pending batch processing to prevent memory leaks or errors
             this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
@@ -8944,10 +8862,7 @@
             this.autoCollapseProcessedIds.clear();
         }
 
-        /**
-         * Resets caches on page navigation.
-         * @private
-         */
+        /** @private */
         _onNavigation() {
             // Cancel pending batch processing as a fail-safe (in case NAVIGATION_START was missed)
             this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
@@ -8960,12 +8875,10 @@
             this.autoCollapseProcessedIds.clear();
         }
 
-        /**
-         * Removes stale entries from caches.
-         * @private
-         */
+        /** @private */
         _syncCaches() {
             syncCacheWithMessages(this.navContainers, this.messageCacheManager);
+            // Removes stale entries from caches.
             for (const [key, element] of this.featureElementsCache.entries()) {
                 if (!element.isConnected) {
                     this.featureElementsCache.delete(key);
@@ -8973,17 +8886,11 @@
             }
         }
 
-        /**
-         * Injects the feature's specific CSS into the document head using StyleManager.
-         */
         injectStyle() {
             this.styleHandle = StyleManager.request(StyleDefinitions.getBubbleUI);
         }
 
-        /**
-         * Creates templates for UI features using the injected styles.
-         * @private
-         */
+        /** @private */
         _createTemplates() {
             const cls = this.styleHandle.classes;
             const prevClass = `${cls.navBtn} ${cls.navPrev}`;
@@ -8998,10 +8905,7 @@
             };
         }
 
-        /**
-         * Creates an SVG icon element from a predefined map.
-         * @private
-         */
+        /** @private */
         _createIcon(type) {
             const iconMap = {
                 collapse: 'arrowUp',
@@ -9020,10 +8924,7 @@
             return null;
         }
 
-        /**
-         * Updates the enabled/disabled state of sequential navigation buttons.
-         * @private
-         */
+        /** @private */
         _updateNavButtonStates() {
             this._syncCaches();
             // Cancel any pending button state updates
@@ -9137,7 +9038,6 @@
         }
 
         /**
-         * Initializes the fixed navigation console.
          * @returns {Promise<void>}
          */
         async _onInit() {
@@ -9205,7 +9105,6 @@
         }
 
         /**
-         * Destroys the component and cleans up all related DOM elements and listeners.
          * @returns {void}
          */
         _onDestroy() {
@@ -9238,9 +9137,6 @@
             this._hideJumpList();
         }
 
-        /**
-         * Selects the last message in the chat and updates the navigation console.
-         */
         selectLastMessage() {
             const totalMessages = this.messageCacheManager.getTotalMessages();
             if (totalMessages.length > 0) {
@@ -9314,11 +9210,7 @@
             // Visibility and correct values will be restored when CACHE_UPDATED fires on the new page.
         }
 
-        /**
-         * Synchronizes the search cache with the current message list.
-         * Removes stale entries and schedules indexing for new messages.
-         * @private
-         */
+        /** @private */
         _syncSearchCache() {
             const totalMessages = this.messageCacheManager.getTotalMessages();
             const currentSet = new Set(totalMessages);
@@ -9344,10 +9236,7 @@
             }
         }
 
-        /**
-         * Processes the indexing queue during browser idle periods.
-         * @private
-         */
+        /** @private */
         _runIdleIndexing() {
             if (this.indexingQueue.length === 0) return;
 
@@ -9381,8 +9270,7 @@
         }
 
         /**
-         * Highlights a target message and updates the navigation counters to reflect its position.
-         * @param {HTMLElement} targetMsg The message element to highlight and use as the reference for indices.
+         * @param {HTMLElement} targetMsg
          * @returns {void}
          */
         setHighlightAndIndices(targetMsg) {
@@ -9435,9 +9323,8 @@
         /**
          * @private
          * @description Finds the index of the nearest preceding message of a specific role using cached data.
-         * This avoids O(N) Set creation and array searches.
-         * @param {HTMLElement} currentMsg The reference message element.
-         * @param {string} targetRole The role to search for ('user' or 'assistant').
+         * @param {HTMLElement} currentMsg
+         * @param {string} targetRole
          * @returns {number} The index of the nearest message in the target role's array, or -1 if not found.
          */
         findNearestIndex(currentMsg, targetRole) {
@@ -9704,8 +9591,6 @@
         }
 
         /**
-         * Repositions the navigation console.
-         * Handles fixed positioning (near input) and embedded positioning (in header).
          * @returns {void}
          */
         repositionContainers() {
@@ -9979,10 +9864,9 @@
         }
 
         /**
-         * Navigates to a message based on role and direction.
          * @private
-         * @param {string} role The role to navigate within ('user', 'asst', 'total').
-         * @param {string} direction The direction to navigate ('prev', 'next', 'first', 'last').
+         * @param {string} role ('user', 'asst', 'total').
+         * @param {string} direction ('prev', 'next', 'first', 'last').
          */
         _navigateTo(role, direction) {
             const { [CONSTANTS.NAV_ROLES.USER]: currentUserIndex, [CONSTANTS.NAV_ROLES.ASSISTANT]: currentAsstIndex, [CONSTANTS.NAV_ROLES.TOTAL]: currentTotalIndex } = this.state.currentIndices;
@@ -10112,7 +9996,7 @@
 
         /**
          * Handles clicks on the main navigation buttons (prev, next, etc.).
-         * @param {HTMLElement} buttonElement The navigation button element that was clicked.
+         * @param {HTMLElement} buttonElement
          * @returns {void}
          */
         handleButtonClick(buttonElement) {
@@ -10148,18 +10032,14 @@
         /**
          * Handles clicks on the navigation counters, allowing the user to jump to a specific message number.
          * @param {MouseEvent} e The click event object.
-         * @param {HTMLElement} counterSpan The counter span element that was clicked.
+         * @param {HTMLElement} counterSpan
          * @returns {void}
          */
         handleCounterClick(e, counterSpan) {
             this._startJumpInputSession(counterSpan);
         }
 
-        /**
-         * @private
-         * Forcefully cleans up any jump input elements and restores counters.
-         * Used during reset/navigation to ensure no UI artifacts remain.
-         */
+        /** @private */
         _forceCleanupJumpInput() {
             if (!this.navConsole || !this.styleHandle) return;
             const cls = this.styleHandle.classes;
@@ -10177,8 +10057,7 @@
 
         /**
          * @private
-         * Starts the input session for jumping to a specific message index.
-         * @param {HTMLElement} counterSpan The counter element that initiated the session.
+         * @param {HTMLElement} counterSpan
          */
         _startJumpInputSession(counterSpan) {
             const cls = this.styleHandle.classes;
@@ -10673,9 +10552,6 @@
             this._cacheUpdateUnsub = null;
         }
 
-        /**
-         * Initializes the manager by injecting styles and subscribing to events.
-         */
         _onInit() {
             this.injectStyle();
 
@@ -10697,18 +10573,12 @@
             this._subscribe(EVENTS.TIMESTAMPS_LOADED, (data) => this._loadHistoricalTimestamps(data));
         }
 
-        /**
-         * Unsubscribes from events and clears DOM elements.
-         * Called when the feature is disabled.
-         */
         _onDestroy() {
             // disable() is called via disposable.
             this.pendingTimestamps.clear();
         }
 
-        /**
-         * @private
-         */
+        /** @private */
         _handleNavigationStart() {
             this.isNavigating = true;
             this.pendingTimestamps.clear();
@@ -10720,9 +10590,7 @@
             this._clearAllTimestampsDOM();
         }
 
-        /**
-         * @private
-         */
+        /** @private */
         _handleNavigationEnd() {
             this.isNavigating = false;
 
@@ -10788,10 +10656,7 @@
             this._clearAllTimestampsDOM();
         }
 
-        /**
-         * @private
-         * Clears caches on navigation and prepares for new data.
-         */
+        /** @private */
         _handleNavigation() {
             // Reset chat ID as we are on a new page
             this.currentChatId = null;
@@ -10799,9 +10664,9 @@
 
         /**
          * @private
-         * @param {object} detail - The event detail object.
-         * @param {string} detail.chatId - The ID of the chat.
-         * @param {Map<string, Date>} detail.timestamps - The map of historical timestamps.
+         * @param {object} detail
+         * @param {string} detail.chatId
+         * @param {Map<string, Date>} detail.timestamps
          */
         _loadHistoricalTimestamps({ chatId, timestamps }) {
             if (chatId !== this.currentChatId) {
@@ -10821,9 +10686,9 @@
 
         /**
          * @private
-         * @param {object} detail - The event detail object.
-         * @param {string} detail.messageId - The ID of the message.
-         * @param {Date} detail.timestamp - The timestamp (Date object) of when the message was processed.
+         * @param {object} detail
+         * @param {string} detail.messageId
+         * @param {Date} detail.timestamp
          */
         _handleTimestampAdded({ messageId, timestamp }) {
             if (!messageId || !timestamp) return;
@@ -10924,16 +10789,13 @@
         }
 
         /**
-         * @param {string} messageId The ID of the message.
-         * @returns {Date | undefined} The Date object for the message, or undefined if not found.
+         * @param {string} messageId
+         * @returns {Date | undefined}
          */
         getTimestamp(messageId) {
             return PlatformAdapters.Timestamp.getTimestamp(messageId);
         }
 
-        /**
-         * Injects the necessary CSS for positioning and styling the timestamps.
-         */
         injectStyle() {
             if (this.styleHandle) return;
             this.styleHandle = StyleManager.request(StyleDefinitions.getTimestamp);
@@ -10943,10 +10805,7 @@
             this.timestampSpanTemplate = h(`span.${cls.text}`);
         }
 
-        /**
-         * Removes all timestamp DOM elements from the page.
-         * @private
-         */
+        /** @private */
         _clearAllTimestampsDOM() {
             this.timestampDomCache.forEach((container) => {
                 container.remove();
@@ -10954,6 +10813,7 @@
             this.timestampDomCache.clear();
         }
 
+        /** @private */
         _syncCache() {
             // Identifies timestamp elements for removal whose corresponding message is no longer in the cache.
             // This prevents DOM leaks when messages are deleted.
@@ -10967,11 +10827,6 @@
             return removalCandidates;
         }
 
-        /**
-         * Updates the text content of all visible timestamps.
-         * Creates the timestamp element if it doesn't exist.
-         * Separates READ and WRITE operations to prevent layout thrashing.
-         */
         updateAllTimestamps() {
             // Cancel any existing batch task immediately
             this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
@@ -11098,9 +10953,8 @@
         }
 
         /**
-         * Formats a Date object into a fixed string format.
-         * @param {Date} date The Date object to format.
-         * @returns {string} The formatted timestamp string.
+         * @param {Date} date
+         * @returns {string}
          * @private
          */
         _formatTimestamp(date) {
@@ -11131,9 +10985,6 @@
             this.numberSpanTemplate = null;
         }
 
-        /**
-         * Initializes the manager.
-         */
         _onInit() {
             this.injectStyle();
             // Use :cacheUpdated for batch updates (re-numbering, visibility toggles after config changes).
@@ -11148,9 +10999,6 @@
             });
         }
 
-        /**
-         * Removes all message number elements from the DOM and clears the cache.
-         */
         _onDestroy() {
             this.numberSpanCache.forEach((span) => {
                 span.remove();
@@ -11169,10 +11017,7 @@
             return removalCandidates;
         }
 
-        /**
-         * Cleans up resources and DOM elements when navigation starts.
-         * @private
-         */
+        /** @private */
         _handleNavigationStart() {
             this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
             this.manageResource(CONSTANTS.RESOURCE_KEYS.REMOVAL_TASK, null);
@@ -11182,9 +11027,6 @@
             this.numberSpanCache.clear();
         }
 
-        /**
-         * Injects the necessary CSS for positioning and styling the message numbers.
-         */
         injectStyle() {
             if (this.styleHandle) return;
             this.styleHandle = StyleManager.request(StyleDefinitions.getMessageNumber);
@@ -11193,11 +11035,6 @@
             this.numberSpanTemplate = h(`span.${cls.number}`);
         }
 
-        /**
-         * Updates the text content of all visible message numbers.
-         * Creates the number element if it doesn't exist.
-         * Separates READ and WRITE operations to prevent layout thrashing.
-         */
         updateAllMessageNumbers() {
             // Cancel any existing batch task immediately
             this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
@@ -18433,10 +18270,7 @@
                 return 'Scanning layout to prevent scroll issues...';
             }
 
-            /**
-             * Calculates the horizontal center of the input area to align the toast.
-             * @returns {number | null} The X coordinate, or null to fallback to CSS default.
-             */
+            /** @override */
             getToastPositionX() {
                 // Use the input resize target (form container) as it spans the correct width
                 const inputArea = document.querySelector(CONSTANTS.SELECTORS.INPUT_RESIZE_TARGET);
@@ -18484,10 +18318,7 @@
                         this.isLayoutScanComplete = false;
                     }
 
-                    /**
-                     * @override
-                     * @description Handles the CACHE_UPDATED event to perform the initial scroll check.
-                     */
+                    /** @override */
                     _onInit() {
                         super._onInit();
                         this.isLayoutScanComplete = false;
@@ -18597,10 +18428,7 @@
                         EventBus.publish(EVENTS.CACHE_UPDATE_REQUEST);
                     }
 
-                    /**
-                     * @override
-                     * @description Handles the CACHE_UPDATED event to perform the initial scroll check.
-                     */
+                    /** @override */
                     _onCacheUpdated() {
                         if (!isFirefox()) return;
                         if (!this.isEnabled || this.isInitialScrollCheckDone || this.isScrolling) {
@@ -18628,10 +18456,7 @@
                         }
                     }
 
-                    /**
-                     * @override
-                     * @description Handles the NAVIGATION event to reset the manager's state.
-                     */
+                    /** @override */
                     _onNavigation() {
                         super._onNavigation();
                         if (this.isScrolling) {
@@ -19879,10 +19704,7 @@
                 return 'Auto-scrolling to load history...';
             }
 
-            /**
-             * Calculates the horizontal center of the input area to align the toast.
-             * @returns {number | null} The X coordinate, or null to fallback to CSS default.
-             */
+            /** @override */
             getToastPositionX() {
                 // Use the input resize target (input-area-v2)
                 const inputArea = document.querySelector(CONSTANTS.SELECTORS.INPUT_RESIZE_TARGET);
@@ -19937,10 +19759,7 @@
                         this.disappearTimeout = null;
                     }
 
-                    /**
-                     * @override
-                     * @description Initializes the manager and subscribes to streaming events.
-                     */
+                    /** @override */
                     _onInit() {
                         super._onInit();
                         this._subscribe(EVENTS.STREAMING_START, () => this._onStreamingStart());
@@ -20056,9 +19875,7 @@
                         }
                     }
 
-                    /**
-                     * Starts the MutationObserver to watch for the progress bar.
-                     */
+                    // Starts the MutationObserver to watch for the progress bar.
                     _startObserver() {
                         if (this.progressObserver) this.progressObserver.disconnect();
 
@@ -20115,9 +19932,7 @@
                         }
                     }
 
-                    /**
-                     * Scrolls the container to the top and sets a timeout to check if loading has started.
-                     */
+                    // Scrolls the container to the top and sets a timeout to check if loading has started.
                     _triggerScroll() {
                         if (!this.isScrolling || !this.scrollContainer) return;
                         this.scrollContainer.scrollTop = 0;
@@ -20130,10 +19945,7 @@
                         }, AutoScrollManager.CONFIG.APPEAR_TIMEOUT_MS);
                     }
 
-                    /**
-                     * @override
-                     * @description Handles the CACHE_UPDATED event to perform the initial scroll check.
-                     */
+                    /** @override */
                     _onCacheUpdated() {
                         if (!this.isEnabled || this.isInitialScrollCheckDone) {
                             return;
@@ -20169,10 +19981,7 @@
                         }
                     }
 
-                    /**
-                     * @override
-                     * @description Handles the NAVIGATION event to reset the manager's state.
-                     */
+                    /** @override */
                     _onNavigation() {
                         super._onNavigation();
                         if (this.isScrolling) {
