@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b466
+// @version      1.0.0-b467
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -11116,9 +11116,9 @@
      */
     class UIBuilder {
         /**
-         * @param {ReactiveStore} store - The data store.
-         * @param {object} context - Context containing styles, siteStyles, fileHandler, etc.
-         * @param {(fn: () => void) => void} disposer - Function to register cleanup callbacks.
+         * @param {ReactiveStore} store
+         * @param {object} context
+         * @param {(fn: () => void) => void} disposer
          */
         constructor(store, context, disposer) {
             this.store = store;
@@ -12280,12 +12280,9 @@
     }
 
     /**
-     * @class CustomModal
-     * @description A reusable, promise-based modal component. It provides a flexible
-     * structure with header, content, and footer sections, and manages its own lifecycle and styles.
      * @callback ModalButtonOnClick
-     * @param {CustomModal} modalInstance - The instance of the modal that the button belongs to.
-     * @param {MouseEvent} event - The mouse click event.
+     * @param {CustomModal} modalInstance
+     * @param {MouseEvent} event
      * @returns {void}
      */
     class CustomModal {
@@ -12295,13 +12292,13 @@
 
         /**
          * @param {object} options
-         * @param {string} [options.title] - The title displayed in the modal header.
-         * @param {string} [options.width] - The width of the modal.
-         * @param {string} options.id - The ID for the modal dialog element. Required for scoping.
-         * @param {number|string} [options.zIndex] - The z-index for the modal.
-         * @param {boolean} [options.closeOnBackdropClick] - Whether to close the modal when clicking the backdrop.
-         * @param {Array<{text: string, id: string, className?: string, title?: string, onClick: ModalButtonOnClick}>} [options.buttons] - An array of button definitions for the footer.
-         * @param {function(): void} [options.onDestroy] - A callback function executed when the modal is destroyed.
+         * @param {string} [options.title]
+         * @param {string} [options.width]
+         * @param {string} options.id
+         * @param {number|string} [options.zIndex]
+         * @param {boolean} [options.closeOnBackdropClick]
+         * @param {Array<{text: string, id: string, className?: string, title?: string, onClick: ModalButtonOnClick}>} [options.buttons]
+         * @param {function(): void} [options.onDestroy]
          */
         constructor(options) {
             this.options = {
@@ -12475,11 +12472,11 @@
      */
     class CustomSettingsButton extends UIComponentBase {
         /**
-         * @param {object} callbacks - Functions to be called on component events.
-         * @param {function(): void} callbacks.onClick - Called when the button is clicked.
-         * @param {object} options - Configuration for the button's appearance and behavior.
-         * @param {string} options.id - The HTML ID for the button element.
-         * @param {string} options.title - The tooltip text for the button.
+         * @param {object} callbacks
+         * @param {function(): void} callbacks.onClick
+         * @param {object} options
+         * @param {string} options.id
+         * @param {string} options.title
          */
         constructor(callbacks, options) {
             super(callbacks);
