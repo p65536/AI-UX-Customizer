@@ -229,7 +229,7 @@ At the beginning of each theme object, describe the theme's information in `meta
 | `icon` | Icon image | `"https://.../icon.png"`<br>`"<svg>..."` | URL, SVG code, Base64, etc.<br>When editing JSON directly, `"` in SVG code must be escaped as `\"`.  |
 | `standingImageUrl` | Standing image URL | `"https://.../sample.png"` | Corresponding CSS property: `background-image` format.<br>Can be a single URL or combined with `linear-gradient`, etc.  |
 | `textColor` | Text color | `"#89c4f4"` | CSS color code (\# notation/rgb()/name, etc.)<br>Corresponding CSS property: `color`  |
-| `font` | Font for the bubble | `"Meiryo, sans-serif"` | CSS font declaration  |
+| `font` | Font for the bubble | `"Meiryo, sans-serif"` | CSS font declaration<br>**Note:** For `"user"`, this font is also applied to the input area. |
 | `bubbleBackgroundColor` | Bubble background color | `"#222833"` | Corresponding CSS property: `background-color`  |
 | `bubblePadding` | Bubble inner padding | `10` | Number (Unit is fixed to `px`).<br>Corresponding CSS property: `padding` |
 | `bubbleBorderRadius` | Bubble corner radius | `16` | Number (Unit is fixed to `px`).<br>Corresponding CSS property: `border-radius` |

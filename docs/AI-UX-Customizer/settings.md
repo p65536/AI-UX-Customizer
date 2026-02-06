@@ -61,7 +61,7 @@ A GUI editor allows for intuitive customization of all visual elements, includin
 | `Bubble Settings` | **Message bubble style** |
 | `Background color` | The background color of the bubble. |
 | `Text color` | The text color inside the bubble. |
-| `Font` | Specifies the font inside the bubble. |
+| `Font` | Specifies the font inside the bubble. **For "User", this font is also applied to the input area.** |
 | `Padding` | Adjusts the top/bottom and left/right inner padding of the bubble. |
 | `Radius` | Adjusts the roundness of the bubble's corners. |
 | `max Width` | Specifies the maximum width of the bubble as a percentage of the screen width. |

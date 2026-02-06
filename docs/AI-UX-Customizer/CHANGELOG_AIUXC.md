@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-b470] - 2026-02-06
+- **Improvements**
+  - **[Theme]** The **User Font** setting is now automatically applied to the chat input area, ensuring a consistent typing experience without the need for separate configuration.
+  - **[Theme Editor]** The input area preview now dynamically updates in real-time when modifying the User's font settings.
+
 ## [1.0.0-b469] - 2026-02-06
 - **Bug Fixes**
   - **[ChatGPT]** Fixed visual glitches where the "Copy code" button was misplaced and tables were rendered incorrectly.
