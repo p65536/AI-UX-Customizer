@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b472] - 2026-02-07
+- **UI/UX Improvements**
+  - **[Theme Editor]** Adjusted the default initial color in the picker for unset fields. The cursor now positions at the visual center of the selection area (instead of the edge) to facilitate easier color adjustment.
+
 ## [1.0.0-b471] - 2026-02-07
 - **Documentation**
   - **[Theme Editor]** Updated the tooltip for the **User Font** setting to clarify that the selected font is also applied to the chat input area.
