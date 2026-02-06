@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-b469] - 2026-02-06
+- **Bug Fixes**
+  - **[ChatGPT]** Fixed visual glitches where the "Copy code" button was misplaced and tables were rendered incorrectly.
+  - **[ChatGPT]** Removed unnecessary horizontal and vertical scrollbars that appeared on standard messages and tables, restoring the correct native layout.
+
 ## [1.0.0-b468] - 2026-02-05
 - **Improvements**
   - **[Theme]** Enhanced the styling for **Tables** and **Quotes** to better blend with your custom theme.
