@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b471] - 2026-02-07
+- **Documentation**
+  - **[Theme Editor]** Updated the tooltip for the **User Font** setting to clarify that the selected font is also applied to the chat input area.
+
 ## [1.0.0-b470] - 2026-02-06
 - **Improvements**
   - **[Theme]** The **User Font** setting is now automatically applied to the chat input area, ensuring a consistent typing experience without the need for separate configuration.
