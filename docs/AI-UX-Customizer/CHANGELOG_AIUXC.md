@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-b473] - 2026-02-07
+- **Improvements**
+  - **[Core]** Optimized internal CSS generation templates to remove redundant property definitions and improve code clarity.
+  - **[UI]** Fixed a styling definition in the Bubble UI (collapsible buttons) to prevent potential conflicts where background settings could be unintentionally reset.
+
 ## [1.0.0-b472] - 2026-02-07
 - **UI/UX Improvements**
   - **[Theme Editor]** Adjusted the default initial color in the picker for unset fields. The cursor now positions at the visual center of the selection area (instead of the edge) to facilitate easier color adjustment.
