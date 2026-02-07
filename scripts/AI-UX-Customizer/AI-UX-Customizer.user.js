@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b473
+// @version      1.0.0-b474
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -700,17 +700,17 @@
             // --- Select Fields (Window Background) ---
             'window.backgroundSize': {
                 type: 'select',
-                def: { options: ['', 'auto', 'cover', 'contain'] },
+                def: { options: [{ value: '', label: '(Default)' }, 'auto', 'cover', 'contain'] },
                 ui: { label: 'Size:', tooltip: 'How the background image is sized.' },
             },
             'window.backgroundPosition': {
                 type: 'select',
-                def: { options: ['', 'top left', 'top center', 'top right', 'center left', 'center center', 'center right', 'bottom left', 'bottom center', 'bottom right'] },
+                def: { options: [{ value: '', label: '(Default)' }, 'top left', 'top center', 'top right', 'center left', 'center center', 'center right', 'bottom left', 'bottom center', 'bottom right'] },
                 ui: { label: 'Position:', tooltip: 'Position of the background image.' },
             },
             'window.backgroundRepeat': {
                 type: 'select',
-                def: { options: ['', 'no-repeat', 'repeat'] },
+                def: { options: [{ value: '', label: '(Default)' }, 'no-repeat', 'repeat'] },
                 ui: { label: 'Repeat:', tooltip: 'How the background image is repeated.' },
             },
         },
@@ -778,7 +778,12 @@
             },
             'features.fixed_nav_console.position': {
                 type: 'select',
-                def: { options: [SHARED_CONSTANTS.CONSOLE_POSITIONS.INPUT_TOP, SHARED_CONSTANTS.CONSOLE_POSITIONS.HEADER] },
+                def: {
+                    options: [
+                        { value: SHARED_CONSTANTS.CONSOLE_POSITIONS.INPUT_TOP, label: 'Input Top' },
+                        { value: SHARED_CONSTANTS.CONSOLE_POSITIONS.HEADER, label: 'Header' },
+                    ],
+                },
                 ui: {
                     label: 'Console Position',
                     title: 'Choose where to display the navigation console.\nInput Top: Floating above the input area (Default).\nHeader: Embedded in the top toolbar.',
@@ -5885,6 +5890,17 @@
                             errors.push({ field: configKey, message: `${schemaItem.ui?.label || configKey} Must be a valid number between ${min} and ${max}.` });
                         }
                     }
+                } else if (schemaItem.type === 'select') {
+                    const options = schemaItem.def?.options;
+                    // Allow null/empty for theme inheritance, but if set, must be valid option
+                    // Only validate if options are explicitly defined as an array
+                    if (Array.isArray(options)) {
+                        // Extract valid values from options (handling objects or primitives)
+                        const validValues = options.map((opt) => (isObject(opt) ? opt.value : opt));
+                        if (value !== null && value !== undefined && value !== '' && !validValues.includes(value)) {
+                            errors.push({ field: configKey, message: `${schemaItem.ui?.label || configKey} Invalid selection.` });
+                        }
+                    }
                 }
             }
 
@@ -5951,8 +5967,16 @@
                             const options = schemaItem.def?.options;
                             // Ensure options exist and are an array before validation
                             if (Array.isArray(options)) {
-                                if (!options.includes(value)) {
-                                    setPropertyByPath(platformConfig, key, defaultValue || options[0]);
+                                // Extract valid values and default value
+                                const validValues = options.map((opt) => (isObject(opt) ? opt.value : opt));
+                                if (!validValues.includes(value)) {
+                                    // Use default value or the first option's value
+                                    let safeDefault = defaultValue;
+                                    if (safeDefault === undefined && options.length > 0) {
+                                        const firstOpt = options[0];
+                                        safeDefault = isObject(firstOpt) ? firstOpt.value : firstOpt;
+                                    }
+                                    setPropertyByPath(platformConfig, key, safeDefault);
                                 }
                             }
                         }
@@ -6015,7 +6039,8 @@
                         // Allow null/empty for theme inheritance, but if set, must be valid option
                         // Only validate if options are explicitly defined as an array
                         if (Array.isArray(options)) {
-                            if (value !== null && value !== undefined && value !== '' && !options.includes(value)) {
+                            const validValues = options.map((opt) => (isObject(opt) ? opt.value : opt));
+                            if (value !== null && value !== undefined && value !== '' && !validValues.includes(value)) {
                                 Logger.warn('Config', '', `Invalid selection in config [${key}]: "${value}". Resetting to null.`);
                                 setPropertyByPath(theme, key, null);
                             }
@@ -11457,8 +11482,16 @@
         select(key, label, options = {}) {
             const cls = this.styles;
             const selectOptions = (options.options || []).map((opt) => {
-                const text = opt === '' ? '(not set)' : opt;
-                return this.create('option', { value: opt }, text);
+                let value, text;
+                // Support both primitive values and { value, label } objects
+                if (opt && typeof opt === 'object' && 'value' in opt && 'label' in opt) {
+                    value = opt.value;
+                    text = opt.label;
+                } else {
+                    value = opt;
+                    text = opt === '' ? '(not set)' : opt;
+                }
+                return this.create('option', { value: value }, text);
             });
 
             const input = this.create('select', {}, selectOptions);
@@ -17597,7 +17630,7 @@
             fixed_nav_label_text: 'var(--text-secondary)',
             fixed_nav_counter_bg: 'var(--bg-primary)',
             fixed_nav_counter_text: 'var(--text-primary)',
-            fixed_nav_counter_border: 'var(--border-accent)',
+            fixed_nav_counter_border: 'var(--border-default)',
             fixed_nav_assistant_text: '#e57373',
             fixed_nav_btn_accent_text: 'var(--text-accent)',
             fixed_nav_btn_danger_text: 'var(--text-danger)',
@@ -19245,7 +19278,7 @@
             fixed_nav_label_text: 'var(--text-secondary)',
             fixed_nav_counter_bg: 'var(--gem-sys-color--surface-container-high)',
             fixed_nav_counter_text: 'var(--gem-sys-color--on-surface-variant)',
-            fixed_nav_counter_border: 'var(--gem-sys-color--primary)',
+            fixed_nav_counter_border: 'var(--gem-sys-color--outline)',
             fixed_nav_assistant_text: '#e57373',
             fixed_nav_btn_accent_text: 'var(--gem-sys-color--primary)',
             fixed_nav_btn_danger_text: 'var(--gem-sys-color--error)',

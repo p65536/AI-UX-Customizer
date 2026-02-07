@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.0-b474] - 2026-02-07
+- **UX Improvements**
+  - **[Settings]** Enhanced the readability of dropdown menus in the settings panel. Options now display user-friendly labels (e.g., "Input Top", "Header") instead of raw internal values.
+  - **[Theme Editor]** Window background settings (Size, Position, Repeat) now explicitly label the unset state as **"(Default)"**, making it clearer when the theme is falling back to system defaults.
+- **Visual Fixes & Improvements**
+  - **[ChatGPT]** Fixed a regression where the message counter border in the navigation console was invisible. It now uses the default border style.
+  - **[Gemini]** Updated the message counter border style to match the navigation buttons for a more consistent look.
+
 ## [1.0.0-b473] - 2026-02-07
 - **Improvements**
   - **[Core]** Optimized internal CSS generation templates to remove redundant property definitions and improve code clarity.
