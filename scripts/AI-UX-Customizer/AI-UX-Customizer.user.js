@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b474
+// @version      1.0.0-b475
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -186,6 +186,7 @@
                 ZERO_MESSAGE_GRACE_PERIOD: 2000,
                 WAIT_FOR_MAIN_CONTENT: 10000,
                 BLOB_URL_REVOKE_DELAY: 10000, // The time to wait before revoking a Blob URL after export, allowing the download to start.
+                GHOST_MESSAGE_DEBOUNCE: 50, // Delay to validate if a detected message element is stable or a transient ghost.
             },
             ANIMATIONS: {
                 TOAST_ENTER_DELAY: 10,
@@ -9228,6 +9229,7 @@
             const totalMessages = this.messageCacheManager.getTotalMessages();
             const newTotal = totalMessages.length;
             const oldTotal = this.state.previousTotalMessages;
+            let indicesUpdated = false;
 
             // Check if new messages were added (e.g., from layout scan) and if we were at the end.
             if (newTotal > oldTotal && this.state.currentIndices.total === oldTotal - 1 && !this.state.isAutoScrolling) {
@@ -9241,18 +9243,27 @@
             }
 
             // Validate the currently highlighted message.
-            if (this.state.highlightedMessage && !totalMessages.includes(this.state.highlightedMessage)) {
-                Logger.log('NAVIGATION', '', 'Highlighted message was removed from the DOM. Reselecting...');
-                // The highlighted message was deleted. Find the best candidate to re-highlight.
-                const lastKnownIndex = this.state.currentIndices.total;
-                // Try to select the message at the same index, or the new last message if the index is now out of bounds.
-                const newIndex = Math.min(lastKnownIndex, totalMessages.length - 1);
+            if (this.state.highlightedMessage) {
+                if (!totalMessages.includes(this.state.highlightedMessage)) {
+                    Logger.log('NAVIGATION', '', 'Highlighted message was removed from the DOM. Reselecting...');
+                    // The highlighted message was deleted. Find the best candidate to re-highlight.
+                    const lastKnownIndex = this.state.currentIndices.total;
+                    // Try to select the message at the same index, or the new last message if the index is now out of bounds.
+                    const newIndex = Math.min(lastKnownIndex, totalMessages.length - 1);
 
-                if (newIndex >= 0) {
-                    this.setHighlightAndIndices(totalMessages[newIndex]);
+                    if (newIndex >= 0) {
+                        this.setHighlightAndIndices(totalMessages[newIndex]);
+                        indicesUpdated = true;
+                    } else {
+                        // Cache is empty, reset state.
+                        this.resetState();
+                        return;
+                    }
                 } else {
-                    // Cache is empty, reset state.
-                    this.resetState();
+                    // Message still exists. Force update indices as its position might have changed
+                    // (e.g. previous messages were deleted).
+                    this.setHighlightAndIndices(this.state.highlightedMessage);
+                    indicesUpdated = true;
                 }
             }
 
@@ -9260,6 +9271,7 @@
             if (!this.state.isAutoScrolling && !this.state.isInitialSelectionDone && totalMessages.length > 0) {
                 this.selectLastMessage();
                 this.state.isInitialSelectionDone = true;
+                indicesUpdated = true;
             } else if (!this.state.highlightedMessage && totalMessages.length > 0) {
                 // If initial selection is already done (e.g. re-enabling via settings),
                 // default to the last message instead of the first, but do not scroll.
@@ -9268,12 +9280,15 @@
                 } else {
                     this.setHighlightAndIndices(totalMessages[0]);
                 }
+                indicesUpdated = true;
             }
 
             PlatformAdapters.FixedNav.handleInfiniteScroll(this, this.state.highlightedMessage, this.state.previousTotalMessages);
             this.state.previousTotalMessages = totalMessages.length;
 
-            this._renderUI();
+            if (!indicesUpdated) {
+                this._renderUI();
+            }
         }
 
         _handleIntegrityScanMessagesFound() {
@@ -10329,51 +10344,63 @@
         }
 
         processRawMessage(contentElement) {
-            // Check for class-based flag
+            // Check for class-based flag immediately to avoid redundant queuing
             if (contentElement.classList.contains(CONSTANTS.CLASSES.PROCESSED)) {
                 return;
             }
-            contentElement.classList.add(CONSTANTS.CLASSES.PROCESSED);
 
-            let messageElement = PlatformAdapters.General.findMessageElement(contentElement);
+            // Ghost Filtering:
+            // Wait a brief moment to ensure the element persists in the DOM.
+            // This filters out transient placeholder elements that appear and disappear instantly during generation start.
+            setTimeout(() => {
+                // 1. Re-check connectivity. If it's gone, it was a ghost. Abort.
+                if (!contentElement.isConnected) return;
 
-            // Platform-specific hook to handle elements that need a container
-            if (!messageElement && PlatformAdapters.General.ensureMessageContainerForImage) {
-                // Let the adapter create a wrapper if needed and return it.
-                // We only do this for the image selector, not for markdown.
-                if (contentElement.matches(CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE)) {
-                    messageElement = PlatformAdapters.General.ensureMessageContainerForImage(contentElement);
-                }
-            }
+                // 2. Re-check processed flag in case another task processed it during the wait.
+                if (contentElement.classList.contains(CONSTANTS.CLASSES.PROCESSED)) return;
 
-            // If we have a valid message container, proceed.
-            if (messageElement) {
-                // Apply static classes to replace expensive CSS selectors
-                PlatformAdapters.General.optimizeMessageStyles(messageElement);
+                contentElement.classList.add(CONSTANTS.CLASSES.PROCESSED);
 
-                // Publish the timestamp for this message as soon as it's identified.
-                // This is for real-time messages; historical ones are loaded via API.
-                // Find the correct messageId from the parent element
-                const messageIdHolder = messageElement.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
-                const messageId = PlatformAdapters.General.getMessageId(messageIdHolder);
+                let messageElement = PlatformAdapters.General.findMessageElement(contentElement);
 
-                // Always publish TIMESTAMP_ADDED when a message is detected.
-                // The TimestampManager will handle buffering (during navigation) or immediate application.
-                if (messageId) {
-                    EventBus.publish(EVENTS.TIMESTAMP_ADDED, { messageId: messageId, timestamp: new Date() });
+                // Platform-specific hook to handle elements that need a container
+                if (!messageElement && PlatformAdapters.General.ensureMessageContainerForImage) {
+                    // Let the adapter create a wrapper if needed and return it.
+                    // We only do this for the image selector, not for markdown.
+                    if (contentElement.matches(CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE)) {
+                        messageElement = PlatformAdapters.General.ensureMessageContainerForImage(contentElement);
+                    }
                 }
 
-                // Fire avatar injection event. The AvatarManager will handle the one-per-turn logic.
-                EventBus.publish(EVENTS.AVATAR_INJECT, messageElement);
+                // If we have a valid message container, proceed.
+                if (messageElement) {
+                    // Apply static classes to replace expensive CSS selectors
+                    PlatformAdapters.General.optimizeMessageStyles(messageElement);
 
-                // Fire message complete event for other managers.
-                // Use a different flag to ensure this only fires once per message container,
-                // even if it has multiple content parts detected (e.g. text and images).
-                if (!messageElement.classList.contains(CONSTANTS.CLASSES.COMPLETE_FIRED)) {
-                    messageElement.classList.add(CONSTANTS.CLASSES.COMPLETE_FIRED);
-                    EventBus.publish(EVENTS.MESSAGE_COMPLETE, messageElement);
+                    // Publish the timestamp for this message as soon as it's identified.
+                    // This is for real-time messages; historical ones are loaded via API.
+                    // Find the correct messageId from the parent element
+                    const messageIdHolder = messageElement.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
+                    const messageId = PlatformAdapters.General.getMessageId(messageIdHolder);
+
+                    // Always publish TIMESTAMP_ADDED when a message is detected.
+                    // The TimestampManager will handle buffering (during navigation) or immediate application.
+                    if (messageId) {
+                        EventBus.publish(EVENTS.TIMESTAMP_ADDED, { messageId: messageId, timestamp: new Date() });
+                    }
+
+                    // Fire avatar injection event. The AvatarManager will handle the one-per-turn logic.
+                    EventBus.publish(EVENTS.AVATAR_INJECT, messageElement);
+
+                    // Fire message complete event for other managers.
+                    // Use a different flag to ensure this only fires once per message container,
+                    // even if it has multiple content parts detected (e.g. text and images).
+                    if (!messageElement.classList.contains(CONSTANTS.CLASSES.COMPLETE_FIRED)) {
+                        messageElement.classList.add(CONSTANTS.CLASSES.COMPLETE_FIRED);
+                        EventBus.publish(EVENTS.MESSAGE_COMPLETE, messageElement);
+                    }
                 }
-            }
+            }, CONSTANTS.TIMING.TIMEOUTS.GHOST_MESSAGE_DEBOUNCE);
         }
     }
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-b475] - 2026-02-07
+- **Bug Fixes**
+  - Fixed a synchronization issue in the **Navigation Console** where the current message counter could display incorrect values (e.g., `[11/10]`) after editing a message.
+  - Eliminated a visual glitch where the total message count would momentarily spike at the start of a response generation.
+
 ## [1.0.0-b474] - 2026-02-07
 - **UX Improvements**
   - **[Settings]** Enhanced the readability of dropdown menus in the settings panel. Options now display user-friendly labels (e.g., "Input Top", "Header") instead of raw internal values.
