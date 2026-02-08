@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b475
+// @version      1.0.0-b476
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -12391,6 +12391,7 @@
          * @param {number|string} [options.zIndex]
          * @param {boolean} [options.closeOnBackdropClick]
          * @param {Array<{text: string, id: string, className?: string, title?: string, onClick: ModalButtonOnClick}>} [options.buttons]
+         * @param {function(Event): void} [options.onCancel]
          * @param {function(): void} [options.onDestroy]
          */
         constructor(options) {
@@ -12401,6 +12402,7 @@
                 zIndex: undefined,
                 closeOnBackdropClick: true,
                 buttons: [],
+                onCancel: null,
                 onDestroy: null,
                 ...options,
             };
@@ -12458,6 +12460,13 @@
 
             // The 'close' event is the single source of truth for when the dialog has been dismissed.
             this.element.addEventListener('close', () => this.destroy());
+
+            // Listen for the 'cancel' event (fired on ESC) to allow intercepting the close action.
+            this.element.addEventListener('cancel', (e) => {
+                if (typeof this.options.onCancel === 'function') {
+                    this.options.onCancel(e);
+                }
+            });
 
             if (this.options.closeOnBackdropClick) {
                 this.element.addEventListener('click', (e) => {
@@ -14035,6 +14044,13 @@
                     { text: 'Apply', id: cls.applyBtn, className: ``, title: 'Save changes and keep the modal open.', onClick: () => this._handleThemeAction(false) },
                     { text: 'Save', id: cls.saveBtn, className: primaryBtnClass, title: 'Save changes and close the modal.', onClick: () => this._handleThemeAction(true) },
                 ],
+                onCancel: (e) => {
+                    // If not in normal mode, cancel the close event and revert the UI mode.
+                    if (this.state.uiMode !== ThemeModalComponent.UI_MODES.NORMAL) {
+                        e.preventDefault();
+                        this._handleActionCancel();
+                    }
+                },
                 onDestroy: () => {
                     // When the modal is closed (by user or code), ensure all temporary resources are disposed via the manager.
                     this.manageResource(ThemeModalComponent.RESOURCE_KEYS.MODAL, null);
@@ -14475,10 +14491,6 @@
                     if (e.key === 'Enter') {
                         e.preventDefault();
                         this._handleRenameConfirm();
-                    }
-                    if (e.key === 'Escape') {
-                        e.preventDefault();
-                        this._handleActionCancel();
                     }
                 }
             });

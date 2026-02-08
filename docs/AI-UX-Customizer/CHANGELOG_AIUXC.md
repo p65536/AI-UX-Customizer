@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b476] - 2026-02-08
+- **User Interface**
+  - **Theme Editor**: Improved `ESC` key handling for better usability. Pressing `ESC` during sub-actions (such as renaming a theme or confirming deletion) now cancels the current action and returns to the main view, rather than immediately closing the entire settings modal.
+
 ## [1.0.0-b475] - 2026-02-07
 - **Bug Fixes**
   - Fixed a synchronization issue in the **Navigation Console** where the current message counter could display incorrect values (e.g., `[11/10]`) after editing a message.
