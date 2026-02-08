@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b477] - 2026-02-08
+- **Bug Fixes**
+  - **[Navigation]** Fixed an issue where the **Jump List** would sometimes display incomplete text for assistant messages. The search index now correctly refreshes after a message finishes generating, ensuring the full content is available for searching and previewing.
+
 ## [1.0.0-b476] - 2026-02-08
 - **User Interface**
   - **Theme Editor**: Improved `ESC` key handling for better usability. Pressing `ESC` during sub-actions (such as renaming a theme or confirming deletion) now cancels the current action and returns to the main view, rather than immediately closing the entire settings modal.

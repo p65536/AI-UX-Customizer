@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b476
+// @version      1.0.0-b477
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -8935,6 +8935,7 @@
             this._subscribe(EVENTS.NAVIGATION, this.resetState.bind(this));
             this._subscribe(EVENTS.INTEGRITY_SCAN_MESSAGES_FOUND, this._handleIntegrityScanMessagesFound.bind(this));
             this._subscribe(EVENTS.NAV_HIGHLIGHT_MESSAGE, this.setHighlightAndIndices.bind(this));
+            this._subscribe(EVENTS.TURN_COMPLETE, this._handleTurnComplete.bind(this));
             this._subscribe(EVENTS.WINDOW_RESIZED, this.scheduleReposition);
             this._subscribe(EVENTS.SIDEBAR_LAYOUT_CHANGED, this.scheduleReposition);
             this._subscribe(EVENTS.INPUT_AREA_RESIZED, this.scheduleReposition);
@@ -8982,6 +8983,26 @@
             this.state = null;
             this.styleHandle = null;
             this.jumpListStyleHandle = null;
+        }
+
+        /**
+         * @private
+         * @param {HTMLElement} turnNode
+         */
+        _handleTurnComplete(turnNode) {
+            // Retrieve all message elements contained within the turn
+            // Accurately identify them using CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS
+            const messages = turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
+
+            messages.forEach((msg) => {
+                if (msg instanceof HTMLElement && this.searchCache.has(msg)) {
+                    this.searchCache.delete(msg);
+                }
+            });
+
+            // After clearing the cache, call the sync method to prompt queuing for re-indexing during the next idle time
+            // (Debounce or throttle is not needed as it runs on idle)
+            this._syncSearchCache();
         }
 
         updateUI() {
