@@ -6,8 +6,8 @@
 
 ## Overview
 
-`Quick-Text-Buttons` is a utility script that adds customizable buttons to quickly insert predefined text into the input fields of AI services like ChatGPT and Gemini.
-You can efficiently manage and utilize frequently used instructions and prompts by organizing them into "profiles" and "categories."
+`Quick-Text-Buttons` is a **Prompt Manager** script that adds customizable text buttons to paste frequently used prompts into ChatGPT and Gemini inputs.
+You can efficiently manage and utilize your snippets and templates by organizing them into "Profiles" and "Categories."
 
 Currently, it supports the following AI services:
 
@@ -18,15 +18,15 @@ Currently, it supports the following AI services:
 
 ## Key Features
 
-* **Streamlined UI integrated into the input area**
-* **Enhanced Text Editor with Drag & Drop reordering**
-* **Keyboard shortcuts (Alt+Q) and full keyboard navigation support**
-* Real-time settings synchronization across multiple tabs
-* Manage registered text by classifying it into "profiles" and "categories"
-* Switch between profiles (sets of categories) to use text sets tailored for different purposes
-* Specify the insertion position of the text (cursor position / start / end)
-* Option to automatically insert a newline before or after the text
-* Settings export/import functionality (in JSON format)
+* **Seamless Input Integration**: A non-intrusive button placed directly inside the chat input area.
+* **Prompt Management**: Manage prompts and snippets by classifying them into "profiles" and "categories".
+* **Enhanced Text Editor**: Supports Drag & Drop reordering for easy organization.
+* **Keyboard Shortcuts**: Full keyboard navigation support (Alt+Q to toggle).
+* **Sync**: Real-time settings synchronization across multiple tabs.
+* **Profiles**: Switch between profiles (sets of categories) to use text sets tailored for different purposes (e.g., Coding, Writing).
+* **Flexible Insertion**: Specify the insertion position of the text (cursor position / start / end).
+* **Smart Handling**: Option to automatically insert a newline before or after the text.
+* **Import/Export**: Settings export/import functionality (in JSON format).
 * **Includes sample settings, making it easy to get started.**
 
 ---

@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.1.0] - 2026-02-10
+- **Improvements**
+  - **[Core]** Improved text insertion stability and compatibility with ChatGPT and Gemini by adopting a new native-like input method.
+  - **[Text Editor]** Enhanced keyboard navigation: Focus is now intelligently maintained when adding, moving, or deleting items, allowing for smoother continuous editing.
+  - **[Text Editor]** Improved `Escape` key behavior: Pressing `Esc` while editing (renaming/deleting) now exits the edit mode instead of immediately closing the modal.
+  - **[Performance]** Optimized the Settings Panel to reduce lag by preventing unnecessary re-renders during state updates.
+- **Fixes**
+  - **[Text Editor]** Input fields and controls are now properly disabled and dimmed during rename or delete actions to prevent accidental changes.
+  - **[UI]** Updated icons to ensure visual consistency across the interface.
+
 ## [3.0.0] - 2026-01-14
 - **New Features**
   - **[Interaction]** Added full keyboard navigation support for the text list (Arrow keys, Enter, Tab).

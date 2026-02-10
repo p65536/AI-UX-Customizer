@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Quick-Text-Buttons
 // @namespace    https://github.com/p65536
-// @version      3.0.0
+// @version      3.1.0
 // @license      MIT
-// @description  Adds customizable buttons to paste predefined text into the input field on ChatGPT/Gemini.
+// @description  Adds customizable text buttons to paste frequently used prompts into ChatGPT/Gemini inputs.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/qtb.svg
 // @author       p65536
 // @match        https://chatgpt.com/*
@@ -368,47 +368,23 @@
                 width: '24px',
                 fill: 'currentColor',
             };
+
+            const def = (d, options = {}) => ({
+                tag: 'svg',
+                props: { ...COMMON_PROPS, ...options.props },
+                children: [{ tag: 'path', props: { d, ...options.pathProps } }],
+            });
+
             return {
-                up: {
-                    tag: 'svg',
-                    props: { ...COMMON_PROPS },
-                    children: [{ tag: 'path', props: { d: 'M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z' } }],
-                },
-                down: {
-                    tag: 'svg',
-                    props: { ...COMMON_PROPS },
-                    children: [{ tag: 'path', props: { d: 'M480-344 240-584l56-56 184 184 184-184 56 56-240 240Z' } }],
-                },
-                delete: {
-                    tag: 'svg',
-                    props: { ...COMMON_PROPS },
-                    children: [{ tag: 'path', props: { d: 'm256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z' } }],
-                },
-                insert: {
-                    tag: 'svg',
-                    props: { xmlns: 'http://www.w3.org/2000/svg', height: '24px', viewBox: '0 0 24 24', width: '24px', fill: 'currentColor' },
-                    children: [
-                        { tag: 'path', props: { d: 'M0 0h24v24H0V0z', fill: 'none' } },
-                        {
-                            tag: 'path',
-                            props: {
-                                d: 'M14.06 9.02l.92.92L5.92 19H5v-.92l9.06-9.06M17.66 3c-.25 0-.51.1-.7.29l-1.83 1.83 3.75 3.75 1.83-1.83c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.2-.2-.45-.29-.71-.29zm-3.6 3.19L3 17.25V21h3.75L17.81 9.94l-3.75-3.75z',
-                            },
-                        },
-                    ],
-                },
-                dragHandle: {
-                    tag: 'svg',
-                    props: { ...COMMON_PROPS },
-                    children: [
-                        {
-                            tag: 'path',
-                            props: {
-                                d: 'M349.85-524.85q-14.52 0-24.68-10.16-10.17-10.17-10.17-24.69t10.17-24.68q10.16-10.17 24.68-10.17t24.69 10.17q10.16 10.16 10.16 24.68t-10.16 24.69q-10.17 10.16-24.69 10.16Zm260.3,0q-14.52 0-24.68-10.16-10.17-10.17-10.17-24.69t10.17-24.68q10.16-10.17 24.68-10.17t24.69 10.17q10.16 10.16 10.16 24.68t-10.16 24.69q-10.17 10.16-24.69 10.16Zm-260.3-170q-14.52 0-24.68-10.17-10.17-10.16-10.17-24.68t10.17-24.69q10.16-10.16 24.68-10.16t24.69 10.16q10.16 10.17 10.16 24.69t-10.16 24.68q-10.17 10.17-24.69 10.17Zm260.3,0q-14.52 0-24.68-10.17-10.17-10.16-10.17-24.68t10.17-24.69q10.16-10.16 24.68-10.16t24.69 10.16q10.16 10.17 10.16 24.69t-10.16 24.68q-10.17 10.17-24.69 10.17Zm-260.3,340q-14.52 0-24.68-10.17-10.17-10.16-10.17-24.68t10.17-24.69q10.16-10.16 24.68-10.16t24.69 10.16q10.16 10.17 10.16 24.69t-10.16 24.68q-10.17 10.17-24.69 10.17Zm260.3,0q-14.52 0-24.68-10.17-10.17-10.16-10.17-24.68t10.17-24.69q10.16-10.16 24.68-10.16t24.69 10.16q10.16 10.17 10.16 24.69t-10.16 24.68q-10.17 10.17-24.69 10.17Z',
-                            },
-                        },
-                    ],
-                },
+                up: def('M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z'),
+                down: def('M480-344 240-584l56-56 184 184 184-184 56 56-240 240Z'),
+                delete: def('m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z'),
+                insert: def(
+                    'm499-287 335-335-52-52-335 335 52 52Zm-261 87q-100-5-149-42T40-349q0-65 53.5-105.5T242-503q39-3 58.5-12.5T320-542q0-26-29.5-39T193-600l7-80q103 8 151.5 41.5T400-542q0 53-38.5 83T248-423q-64 5-96 23.5T120-349q0 35 28 50.5t94 18.5l-4 80Zm280 7L353-358l382-382q20-20 47.5-20t47.5 20l70 70q20 20 20 47.5T900-575L518-193Zm-159 33q-17 4-30-9t-9-30l33-159 165 165-159 33Z'
+                ),
+                dragHandle: def(
+                    'M349.85-524.85q-14.52 0-24.68-10.16-10.17-10.17-10.17-24.69t10.17-24.68q10.16-10.17 24.68-10.17t24.69 10.17q10.16 10.16 10.16 24.68t-10.16 24.69q-10.17 10.16-24.69 10.16Zm260.3,0q-14.52 0-24.68-10.16-10.17-10.17-10.17-24.69t10.17-24.68q10.16-10.17 24.68-10.17t24.69 10.17q10.16 10.16 10.16 24.68t-10.16 24.69q-10.17 10.16-24.69 10.16Zm-260.3-170q-14.52 0-24.68-10.17-10.17-10.16-10.17-24.68t10.17-24.69q10.16-10.16 24.68-10.16t24.69 10.16q10.16 10.17 10.16 24.69t-10.16 24.68q-10.17 10.17-24.69 10.17Zm260.3,0q-14.52 0-24.68-10.17-10.17-10.16-10.17-24.68t10.17-24.69q10.16-10.16 24.68-10.16t24.69 10.16q10.16 10.17 10.16 24.69t-10.16 24.68q-10.17 10.17-24.69 10.17Zm-260.3,340q-14.52 0-24.68-10.17-10.17-10.16-10.17-24.68t10.17-24.69q10.16-10.16 24.68-10.16t24.69 10.16q10.16 10.17 10.16 24.69t-10.16 24.68q-10.17 10.17-24.69 10.17Zm260.3,0q-14.52 0-24.68-10.17-10.17-10.16-10.17-24.68t10.17-24.69q10.16-10.16 24.68-10.16t24.69 10.16q10.16 10.17 10.16 24.69t-10.16 24.68q-10.17 10.17-24.69 10.17Z'
+                ),
             };
         })();
 
@@ -1555,6 +1531,59 @@
         }
     }
 
+    // =================================================================================
+    // SECTION: Configuration Schema
+    // Description: Defines the structure, validation rules, and UI metadata for settings.
+    //              Used for data validation and procedural UI generation.
+    // =================================================================================
+
+    const CONFIG_SCHEMA = {
+        options: {
+            trigger_mode: {
+                type: 'select',
+                default: 'click',
+                options: [
+                    { value: 'click', label: 'Click' },
+                    { value: 'hover', label: 'Hover' },
+                ],
+                ui: { label: 'Trigger Mode', title: 'Choose how to open the text list.' },
+            },
+            enable_shortcut: {
+                type: 'toggle',
+                default: true,
+                ui: { label: 'Enable Shortcut (Alt+Q)', title: 'Enables the keyboard shortcut (Alt+Q) to toggle the Text List.' },
+            },
+            insertion_position: {
+                type: 'select',
+                default: 'cursor',
+                options: [
+                    { value: 'start', label: 'Start' },
+                    { value: 'cursor', label: 'Cursor' },
+                    { value: 'end', label: 'End' },
+                ],
+                ui: { label: 'Insertion position', title: 'Determines where the text is inserted in the input field.' },
+            },
+            insert_before_newline: {
+                type: 'toggle',
+                default: false,
+                ui: { label: 'Insert newline before text', title: 'Automatically add a newline before the pasted text.' },
+            },
+            insert_after_newline: {
+                type: 'toggle',
+                default: false,
+                ui: { label: 'Insert newline after text', title: 'Automatically add a newline after the pasted text.' },
+            },
+        },
+        developer: {
+            logger_level: {
+                type: 'select',
+                default: 'log',
+                options: ['error', 'warn', 'info', 'log', 'debug'],
+                ui: { label: 'Log Level', title: 'Developer console log level.' },
+            },
+        },
+    };
+
     // prettier-ignore
     const DEFAULT_CONFIG = {
         options: {
@@ -1679,7 +1708,88 @@
                 }
 
                 // Delegate the complex insertion logic to the specialized controller.
-                EditorController.insertText(text, editor, options, platform.platformId);
+                EditorController.insertText(text, editor, options);
+            },
+        },
+
+        Editor: {
+            /**
+             * Creates a closure to restore the caret position after DOM normalization.
+             * Returns null if the current platform doesn't need restoration.
+             * @param {HTMLElement} editor
+             * @param {Range} range The range before insertion
+             * @returns {(() => void) | null}
+             */
+            createCaretRestorer(editor, range) {
+                const platform = PlatformAdapters.General.getPlatformDetails();
+                // Only Gemini requires this workaround due to its aggressive DOM normalization
+                if (platform?.platformId === CONSTANTS.PLATFORM.GEMINI.ID) {
+                    const offset = this._getCaretOffset(editor, range);
+                    if (typeof offset !== 'number') return null;
+
+                    return () => {
+                        // Double rAF to ensure we run after Gemini's internal rendering cycle
+                        requestAnimationFrame(() => {
+                            requestAnimationFrame(() => {
+                                this._setCaretOffset(editor, offset);
+                            });
+                        });
+                    };
+                }
+                return null;
+            },
+
+            /**
+             * @private
+             * Calculates the logical character offset of the range end.
+             */
+            _getCaretOffset(editor, range) {
+                try {
+                    const preRange = document.createRange();
+                    preRange.selectNodeContents(editor);
+                    preRange.setEnd(range.endContainer, range.endOffset);
+                    return preRange.toString().length;
+                } catch {
+                    return null;
+                }
+            },
+
+            /**
+             * @private
+             * Restores the caret to the specific character offset using a TreeWalker.
+             */
+            _setCaretOffset(editor, offset) {
+                try {
+                    const selection = window.getSelection();
+                    if (!selection) return;
+
+                    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+                    let node = walker.nextNode();
+                    let remaining = offset;
+
+                    while (node) {
+                        const textLen = node.textContent ? node.textContent.length : 0;
+                        if (remaining <= textLen) {
+                            const r = document.createRange();
+                            r.setStart(node, remaining);
+                            r.collapse(true);
+                            selection.removeAllRanges();
+                            selection.addRange(r);
+                            return;
+                        }
+                        remaining -= textLen;
+                        node = walker.nextNode();
+                    }
+
+                    // Fallback: place caret at the end
+                    const r = document.createRange();
+                    r.selectNodeContents(editor);
+                    r.collapse(false);
+                    selection.removeAllRanges();
+                    selection.addRange(r);
+                } catch {
+                    // no-op
+                }
             },
         },
 
@@ -1836,258 +1946,100 @@
 
     class EditorController {
         /**
-         * Inserts text for rich text editors (ChatGPT/Gemini) using a full replacement strategy.
+         * Inserts text for rich text editors (ChatGPT/Gemini) using Range API and InputEvent.
          * @param {string} text The text to insert.
          * @param {HTMLElement} editor The target editor element.
          * @param {object} options The insertion options.
-         * @param {string} platformId The ID of the current platform ('chatgpt' or 'gemini').
          */
-        static insertText(text, editor, options, platformId) {
-            const executeInsertion = () => {
-                editor.focus();
+        static insertText(text, editor, options) {
+            // 1. Snapshot current state
+            const isFocused = document.activeElement === editor;
+            const selection = window.getSelection();
+            let range;
 
-                const selection = window.getSelection();
-                // Check if selection is valid and within the editor
-                const hasValidSelection = selection && selection.rangeCount > 0 && editor.contains(selection.anchorNode);
-                let range;
-
-                if (hasValidSelection) {
-                    range = selection.getRangeAt(0);
+            // 2. Determine target Range
+            if (options.insertion_position === 'start') {
+                range = document.createRange();
+                range.selectNodeContents(editor);
+                range.collapse(true);
+            } else if (options.insertion_position === 'end') {
+                range = document.createRange();
+                range.selectNodeContents(editor);
+                range.collapse(false);
+            } else {
+                // 'cursor' (default)
+                if (isFocused && selection.rangeCount > 0 && editor.contains(selection.anchorNode)) {
+                    range = selection.getRangeAt(0).cloneRange();
+                } else if (options._savedRange) {
+                    range = options._savedRange.cloneRange();
                 } else {
-                    // Fallback: Create a range at the end if invalid
                     range = document.createRange();
                     range.selectNodeContents(editor);
-                    range.collapse(false);
-                    // Update selection to match this new range so subsequent calls work
-                    if (selection) {
-                        selection.removeAllRanges();
-                        selection.addRange(range);
-                    }
-                }
 
-                // 1. Get existing text, handling ChatGPT's restored state
-                let existingText;
-                const paragraphs = Array.from(editor.childNodes).filter((n) => n.nodeName === 'P');
-                // A restored state in ChatGPT is characterized by a single <p> containing newlines.
-                const isRestoredState = platformId === CONSTANTS.PLATFORM.CHATGPT.ID && paragraphs.length === 1 && paragraphs[0].textContent.includes('\n');
+                    // Check if editor has content (text OR non-text elements like images/widgets)
+                    const hasText = editor.textContent.trim().length > 0;
+                    // Detect images, media, or non-editable widgets (common in rich editors)
+                    const hasMedia = editor.querySelector('img, picture, video, audio, [contenteditable="false"]');
 
-                if (isRestoredState) {
-                    // For the restored state, get text content directly from the single paragraph.
-                    existingText = paragraphs[0].textContent;
-                } else {
-                    // For the normal multi-<p> state, use the standard parsing logic.
-                    existingText = this._getTextFromEditor(editor, platformId);
-                }
-
-                let cursorPos = 0;
-                // Determine insertion position based on options and validity of selection
-                if (options.insertion_position === 'cursor' && hasValidSelection) {
-                    cursorPos = this._getCursorPositionInText(editor, platformId);
-                } else if (options.insertion_position === 'start') {
-                    cursorPos = 0;
-                } else {
-                    // 'end' or fallback for invalid selection
-                    cursorPos = existingText.length;
-                }
-
-                // 2. Prepare the text to be inserted
-                let textToInsert = text;
-                if (options.insert_before_newline) textToInsert = '\n' + textToInsert;
-                if (options.insert_after_newline) textToInsert += '\n';
-
-                // 3. Construct the final, complete text and new cursor position
-                const finalText = existingText.slice(0, cursorPos) + textToInsert + existingText.slice(cursorPos);
-                const newCursorPos = cursorPos + textToInsert.length;
-
-                // 4. Build a single DOM fragment for the entire new content
-                const finalFragment = this._createTextFragmentForEditor(finalText, platformId);
-
-                // 5. Replace editor content safely using Range API
-                // We select all contents again to ensure complete replacement
-                range.selectNodeContents(editor);
-                range.deleteContents();
-                range.insertNode(finalFragment);
-
-                // 6. Set the cursor to the end of the inserted text
-                this._setCursorPositionByOffset(editor, newCursorPos);
-
-                // 7. Platform-specific cleanup
-                if (platformId === CONSTANTS.PLATFORM.GEMINI.ID) {
-                    editor.classList.remove('ql-blank');
-                }
-
-                // 8. Dispatch events to notify the editor of the change
-                editor.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
-                editor.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
-            };
-
-            // Branch: Focus Check
-            if (document.activeElement && editor.contains(document.activeElement)) {
-                // Branch A: Already focused -> Execute immediately (Sync)
-                executeInsertion();
-            } else {
-                // Branch B: Not focused -> Focus and wait for next frame (Async)
-                editor.focus();
-                requestAnimationFrame(() => executeInsertion());
-            }
-        }
-
-        /**
-         * Retrieves the plain text content from the editor (ChatGPT or Gemini).
-         * @param {HTMLElement} editor The target editor element.
-         * @param {string} platformId The ID of the current platform.
-         * @returns {string} The plain text content.
-         * @private
-         */
-        static _getTextFromEditor(editor, platformId) {
-            // ChatGPT
-            if (platformId === CONSTANTS.PLATFORM.CHATGPT.ID && editor.querySelector('p.placeholder')) {
-                return '';
-            }
-            // Gemini's initial state is <p><br></p>, which should be treated as empty.
-            if (platformId === CONSTANTS.PLATFORM.GEMINI.ID && editor.childNodes.length === 1 && editor.firstChild instanceof HTMLElement && editor.firstChild.nodeName === 'P' && editor.firstChild.innerHTML === '<br>') {
-                return '';
-            }
-
-            const lines = [];
-
-            for (const p of editor.childNodes) {
-                if (p.nodeName !== 'P') continue;
-
-                const isStructuralEmptyLine = p.childNodes.length === 1 && p.firstChild && p.firstChild.nodeName === 'BR';
-                let isEmptyLine = false;
-
-                if (isStructuralEmptyLine) {
-                    if (platformId === CONSTANTS.PLATFORM.CHATGPT.ID) {
-                        // For ChatGPT, the class must also match for it to be a true empty line paragraph.
-                        if (p.firstChild instanceof HTMLElement) {
-                            isEmptyLine = p.firstChild.className === 'ProseMirror-trailingBreak';
-                        }
-                    } else {
-                        // For Gemini, the structure alone is sufficient.
-                        isEmptyLine = true;
-                    }
-                }
-
-                if (isEmptyLine) {
-                    lines.push('');
-                } else {
-                    lines.push(p.textContent);
-                }
-            }
-            return lines.join('\n');
-        }
-
-        /**
-         * Calculates the cursor's character offset within the plain text representation of the editor.
-         * @param {HTMLElement} editor The editor element.
-         * @param {string} platformId The ID of the current platform.
-         * @returns {number} The character offset of the cursor.
-         * @private
-         */
-        static _getCursorPositionInText(editor, platformId) {
-            const selection = window.getSelection();
-            if (!selection.rangeCount) return 0;
-
-            const range = selection.getRangeAt(0);
-            if (!editor.contains(range.startContainer)) return 0;
-
-            const preCaretRange = range.cloneRange();
-            preCaretRange.selectNodeContents(editor);
-            preCaretRange.setEnd(range.startContainer, range.startOffset);
-
-            const tempDiv = document.createElement('div');
-            tempDiv.appendChild(preCaretRange.cloneContents());
-
-            const textBeforeCursor = this._getTextFromEditor(tempDiv, platformId);
-            return textBeforeCursor.length;
-        }
-
-        /**
-         * Creates a DocumentFragment based on the editor's expected <p> structure.
-         * @param {string} text The plain text to convert, with newlines as \n.
-         * @param {string} platformId The ID of the current platform.
-         * @returns {DocumentFragment} The constructed fragment.
-         * @private
-         */
-        static _createTextFragmentForEditor(text, platformId) {
-            const fragment = document.createDocumentFragment();
-            const lines = text.split('\n');
-
-            lines.forEach((line) => {
-                const p = document.createElement('p');
-                if (line === '') {
-                    const br = document.createElement('br');
-                    if (platformId === CONSTANTS.PLATFORM.CHATGPT.ID) {
-                        // ChatGPT
-                        br.className = 'ProseMirror-trailingBreak';
-                    }
-                    p.appendChild(br);
-                } else {
-                    p.appendChild(document.createTextNode(line));
-                }
-                fragment.appendChild(p);
-            });
-            return fragment;
-        }
-
-        /**
-         * Sets the cursor position within the editor based on a character offset.
-         * @param {HTMLElement} editor The editor element.
-         * @param {number} offset The target character offset from a plain text representation (with \n).
-         * @private
-         */
-        static _setCursorPositionByOffset(editor, offset) {
-            const selection = window.getSelection();
-            if (!selection) return;
-
-            const range = document.createRange();
-            let charCount = 0;
-            /** @type {Node} */
-            let lastNode = editor; // Fallback node
-
-            const paragraphs = Array.from(editor.childNodes).filter((n) => n.nodeName === 'P');
-
-            for (let i = 0; i < paragraphs.length; i++) {
-                const p = paragraphs[i];
-                lastNode = p;
-                const treeWalker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT, null);
-                let textNode = null;
-
-                while ((textNode = treeWalker.nextNode())) {
-                    lastNode = textNode;
-                    const nodeLength = textNode.textContent.length;
-                    if (charCount + nodeLength >= offset) {
-                        range.setStart(textNode, offset - charCount);
-                        range.collapse(true);
-                        selection.removeAllRanges();
-                        selection.addRange(range);
-                        return; // Position found and set.
-                    }
-                    charCount += nodeLength;
-                }
-
-                // After processing a paragraph, account for the newline character,
-                // but only if it's not the last paragraph.
-                if (i < paragraphs.length - 1) {
-                    if (charCount === offset) {
-                        // This case handles when the cursor position is exactly at the newline.
-                        // We place the cursor at the end of the current paragraph.
-                        range.selectNodeContents(p);
+                    // If content exists, append to end. Otherwise, select all to replace ghost tags.
+                    if (hasText || hasMedia) {
                         range.collapse(false);
-                        selection.removeAllRanges();
-                        selection.addRange(range);
-                        return;
                     }
-                    charCount++; // Increment for the newline
                 }
             }
 
-            // If the offset is beyond all text, place cursor at the end of the last node.
-            range.selectNodeContents(lastNode);
-            range.collapse(false);
+            // 3. Prepare Editor State
+            if (!isFocused) {
+                editor.focus();
+            }
+
             selection.removeAllRanges();
             selection.addRange(range);
+
+            // 4. Process text
+            let textToInsert = text;
+            if (options.insert_before_newline) textToInsert = '\n' + textToInsert;
+            if (options.insert_after_newline) textToInsert += '\n';
+
+            // 5. Delete selected text if any
+            if (!range.collapsed) {
+                range.deleteContents();
+            }
+
+            // 6. Direct DOM Insertion
+            const textNode = document.createTextNode(textToInsert);
+            range.insertNode(textNode);
+
+            // 7. Update Cursor (After inserted text)
+            range.setStartAfter(textNode);
+            range.setEndAfter(textNode);
+            selection.removeAllRanges();
+            selection.addRange(range);
+
+            // [Platform Hook] Prepare caret restoration if needed
+            // Delegates platform-specific logic to the adapter
+            const caretRestorer = PlatformAdapters.Editor.createCaretRestorer(editor, range);
+
+            // 8. Notify Framework
+            try {
+                const inputEvent = new InputEvent('input', {
+                    bubbles: true,
+                    cancelable: true,
+                    inputType: 'insertText',
+                    data: textToInsert,
+                    composed: true,
+                });
+                editor.dispatchEvent(inputEvent);
+            } catch {
+                editor.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+            }
+
+            editor.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+
+            // [Platform Hook] Execute caret restoration
+            if (caretRestorer) {
+                caretRestorer();
+            }
         }
     }
 
@@ -2901,7 +2853,7 @@
     }
 
     // =================================================================================
-    // SECTION: UI Construction System (ReactiveStore / FormEngine / SchemaBuilder)
+    // SECTION: UI Construction System
     // =================================================================================
 
     /**
@@ -3017,6 +2969,16 @@
         }
 
         /**
+         * Returns a direct reference to the current state object.
+         * WARNING: The returned object MUST be treated as Read-Only. Do not mutate directly.
+         * Use this for performance-critical reads where deep cloning is too expensive.
+         * @returns {Readonly<object>}
+         */
+        getStateRef() {
+            return this.state;
+        }
+
+        /**
          * Replaces the entire state with a new object and notifies listeners.
          * Triggers notifications for all top-level keys in both old and new states.
          * @param {object} newState - The new full state object. Must be a valid object (null is ignored).
@@ -3071,765 +3033,346 @@
     }
 
     /**
-     * @class ComponentRegistry
-     * @description Registry for UI components used by FormEngine.
+     * @class UIBuilder
+     * @description A lightweight, procedural UI builder that handles DOM generation,
+     * two-way data binding with ReactiveStore, and lifecycle management.
      */
-    class ComponentRegistry {
-        static components = new Map();
-
+    class UIBuilder {
         /**
-         * Registers a component definition.
-         * @param {string} type - Component type name.
-         * @param {object} def - Component definition containing render logic.
+         * @param {ReactiveStore} store
+         * @param {object} context
+         * @param {(fn: () => void) => void} disposer
          */
-        static register(type, def) {
-            this.components.set(type, def);
-        }
-
-        /**
-         * Retrieves a component definition.
-         * @param {string} type
-         * @returns {object|undefined}
-         */
-        static get(type) {
-            return this.components.get(type);
-        }
-    }
-
-    /**
-     * @class FormEngine
-     * @description A reactive form engine that binds a schema to a ReactiveStore.
-     * Handles DOM generation, event binding, and dynamic property updates.
-     */
-    class FormEngine {
-        /**
-         * @param {ReactiveStore} store - The data store.
-         * @param {Array<object>|object} schema - The UI schema.
-         * @param {object} context - Context object containing styles, etc.
-         */
-        constructor(store, schema, context) {
+        constructor(store, context, disposer) {
             this.store = store;
-            this.schema = Array.isArray(schema) ? schema : [schema];
             this.context = context;
-            this.elements = new Map(); // Map<schemaId, HTMLElement>
-            this.unsubscribers = [];
-            this.boundEventListeners = [];
-
-            // Bind methods
-            this._handleInput = this._handleInput.bind(this);
-            this._handleStoreUpdate = this._handleStoreUpdate.bind(this);
+            this.styles = context.styles || {};
+            this.disposer = disposer;
         }
 
         /**
-         * Renders the form definition into a DocumentFragment.
-         * @returns {DocumentFragment}
+         * Creates a DOM element wrapper using the global h() function.
+         * @param {string} tag
+         * @param {object} [props]
+         * @param {Array<Node|string>} [children]
+         * @returns {HTMLElement | SVGElement}
          */
-        render() {
-            const fragment = document.createDocumentFragment();
-            this._renderRecursive(this.schema, fragment);
-
-            // Setup reactivity after rendering
-            this.unsubscribers.push(this.store.subscribe(this._handleStoreUpdate));
-
-            // Initial evaluation of dynamic properties
-            this._evaluateDynamicProperties(this.store.getData());
-
-            return fragment;
+        create(tag, props = {}, children = []) {
+            return h(tag, props, children);
         }
 
-        destroy() {
-            this.unsubscribers.forEach((unsub) => unsub());
-            this.unsubscribers = [];
+        /**
+         * Observes store paths and triggers callback on change.
+         * Automatically registers cleanup.
+         * @param {string|string[]} paths - Config key(s) to observe.
+         * @param {function(any): void} callback - Called with full store state on change.
+         */
+        observe(paths, callback) {
+            const pathList = Array.isArray(paths) ? paths : [paths];
+            // Initial call
+            callback(this.store.getStateRef());
 
-            // Clean up event listeners explicitly to prevent memory leaks
-            this.boundEventListeners.forEach(({ element, type, handler }) => {
-                element.removeEventListener(type, handler);
+            const unsub = this.store.subscribe((state, changedPath) => {
+                // Check if changedPath matches or is parent/child of any observed path
+                const isMatch = pathList.some((p) => p === changedPath || changedPath.startsWith(p + '.') || p.startsWith(changedPath + '.'));
+                if (isMatch) {
+                    callback(state);
+                }
             });
-            this.boundEventListeners = [];
-
-            // Execute component-specific cleanup logic
-            for (const { element, node } of this.elements.values()) {
-                const component = ComponentRegistry.get(node.type);
-                if (component && typeof component.destroy === 'function') {
-                    try {
-                        component.destroy(element);
-                    } catch (e) {
-                        Logger.warn('FormEngine', LOG_STYLES.YELLOW, `Error destroying component "${node.type}"`, e);
-                    }
-                }
-            }
-
-            this.elements.clear();
+            this.disposer(unsub);
         }
 
         /**
          * @private
+         * Sets up dynamic visibility and disabled state.
+         * @param {HTMLElement} element
+         * @param {object} options
          */
-        _renderRecursive(schemaNodes, parent) {
-            for (const node of schemaNodes) {
-                const component = ComponentRegistry.get(node.type);
-                if (!component) {
-                    Logger.warn('FormEngine', '', `Unknown component type "${node.type}"`);
-                    continue;
-                }
+        _setupDynamicState(element, options) {
+            if (options.visibleIf || options.disabledIf) {
+                const deps = options.dependencies || [];
+                // If specific dependencies aren't listed but we have a key, watch the key too (unlikely for visibility but safe)
+                if (options.key && !deps.includes(options.key)) deps.push(options.key);
 
-                // Render the component
-                const element = component.render(node, this.context, this);
-
-                if (element) {
-                    const nodeId = node.id || `_node_${Math.random().toString(36).slice(2)}`;
-                    node._internalId = nodeId;
-                    this.elements.set(nodeId, { element, node });
-
-                    // Bind events if the component is interactive
-                    if (node.configKey) {
-                        this._bindInteractiveElement(element, node);
-                    }
-
-                    // Recursively render children if applicable
-                    // Some components might handle children rendering internally (e.g. specialized containers),
-                    // but the default behavior is to append them.
-                    if (node.children && !component.handlesChildren) {
-                        const container = component.getContentContainer ? component.getContentContainer(element) : element;
-                        this._renderRecursive(node.children, container);
-                    }
-
-                    parent.appendChild(element);
+                if (deps.length > 0) {
+                    this.observe(deps, (state) => {
+                        if (options.visibleIf) {
+                            element.style.display = options.visibleIf(state) ? '' : 'none';
+                        }
+                        if (options.disabledIf) {
+                            const isDisabled = options.disabledIf(state);
+                            const targets = element.matches('input, select, textarea, button') ? [element] : element.querySelectorAll('input, select, textarea, button');
+                            targets.forEach((t) => {
+                                if (t instanceof HTMLInputElement || t instanceof HTMLSelectElement || t instanceof HTMLTextAreaElement || t instanceof HTMLButtonElement) {
+                                    t.disabled = isDisabled;
+                                }
+                            });
+                            element.classList.toggle('is-disabled', isDisabled);
+                            element.style.opacity = isDisabled ? '0.5' : '';
+                            element.style.pointerEvents = isDisabled ? 'none' : '';
+                        }
+                    });
                 }
             }
         }
 
         /**
          * @private
+         * Binds an input element to the store key.
+         * @param {HTMLElement} element - The container element.
+         * @param {HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement} input - The input element.
+         * @param {string} key - Store key.
+         * @param {object} options - Transform options.
          */
-        _bindInteractiveElement(rootElement, node) {
-            const component = ComponentRegistry.get(node.type);
+        _bindInput(element, input, key, options) {
+            // 1. Store -> UI Update
+            this.observe(key, (state) => {
+                const rawValue = getPropertyByPath(state, key);
 
-            // Skip default binding if component handles it manually
-            if (component && component.manualBinding) {
-                // Just trigger initial update to sync UI with Store
-                const value = this.store.get(node.configKey);
-                if (component.onUpdate) {
-                    component.onUpdate(rootElement, value, this.context, node);
+                // Validation & Self-healing hook
+                if (options.validate) {
+                    const correctedValue = options.validate(rawValue);
+                    if (correctedValue !== rawValue) {
+                        // If validation fails, update store with corrected value and stop UI update
+                        this.store.set(key, correctedValue);
+                        return;
+                    }
                 }
-                return;
+
+                // Allow manual override for complex components
+                if (options.onStoreUpdate) {
+                    options.onStoreUpdate(input, rawValue);
+                    return;
+                }
+
+                const uiValue = options.toInputValue ? options.toInputValue(rawValue) : rawValue;
+
+                if (input instanceof HTMLInputElement && input.type === 'checkbox') {
+                    input.checked = !!uiValue;
+                } else if (input.value !== String(uiValue ?? '')) {
+                    // Avoid resetting cursor position if value is effectively same
+                    input.value = String(uiValue ?? '');
+                }
+
+                // Hook for label update
+                if (options.onUIUpdate) options.onUIUpdate(rawValue, uiValue);
+            });
+
+            // 2. UI -> Store Update
+            let eventType = 'input';
+            if (input instanceof HTMLInputElement && input.type === 'checkbox') {
+                eventType = 'change';
+            } else if (input instanceof HTMLSelectElement) {
+                eventType = 'change';
             }
 
-            // Find the actual input element.
-            let input = rootElement.matches('input, select, textarea') ? rootElement : rootElement.querySelector('input, select, textarea');
+            const handler = (e) => {
+                let value;
+                if (input instanceof HTMLInputElement && input.type === 'checkbox') {
+                    value = input.checked;
+                } else {
+                    value = input.value;
+                }
 
-            if (!input) {
-                input = rootElement;
-            }
+                if (input instanceof HTMLInputElement && (input.type === 'number' || input.type === 'range')) {
+                    value = value === '' ? null : parseFloat(String(value));
+                } else if (typeof value === 'string' && value === '') {
+                    value = null; // Normalize empty string to null
+                }
 
-            // Retrieve initial value once
-            const initialValue = this.store.get(node.configKey);
+                if (options.transformValue) {
+                    value = options.transformValue(value);
+                }
 
-            // Check if input is a file input using selector match (safer than type property)
-            const isFileInput = input.matches('input[type="file"]');
-
-            // Set initial value (skip for file inputs to avoid security errors)
-            if (!isFileInput) {
-                this._setElementValue(input, initialValue, node);
-            }
-
-            // Initial UI update (for auxiliary displays like slider values)
-            if (component && component.onUpdate) {
-                component.onUpdate(input, initialValue, this.context, node);
-            }
-
-            // Listen for changes
-            const handler = (e) => this._handleInput(e, node);
-
-            // Determine correct event type to avoid double subscription
-            let useChangeEvent = false;
-            if (input.tagName === 'SELECT') {
-                useChangeEvent = true;
-            } else if (input.matches('input[type="checkbox"], input[type="radio"], input[type="file"]')) {
-                useChangeEvent = true;
-            }
-
-            const eventType = useChangeEvent ? 'change' : 'input';
+                this.store.set(key, value);
+            };
 
             input.addEventListener(eventType, handler);
-            this.boundEventListeners.push({ element: input, type: eventType, handler });
+            this.disposer(() => input.removeEventListener(eventType, handler));
         }
 
-        /**
-         * @private
-         */
-        _handleInput(e, node) {
-            const target = e.target;
-            let value;
+        // --- Components ---
 
-            if (target.type === 'checkbox') {
-                value = target.checked;
-            } else if (target.type === 'number') {
-                const floatVal = parseFloat(target.value);
-                // Convert NaN (invalid input or empty string) to null for safety
-                value = Number.isNaN(floatVal) ? null : floatVal;
+        text(key, label, options = {}) {
+            const cls = this.styles;
+            const input = this.create('input', { type: 'text' });
+
+            if (cls.selectInput) input.classList.add(cls.selectInput);
+
+            const children = [input];
+
+            const container = this.create('div', { className: cls.formField }, [
+                this.create('div', { className: cls.labelRow }, [this.create('label', { title: options.tooltip }, label)]),
+                this.create('div', { className: cls.inputWrapper }, children),
+            ]);
+
+            if (container instanceof HTMLElement && input instanceof HTMLInputElement) {
+                this._bindInput(container, input, key, options);
+                this._setupDynamicState(container, options);
+            }
+
+            return container;
+        }
+
+        textarea(key, label, options = {}) {
+            const cls = this.styles;
+            const input = this.create('textarea', { rows: options.rows || 3 });
+            if (cls.selectInput) input.classList.add(cls.selectInput);
+
+            const container = this.create('div', { className: cls.formField }, [this.create('label', { title: options.tooltip }, label), input]);
+
+            if (container instanceof HTMLElement && input instanceof HTMLTextAreaElement) {
+                this._bindInput(container, input, key, options);
+                this._setupDynamicState(container, options);
+            }
+
+            return container;
+        }
+
+        toggle(key, label, options = {}) {
+            const cls = this.styles;
+            const input = this.create('input', { type: 'checkbox' });
+
+            const container = this.create('div', { className: cls.submenuRow }, [
+                this.create('label', { title: options.title }, label), // Label on left
+                this.create('label', { className: cls.toggleSwitch, title: options.title }, [
+                    // Switch on right
+                    input,
+                    this.create('span', { className: cls.toggleSlider }),
+                ]),
+            ]);
+
+            if (container instanceof HTMLElement && input instanceof HTMLInputElement) {
+                this._bindInput(container, input, key, options);
+                this._setupDynamicState(container, options);
+            }
+
+            return container;
+        }
+
+        select(key, label, options = {}) {
+            const cls = this.styles;
+            const validValues = new Set();
+
+            const selectOptions = (options.options || []).map((opt) => {
+                // Handle simple strings or object {value, label}
+                const val = typeof opt === 'object' ? opt.value : opt;
+                const txt = typeof opt === 'object' ? opt.label : opt;
+                const text = txt === '' ? '(not set)' : txt;
+
+                validValues.add(val);
+                return this.create('option', { value: val }, text);
+            });
+
+            // Inject validation logic to self-heal invalid values
+            const enhancedOptions = {
+                ...options,
+                validate: (value) => {
+                    if (validValues.size > 0 && !validValues.has(value)) {
+                        // Fallback to first option if value is invalid
+                        const fallback = options.options[0];
+                        return typeof fallback === 'object' ? fallback.value : fallback;
+                    }
+                    return value;
+                },
+            };
+
+            const input = this.create('select', {}, selectOptions);
+            if (cls.selectInput) input.classList.add(cls.selectInput);
+
+            let container;
+            if (options.showLabel) {
+                container = this.create('div', { className: cls.formField }, [this.create('label', { title: options.tooltip }, label), input]);
             } else {
-                // Convert empty string to null for text inputs
-                value = target.value === '' ? null : target.value;
+                // Bare select (often used in rows)
+                container = input;
             }
 
-            // Execute transformation hook if defined (UI Value -> Store Value)
-            if (node.transformValue) {
-                value = node.transformValue(value);
+            if (container instanceof HTMLElement && input instanceof HTMLSelectElement) {
+                this._bindInput(container, input, key, enhancedOptions);
+                this._setupDynamicState(container, options);
             }
 
-            this.store.set(node.configKey, value);
-
-            // Execute side-effect hook if defined
-            if (node.onChange) {
-                node.onChange(value, this.store.getData());
-            }
+            return container;
         }
 
-        _setElementValue(element, value, node) {
-            // Apply transformation from Store Value -> UI Input Value if defined
-            let inputValue = value;
-            if (node && node.toInputValue) {
-                inputValue = node.toInputValue(value);
-            }
-
-            if (element.type === 'checkbox') {
-                element.checked = !!inputValue;
-            } else if (element.type === 'number') {
-                // Handle null/undefined for numeric inputs
-                if (inputValue === null || inputValue === undefined) {
-                    // Check for dataset defaults or specific logic (can be extended)
-                    element.value = element.min || 0;
-                } else {
-                    element.value = inputValue;
-                }
-            } else {
-                element.value = inputValue === null || inputValue === undefined ? '' : inputValue;
-            }
-        }
-
-        /**
-         * @private
-         */
-        _handleStoreUpdate(state, changedPath) {
-            // 1. Update bound values
-            for (const { element, node } of this.elements.values()) {
-                // Check for exact match, parent path match (changedPath is parent), OR child path match (changedPath is child)
-                // This ensures bi-directional updates:
-                // - Parent change updates children (e.g. store.set('user', ...) updates 'user.name' input)
-                // - Child change updates parent (e.g. store.set('user.name', ...) updates 'user' bound component)
-                if (node.configKey && typeof changedPath === 'string' && (node.configKey === changedPath || node.configKey.startsWith(changedPath + '.') || changedPath.startsWith(node.configKey + '.'))) {
-                    const component = ComponentRegistry.get(node.type);
-                    const newValue = this.store.get(node.configKey);
-
-                    // Handle manual binding components (e.g. padding slider)
-                    // These components manage their own internal state updates via onUpdate
-                    if (component && component.manualBinding) {
-                        if (component.onUpdate) {
-                            component.onUpdate(element, newValue, this.context, node);
+        button(id, text, onClick, options = {}) {
+            const cls = this.styles;
+            const className = options.className ? `${cls.modalButton} ${options.className}` : cls.modalButton;
+            const btn = this.create(
+                'button',
+                {
+                    id,
+                    className,
+                    type: 'button',
+                    title: options.title || '',
+                    onclick: (e) => {
+                        e.preventDefault();
+                        if (typeof onClick === 'function') {
+                            onClick(e);
                         }
-                        continue;
-                    }
-
-                    // Default behavior for standard inputs
-                    const input = element.matches('input, select, textarea') ? element : element.querySelector('input, select, textarea');
-                    if (input) {
-                        // Only update DOM if different to prevent cursor jumping
-                        if (input.type === 'checkbox') {
-                            if (input.checked !== !!newValue) input.checked = !!newValue;
-                        } else {
-                            // Calculate expected UI value to compare
-                            let expectedValue = newValue;
-                            if (node.toInputValue) {
-                                expectedValue = node.toInputValue(newValue);
-                            }
-                            // Loose equality check to allow string/number conversions
-                            // eslint-disable-next-line eqeqeq
-                            if (input.value != expectedValue) this._setElementValue(input, newValue, node);
-                        }
-
-                        // Trigger UI update hook
-                        if (component && component.onUpdate) {
-                            component.onUpdate(input, newValue, this.context, node);
-                        }
-                    } else if (component && component.onUpdate) {
-                        component.onUpdate(element, newValue, this.context, node);
-                    }
-                }
-            }
-
-            // 2. Evaluate dynamic properties (visibility, disabled state)
-            this._evaluateDynamicProperties(state);
-        }
-
-        /**
-         * @private
-         */
-        _evaluateDynamicProperties(state) {
-            for (const { element, node } of this.elements.values()) {
-                // Visibility
-                if (node.visibleIf) {
-                    const isVisible = node.visibleIf(state);
-                    element.style.display = isVisible ? '' : 'none';
-                }
-
-                // Disabled state
-                if (node.disabledIf) {
-                    const isDisabled = node.disabledIf(state);
-                    const targets = element.matches('input, select, textarea, button') ? [element] : element.querySelectorAll('input, select, textarea, button');
-                    targets.forEach((t) => (t.disabled = isDisabled));
-
-                    // Style adjustments for containers
-                    if (isDisabled) {
-                        element.classList.add('is-disabled');
-                        element.style.opacity = '0.5';
-                        element.style.pointerEvents = 'none';
-                    } else {
-                        element.classList.remove('is-disabled');
-                        element.style.opacity = '';
-                        element.style.pointerEvents = '';
-                    }
-                }
-            }
-        }
-    }
-
-    const SchemaBuilder = {
-        create(type, id, props = {}) {
-            return { type, id, ...props };
-        },
-        Group(label, children, options = {}) {
-            return { type: 'group', label, children, ...options };
-        },
-        Row(children, options = {}) {
-            return { type: 'row', children, ...options };
-        },
-        Separator(options = {}) {
-            return { type: 'separator', ...options };
-        },
-        Container(children, options = {}) {
-            return { type: 'container', children, ...options };
-        },
-        Label(text, options = {}) {
-            return { type: 'label', text, ...options };
-        },
-        Text(key, label, options = {}) {
-            return { type: 'text', configKey: key, label, ...options };
-        },
-        TextArea(key, label, options = {}) {
-            return { type: 'textarea', configKey: key, label, ...options };
-        },
-        Toggle(key, label, options = {}) {
-            return { type: 'toggle', configKey: key, label, ...options };
-        },
-        Select(key, label, optionValues, options = {}) {
-            return { type: 'select', configKey: key, label, options: optionValues, ...options };
-        },
-        Button(id, text, onClick, options = {}) {
-            return { type: 'button', id, text, onClick, ...options };
-        },
-        CodeEditor(key, options = {}) {
-            return { type: 'code-editor', configKey: key, ...options };
-        },
-        TextDisplay(key, options = {}) {
-            return { type: 'text-display', configKey: key, ...options };
-        },
-    };
-
-    /**
-     * Registers standard UI components to the registry.
-     */
-    function registerFormComponents() {
-        ComponentRegistry.register('group', {
-            render(node, context) {
-                const cls = context.styles;
-                const className = node.className ? `${cls.submenuFieldset} ${node.className}` : cls.submenuFieldset;
-                return h('fieldset', { className }, [h('legend', { title: node.title }, node.label)]);
-            },
-        });
-
-        ComponentRegistry.register('row', {
-            render(node, context) {
-                const cls = context.styles;
-                let className = cls.submenuRow;
-                if (node.className) {
-                    const mapped = cls[node.className]; // Check for mapped alias (e.g. topRow)
-                    className = mapped ? mapped : `${className} ${node.className}`;
-                }
-                return h('div', { className });
-            },
-        });
-
-        ComponentRegistry.register('separator', {
-            render(node, context) {
-                return h('div', { className: context.styles.submenuSeparator });
-            },
-        });
-
-        ComponentRegistry.register('container', {
-            render(node, context) {
-                const cls = context.styles;
-                let className = '';
-                if (node.className) {
-                    const mapped = cls[node.className];
-                    className = mapped || node.className;
-                }
-                return h('div', { className });
-            },
-        });
-
-        ComponentRegistry.register('label', {
-            render(node) {
-                return h('label', { htmlFor: node.for, title: node.title }, node.text);
-            },
-        });
-
-        ComponentRegistry.register('select', {
-            render(node, context) {
-                const cls = context.styles;
-                const select = h('select', { id: node.id, title: node.title, className: cls.selectInput });
-                const options = resolveSelectOptions(node, context?.store?.getData?.());
-                populateSelectOptions(select, options);
-                if (node.label) {
-                    return h('div', {}, [h('label', { title: node.title }, node.label), select]);
-                }
-                return select;
-            },
-            onUpdate(element, value, context, node) {
-                const select = element.matches('select') ? element : element.querySelector('select');
-                if (!select) return;
-                const options = resolveSelectOptions(node, context?.store?.getData?.());
-                populateSelectOptions(select, options);
-                select.value = value;
-                if (!options.find((opt) => opt.value === value) && options.length > 0 && context?.store) {
-                    context.store.set(node.configKey, options[0].value);
-                }
-            },
-        });
-
-        ComponentRegistry.register('toggle', {
-            render(node, context) {
-                const cls = context.styles;
-                return h('label', { className: cls.toggleSwitch, title: node.title }, [h('input', { type: 'checkbox', id: node.id }), h('span', { className: cls.toggleSlider })]);
-            },
-        });
-
-        ComponentRegistry.register('button', {
-            render(node, context) {
-                const cls = context.styles;
-                const btnClass = node.className ? `${cls.modalButton} ${node.className}` : cls.modalButton;
-                return h(
-                    'button',
-                    {
-                        id: node.id,
-                        className: btnClass,
-                        title: node.title,
-                        type: 'button',
-                        style: { width: node.fullWidth ? '100%' : 'auto' },
-                        onclick: (e) => {
-                            e.preventDefault();
-                            if (node.onClick) node.onClick(e);
-                        },
                     },
-                    node.text
-                );
-            },
-        });
-
-        ComponentRegistry.register('text', {
-            render(node, context) {
-                const cls = context.styles;
-                // Reuse selectInput style for text inputs to ensure consistency
-                const input = h('input', { type: 'text', id: node.id, title: node.title, className: cls.selectInput });
-                if (node.label) {
-                    return h('div', {}, [h('label', { title: node.title }, node.label), input]);
-                }
-                return input;
-            },
-        });
-
-        ComponentRegistry.register('textarea', {
-            render(node, context) {
-                const cls = context.styles;
-                // Reuse selectInput style for textareas to ensure consistency
-                const textarea = h('textarea', { id: node.id, rows: node.rows || 3, title: node.title, className: cls.selectInput });
-                if (node.label) {
-                    return h('div', {}, [h('label', { title: node.title }, node.label), textarea]);
-                }
-                return textarea;
-            },
-        });
-
-        ComponentRegistry.register('code-editor', {
-            manualBinding: true,
-            render(node, context, engine) {
-                // Use class from context if available, or fallback
-                const cls = context.styles;
-                return h('textarea', {
-                    className: cls.editor || `${APPID}-json-editor`,
-                    spellcheck: false,
-                    oninput: (e) => {
-                        engine.store.set(node.configKey, e.target.value);
-                        if (node.onChange) node.onChange(e.target.value, engine.store.getData());
-                    },
-                });
-            },
-            onUpdate(element, value) {
-                if (!(element instanceof HTMLTextAreaElement)) return;
-                if (document.activeElement === element) return;
-                element.value = value || '';
-            },
-        });
-
-        ComponentRegistry.register('text-display', {
-            manualBinding: true,
-            render(node, context) {
-                // Map className using context.styles if possible
-                let className = node.className || '';
-                if (context.styles && context.styles[node.className]) {
-                    className = context.styles[node.className];
-                } else if (node.className) {
-                    // Fallback to raw class name if not in map
-                    className = node.className;
-                }
-                return h('div', { className });
-            },
-            onUpdate(element, value) {
-                if (value && typeof value === 'object') {
-                    element.textContent = value.text || '';
-                    element.style.color = value.color || '';
-                    element.style.fontWeight = value.bold ? 'bold' : 'normal';
-                    element.title = value.title || '';
-                } else {
-                    element.textContent = value || '';
-                    element.style.color = '';
-                    element.style.fontWeight = 'normal';
-                    element.title = '';
-                }
-            },
-        });
-
-        ComponentRegistry.register('text-list', {
-            manualBinding: true, // Required: Control own rendering
-
-            render(node, context) {
-                const cls = context.styles;
-                // Return container only. Content is rendered in onUpdate.
-                return h(`div.${cls.scrollableArea}`, {
-                    dataset: { fingerprint: '' },
-                });
-            },
-
-            onUpdate(element, value, context, node) {
-                // Initialization check
-                if (!context?.textEditor || !value) return;
-
-                const { currentTexts, listFingerprint, focusedIndex } = value;
-                const prevFingerprint = element.dataset.fingerprint;
-
-                // Lazy Sync: Re-render only when Fingerprint (structure) changes
-                // Text input (input event) does not change Fingerprint, so this block is skipped
-                if (prevFingerprint === String(listFingerprint)) {
-                    return;
-                }
-
-                // --- Re-render process ---
-                element.replaceChildren(); // Clear (CSP safe)
-                element.dataset.fingerprint = listFingerprint;
-                const cls = context.styles;
-
-                currentTexts.forEach((text, index) => {
-                    const textItem = h(`div.${cls.textItem}`, { 'data-index': index }, [
-                        // Drag handle
-                        h(`div.${cls.dragHandle}`, { title: 'Drag to reorder', draggable: 'true' }, [createIconFromDef(StyleDefinitions.ICONS.dragHandle)]),
-                        // Textarea
-                        h('textarea', {
-                            'data-index': index,
-                            rows: 3,
-                            value: text, // Initial value
-                            // Input event: Update Store value but do NOT update Fingerprint (Avoid re-render)
-                            oninput: (e) => {
-                                context.textEditor._handleTextPixelInput(index, e.target.value);
-                                // Auto resize
-                                e.target.style.height = 'auto';
-                                e.target.style.height = `${e.target.scrollHeight}px`;
-                            },
-                            // Track focus to determine insertion point for 'New' button
-                            onfocus: () => {
-                                context.store.set('editor.focusedIndex', index);
-                            },
-                        }),
-                        // Controls
-                        h(`div.${cls.itemControls}`, [
-                            h(`button.${cls.modalButton}.${cls.moveBtn}.move-up-btn`, { title: 'Move up', disabled: index === 0 }, [createIconFromDef(StyleDefinitions.ICONS.up)]),
-                            h(`button.${cls.modalButton}.${cls.moveBtn}.move-down-btn`, { title: 'Move down', disabled: index === currentTexts.length - 1 }, [createIconFromDef(StyleDefinitions.ICONS.down)]),
-                            h(`button.${cls.modalButton}.${cls.deleteBtn}.delete-btn`, { title: 'Delete' }, [createIconFromDef(StyleDefinitions.ICONS.delete)]),
-                        ]),
-                    ]);
-                    element.appendChild(textItem);
-                });
-
-                // Auto resize (for initial display)
-                requestAnimationFrame(() => {
-                    element.querySelectorAll('textarea').forEach((ta) => {
-                        ta.style.height = 'auto';
-                        ta.style.height = `${ta.scrollHeight}px`;
-                    });
-
-                    // Restore focus
-                    if (focusedIndex >= 0 && focusedIndex < currentTexts.length) {
-                        const target = element.querySelector(`textarea[data-index="${focusedIndex}"]`);
-                        if (target) {
-                            target.focus();
-                            // Set cursor to end
-                            const len = target.value.length;
-                            target.setSelectionRange(len, len);
-                        }
-                    }
-                });
-            },
-        });
-
-        ComponentRegistry.register('text-editor-header', {
-            manualBinding: true,
-            render(node, context) {
-                return context?.textEditor?._createHeaderControls() || null;
-            },
-            onUpdate(element, value, context, node) {
-                if (!context?.textEditor || !value) return;
-
-                // --- Add guard to prevent unnecessary re-renders ---
-                const { activeProfile, activeCategory, mode, targetType, lastUpdated } = value;
-                const newRenderState = JSON.stringify({ p: activeProfile, c: activeCategory, m: mode, t: targetType, u: lastUpdated });
-
-                if (element.dataset.renderState === newRenderState) {
-                    return;
-                }
-                element.dataset.renderState = newRenderState;
-                // ---------------------------------------
-
-                const { cachedConfig } = context.textEditor;
-                if (!cachedConfig) return;
-
-                const cls = context.styles;
-                const isAnyRenaming = mode === 'rename';
-                const isAnyDeleting = mode === 'delete_confirm';
-                const isAnyActionInProgress = isAnyRenaming || isAnyDeleting;
-
-                // Get profile and category keys
-                const profiles = cachedConfig.texts || [];
-                const profileKeys = profiles.map((p) => p.name);
-
-                const activeProfileObj = profiles.find((p) => p.name === activeProfile);
-                const categories = activeProfileObj ? activeProfileObj.categories : [];
-                const categoryKeys = categories.map((c) => c.name);
-
-                // Update logic per row
-                const updateRow = (type, keys, activeKey) => {
-                    const row = element.querySelector(`.${cls.headerRow}[data-type="${type}"]`);
-                    if (!row) return;
-
-                    const isRenamingThis = isAnyRenaming && targetType === type;
-                    const isDeletingThis = isAnyDeleting && targetType === type;
-                    const isTargetDisabled = isAnyActionInProgress && targetType !== type;
-
-                    row.classList.toggle('is-disabled', isTargetDisabled);
-
-                    const select = row.querySelector('select');
-                    const renameInput = row.querySelector('input[type="text"]');
-                    const mainActions = row.querySelector(`.${cls.mainActions}`);
-                    const renameActions = row.querySelector(`.${cls.renameActions}`);
-                    const deleteConfirmGroup = row.querySelector(`.${cls.deleteConfirmGroup}`);
-
-                    // Toggle Select / Input display
-                    select.style.display = isRenamingThis ? 'none' : 'block';
-                    renameInput.style.display = isRenamingThis ? 'block' : 'none';
-
-                    // Toggle button area display
-                    mainActions.style.visibility = !isRenamingThis && !isDeletingThis ? 'visible' : 'hidden';
-                    renameActions.style.display = isRenamingThis ? 'flex' : 'none';
-                    deleteConfirmGroup.style.display = isDeletingThis ? 'flex' : 'none';
-
-                    // Update Select options (only when not renaming)
-                    if (!isRenamingThis) {
-                        const currentScroll = select.scrollTop;
-                        // Check for diff update (simple)
-                        const newSignature = keys.join('|');
-                        if (select.dataset.signature !== newSignature || select.value !== activeKey) {
-                            select.textContent = '';
-                            keys.forEach((key, index) => select.appendChild(h('option', { value: key }, `${index + 1}. ${key}`)));
-                            select.dataset.signature = newSignature;
-                        }
-                        select.value = activeKey;
-                        select.scrollTop = currentScroll;
-                    } else {
-                        renameInput.value = activeKey;
-                    }
-
-                    // Button activity control
-                    const upBtn = row.querySelector(`#${APPID}-${type}-up-btn`);
-                    const downBtn = row.querySelector(`#${APPID}-${type}-down-btn`);
-                    const deleteBtn = row.querySelector(`#${APPID}-${type}-delete-btn`);
-                    const newBtn = row.querySelector(`#${APPID}-${type}-new-btn`);
-                    const copyBtn = row.querySelector(`#${APPID}-${type}-copy-btn`);
-                    const renameBtn = row.querySelector(`#${APPID}-${type}-rename-btn`);
-                    const index = keys.indexOf(activeKey);
-
-                    if (upBtn) upBtn.disabled = isAnyActionInProgress || index <= 0;
-                    if (downBtn) downBtn.disabled = isAnyActionInProgress || index >= keys.length - 1;
-                    if (deleteBtn) deleteBtn.disabled = isAnyActionInProgress || keys.length <= 1;
-                    if (newBtn) newBtn.disabled = isAnyActionInProgress;
-                    if (copyBtn) copyBtn.disabled = isAnyActionInProgress;
-                    if (renameBtn) renameBtn.disabled = isAnyActionInProgress;
-                };
-
-                updateRow('profile', profileKeys, activeProfile);
-                updateRow('category', categoryKeys, activeCategory);
-
-                // Control the entire modal (footer buttons, etc.)
-                const modalElement = context.textEditor.modal.element;
-                const scrollArea = modalElement.querySelector(`.${cls.scrollableArea}`);
-
-                if (scrollArea) scrollArea.classList.toggle('is-disabled', isAnyActionInProgress);
-
-                const setDisabled = (selector, disabled) => {
-                    const el = modalElement.querySelector(selector);
-                    if (el) el.disabled = disabled;
-                };
-
-                setDisabled(`#${APPID}-text-new-btn`, isAnyActionInProgress);
-                setDisabled(`#${APPID}-editor-modal-apply-btn`, isAnyActionInProgress);
-                setDisabled(`#${APPID}-editor-modal-save-btn`, isAnyActionInProgress);
-                setDisabled(`#${APPID}-editor-modal-cancel-btn`, isAnyActionInProgress);
-            },
-        });
-    }
-
-    function resolveSelectOptions(node, data) {
-        if (typeof node.options === 'function') {
-            return normalizeOptions(node.options(data));
+                    style: { width: options.fullWidth ? '100%' : 'auto' },
+                },
+                text
+            );
+            return btn;
         }
-        return normalizeOptions(node.options || []);
-    }
 
-    function normalizeOptions(options) {
-        return (options || []).map((opt) => {
-            if (typeof opt === 'string') {
-                return { value: opt, label: opt };
+        // --- Layouts ---
+
+        group(label, children, options = {}) {
+            const cls = this.styles;
+            const container = this.create('fieldset', { className: cls.submenuFieldset }, [this.create('legend', {}, label), ...children]);
+            if (container instanceof HTMLElement) {
+                this._setupDynamicState(container, options);
             }
-            return { value: opt.value, label: opt.label ?? opt.value };
-        });
-    }
+            return container;
+        }
 
-    function populateSelectOptions(select, options) {
-        const signature = JSON.stringify(options);
-        if (select.dataset.optionsSignature === signature) return;
-        select.dataset.optionsSignature = signature;
-        select.textContent = '';
-        options.forEach((opt) => select.appendChild(h('option', { value: opt.value }, opt.label)));
-    }
+        row(children, options = {}) {
+            const cls = this.styles;
+            let className = cls.submenuRow;
+            if (options.className && cls[options.className]) {
+                className += ` ${cls[options.className]}`;
+            } else if (options.className) {
+                className += ` ${options.className}`;
+            }
+            const container = this.create('div', { className }, children);
+            if (container instanceof HTMLElement) {
+                this._setupDynamicState(container, options);
+            }
+            return container;
+        }
 
-    registerFormComponents();
+        separator(options = {}) {
+            const container = this.create('div', { className: this.styles.submenuSeparator });
+            if (container instanceof HTMLElement) {
+                this._setupDynamicState(container, options);
+            }
+            return container;
+        }
+
+        label(text, options = {}) {
+            const container = this.create('label', { title: options.title }, text);
+            if (container instanceof HTMLElement) {
+                this._setupDynamicState(container, options);
+            }
+            return container;
+        }
+
+        container(children, options = {}) {
+            let className = '';
+            if (options.className && this.styles[options.className]) {
+                className = this.styles[options.className];
+            }
+            const container = this.create('div', { className }, children);
+            if (container instanceof HTMLElement) {
+                this._setupDynamicState(container, options);
+            }
+            return container;
+        }
+    }
 
     // =================================================================================
     // SECTION: Configuration Processor
@@ -3978,8 +3521,11 @@
             if (!config.options) {
                 config.options = deepClone(DEFAULT_CONFIG.options);
             }
+            if (!config.developer) {
+                config.developer = deepClone(DEFAULT_CONFIG.developer);
+            }
 
-            // Validate activeProfileName (against Array structure)
+            // 1. Validate activeProfileName (Dynamic dependency, handled manually)
             const activeProfileName = config.options.activeProfileName;
             const profileExists = config.texts.some((p) => p.name === activeProfileName);
 
@@ -3989,12 +3535,44 @@
                 config.options.activeProfileName = fallback;
             }
 
-            // Validate logger_level
-            const validLevels = Object.keys(Logger.levels);
-            if (!config.developer || !validLevels.includes(config.developer.logger_level)) {
-                Logger.warn('CONFIG', LOG_STYLES.YELLOW, `Invalid or missing logger_level. Resetting to default '${DEFAULT_CONFIG.developer.logger_level}'.`);
-                if (!config.developer) config.developer = {};
-                config.developer.logger_level = DEFAULT_CONFIG.developer.logger_level;
+            // 2. Validate Schema-driven options
+            this._validateSchema(config.options, CONFIG_SCHEMA.options, 'options');
+            this._validateSchema(config.developer, CONFIG_SCHEMA.developer, 'developer');
+        },
+
+        /**
+         * Validates a configuration section against a schema definition.
+         * @param {object} targetObj The configuration object to validate (e.g. config.options).
+         * @param {object} schemaSection The schema definition for this section.
+         * @param {string} sectionName The name of the section for logging.
+         */
+        _validateSchema(targetObj, schemaSection, sectionName) {
+            for (const [key, schema] of Object.entries(schemaSection)) {
+                let value = targetObj[key];
+                let isValid = true;
+
+                if (schema.type === 'select') {
+                    // Extract valid values from options array (supports both string and object{value, label})
+                    const validValues = schema.options.map((opt) => (typeof opt === 'object' ? opt.value : opt));
+                    if (!validValues.includes(value)) {
+                        isValid = false;
+                    }
+                } else if (schema.type === 'toggle') {
+                    if (typeof value !== 'boolean') {
+                        // Attempt type coercion for strings "true"/"false"
+                        if (value === 'true') value = true;
+                        else if (value === 'false') value = false;
+                        else isValid = false;
+                    }
+                }
+
+                if (!isValid) {
+                    Logger.warn('CONFIG', LOG_STYLES.YELLOW, `Invalid value "${targetObj[key]}" for "${sectionName}.${key}". Resetting to default "${schema.default}".`);
+                    targetObj[key] = schema.default;
+                } else if (value !== targetObj[key]) {
+                    // Apply coerced value
+                    targetObj[key] = value;
+                }
             }
         },
     };
@@ -4112,6 +3690,7 @@
          * @param {string} [options.width='500px'] - The width of the modal.
          * @param {boolean} [options.closeOnBackdropClick=true] - Whether to close the modal when clicking the backdrop.
          * @param {Array<object>} [options.buttons=[]] - An array of button definitions for the footer.
+         * @param {function(Event): void} [options.onCancel] - A callback function for the cancel event (ESC key).
          * @param {function(): void} [options.onDestroy] - A callback function executed when the modal is destroyed.
          * @param {{text: string, id: string, className: string, onClick: (modalInstance: CustomModal, event: Event) => void}} options.buttons[]
          */
@@ -4121,6 +3700,7 @@
                 width: 'min(500px, 95vw)', // Responsive default
                 closeOnBackdropClick: true,
                 buttons: [],
+                onCancel: null,
                 onDestroy: null,
                 ...options,
             };
@@ -4166,6 +3746,13 @@
 
             // The 'close' event is the single source of truth for when the dialog has been dismissed.
             this.element.addEventListener('close', () => this.destroy());
+
+            // Listen for the 'cancel' event (fired on ESC) to allow intercepting the close action.
+            this.element.addEventListener('cancel', (e) => {
+                if (typeof this.options.onCancel === 'function') {
+                    this.options.onCancel(e);
+                }
+            });
 
             if (this.options.closeOnBackdropClick) {
                 this.element.addEventListener('click', (e) => {
@@ -4413,13 +4000,14 @@
     class SettingsPanelComponent extends SettingsPanelBase {
         constructor(callbacks) {
             super(callbacks);
-            this.engine = null;
             this.formContainer = null;
             this.store = new ReactiveStore(DEFAULT_CONFIG);
             this.isPopulating = false;
             this.styleHandle = null;
             this.commonStyleHandle = null;
             this.warningState = null;
+            /** @type {Array<() => void>} */
+            this._uiSubscriptions = []; // Transient subscriptions for the current render cycle
 
             // Delegate subscription management to the base class
             this.addStoreSubscription(
@@ -4455,8 +4043,8 @@
          * @protected
          */
         _onDestroy() {
-            this.engine?.destroy();
-            this.engine = null;
+            this._uiSubscriptions.forEach((unsub) => unsub());
+            this._uiSubscriptions = [];
             super._onDestroy();
         }
 
@@ -4468,155 +4056,6 @@
         _createPanelContainer() {
             const cls = this.styleHandle.classes;
             return h(`div#${cls.panel}`, { style: { display: 'none' }, role: 'menu' });
-        }
-
-        _getPanelSchema() {
-            // Note: Schema uses logical class names mapped in StyleDefinitions
-            return [
-                SchemaBuilder.TextDisplay('system.warning', {
-                    className: 'warningBanner',
-                    visibleIf: (data) => !!data?.system?.warning,
-                }),
-                SchemaBuilder.Group(
-                    'Default Profile',
-                    [
-                        SchemaBuilder.Select('options.activeProfileName', null, (data) => (data?.texts || []).map((p) => p.name), {
-                            id: `${APPID}-profile-select`,
-                            title: 'Select the default profile loaded on startup.',
-                        }),
-                    ],
-                    { title: 'Select the default profile loaded on startup.' }
-                ),
-                SchemaBuilder.Container(
-                    [
-                        SchemaBuilder.Group(
-                            'Texts',
-                            [
-                                SchemaBuilder.Button(
-                                    `${APPID}-submenu-edit-texts-btn`,
-                                    'Edit Texts...',
-                                    () => {
-                                        this.callbacks.onShowTextEditorModal?.();
-                                        this.hide();
-                                    },
-                                    { fullWidth: true, title: 'Open the text editor.' }
-                                ),
-                            ],
-                            { title: 'Open the text editor.' }
-                        ),
-                        SchemaBuilder.Group(
-                            'JSON',
-                            [
-                                SchemaBuilder.Button(
-                                    `${APPID}-submenu-json-btn`,
-                                    'JSON...',
-                                    () => {
-                                        this.callbacks.onShowJsonModal?.();
-                                        this.hide();
-                                    },
-                                    {
-                                        fullWidth: true,
-                                        title: 'Import, export, or edit settings via JSON.',
-                                    }
-                                ),
-                            ],
-                            { title: 'Import, export, or edit settings via JSON.' }
-                        ),
-                    ],
-                    { className: 'topRow' } // Mapped to cls.topRow
-                ),
-                SchemaBuilder.Group(
-                    'Options',
-                    [
-                        SchemaBuilder.Row([
-                            SchemaBuilder.Label('Trigger Mode', { for: `${APPID}-opt-trigger-mode`, title: 'Choose how to open the text list.' }),
-                            SchemaBuilder.Select(
-                                'options.trigger_mode',
-                                null,
-                                [
-                                    { value: 'click', label: 'Click' },
-                                    { value: 'hover', label: 'Hover' },
-                                ],
-                                {
-                                    id: `${APPID}-opt-trigger-mode`,
-                                    title: '"Click" opens on click, "Hover" opens on mouse over.',
-                                }
-                            ),
-                        ]),
-                        SchemaBuilder.Row([
-                            SchemaBuilder.Label('Enable Shortcut to Trigger (Alt+Q)', {
-                                for: `${APPID}-opt-enable-shortcut`,
-                                title: 'Enables the keyboard shortcut (Alt+Q) to toggle the Text List.',
-                            }),
-                            SchemaBuilder.Toggle('options.enable_shortcut', null, {
-                                id: `${APPID}-opt-enable-shortcut`,
-                                title: 'Enables the keyboard shortcut (Alt+Q) to toggle the Text List.',
-                            }),
-                        ]),
-                        SchemaBuilder.Container(
-                            [
-                                SchemaBuilder.Button(
-                                    `${APPID}-submenu-shortcut-btn`,
-                                    'Shortcuts & Controls',
-                                    () => {
-                                        this.callbacks.onShowShortcutModal?.();
-                                        this.hide();
-                                    },
-                                    { title: 'Show the keyboard shortcuts cheat sheet.' }
-                                ),
-                            ],
-                            { className: 'submenuRow' }
-                        ),
-                        SchemaBuilder.Separator(),
-                        SchemaBuilder.Row([
-                            SchemaBuilder.Label('Insertion position', {
-                                for: `${APPID}-opt-insertion-position`,
-                                title: 'Determines where the text is inserted in the input field.',
-                            }),
-                            SchemaBuilder.Select(
-                                'options.insertion_position',
-                                null,
-                                [
-                                    { value: 'start', label: 'Start' },
-                                    { value: 'cursor', label: 'Cursor' },
-                                    { value: 'end', label: 'End' },
-                                ],
-                                {
-                                    id: `${APPID}-opt-insertion-position`,
-                                    title: 'Determines where the text is inserted in the input field.',
-                                }
-                            ),
-                        ]),
-                        SchemaBuilder.Row([
-                            SchemaBuilder.Label('Insert newline before text', {
-                                for: `${APPID}-opt-insert-before-newline`,
-                                title: 'Automatically add a newline before the pasted text.',
-                            }),
-                            SchemaBuilder.Toggle('options.insert_before_newline', null, {
-                                id: `${APPID}-opt-insert-before-newline`,
-                                title: 'Adds a newline character before the inserted text.',
-                            }),
-                        ]),
-                        SchemaBuilder.Row([
-                            SchemaBuilder.Label('Insert newline after text', {
-                                for: `${APPID}-opt-insert-after-newline`,
-                                title: 'Automatically add a newline after the pasted text.',
-                            }),
-                            SchemaBuilder.Toggle('options.insert_after_newline', null, {
-                                id: `${APPID}-opt-insert-after-newline`,
-                                title: 'Adds a newline character after the inserted text.',
-                            }),
-                        ]),
-                        SchemaBuilder.Container(
-                            [SchemaBuilder.Label("Note: Option behavior may depend on the input field's state (focus and existing content). For consistent results, click an insert button while the input field is focused.")],
-                            {
-                                className: 'settingsNote', // Mapped to cls.settingsNote
-                            }
-                        ),
-                    ],
-                    { title: 'Configure general options and behavior.' }
-                ),
-            ];
         }
 
         _createPanelContent() {
@@ -4643,31 +4082,250 @@
                 storeData.system = { warning: null };
             }
 
-            // If the engine already exists, update the state instead of rebuilding the DOM.
-            if (this.engine) {
-                this.store.replaceState(storeData);
+            // Update the store state. This triggers UI updates via UIBuilder bindings.
+            this.store.replaceState(storeData);
+
+            // If the form is already rendered, we are done. (Reactivity handles the updates)
+            if (this.formContainer && this.formContainer.hasChildNodes()) {
                 this.isPopulating = false;
                 return;
             }
 
+            // Clean up previous render's resources
+            this._uiSubscriptions.forEach((unsub) => unsub());
+            this._uiSubscriptions = [];
+
             if (this.formContainer) {
                 this.formContainer.textContent = '';
-            }
-
-            this.store.replaceState(storeData);
-
-            const schema = this._getPanelSchema();
-            // Merge styles: Common classes take precedence or serve as base, SettingsPanel classes add specifics
-            const cls = { ...this.commonStyleHandle.classes, ...this.styleHandle.classes };
-            const context = { styles: cls, store: this.store };
-
-            this.engine = new FormEngine(this.store, schema, context);
-
-            if (this.formContainer) {
-                this.formContainer.appendChild(this.engine.render());
+                this._renderContent();
             }
 
             this.isPopulating = false;
+        }
+
+        /**
+         * @private
+         * Renders the form content using UIBuilder.
+         */
+        _renderContent() {
+            const cls = { ...this.commonStyleHandle.classes, ...this.styleHandle.classes };
+            const context = { styles: cls, store: this.store };
+
+            const uiDisposer = (unsub) => {
+                if (typeof unsub === 'function') {
+                    this._uiSubscriptions.push(unsub);
+                }
+            };
+            const ui = new UIBuilder(this.store, context, uiDisposer);
+
+            const fragment = document.createDocumentFragment();
+
+            // 1. System Warning Banner
+            const warningKey = 'system.warning';
+            const warningBanner = ui.create('div', { className: cls.warningBanner, style: { display: 'none' } });
+            ui.observe(warningKey, (state) => {
+                const warning = getPropertyByPath(state, warningKey);
+                warningBanner.textContent = warning ? warning.text : '';
+                warningBanner.style.display = warning ? '' : 'none';
+            });
+            fragment.appendChild(warningBanner);
+
+            // 2. Default Profile (Dynamic Select Implementation)
+            const profileSelectId = `${APPID}-profile-select`;
+            const profileSelect = ui.create('select', {
+                id: profileSelectId,
+                className: cls.selectInput,
+                title: 'Select the default profile loaded on startup.',
+            });
+
+            // Bind UI -> Store (Change Event)
+            const changeHandler = (e) => {
+                const target = e.target;
+                if (target instanceof HTMLSelectElement) {
+                    this.store.set('options.activeProfileName', target.value);
+                }
+            };
+            profileSelect.addEventListener('change', changeHandler);
+            uiDisposer(() => profileSelect.removeEventListener('change', changeHandler));
+
+            // Bind Store -> UI (Update Options & Value)
+            ui.observe(['texts', 'options.activeProfileName'], (state) => {
+                const profiles = state.texts || [];
+                const currentVal = state.options?.activeProfileName;
+
+                // --- 1. Data Integrity Check & Self-healing ---
+                // If the current profile is invalid (e.g. deleted), fallback to the first available one.
+                const isValid = profiles.some((p) => p.name === currentVal);
+                if (!isValid && profiles.length > 0) {
+                    const fallback = profiles[0].name;
+
+                    // Guard: Only update if strictly different to avoid infinite loops
+                    if (currentVal !== fallback) {
+                        this.store.set('options.activeProfileName', fallback);
+                        return; // Stop here. The store update will trigger this observer again with valid data.
+                    }
+                }
+
+                // --- 2. DOM Update ---
+                // Rebuild options only if signature changed
+                // Use JSON.stringify to prevent collision issues with special characters (e.g. pipe '|') in names
+                const newSignature = JSON.stringify(profiles.map((p) => p.name));
+                if (profileSelect.dataset.signature !== newSignature) {
+                    profileSelect.textContent = '';
+                    profiles.forEach((p) => {
+                        profileSelect.appendChild(ui.create('option', { value: p.name }, p.name));
+                    });
+                    profileSelect.dataset.signature = newSignature;
+                }
+
+                // Sync value
+                if (profileSelect instanceof HTMLSelectElement) {
+                    if (profiles.length === 0) {
+                        profileSelect.value = '';
+                    } else {
+                        profileSelect.value = currentVal;
+                    }
+                }
+            });
+
+            fragment.appendChild(
+                ui.group(
+                    'Default Profile',
+                    [
+                        ui.create('div', { className: cls.formField }, [
+                            // Wrap in standard form structure if needed, or just push the select
+                            // ui.select usually wraps in a label if provided, here we assume direct placement inside group
+                            profileSelect,
+                        ]),
+                    ],
+                    { title: 'Select the default profile loaded on startup.' }
+                )
+            );
+
+            // 3. Submenu Buttons (Texts & JSON)
+            const submenuRow = ui.row(
+                [
+                    ui.group(
+                        'Texts',
+                        [
+                            ui.button(
+                                `${APPID}-submenu-edit-texts-btn`,
+                                'Edit Texts...',
+                                () => {
+                                    this.callbacks.onShowTextEditorModal?.();
+                                    this.hide();
+                                },
+                                { fullWidth: true, title: 'Open the text editor.' }
+                            ),
+                        ],
+                        { title: 'Open the text editor.' }
+                    ),
+                    ui.group(
+                        'JSON',
+                        [
+                            ui.button(
+                                `${APPID}-submenu-json-btn`,
+                                'JSON...',
+                                () => {
+                                    this.callbacks.onShowJsonModal?.();
+                                    this.hide();
+                                },
+                                {
+                                    fullWidth: true,
+                                    title: 'Import, export, or edit settings via JSON.',
+                                }
+                            ),
+                        ],
+                        { title: 'Import, export, or edit settings via JSON.' }
+                    ),
+                ],
+                { className: 'topRow' }
+            );
+            fragment.appendChild(submenuRow);
+
+            // 4. Options Group (Procedurally generated using Schema)
+            const s = CONFIG_SCHEMA.options;
+            const optionsGroup = ui.group(
+                'Options',
+                [
+                    ui.row([
+                        ui.label(s.trigger_mode.ui.label, { for: `${APPID}-opt-trigger-mode`, title: s.trigger_mode.ui.title }),
+                        ui.select('options.trigger_mode', null, {
+                            id: `${APPID}-opt-trigger-mode`,
+                            title: s.trigger_mode.ui.title,
+                            options: s.trigger_mode.options,
+                        }),
+                    ]),
+                    ui.row([
+                        ui.label(s.enable_shortcut.ui.label, {
+                            for: `${APPID}-opt-enable-shortcut`,
+                            title: s.enable_shortcut.ui.title,
+                        }),
+                        ui.toggle('options.enable_shortcut', null, {
+                            id: `${APPID}-opt-enable-shortcut`,
+                            title: s.enable_shortcut.ui.title,
+                        }),
+                    ]),
+                    ui.container(
+                        [
+                            ui.button(
+                                `${APPID}-submenu-shortcut-btn`,
+                                'Shortcuts & Controls',
+                                () => {
+                                    this.callbacks.onShowShortcutModal?.();
+                                    this.hide();
+                                },
+                                { title: 'Show the keyboard shortcuts cheat sheet.' }
+                            ),
+                        ],
+                        { className: 'submenuRow' }
+                    ),
+                    ui.separator(),
+                    ui.row([
+                        ui.label(s.insertion_position.ui.label, {
+                            for: `${APPID}-opt-insertion-position`,
+                            title: s.insertion_position.ui.title,
+                        }),
+                        ui.select('options.insertion_position', null, {
+                            id: `${APPID}-opt-insertion-position`,
+                            title: s.insertion_position.ui.title,
+                            options: s.insertion_position.options,
+                        }),
+                    ]),
+                    ui.row([
+                        ui.label(s.insert_before_newline.ui.label, {
+                            for: `${APPID}-opt-insert-before-newline`,
+                            title: s.insert_before_newline.ui.title,
+                        }),
+                        ui.toggle('options.insert_before_newline', null, {
+                            id: `${APPID}-opt-insert-before-newline`,
+                            title: s.insert_before_newline.ui.title,
+                        }),
+                    ]),
+                    ui.row([
+                        ui.label(s.insert_after_newline.ui.label, {
+                            for: `${APPID}-opt-insert-after-newline`,
+                            title: s.insert_after_newline.ui.title,
+                        }),
+                        ui.toggle('options.insert_after_newline', null, {
+                            id: `${APPID}-opt-insert-after-newline`,
+                            title: s.insert_after_newline.ui.title,
+                        }),
+                    ]),
+                    ui.container(
+                        [
+                            ui.create('div', { className: cls.settingsNote }, [
+                                "Note: Option behavior may depend on the input field's state (focus and existing content). For consistent results, click an insert button while the input field is focused.",
+                            ]),
+                        ],
+                        {}
+                    ),
+                ],
+                { title: 'Configure general options and behavior.' }
+            );
+            fragment.appendChild(optionsGroup);
+
+            this.formContainer.appendChild(fragment);
         }
 
         async _collectDataFromForm() {
@@ -4675,7 +4333,7 @@
         }
 
         _setupEventListeners() {
-            // Handled by FormEngine and schema onClick handlers.
+            // Handled by UIBuilder
         }
     }
 
@@ -4687,12 +4345,12 @@
             super(callbacks);
             this.modal = null;
             this.store = null;
-            this.headerEngine = null;
-            this.contentEngine = null;
             this.draggedIndex = null;
             this.cachedConfig = null; // Config cache for Store synchronization
             this.styleHandle = null;
             this.commonStyleHandle = null;
+            /** @type {Array<() => void>} */
+            this._uiSubscriptions = []; // Transient subscriptions for the current render cycle
         }
 
         _onInit() {
@@ -4732,6 +4390,8 @@
          * @protected
          */
         _onDestroy() {
+            this._uiSubscriptions.forEach((unsub) => unsub());
+            this._uiSubscriptions = [];
             this.modal?.destroy();
             super._onDestroy();
         }
@@ -4750,7 +4410,6 @@
             this.isOpening = true;
 
             try {
-                const cls = this.styleHandle.classes;
                 const commonCls = this.commonStyleHandle.classes;
 
                 // Load and cache initial config
@@ -4785,6 +4444,7 @@
                         currentTexts: [], // Initial value will be loaded later
                         listFingerprint: 0,
                         focusedIndex: -1,
+                        lastUpdated: Date.now(),
                     },
                 });
 
@@ -4797,42 +4457,32 @@
                         { text: 'Apply', id: `${APPID}-editor-modal-apply-btn`, className: '', title: 'Save changes and keep the modal open.', onClick: () => this._handleSaveAction(false) },
                         { text: 'Save', id: `${APPID}-editor-modal-save-btn`, className: commonCls.primaryBtn, title: 'Save changes and close the modal.', onClick: () => this._handleSaveAction(true) },
                     ],
+                    onCancel: (e) => {
+                        const mode = this.store.get('editor.mode');
+                        if (mode === 'rename') {
+                            // In rename mode, ESC should only cancel the rename, not close the modal.
+                            e.preventDefault();
+                            this._exitRenameMode(true);
+                        } else if (mode === 'delete_confirm') {
+                            // In delete confirm mode, ESC should only cancel the confirmation.
+                            e.preventDefault();
+                            this._exitDeleteConfirmationMode();
+                        }
+                    },
                     onDestroy: () => {
                         this.callbacks.onModalOpenStateChange?.(false);
-                        this.headerEngine?.destroy();
-                        this.contentEngine?.destroy();
-                        this.headerEngine = null;
-                        this.contentEngine = null;
+                        this._uiSubscriptions.forEach((unsub) => unsub());
+                        this._uiSubscriptions = [];
                         this.store = null;
                         this.modal = null;
                         this.cachedConfig = null;
                     },
                 });
 
-                // Context for FormEngine, providing styles and store reference
-                const context = {
-                    textEditor: this,
-                    store: this.store,
-                    styles: { ...commonCls, ...cls }, // Merge styles for usage in child components
-                };
+                // Render UI content using UIBuilder
+                const content = this._renderEditorUI();
 
-                // Header engine setup
-                this.headerEngine = new FormEngine(this.store, [SchemaBuilder.create('text-editor-header', `${APPID}-text-editor-header`, { configKey: 'editor' })], context);
-
-                // Content engine setup (Use text-list)
-                this.contentEngine = new FormEngine(
-                    this.store,
-                    [
-                        SchemaBuilder.Container([SchemaBuilder.create('text-list', `${APPID}-text-list`, { configKey: 'editor' }), SchemaBuilder.Button(`${APPID}-text-new-btn`, 'Add New Text', null, { className: commonCls.modalButton })], {
-                            className: cls.modalContent,
-                        }),
-                    ],
-                    context
-                );
-
-                const headerControls = this.headerEngine.render();
-                const mainContent = this.contentEngine.render();
-
+                // Override base modal styles for specific layout needs
                 Object.assign(this.modal.dom.header.style, {
                     paddingBottom: '12px',
                     display: 'flex',
@@ -4844,8 +4494,12 @@
                     paddingTop: '16px',
                 });
 
-                this.modal.setHeader(headerControls);
-                this.modal.setContent(mainContent);
+                // Split content into header and body
+                const headerContent = content.querySelector(`.${this.styleHandle.classes.headerControls}`);
+                const bodyContent = content.querySelector(`.${this.styleHandle.classes.modalContent}`);
+
+                if (headerContent) this.modal.setHeader(headerContent);
+                if (bodyContent) this.modal.setContent(bodyContent);
 
                 this._setupEventListeners();
 
@@ -4865,68 +4519,257 @@
             this.modal?.close();
         }
 
-        _createHeaderControls() {
-            const cls = this.styleHandle.classes;
-            const commonCls = this.commonStyleHandle.classes;
+        _renderEditorUI() {
+            const cls = { ...this.commonStyleHandle.classes, ...this.styleHandle.classes };
+            const context = { styles: cls, store: this.store };
+
+            const uiDisposer = (unsub) => {
+                if (typeof unsub === 'function') {
+                    this._uiSubscriptions.push(unsub);
+                }
+            };
+            const ui = new UIBuilder(this.store, context, uiDisposer);
+
+            const container = document.createDocumentFragment();
+
+            // 1. Header Controls
+            container.appendChild(this._renderHeaderControls(ui));
+
+            // 2. Content Area
+            const contentArea = ui.container(
+                [
+                    // Text List Area
+                    this._renderTextListArea(ui),
+                    // Add New Button
+                    ui.button(`${APPID}-text-new-btn`, 'Add New Text', null, { className: cls.modalButton }),
+                ],
+                { className: 'modalContent' } // Mapped to cls.modalContent
+            );
+            container.appendChild(contentArea);
+
+            return container;
+        }
+
+        _renderHeaderControls(ui) {
+            const cls = ui.context.styles;
             const icons = StyleDefinitions.ICONS;
+            const container = ui.create('div', { className: cls.headerControls });
 
             const createControlRow = (type, label) => {
-                return h(`div.${cls.headerRow}`, { 'data-type': type }, [
-                    // Container 1: Label
-                    h('label', { htmlFor: `${APPID}-${type}-select` }, label),
+                const row = ui.create('div', { className: cls.headerRow, 'data-type': type });
 
-                    // Container 2: Select / Input
-                    h(`div.${cls.renameArea}`, [h(`select#${APPID}-${type}-select`), h('input', { type: 'text', id: `${APPID}-${type}-rename-input`, style: { display: 'none' } })]),
+                // Container 1: Label
+                const labelEl = ui.create('label', { htmlFor: `${APPID}-${type}-select` }, [label]);
+                row.appendChild(labelEl);
 
-                    // Container 3: Action Buttons
-                    h(`div.${cls.actionArea}`, [
-                        h(`div.${cls.mainActions}`, [
-                            h(`button#${APPID}-${type}-rename-btn.${commonCls.modalButton}`, 'Rename'),
-                            h(`button#${APPID}-${type}-up-btn.${commonCls.modalButton}.${cls.moveBtn}`, [createIconFromDef(icons.up)]),
-                            h(`button#${APPID}-${type}-down-btn.${commonCls.modalButton}.${cls.moveBtn}`, [createIconFromDef(icons.down)]),
-                            h(`button#${APPID}-${type}-new-btn.${commonCls.modalButton}`, 'New'),
-                            h(`button#${APPID}-${type}-copy-btn.${commonCls.modalButton}`, 'Copy'),
-                            h(`button#${APPID}-${type}-delete-btn.${commonCls.modalButton}`, 'Delete'),
-                        ]),
-                        h(`div.${cls.renameActions}`, { style: { display: 'none' } }, [
-                            // visibility: hidden replaced by display:none/flex in CSS, setting default here
-                            h(`button#${APPID}-${type}-rename-ok-btn.${commonCls.modalButton}`, 'OK'),
-                            h(`button#${APPID}-${type}-rename-cancel-btn.${commonCls.modalButton}`, 'Cancel'),
-                        ]),
-                        h(`div.${cls.deleteConfirmGroup}`, { style: { display: 'none' } }, [
-                            h(`span.${cls.deleteConfirmLabel}`, 'Are you sure?'),
-                            h(`div`, { style: { display: 'flex', gap: '8px' } }, [
-                                h(`button#${APPID}-${type}-delete-confirm-btn.${commonCls.modalButton}.${cls.deleteConfirmBtnYes}`, 'Confirm Delete'),
-                                h(`button#${APPID}-${type}-delete-cancel-btn.${commonCls.modalButton}`, 'Cancel'),
-                            ]),
-                        ]),
-                    ]),
-                ]);
+                // Container 2: Select / Input (Dynamic)
+                const inputArea = ui.create('div', { className: cls.renameArea });
+                const select = ui.create('select', { id: `${APPID}-${type}-select`, className: cls.selectInput });
+                const renameInput = ui.create('input', { type: 'text', id: `${APPID}-${type}-rename-input`, className: cls.selectInput, style: { display: 'none' } });
+                inputArea.append(select, renameInput);
+                row.appendChild(inputArea);
+
+                // Container 3: Action Buttons
+                const actionArea = ui.create('div', { className: cls.actionArea });
+
+                // 3.1 Main Actions
+                const mainActions = ui.create('div', { className: cls.mainActions });
+                mainActions.append(
+                    ui.button(`${APPID}-${type}-rename-btn`, 'Rename', null),
+                    ui.button(`${APPID}-${type}-up-btn`, [createIconFromDef(icons.up)], null, { className: cls.moveBtn }),
+                    ui.button(`${APPID}-${type}-down-btn`, [createIconFromDef(icons.down)], null, { className: cls.moveBtn }),
+                    ui.button(`${APPID}-${type}-new-btn`, 'New', null),
+                    ui.button(`${APPID}-${type}-copy-btn`, 'Copy', null),
+                    ui.button(`${APPID}-${type}-delete-btn`, 'Delete', null)
+                );
+
+                // 3.2 Rename Actions
+                const renameActions = ui.create('div', { className: cls.renameActions, style: { display: 'none' } });
+                renameActions.append(ui.button(`${APPID}-${type}-rename-ok-btn`, 'OK', null), ui.button(`${APPID}-${type}-rename-cancel-btn`, 'Cancel', null));
+
+                // 3.3 Delete Confirm
+                const deleteConfirmGroup = ui.create('div', { className: cls.deleteConfirmGroup, style: { display: 'none' } });
+                const confirmBtnGroup = ui.create('div', { style: { display: 'flex', gap: '8px' } });
+                confirmBtnGroup.append(ui.button(`${APPID}-${type}-delete-confirm-btn`, 'Confirm Delete', null, { className: cls.deleteConfirmBtnYes }), ui.button(`${APPID}-${type}-delete-cancel-btn`, 'Cancel', null));
+                deleteConfirmGroup.append(ui.create('span', { className: cls.deleteConfirmLabel }, ['Are you sure?']), confirmBtnGroup);
+
+                actionArea.append(mainActions, renameActions, deleteConfirmGroup);
+                row.appendChild(actionArea);
+
+                // --- Logic: Observe Store to update UI state ---
+                ui.observe(['editor.activeProfile', 'editor.activeCategory', 'editor.mode', 'editor.targetType', 'editor.lastUpdated'], (state) => {
+                    const { activeProfile, activeCategory, mode, targetType } = state.editor;
+                    const isRenaming = mode === 'rename';
+                    const isDeleting = mode === 'delete_confirm';
+                    const isAnyActionInProgress = isRenaming || isDeleting;
+
+                    const isRenamingThis = isRenaming && targetType === type;
+                    const isDeletingThis = isDeleting && targetType === type;
+                    const isTargetDisabled = isAnyActionInProgress && targetType !== type;
+
+                    row.classList.toggle('is-disabled', isTargetDisabled);
+
+                    // Disable select box during any action (rename/delete) to prevent inconsistencies
+                    select.disabled = isAnyActionInProgress;
+                    // Visually gray out the select box and label even if the row itself isn't disabled (e.g. target row)
+                    select.style.opacity = isAnyActionInProgress ? '0.5' : '';
+                    if (targetType === type) {
+                        labelEl.style.opacity = isAnyActionInProgress ? '0.5' : '';
+                    } else {
+                        labelEl.style.opacity = '';
+                    }
+
+                    // Toggle Select / Input display
+                    select.style.display = isRenamingThis ? 'none' : 'block';
+                    renameInput.style.display = isRenamingThis ? 'block' : 'none';
+
+                    // Toggle button area display
+                    mainActions.style.visibility = !isRenamingThis && !isDeletingThis ? 'visible' : 'hidden';
+                    renameActions.style.display = isRenamingThis ? 'flex' : 'none';
+                    deleteConfirmGroup.style.display = isDeletingThis ? 'flex' : 'none';
+
+                    // Update Options (if not renaming)
+                    if (!isRenamingThis) {
+                        const profiles = this.cachedConfig?.texts || [];
+                        let keys = [];
+                        let activeKey = '';
+
+                        if (type === 'profile') {
+                            keys = profiles.map((p) => p.name);
+                            activeKey = activeProfile;
+                        } else {
+                            const profile = profiles.find((p) => p.name === activeProfile);
+                            keys = profile ? profile.categories.map((c) => c.name) : [];
+                            activeKey = activeCategory;
+                        }
+
+                        // Check signature to avoid unnecessary DOM thrashing
+                        const signature = keys.join('|');
+                        if (select.dataset.signature !== signature) {
+                            const currentScroll = select.scrollTop; // Save scroll position
+                            select.textContent = '';
+                            keys.forEach((key, index) => select.appendChild(ui.create('option', { value: key }, [`${index + 1}. ${key}`])));
+                            select.dataset.signature = signature;
+                            select.scrollTop = currentScroll; // Restore scroll position
+                        }
+                        if (select.value !== activeKey) {
+                            select.value = activeKey || '';
+                        }
+
+                        // Update Button States
+                        const index = keys.indexOf(activeKey);
+                        const setDisabled = (id, disabled) => {
+                            const btn = row.querySelector(`#${id}`);
+                            if (btn) btn.disabled = disabled;
+                        };
+
+                        setDisabled(`${APPID}-${type}-up-btn`, isAnyActionInProgress || index <= 0);
+                        setDisabled(`${APPID}-${type}-down-btn`, isAnyActionInProgress || index >= keys.length - 1);
+                        setDisabled(`${APPID}-${type}-delete-btn`, isAnyActionInProgress || keys.length <= 1);
+                        setDisabled(`${APPID}-${type}-new-btn`, isAnyActionInProgress);
+                        setDisabled(`${APPID}-${type}-copy-btn`, isAnyActionInProgress);
+                        setDisabled(`${APPID}-${type}-rename-btn`, isAnyActionInProgress);
+                    } else {
+                        // In rename mode, populate input if empty
+                        if (renameInput.value === '') {
+                            renameInput.value = type === 'profile' ? activeProfile : activeCategory;
+                        }
+                    }
+                });
+
+                return row;
             };
 
-            return h(`div.${cls.headerControls}`, [createControlRow('profile', 'Profile:'), createControlRow('category', 'Category:')]);
+            container.appendChild(createControlRow('profile', 'Profile:'));
+            container.appendChild(createControlRow('category', 'Category:'));
+
+            // Global modal controls (Footer buttons disabled state)
+            ui.observe('editor.mode', (state) => {
+                const isAnyActionInProgress = state.editor.mode !== 'normal';
+                const modalElement = this.modal?.element;
+                if (!modalElement) return;
+
+                const scrollArea = modalElement.querySelector(`.${cls.scrollableArea}`);
+                if (scrollArea) scrollArea.classList.toggle('is-disabled', isAnyActionInProgress);
+
+                const setDisabled = (selector) => {
+                    const el = modalElement.querySelector(selector);
+                    if (el) el.disabled = isAnyActionInProgress;
+                };
+                setDisabled(`#${APPID}-text-new-btn`);
+                setDisabled(`#${APPID}-editor-modal-apply-btn`);
+                setDisabled(`#${APPID}-editor-modal-save-btn`);
+                setDisabled(`#${APPID}-editor-modal-cancel-btn`);
+            });
+
+            return container;
         }
 
-        /**
-         * @private
-         * @param {'profile' | 'category'} itemType The type of item to enter delete confirmation mode for.
-         */
-        _enterDeleteConfirmationMode(itemType) {
-            if (this.store.get('editor.mode') !== 'normal') return;
+        _renderTextListArea(ui) {
+            const cls = ui.context.styles;
+            const container = ui.create('div', { className: cls.scrollableArea });
 
-            const keyToDelete = itemType === 'profile' ? this.store.get('editor.activeProfile') : this.store.get('editor.activeCategory');
+            // Observe ONLY listFingerprint to avoid re-rendering on text input
+            ui.observe('editor.listFingerprint', (state) => {
+                const currentTexts = state.editor.currentTexts || [];
+                const focusedIndex = state.editor.focusedIndex;
 
-            if (!keyToDelete) return;
+                container.replaceChildren(); // Clear list
 
-            this.store.set('editor.mode', 'delete_confirm');
-            this.store.set('editor.targetType', itemType);
-            this.store.set('editor.targetKey', keyToDelete);
-        }
+                currentTexts.forEach((text, index) => {
+                    const textItem = ui.create('div', { className: cls.textItem, 'data-index': index });
 
-        _exitDeleteConfirmationMode() {
-            this.store.set('editor.mode', 'normal');
-            this.store.set('editor.targetType', null);
-            this.store.set('editor.targetKey', null);
+                    // Drag Handle
+                    textItem.appendChild(ui.create('div', { className: cls.dragHandle, title: 'Drag to reorder', draggable: 'true' }, [createIconFromDef(StyleDefinitions.ICONS.dragHandle)]));
+
+                    // Textarea
+                    const textarea = ui.create('textarea', {
+                        'data-index': index,
+                        rows: 3,
+                        value: text, // Initial value
+                    });
+
+                    // Input Handler: Update Store WITHOUT triggering Fingerprint update
+                    textarea.addEventListener('input', (e) => {
+                        this._handleTextPixelInput(index, e.target.value);
+                        this._autoResizeTextarea(e.target);
+                    });
+
+                    // Focus Handler: Track insertion point
+                    textarea.addEventListener('focus', () => {
+                        this.store.set('editor.focusedIndex', index);
+                    });
+
+                    textItem.appendChild(textarea);
+
+                    // Controls
+                    const controls = ui.create('div', { className: cls.itemControls });
+                    controls.append(
+                        ui.button(null, [createIconFromDef(StyleDefinitions.ICONS.up)], null, { className: `${cls.moveBtn} move-up-btn`, title: 'Move up', disabled: index === 0 }),
+                        ui.button(null, [createIconFromDef(StyleDefinitions.ICONS.down)], null, { className: `${cls.moveBtn} move-down-btn`, title: 'Move down', disabled: index === currentTexts.length - 1 }),
+                        ui.button(null, [createIconFromDef(StyleDefinitions.ICONS.delete)], null, { className: `${cls.deleteBtn} delete-btn`, title: 'Delete' })
+                    );
+                    textItem.appendChild(controls);
+
+                    container.appendChild(textItem);
+                });
+
+                // Post-render Layout & Focus restoration
+                requestAnimationFrame(() => {
+                    container.querySelectorAll('textarea').forEach((ta) => this._autoResizeTextarea(ta));
+
+                    if (focusedIndex >= 0 && focusedIndex < currentTexts.length) {
+                        const target = container.querySelector(`textarea[data-index="${focusedIndex}"]`);
+                        if (target) {
+                            target.focus();
+                            const len = target.value.length;
+                            target.setSelectionRange(len, len);
+                        }
+                    }
+                });
+            });
+
+            return container;
         }
 
         _setupEventListeners() {
@@ -4944,8 +4787,8 @@
                     const textarea = textItem.querySelector('textarea');
                     const index = parseInt(textarea.dataset.index, 10);
 
-                    if (target.classList.contains('move-up-btn')) this._handleTextMove(index, -1);
-                    if (target.classList.contains('move-down-btn')) this._handleTextMove(index, 1);
+                    if (target.classList.contains('move-up-btn')) this._handleTextMove(index, -1, 'up');
+                    if (target.classList.contains('move-down-btn')) this._handleTextMove(index, 1, 'down');
                     if (target.classList.contains('delete-btn')) this._handleTextDelete(index);
                     return;
                 }
@@ -5026,10 +4869,6 @@
                         e.preventDefault();
                         const type = e.target.id.includes('profile') ? 'profile' : 'category';
                         this._handleRenameConfirm(type);
-                    }
-                    if (e.key === 'Escape') {
-                        e.preventDefault();
-                        this._exitRenameMode(true);
                     }
                 }
             });
@@ -5124,7 +4963,7 @@
 
                 // Perform move if valid
                 if (dropIndex !== -1 && dropIndex !== this.draggedIndex) {
-                    this._handleTextMove(this.draggedIndex, dropIndex - this.draggedIndex);
+                    this._handleTextMove(this.draggedIndex, dropIndex - this.draggedIndex, 'drag');
                 }
             });
         }
@@ -5167,9 +5006,11 @@
         _handleTextPixelInput(index, value) {
             const currentTexts = this.store.get('editor.currentTexts');
             if (currentTexts && currentTexts[index] !== undefined) {
-                currentTexts[index] = value;
+                // Create a shallow copy to respect Read-Only contract
+                const newTexts = [...currentTexts];
+                newTexts[index] = value;
                 // Update Store, but Fingerprint check in onUpdate prevents DOM rebuild
-                this.store.set('editor.currentTexts', currentTexts);
+                this.store.set('editor.currentTexts', newTexts);
             }
         }
 
@@ -5184,7 +5025,10 @@
 
             if (this.modal) {
                 const input = this.modal.element.querySelector(`#${APPID}-${type}-rename-input`);
-                if (input) input.classList.remove('is-invalid');
+                if (input) {
+                    input.value = ''; // Clear value to prevent flashing on next open
+                    input.classList.remove('is-invalid');
+                }
                 const footerMessage = this.modal.dom.footerMessage;
                 if (footerMessage) footerMessage.textContent = '';
             }
@@ -5239,9 +5083,10 @@
             currentTexts.splice(insertIndex, 0, ''); // Insert empty text
 
             // 2. Update Store to trigger render
+            // Set focusedIndex BEFORE triggering render via listFingerprint
             this.store.set('editor.currentTexts', currentTexts);
-            this.store.set('editor.listFingerprint', Date.now());
             this.store.set('editor.focusedIndex', insertIndex); // Focus new item
+            this.store.set('editor.listFingerprint', Date.now());
         }
 
         _handleTextDelete(index) {
@@ -5251,11 +5096,11 @@
 
             // 2. Update Store to trigger render
             this.store.set('editor.currentTexts', newTexts);
+            this.store.set('editor.focusedIndex', -1); // Do not focus textarea
             this.store.set('editor.listFingerprint', Date.now());
-            this.store.set('editor.focusedIndex', -1);
         }
 
-        _handleTextMove(index, direction) {
+        _handleTextMove(index, direction, btnType) {
             // 1. Modify data
             const currentTexts = [...this.store.get('editor.currentTexts')];
             const newIndex = index + direction;
@@ -5269,8 +5114,26 @@
 
             // 2. Update Store to trigger render
             this.store.set('editor.currentTexts', currentTexts);
+            this.store.set('editor.focusedIndex', -1); // Do not focus textarea
             this.store.set('editor.listFingerprint', Date.now());
-            this.store.set('editor.focusedIndex', newIndex); // Follow focus
+
+            // 3. Restore Button Focus
+            requestAnimationFrame(() => {
+                if (!this.modal) return;
+                const cls = this.styleHandle.classes;
+                const scrollArea = this.modal.element.querySelector(`.${cls.scrollableArea}`);
+                if (!scrollArea) return;
+
+                // Find the row at the new index
+                const targetRow = scrollArea.querySelector(`.${cls.textItem}[data-index="${newIndex}"]`);
+                if (targetRow) {
+                    const selector = btnType === 'up' ? '.move-up-btn' : '.move-down-btn';
+                    const btn = targetRow.querySelector(selector);
+                    if (btn && !btn.disabled) {
+                        btn.focus();
+                    }
+                }
+            });
         }
 
         /**
@@ -5544,19 +5407,40 @@
             const currentMode = this.store.get('editor.mode');
             if (currentMode === 'rename') return;
 
+            const currentValue = type === 'profile' ? this.store.get('editor.activeProfile') : this.store.get('editor.activeCategory');
+
             this.store.set('editor.mode', 'rename');
             this.store.set('editor.targetType', type);
 
-            // Set focus after UI update
+            // Set focus and initial value after UI update
             requestAnimationFrame(() => {
                 if (this.modal) {
                     const input = this.modal.element.querySelector(`#${APPID}-${type}-rename-input`);
                     if (input) {
+                        input.value = currentValue || ''; // Force update to current selection
                         input.focus();
                         input.select();
                     }
                 }
             });
+        }
+
+        _enterDeleteConfirmationMode(itemType) {
+            if (this.store.get('editor.mode') !== 'normal') return;
+
+            const keyToDelete = itemType === 'profile' ? this.store.get('editor.activeProfile') : this.store.get('editor.activeCategory');
+
+            if (!keyToDelete) return;
+
+            this.store.set('editor.mode', 'delete_confirm');
+            this.store.set('editor.targetType', itemType);
+            this.store.set('editor.targetKey', keyToDelete);
+        }
+
+        _exitDeleteConfirmationMode() {
+            this.store.set('editor.mode', 'normal');
+            this.store.set('editor.targetType', null);
+            this.store.set('editor.targetKey', null);
         }
 
         async _handleRenameConfirm(type) {
@@ -5649,10 +5533,11 @@
             super(callbacks);
             this.modal = null; // To hold the CustomModal instance
             this.store = null;
-            this.engine = null;
             this.styleHandle = null;
             this.commonStyleHandle = null;
             this.debouncedUpdateSize = debounce((text) => this._updateSizeDisplay(text), 300, true);
+            /** @type {Array<() => void>} */
+            this._uiSubscriptions = []; // Transient subscriptions for the current render cycle
         }
 
         render() {
@@ -5685,9 +5570,11 @@
                     ],
                     onDestroy: () => {
                         this.debouncedUpdateSize.cancel();
+                        // Clean up UI subscriptions
+                        this._uiSubscriptions.forEach((unsub) => unsub());
+                        this._uiSubscriptions = [];
+
                         this.callbacks.onModalOpenStateChange?.(false);
-                        this.engine?.destroy();
-                        this.engine = null;
                         this.store = null;
                         this.modal = null;
                     },
@@ -5708,13 +5595,9 @@
                     },
                 });
 
-                const context = {
-                    styles: { ...commonCls, ...cls }, // Merge styles for FormEngine
-                    store: this.store,
-                };
-
-                this.engine = new FormEngine(this.store, this._getSchema(), context);
-                this.modal.setContent(this.engine.render());
+                // Render content using UIBuilder
+                const content = this._renderJsonContent();
+                this.modal.setContent(content);
 
                 this.callbacks.onModalOpen?.(); // Notify UIManager
 
@@ -5751,34 +5634,82 @@
          */
         _onDestroy() {
             this.debouncedUpdateSize.cancel();
-            this.engine?.destroy();
-            this.engine = null;
+            this._uiSubscriptions.forEach((unsub) => unsub());
+            this._uiSubscriptions = [];
             this.store = null;
             this.modal?.destroy();
             super._onDestroy();
         }
 
-        _getSchema() {
-            // Note: Schema uses logical class names mapped in StyleDefinitions
-            return [
-                SchemaBuilder.Container(
-                    [
-                        SchemaBuilder.CodeEditor('json.editor', {
-                            onChange: (value) => this.debouncedUpdateSize(value || ''),
-                        }),
-                        SchemaBuilder.Row(
-                            [
-                                SchemaBuilder.TextDisplay('json.status', { className: 'msg' }), // Mapped to cls.msg
-                                SchemaBuilder.TextDisplay('json.sizeInfo', { className: 'sizeInfo' }), // Mapped to cls.sizeInfo
-                            ],
-                            {
-                                className: 'statusRow', // Mapped to cls.statusRow
-                            }
-                        ),
-                    ],
-                    { className: 'content' } // Mapped to cls.content
-                ),
-            ];
+        _renderJsonContent() {
+            const cls = { ...this.commonStyleHandle.classes, ...this.styleHandle.classes };
+
+            const context = { styles: cls, store: this.store };
+            const uiDisposer = (unsub) => {
+                if (typeof unsub === 'function') {
+                    this._uiSubscriptions.push(unsub);
+                }
+            };
+            const ui = new UIBuilder(this.store, context, uiDisposer);
+
+            const container = document.createDocumentFragment();
+
+            // 1. JSON Editor (Manual binding for textarea)
+            const textarea = ui.create('textarea', {
+                className: cls.editor || `${APPID}-json-editor`,
+                spellcheck: false,
+            });
+
+            // Store -> UI
+            ui.observe('json.editor', (state) => {
+                if (document.activeElement === textarea) return;
+                if (textarea instanceof HTMLTextAreaElement) {
+                    textarea.value = state.json?.editor || '';
+                }
+            });
+
+            // UI -> Store
+            textarea.addEventListener('input', (e) => {
+                const target = e.target;
+                if (target instanceof HTMLTextAreaElement) {
+                    const value = target.value;
+                    this.store.set('json.editor', value);
+                    this.debouncedUpdateSize(value || '');
+                }
+            });
+
+            const contentWrapper = ui.container([textarea], { className: 'content' }); // Mapped to cls.content
+            container.appendChild(contentWrapper);
+
+            // 2. Status Row
+            const statusMsg = ui.create('div', { className: cls.msg });
+            const sizeInfo = ui.create('div', { className: cls.sizeInfo });
+
+            ui.observe(['json.status', 'json.sizeInfo'], (state) => {
+                const status = state.json?.status || {};
+                const info = state.json?.sizeInfo || {};
+
+                // Update Status Message
+                if (statusMsg.textContent !== (status.text || '')) {
+                    statusMsg.textContent = status.text || '';
+                    statusMsg.style.color = status.color || '';
+                }
+
+                // Update Size Info
+                if (sizeInfo.textContent !== (info.text || '')) {
+                    sizeInfo.textContent = info.text || '';
+                    sizeInfo.style.color = info.color || '';
+                    sizeInfo.style.fontWeight = info.bold ? 'bold' : 'normal';
+                    if (sizeInfo instanceof HTMLElement) {
+                        sizeInfo.title = info.title || '';
+                    }
+                }
+            });
+
+            const statusRow = ui.container([statusMsg, sizeInfo], { className: 'statusRow' }); // Mapped to cls.statusRow
+            container.appendChild(statusRow);
+
+            return container;
         }
 
         async _handleSave() {
@@ -6630,6 +6561,8 @@
                 const tab = h('button', {
                     className: `${cls.tab}` + (catName === this.activeCategory ? ' active' : ''),
                     textContent: catName,
+                    // Prevent focus loss when clicking tabs
+                    onmousedown: (e) => e.preventDefault(),
                     onclick: (e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -6654,6 +6587,8 @@
                     className: `${cls.option}`,
                     textContent: txt,
                     title: txt,
+                    // Prevent focus loss from editor when clicking text options
+                    onmousedown: (e) => e.preventDefault(),
                     onclick: (e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -6746,7 +6681,9 @@
         }
 
         _insertText(text) {
-            PlatformAdapters.General.insertText(text, this.config.options);
+            // Pass the captured range to the controller
+            const options = { ...this.config.options, _savedRange: this.lastEditorRange };
+            PlatformAdapters.General.insertText(text, options);
         }
 
         _positionList() {
@@ -6790,6 +6727,17 @@
             const listElem = this.components.textList.element;
 
             if (listElem.style.display !== 'none') return;
+
+            // 1. Capture the current cursor position before focus might shift to the list
+            const editor = document.querySelector(this.platformDetails.selectors.INPUT_TARGET);
+            if (editor && editor.contains(document.activeElement)) {
+                const sel = window.getSelection();
+                if (sel.rangeCount > 0) {
+                    this.lastEditorRange = sel.getRangeAt(0).cloneRange();
+                }
+            } else {
+                this.lastEditorRange = null;
+            }
 
             // Set navigation mode flag based on trigger source
             this.isKeyboardNavigating = isKeyboard;
