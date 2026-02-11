@@ -4,6 +4,11 @@
 -  AIUXC v1.0.0-b479+ with QTB v3.1.1+
 -  AIUXC v1.0.0-b478- with QTB v3.1.0-
 
+## [1.0.0-b481] - 2026-02-12
+- **Bug Fixes**
+  - Fixed an issue where avatar icons would sometimes disappear when navigating back to a previously loaded chat (e.g., using the browser's "Back" button or switching chats).
+  - Implemented a self-healing mechanism that automatically checks for and restores missing avatars after page navigation completes.
+
 ## [1.0.0-b480] - 2026-02-11
 - **Bug Fixes**
   - **[ChatGPT]** Fixed an issue where message bubbles would briefly flash or lose styling when the assistant finished responding. This was resolved by reverting to a more stable CSS selector strategy.
