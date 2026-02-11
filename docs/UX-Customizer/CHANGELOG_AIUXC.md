@@ -4,6 +4,15 @@
 > This changelog applies to both **ChatGPT UX Customizer (GPTUX)** and **Gemini UX Customizer (GGGUX)**.
 > Most changes are shared between the two scripts. If a change applies only to one, it will be explicitly marked with a `[GPTUX]` or `[GGGUX]` prefix.
 
+### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
+-  GPTUX/GGGUX v2.4.1+ with QTB v3.1.1+
+-  GPTUX/GGGUX v2.4.1- with QTB v3.1.0-
+
+## [2.4.1] - 2026-02-11
+- **Core Changes**
+  - **[Sentinel]** Optimized DOM detection performance. 
+  - **[Sentinel]** Improved error handling and memory efficiency.
+
 ## [2.4.0] - 2026-01-21
 - **Bug Fixes**
   - [GGGUX] Fixed a critical issue where the browser would freeze if **Auto-Scroll** (Load full history) was triggered while the **Canvas (Immersive Panel)** was active.
