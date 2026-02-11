@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.0-b478] - 2026-02-11
+- **Bug Fixes**
+  - **[Gemini]** Fixed an issue where standing images were not visible on Gem detail pages.
+
 ## [1.0.0-b477] - 2026-02-08
 - **Bug Fixes**
   - **[Navigation]** Fixed an issue where the **Jump List** would sometimes display incomplete text for assistant messages. The search index now correctly refreshes after a message finishes generating, ensuring the full content is available for searching and previewing.
