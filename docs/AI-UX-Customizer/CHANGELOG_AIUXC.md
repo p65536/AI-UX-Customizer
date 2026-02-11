@@ -1,5 +1,18 @@
 # Changelog
 
+### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
+-  AIUXC v1.0.0-b479+ with QTB v3.1.1+
+-  AIUXC v1.0.0-b478- with QTB v3.1.0-
+
+## [1.0.0-b480] - 2026-02-11
+- **Bug Fixes**
+  - **[ChatGPT]** Fixed an issue where message bubbles would briefly flash or lose styling when the assistant finished responding. This was resolved by reverting to a more stable CSS selector strategy.
+
+## [1.0.0-b479] - 2026-02-11
+- **Core Changes**
+  - **[Sentinel]** Optimized DOM detection performance. 
+  - **[Sentinel]** Improved error handling and memory efficiency.
+
 ## [1.0.0-b478] - 2026-02-11
 - **Bug Fixes**
   - **[Gemini]** Fixed an issue where standing images were not visible on Gem detail pages.
