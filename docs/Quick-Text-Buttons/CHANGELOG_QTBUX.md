@@ -1,5 +1,14 @@
 # Changelog
 
+### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **UX Customizer (AIUXC/GPTUX/GGGUX)**, strict version matching is required:
+-  QTB v3.1.1+ with AIUXC v1.0.0-b479+ / GPTUX v2.4.1+ / GGGUX v2.4.1+
+-  QTB v3.1.0- with AIUXC v1.0.0-b478- / GPTUX v2.4.0- / GGGUX v2.4.0-
+
+## [3.1.1] - 2026-02-11
+- **Core Changes**
+  - **[Sentinel]** Optimized DOM detection performance. 
+  - **[Sentinel]** Improved error handling and memory efficiency.
+
 ## [3.1.0] - 2026-02-10
 - **Improvements**
   - **[Core]** Improved text insertion stability and compatibility with ChatGPT and Gemini by adopting a new native-like input method.
