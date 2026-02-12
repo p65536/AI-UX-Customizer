@@ -18220,7 +18220,7 @@
                 // and the resolved theme is the default one (meaning no URL pattern matched),
                 // then keep the previous theme to avoid a flash of the default theme before the title loads.
                 // Exception: Do not maintain the previous theme if we are navigating to the "New Chat" page.
-                const isDefaultTheme = candidateTheme.metadata.id === CONSTANTS.THEME_IDS.DEFAULT
+                const isDefaultTheme = candidateTheme.metadata.id === CONSTANTS.THEME_IDS.DEFAULT;
                 const shouldKeepPreviousTheme = urlChanged && currentTitle === 'ChatGPT' && isDefaultTheme && themeManager.lastAppliedThemeSet && !isNewChatPage();
 
                 if (shouldKeepPreviousTheme) {
