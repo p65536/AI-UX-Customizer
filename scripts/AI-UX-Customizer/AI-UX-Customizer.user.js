@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b481
+// @version      1.0.0-b482
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -18220,7 +18220,7 @@
                 // and the resolved theme is the default one (meaning no URL pattern matched),
                 // then keep the previous theme to avoid a flash of the default theme before the title loads.
                 // Exception: Do not maintain the previous theme if we are navigating to the "New Chat" page.
-                const isDefaultTheme = candidateTheme.metadata.id === 'default' || candidateTheme === config.platforms[PLATFORM].defaultSet;
+                const isDefaultTheme = candidateTheme.metadata.id === CONSTANTS.THEME_IDS.DEFAULT
                 const shouldKeepPreviousTheme = urlChanged && currentTitle === 'ChatGPT' && isDefaultTheme && themeManager.lastAppliedThemeSet && !isNewChatPage();
 
                 if (shouldKeepPreviousTheme) {

@@ -4,6 +4,10 @@
 -  AIUXC v1.0.0-b479+ with QTB v3.1.1+
 -  AIUXC v1.0.0-b478- with QTB v3.1.0-
 
+## [1.0.0-b482] - 2026-02-12
+- **Bug Fixes**
+  - **[ChatGPT]** Fixed a visual glitch where the theme would briefly revert to default during page navigation. The previous theme is now correctly preserved while the chat title loads, restoring smooth and seamless transitions.
+
 ## [1.0.0-b481] - 2026-02-12
 - **Bug Fixes**
   - Fixed an issue where avatar icons would sometimes disappear when navigating back to a previously loaded chat (e.g., using the browser's "Back" button or switching chats).
