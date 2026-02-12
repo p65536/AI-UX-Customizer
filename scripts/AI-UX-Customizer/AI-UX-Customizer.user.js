@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b482
+// @version      1.0.0-b483
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -4827,6 +4827,94 @@
          * @returns {Promise<string>} A promise that resolves with the optimized Data URL.
          */
         imageToOptimizedDataUrl(file, options) {
+            // Modern Path: Use OffscreenCanvas + createImageBitmap to avoid main thread blocking.
+            if (typeof createImageBitmap === 'function' && typeof OffscreenCanvas === 'function') {
+                return (async () => {
+                    let bitmap = null;
+                    try {
+                        // 1. Decode image asynchronously off main thread
+                        bitmap = await createImageBitmap(file);
+                        let { width, height } = bitmap;
+
+                        const needsResize = (options.maxWidth && width > options.maxWidth) || (options.maxHeight && height > options.maxHeight);
+                        const isWebP = file.type === 'image/webp';
+
+                        // If it's already WebP and fits dimensions, skip re-compression.
+                        if (isWebP && !needsResize) {
+                            return new Promise((resolve, reject) => {
+                                const reader = new FileReader();
+                                reader.onload = () => {
+                                    if (typeof reader.result === 'string') resolve(reader.result);
+                                    else reject(new Error('Failed to read file as a data URL.'));
+                                };
+                                reader.onerror = () => reject(new Error('Failed to read file.'));
+                                reader.readAsDataURL(file);
+                            });
+                        }
+
+                        // 2. Calculate dimensions (Aspect Ratio Logic)
+                        if (needsResize) {
+                            const ratio = width / height;
+                            if (options.maxWidth && width > options.maxWidth) {
+                                width = options.maxWidth;
+                                height = width / ratio;
+                            }
+                            if (options.maxHeight && height > options.maxHeight) {
+                                height = options.maxHeight;
+                                width = height * ratio;
+                            }
+                        }
+
+                        // 3. Draw to OffscreenCanvas
+                        const canvas = new OffscreenCanvas(Math.round(width), Math.round(height));
+                        const ctx = canvas.getContext('2d');
+                        if (!ctx) throw new Error('Failed to get 2D context from OffscreenCanvas.');
+
+                        // High quality resizing is handled by the browser's implementation of drawImage with a bitmap
+                        ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+
+                        // 4. Compress asynchronously off main thread
+                        const blob = await canvas.convertToBlob({
+                            type: 'image/webp',
+                            quality: options.quality || CONSTANTS.IMAGE_PROCESSING.QUALITY,
+                        });
+
+                        // 5. Convert Blob to Data URL
+                        return new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                                if (typeof reader.result === 'string') resolve(reader.result);
+                                else reject(new Error('Failed to convert blob to Data URL.'));
+                            };
+                            reader.onerror = () => reject(new Error('FileReader error during blob conversion.'));
+                            reader.readAsDataURL(blob);
+                        });
+                    } catch (e) {
+                        // Fallback to legacy path if OffscreenCanvas fails
+                        Logger.warn('DataConverter', '', 'Modern image processing failed. Falling back to legacy method.', e);
+                        return this._imageToDataUrlLegacy(file, options);
+                    } finally {
+                        // Critical: Release GPU memory associated with the bitmap
+                        if (bitmap) {
+                            bitmap.close();
+                        }
+                    }
+                })();
+            }
+
+            // Legacy Path: Use FileReader + Image + Canvas (Main Thread)
+            return this._imageToDataUrlLegacy(file, options);
+        }
+
+        /**
+         * @private
+         * Fallback implementation using FileReader + Image + Canvas (Main Thread).
+         * Used when OffscreenCanvas is unavailable or fails.
+         * @param {File} file
+         * @param {object} options
+         * @returns {Promise<string>}
+         */
+        _imageToDataUrlLegacy(file, options) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = (event) => {
