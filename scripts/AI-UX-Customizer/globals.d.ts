@@ -674,11 +674,13 @@ interface PlatformConstants {
     TIMING: {
         DEBOUNCE_DELAYS: Record<string, number>;
         TIMEOUTS: Record<string, number>;
+        THRESHOLDS: Record<string, number>;
         ANIMATIONS: Record<string, number>;
         POLLING: {
             MESSAGE_DISCOVERY_MS: number;
             STREAM_COMPLETION_CHECK_MS: number;
             IDLE_INDEXING_MS: number;
+            HEARTBEAT_INTERVAL_MS: number;
         };
         PERF_MONITOR_THROTTLE: number;
         KEYBOARD_THROTTLE: number;
@@ -796,6 +798,7 @@ interface PlatformConstants {
         JUMP_LIST: string;
         REMOVAL_TASK: string;
         BUTTON_STATE_TASK: string;
+        HEARTBEAT_TIMER: string;
     };
     // Platform specific additions
     OBSERVER_OPTIONS?: MutationObserverInit;

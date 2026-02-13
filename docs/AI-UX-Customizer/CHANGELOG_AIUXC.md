@@ -4,6 +4,12 @@
 -  AIUXC v1.0.0-b479+ with QTB v3.1.1+
 -  AIUXC v1.0.0-b478- with QTB v3.1.0-
 
+## [1.0.0-b484] - 2026-02-13
+- **Fixes & Improvements**
+  - **Auto-Recovery System**: Fixed an issue where avatars and navigation controls would disappear after leaving the tab inactive or during long chat sessions.
+  - **Smart Self-Healing**: The extension now automatically detects if the chat interface has become desynchronized (e.g., due to browser memory saving or page updates) and repairs itself instantly without needing a reload.
+  - **Active Monitoring**: Added a heartbeat mechanism that continuously ensures the interface remains stable even while you are actively using the chat or scrolling through long history.
+
 ## [1.0.0-b483] - 2026-02-12
 - **Performance Improvements**
   - Improved UI responsiveness when loading custom theme images (backgrounds, avatars). Image processing is now handled in the background to prevent the browser from momentarily freezing, especially when using high-resolution files.

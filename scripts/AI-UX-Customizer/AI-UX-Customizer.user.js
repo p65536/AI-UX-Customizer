@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b483
+// @version      1.0.0-b484
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -187,6 +187,10 @@
                 WAIT_FOR_MAIN_CONTENT: 10000,
                 BLOB_URL_REVOKE_DELAY: 10000, // The time to wait before revoking a Blob URL after export, allowing the download to start.
                 GHOST_MESSAGE_DEBOUNCE: 50, // Delay to validate if a detected message element is stable or a transient ghost.
+                SELF_HEAL_IDLE_TIMEOUT_MS: 1000,
+            },
+            THRESHOLDS: {
+                SUSPEND_LIMIT_MS: 5 * 60 * 1000, // 5 minutes threshold for heavy throttling/suspension
             },
             ANIMATIONS: {
                 TOAST_ENTER_DELAY: 10,
@@ -197,6 +201,7 @@
                 MESSAGE_DISCOVERY_MS: 750, // Interval for scanning the DOM to discover messages that weren't caught by observers
                 STREAM_COMPLETION_CHECK_MS: 2000, // Interval for checking if a streaming response has completed (fallback mechanism)
                 IDLE_INDEXING_MS: 1000, // Interval for background text indexing task
+                HEARTBEAT_INTERVAL_MS: 2000, // Interval for checking DOM integrity
             },
             PERF_MONITOR_THROTTLE: 1000,
             KEYBOARD_THROTTLE: 120,
@@ -336,6 +341,9 @@
 
             // Dynamic UI Resources
             JUMP_LIST: 'jumpList',
+
+            // System Resources
+            HEARTBEAT_TIMER: 'heartbeatTimer',
         },
     };
 
@@ -17377,6 +17385,21 @@
             // This connects the low-level Sentinel detection to the high-level EventBus.
             this.sentinelCleanup = /** @type {() => void} */ (/** @type {unknown} */ (PlatformAdapters.General.initializeSentinel((el) => this.handleRawMessage(el))));
             this.addDisposable(this.sentinelCleanup);
+
+            // --- Self-Healing Logic for Tab Suspension ---
+            this.lastHiddenTime = 0;
+            const visibilityHandler = () => {
+                if (document.hidden) {
+                    this.lastHiddenTime = Date.now();
+                } else {
+                    this._handleVisibilityRestored();
+                }
+            };
+            document.addEventListener('visibilitychange', visibilityHandler);
+            this.addDisposable(() => document.removeEventListener('visibilitychange', visibilityHandler));
+
+            // --- Heartbeat Monitoring ---
+            this._startHeartbeat();
         }
 
         _onDestroy() {
@@ -17403,6 +17426,115 @@
             this.toastManager = null;
 
             Logger.log('APP', '', 'AppController destroyed.');
+        }
+
+        /**
+         * @private
+         * Handles logic when the tab becomes visible after being hidden.
+         * Checks for potential state corruption due to tab discarding or heavy throttling.
+         */
+        _handleVisibilityRestored() {
+            if (this.isNavigating) return;
+
+            const now = Date.now();
+            const timeHidden = now - this.lastHiddenTime;
+            // Retrieve threshold from constants
+            const SUSPEND_LIMIT_MS = CONSTANTS.TIMING.THRESHOLDS.SUSPEND_LIMIT_MS;
+
+            // Diagnostic Checks
+            let needsRepair = false;
+            let reason = '';
+
+            // Check 1: Time-based (Throttling/Suspend check)
+            if (this.lastHiddenTime > 0 && timeHidden > SUSPEND_LIMIT_MS) {
+                needsRepair = true;
+                reason = 'Long suspension';
+            }
+
+            // Check 2: State-based (DOM Integrity check)
+            // Check if the last cached message is still connected to the DOM.
+            // If not, the DOM was likely wiped/replaced by the framework (e.g. React hydration/render).
+            if (!needsRepair && this.messageCacheManager) {
+                const totalMessages = this.messageCacheManager.getTotalMessages();
+                if (totalMessages.length > 0) {
+                    const lastMsg = totalMessages[totalMessages.length - 1];
+                    if (!lastMsg.isConnected) {
+                        needsRepair = true;
+                        reason = 'Disconnected DOM elements';
+                    }
+                }
+            }
+
+            if (needsRepair) {
+                Logger.warn('SELF HEAL', LOG_STYLES.ORANGE, `State inconsistency detected (${reason}). Scheduling repair...`);
+
+                // Use runWhenIdle to avoid freezing the UI immediately upon return
+                runWhenIdle(() => {
+                    if (this.isDestroyed || this.isNavigating) return;
+                    this._performSelfHealing();
+                }, CONSTANTS.TIMING.TIMEOUTS.SELF_HEAL_IDLE_TIMEOUT_MS);
+            }
+        }
+
+        /**
+         * @private
+         * Re-synchronizes internal state with the actual DOM.
+         */
+        _performSelfHealing() {
+            Logger.info('SELF HEAL', LOG_STYLES.TEAL, 'Executing self-healing procedures...');
+
+            // 1. Ensure Sentinel is active (in case it was suspended)
+            sentinel.resume();
+
+            // 2. Rebuild Cache (Removes disconnected nodes)
+            if (this.messageCacheManager) {
+                this.messageCacheManager.rebuild();
+            }
+
+            // 3. Scan for missed messages (Integrity Scan)
+            if (this.messageLifecycleManager) {
+                this.messageLifecycleManager.scanForUnprocessedMessages();
+            }
+
+            // 4. Restore Avatars (Re-injects if missing)
+            if (this.avatarManager) {
+                this.avatarManager.restoreAvatars();
+            }
+
+            // 5. Force UI Layout Recalculation
+            EventBus.publish(EVENTS.UI_REPOSITION);
+
+            Logger.info('SELF HEAL', LOG_STYLES.TEAL, 'Self-healing complete.');
+        }
+
+        /**
+         * @private
+         * Starts the heartbeat monitoring for DOM integrity.
+         */
+        _startHeartbeat() {
+            const interval = CONSTANTS.TIMING.POLLING.HEARTBEAT_INTERVAL_MS;
+            const timer = setInterval(() => this._checkHeartbeat(), interval);
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.HEARTBEAT_TIMER, () => clearInterval(timer));
+        }
+
+        /**
+         * @private
+         * Checks if the cached DOM elements are still valid.
+         */
+        _checkHeartbeat() {
+            if (this.isDestroyed || this.isNavigating || document.hidden) return;
+
+            if (this.messageCacheManager) {
+                const totalMessages = this.messageCacheManager.getTotalMessages();
+                if (totalMessages.length > 0) {
+                    // Check the last message as a proxy for the entire list stability
+                    const lastMsg = totalMessages[totalMessages.length - 1];
+                    if (!lastMsg.isConnected) {
+                        Logger.debug('HEARTBEAT', LOG_STYLES.ORANGE, 'Disconnected element detected. Triggering self-healing.');
+                        this._performSelfHealing();
+                    }
+                }
+            }
         }
 
         /**
