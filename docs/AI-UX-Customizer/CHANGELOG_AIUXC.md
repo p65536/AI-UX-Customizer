@@ -4,6 +4,10 @@
 -  AIUXC v1.0.0-b479+ with QTB v3.1.1+
 -  AIUXC v1.0.0-b478- with QTB v3.1.0-
 
+## [1.0.0-b486] - 2026-02-13
+- **Performance & Stability**
+  - **Smart Monitoring Pause**: The background stability monitor now intelligently pauses while the AI is generating a response. This ensures smooth scrolling and generation performance by preventing unnecessary checks during active streaming.
+
 ## [1.0.0-b485] - 2026-02-13
 - **Bug Fixes**
   - **[ChatGPT]** Fixed an issue where the **Navigation Console** failed to reposition correctly when the input area resized sometimes.

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b485
+// @version      1.0.0-b486
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -17258,16 +17258,17 @@
             config.themeSets = this._ensureUniqueThemeIds(config.themeSets);
 
             // Shared state for streaming status
-            const sharedStreamingState = { isActive: false };
+            // Store as instance property to access within AppController (e.g. for Heartbeat guard)
+            this.streamingState = { isActive: false };
 
             // --- Manager Instantiation ---
             // Create managers that other managers depend on
             this.themeManager = this.manageFactory(CONSTANTS.RESOURCE_KEYS.THEME_MANAGER, () => new ThemeManager(this.configManager, this.imageDataManager));
-            this.messageCacheManager = this.manageFactory(CONSTANTS.RESOURCE_KEYS.MESSAGE_CACHE_MANAGER, () => new MessageCacheManager(sharedStreamingState));
+            this.messageCacheManager = this.manageFactory(CONSTANTS.RESOURCE_KEYS.MESSAGE_CACHE_MANAGER, () => new MessageCacheManager(this.streamingState));
             this.syncManager = this.manageFactory(CONSTANTS.RESOURCE_KEYS.SYNC_MANAGER, () => new SyncManager());
 
             // Create the rest of the managers, injecting their dependencies
-            this.observerManager = this.manageFactory(CONSTANTS.RESOURCE_KEYS.OBSERVER_MANAGER, () => new ObserverManager(this.messageCacheManager, sharedStreamingState));
+            this.observerManager = this.manageFactory(CONSTANTS.RESOURCE_KEYS.OBSERVER_MANAGER, () => new ObserverManager(this.messageCacheManager, this.streamingState));
             this.uiManager = this.manageFactory(
                 CONSTANTS.RESOURCE_KEYS.UI_MANAGER,
                 () =>
@@ -17522,7 +17523,8 @@
          * Checks if the cached DOM elements are still valid.
          */
         _checkHeartbeat() {
-            if (this.isDestroyed || this.isNavigating || document.hidden) return;
+            // Guard: Stop check if destroyed, navigating, tab hidden, or STREAMING.
+            if (this.isDestroyed || this.isNavigating || document.hidden || this.streamingState?.isActive) return;
 
             if (this.messageCacheManager) {
                 const totalMessages = this.messageCacheManager.getTotalMessages();
