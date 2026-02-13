@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b486
+// @version      1.0.0-b487
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -17532,8 +17532,12 @@
                     // Check the last message as a proxy for the entire list stability
                     const lastMsg = totalMessages[totalMessages.length - 1];
                     if (!lastMsg.isConnected) {
-                        Logger.debug('HEARTBEAT', LOG_STYLES.ORANGE, 'Disconnected element detected. Triggering self-healing.');
-                        this._performSelfHealing();
+                        Logger.debug('HEARTBEAT', LOG_STYLES.ORANGE, 'Disconnected element detected. Scheduling self-healing.');
+                        // Use runWhenIdle to defer repair during high load (scrolling/resizing)
+                        runWhenIdle(() => {
+                            if (this.isDestroyed || this.isNavigating) return;
+                            this._performSelfHealing();
+                        }, CONSTANTS.TIMING.TIMEOUTS.SELF_HEAL_IDLE_TIMEOUT_MS);
                     }
                 }
             }

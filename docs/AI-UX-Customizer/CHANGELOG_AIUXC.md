@@ -4,6 +4,10 @@
 -  AIUXC v1.0.0-b479+ with QTB v3.1.1+
 -  AIUXC v1.0.0-b478- with QTB v3.1.0-
 
+## [1.0.0-b487] - 2026-02-13
+- **Performance**
+  - **Smoother Interactions**: The automatic repair system now waits for the browser to be idle before running. This prevents interface stuttering (jank) if a repair is triggered during high-load activities like fast scrolling or resizing the window.
+
 ## [1.0.0-b486] - 2026-02-13
 - **Performance & Stability**
   - **Smart Monitoring Pause**: The background stability monitor now intelligently pauses while the AI is generating a response. This ensures smooth scrolling and generation performance by preventing unnecessary checks during active streaming.
