@@ -4,6 +4,12 @@
 -  AIUXC v1.0.0-b479+ with QTB v3.1.1+
 -  AIUXC v1.0.0-b478- with QTB v3.1.0-
 
+## [1.0.0-b488] - 2026-02-19
+- **Bug Fixes**
+  - Fixed a critical issue where custom UI elements (message counters, avatar icons, and bubble buttons) would disappear when navigating back to a previously visited chat.
+  - Fixed an issue where avatars and other features occasionally failed to load for newly generated messages in real-time.
+  - Improved the internal element scanning logic to correctly identify and re-process cached DOM elements restored by the platform's router.
+
 ## [1.0.0-b487] - 2026-02-13
 - **Performance**
   - **Smoother Interactions**: The automatic repair system now waits for the browser to be idle before running. This prevents interface stuttering (jank) if a repair is triggered during high-load activities like fast scrolling or resizing the window.

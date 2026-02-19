@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b487
+// @version      1.0.0-b488
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -186,7 +186,6 @@
                 ZERO_MESSAGE_GRACE_PERIOD: 2000,
                 WAIT_FOR_MAIN_CONTENT: 10000,
                 BLOB_URL_REVOKE_DELAY: 10000, // The time to wait before revoking a Blob URL after export, allowing the download to start.
-                GHOST_MESSAGE_DEBOUNCE: 50, // Delay to validate if a detected message element is stable or a transient ghost.
                 SELF_HEAL_IDLE_TIMEOUT_MS: 1000,
             },
             THRESHOLDS: {
@@ -10419,13 +10418,27 @@
                     this.scheduleIntegrityScan();
                 }
             });
+            this._subscribe(EVENTS.NAVIGATION, () => {
+                this._cleanupProcessedFlags();
+            });
             this._subscribe(EVENTS.NAVIGATION_END, () => {
+                // Force a scan to pick up any cached DOM elements that were restored by the SPA router
+                this.scanForUnprocessedMessages();
                 PlatformAdapters.General.onNavigationEnd?.(this);
             });
         }
 
         _onDestroy() {
             // Cleanup handled by disposables.
+        }
+
+        /**
+         * @description Removes processed flags from all elements.
+         * Used during navigation to ensure cached DOM elements are re-processed.
+         */
+        _cleanupProcessedFlags() {
+            document.querySelectorAll(`.${CONSTANTS.CLASSES.PROCESSED}`).forEach((el) => el.classList.remove(CONSTANTS.CLASSES.PROCESSED));
+            document.querySelectorAll(`.${CONSTANTS.CLASSES.COMPLETE_FIRED}`).forEach((el) => el.classList.remove(CONSTANTS.CLASSES.COMPLETE_FIRED));
         }
 
         /**
@@ -10469,55 +10482,44 @@
                 return;
             }
 
-            // Ghost Filtering:
-            // Wait a brief moment to ensure the element persists in the DOM.
-            // This filters out transient placeholder elements that appear and disappear instantly during generation start.
-            setTimeout(() => {
-                // 1. Re-check connectivity. If it's gone, it was a ghost. Abort.
-                if (!contentElement.isConnected) return;
+            contentElement.classList.add(CONSTANTS.CLASSES.PROCESSED);
 
-                // 2. Re-check processed flag in case another task processed it during the wait.
-                if (contentElement.classList.contains(CONSTANTS.CLASSES.PROCESSED)) return;
+            let messageElement = PlatformAdapters.General.findMessageElement(contentElement);
 
-                contentElement.classList.add(CONSTANTS.CLASSES.PROCESSED);
+            // Platform-specific hook to handle elements that need a container
+            if (!messageElement && PlatformAdapters.General.ensureMessageContainerForImage) {
+                // Let the adapter create a wrapper if needed and return it.
+                // We only do this for the image selector, not for markdown.
+                if (contentElement.matches(CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE)) {
+                    messageElement = PlatformAdapters.General.ensureMessageContainerForImage(contentElement);
+                }
+            }
 
-                let messageElement = PlatformAdapters.General.findMessageElement(contentElement);
+            // If we have a valid message container, proceed.
+            if (messageElement) {
+                // Publish the timestamp for this message as soon as it's identified.
+                // This is for real-time messages; historical ones are loaded via API.
+                // Find the correct messageId from the parent element
+                const messageIdHolder = messageElement.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
+                const messageId = PlatformAdapters.General.getMessageId(messageIdHolder);
 
-                // Platform-specific hook to handle elements that need a container
-                if (!messageElement && PlatformAdapters.General.ensureMessageContainerForImage) {
-                    // Let the adapter create a wrapper if needed and return it.
-                    // We only do this for the image selector, not for markdown.
-                    if (contentElement.matches(CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE)) {
-                        messageElement = PlatformAdapters.General.ensureMessageContainerForImage(contentElement);
-                    }
+                // Always publish TIMESTAMP_ADDED when a message is detected.
+                // The TimestampManager will handle buffering (during navigation) or immediate application.
+                if (messageId) {
+                    EventBus.publish(EVENTS.TIMESTAMP_ADDED, { messageId: messageId, timestamp: new Date() });
                 }
 
-                // If we have a valid message container, proceed.
-                if (messageElement) {
-                    // Publish the timestamp for this message as soon as it's identified.
-                    // This is for real-time messages; historical ones are loaded via API.
-                    // Find the correct messageId from the parent element
-                    const messageIdHolder = messageElement.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
-                    const messageId = PlatformAdapters.General.getMessageId(messageIdHolder);
+                // Fire avatar injection event. The AvatarManager will handle the one-per-turn logic.
+                EventBus.publish(EVENTS.AVATAR_INJECT, messageElement);
 
-                    // Always publish TIMESTAMP_ADDED when a message is detected.
-                    // The TimestampManager will handle buffering (during navigation) or immediate application.
-                    if (messageId) {
-                        EventBus.publish(EVENTS.TIMESTAMP_ADDED, { messageId: messageId, timestamp: new Date() });
-                    }
-
-                    // Fire avatar injection event. The AvatarManager will handle the one-per-turn logic.
-                    EventBus.publish(EVENTS.AVATAR_INJECT, messageElement);
-
-                    // Fire message complete event for other managers.
-                    // Use a different flag to ensure this only fires once per message container,
-                    // even if it has multiple content parts detected (e.g. text and images).
-                    if (!messageElement.classList.contains(CONSTANTS.CLASSES.COMPLETE_FIRED)) {
-                        messageElement.classList.add(CONSTANTS.CLASSES.COMPLETE_FIRED);
-                        EventBus.publish(EVENTS.MESSAGE_COMPLETE, messageElement);
-                    }
+                // Fire message complete event for other managers.
+                // Use a different flag to ensure this only fires once per message container,
+                // even if it has multiple content parts detected (e.g. text and images).
+                if (!messageElement.classList.contains(CONSTANTS.CLASSES.COMPLETE_FIRED)) {
+                    messageElement.classList.add(CONSTANTS.CLASSES.COMPLETE_FIRED);
+                    EventBus.publish(EVENTS.MESSAGE_COMPLETE, messageElement);
                 }
-            }, CONSTANTS.TIMING.TIMEOUTS.GHOST_MESSAGE_DEBOUNCE);
+            }
         }
     }
 
@@ -18277,8 +18279,7 @@
                         CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE
                     ];
 
-                const notProcessed = `:not(.${CONSTANTS.CLASSES.PROCESSED})`;
-                const selector = selectors.map((s) => `${s}${notProcessed}`).join(', ');
+                const selector = selectors.join(', ');
 
                 const nodes = document.querySelectorAll(selector);
                 nodes.forEach((node) => {
@@ -18286,7 +18287,7 @@
                 });
 
                 if (nodes.length > 0) {
-                    Logger.log('', '', `Found ${nodes.length} unprocessed item(s) on initial scan.`);
+                    Logger.log('', '', `Found ${nodes.length} item(s) on initial scan.`);
                 }
                 return nodes.length;
             }
