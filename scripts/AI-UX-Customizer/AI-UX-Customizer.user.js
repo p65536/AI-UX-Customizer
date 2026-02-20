@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b489
+// @version      1.0.0-b490
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -265,10 +265,6 @@
         CONSOLE_POSITIONS: {
             INPUT_TOP: 'input_top',
             HEADER: 'header',
-        },
-        CLASSES: {
-            PROCESSED: `${APPID}-processed`,
-            COMPLETE_FIRED: `${APPID}-complete`,
         },
         DATA_KEYS: {
             AVATAR_INJECT_ATTEMPTS: `${APPID}AvatarInjectAttempts`,
@@ -2879,10 +2875,9 @@
          * Performs WRITE operations only.
          * @param {AvatarMeasurement} measurement The measurement result returned by measureAvatarTarget.
          * @param {HTMLElement | null} avatarContainer The avatar container to inject (null if shouldInject is false).
-         * @param {string} processedClass The class to mark as processed.
          * @throws {Error} Must be implemented by subclasses.
          */
-        injectAvatar(measurement, avatarContainer, processedClass) {
+        injectAvatar(measurement, avatarContainer) {
             throw new Error('injectAvatar must be implemented by the platform adapter.');
         }
     }
@@ -6846,7 +6841,7 @@
 
         _onInit() {
             this._subscribe(EVENTS.CACHE_UPDATE_REQUEST, () => this.debouncedRebuildCache());
-            this._subscribe(EVENTS.NAVIGATION, () => {
+            this._subscribe(EVENTS.NAVIGATION_START, () => {
                 this.clear();
                 // Force reset streaming state on navigation to prevent deadlocks
                 this.streamingState.isActive = false;
@@ -8242,7 +8237,6 @@
             const messagesToProcess = [...this._injectionQueue];
             this._injectionQueue = [];
 
-            const processedClass = this.style.classes.processed;
             const reservedKeys = new Set(); // For scope duplication check
 
             const cancelFn = runBatchUpdate(
@@ -8285,7 +8279,7 @@
                         }
                     }
 
-                    PlatformAdapters.Avatar.injectAvatar(measurement, container, processedClass);
+                    PlatformAdapters.Avatar.injectAvatar(measurement, container);
 
                     // Cleanup flags using the strongly typed originalElement property
                     DomState.remove(measurement.originalElement, CONSTANTS.DATA_KEYS.AVATAR_INJECT_ATTEMPTS);
@@ -10407,6 +10401,10 @@
             super();
             this.messageCacheManager = messageCacheManager;
             this.isScanPending = false;
+            /** @type {WeakMap<HTMLElement, boolean>} */
+            this.processedElements = new WeakMap();
+            /** @type {WeakMap<HTMLElement, boolean>} */
+            this.completeFiredElements = new WeakMap();
         }
 
         _onInit() {
@@ -10418,7 +10416,7 @@
                     this.scheduleIntegrityScan();
                 }
             });
-            this._subscribe(EVENTS.NAVIGATION, () => {
+            this._subscribe(EVENTS.NAVIGATION_START, () => {
                 this._cleanupProcessedFlags();
             });
             this._subscribe(EVENTS.NAVIGATION_END, () => {
@@ -10433,12 +10431,12 @@
         }
 
         /**
-         * @description Removes processed flags from all elements.
+         * @description Re-initializes WeakMaps to safely garbage collect old DOM references.
          * Used during navigation to ensure cached DOM elements are re-processed.
          */
         _cleanupProcessedFlags() {
-            document.querySelectorAll(`.${CONSTANTS.CLASSES.PROCESSED}`).forEach((el) => el.classList.remove(CONSTANTS.CLASSES.PROCESSED));
-            document.querySelectorAll(`.${CONSTANTS.CLASSES.COMPLETE_FIRED}`).forEach((el) => el.classList.remove(CONSTANTS.CLASSES.COMPLETE_FIRED));
+            this.processedElements = new WeakMap();
+            this.completeFiredElements = new WeakMap();
         }
 
         /**
@@ -10477,12 +10475,12 @@
         }
 
         processRawMessage(contentElement) {
-            // Check for class-based flag immediately to avoid redundant queuing
-            if (contentElement.classList.contains(CONSTANTS.CLASSES.PROCESSED)) {
+            // Check for in-memory flag immediately to avoid redundant queuing
+            if (this.processedElements.has(contentElement)) {
                 return;
             }
 
-            contentElement.classList.add(CONSTANTS.CLASSES.PROCESSED);
+            this.processedElements.set(contentElement, true);
 
             let messageElement = PlatformAdapters.General.findMessageElement(contentElement);
 
@@ -10513,10 +10511,10 @@
                 EventBus.publish(EVENTS.AVATAR_INJECT, messageElement);
 
                 // Fire message complete event for other managers.
-                // Use a different flag to ensure this only fires once per message container,
+                // Use a different in-memory flag to ensure this only fires once per message container,
                 // even if it has multiple content parts detected (e.g. text and images).
-                if (!messageElement.classList.contains(CONSTANTS.CLASSES.COMPLETE_FIRED)) {
-                    messageElement.classList.add(CONSTANTS.CLASSES.COMPLETE_FIRED);
+                if (!this.completeFiredElements.has(messageElement)) {
+                    this.completeFiredElements.set(messageElement, true);
                     EventBus.publish(EVENTS.MESSAGE_COMPLETE, messageElement);
                 }
             }
@@ -18713,17 +18711,12 @@
             }
 
             /** @override */
-            injectAvatar(measurement, avatarContainer, processedClass) {
-                const { shouldInject, targetElement, processedTarget } = measurement;
+            injectAvatar(measurement, avatarContainer) {
+                const { shouldInject, targetElement } = measurement;
 
                 // Inject the avatar directly into the *first message element*
                 if (shouldInject && targetElement && avatarContainer) {
                     targetElement.prepend(avatarContainer);
-                }
-
-                // Mark the TURN container as processed.
-                if (processedTarget && !processedTarget.classList.contains(processedClass)) {
-                    processedTarget.classList.add(processedClass);
                 }
             }
         }
@@ -20207,17 +20200,12 @@
             }
 
             /** @override */
-            injectAvatar(measurement, avatarContainer, processedClass) {
-                const { shouldInject, targetElement, processedTarget } = measurement;
+            injectAvatar(measurement, avatarContainer) {
+                const { shouldInject, targetElement } = measurement;
 
-                // Add the container to the message element and mark as processed.
+                // Add the container to the message element
                 if (shouldInject && targetElement && avatarContainer) {
                     targetElement.prepend(avatarContainer);
-                }
-
-                // Add the processed class only if it's not already there.
-                if (processedTarget && !processedTarget.classList.contains(processedClass)) {
-                    processedTarget.classList.add(processedClass);
                 }
             }
         }

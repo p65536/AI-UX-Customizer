@@ -583,7 +583,6 @@ interface AvatarAdapter {
     injectAvatar(
         measurement: AvatarMeasurement,
         avatarContainer: HTMLElement | null,
-        processedClass: string
     ): void;
 }
 
@@ -737,10 +736,6 @@ interface PlatformConstants {
         INPUT_TOP: string;
         HEADER: string;
     };
-    CLASSES: {
-        PROCESSED: string;
-        COMPLETE_FIRED: string;
-    },
     DATA_KEYS: {
         AVATAR_INJECT_ATTEMPTS: string;
         AVATAR_INJECT_FAILED: string;

@@ -3,6 +3,13 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b490] - 2026-02-20
+- **Bug Fixes & Improvements**
+  - Improved compatibility and performance by migrating to an in-memory state management system. This eliminates potential conflicts with underlying website frameworks (like React) that could previously cause redundant processing or missing UI elements.
+  - Fixed an issue where rapidly navigating between chats or switching pages during active text generation could corrupt the custom UI. Internal caches and states are now instantly cleared the moment a URL change begins, preventing race conditions.
+- **Core Changes**
+  - Removed legacy DOM-based tracking classes to keep the page structure clean and avoid interference with the original site's rendering cycle.
+
 ## [1.0.0-b489] - 2026-02-20
 - **Bug Fixes**
   - **[Sentinel]** Fixed an issue where element detection could fail after SPA page navigation or long background tab inactivity.
