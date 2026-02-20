@@ -5,8 +5,14 @@
 > Most changes are shared between the two scripts. If a change applies only to one, it will be explicitly marked with a `[GPTUX]` or `[GGGUX]` prefix.
 
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
--  GPTUX/GGGUX v2.4.1+ with QTB v3.1.1+
--  GPTUX/GGGUX v2.4.1- with QTB v3.1.0-
+-  GPTUX/GGGUX v2.4.2+ with QTB v3.1.2+
+
+## [2.4.2] - 2026-02-20
+- **Bug Fixes**
+  - **[Sentinel]** Fixed an issue where element detection could fail after SPA page navigation or long background tab inactivity.
+- **Core Changes**
+  - **[Sentinel]** Restored stable shared DOM detection architecture with added self-healing capabilities.
+  - **[Sentinel]** Improved robustness during CSS rule deletion to prevent unexpected execution errors.
 
 ## [2.4.1] - 2026-02-11
 - **Core Changes**

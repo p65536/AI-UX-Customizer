@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      2.4.1
+// @version      2.4.2
 // @license      MIT
 // @description  Fully customize the chat UI. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://chatgpt.com/favicon.ico
@@ -4131,7 +4131,7 @@
                     .map((p) => p.trim())
                     .filter(Boolean) || [],
             setValue: (el, value) => {
-                el.value = Array.isArray(value) ? value.join('\n') : value ?? '';
+                el.value = Array.isArray(value) ? value.join('\n') : (value ?? '');
             },
         },
         select: {
@@ -12879,25 +12879,17 @@
 
     /**
      * @class Sentinel
-     * @description Detects DOM node insertion using specific CSS animations per selector.
-     *
-     * [Singleton Pattern]
-     * This class acts as a Singleton per `prefix`.
-     * Calling `new Sentinel(prefix)` with an existing prefix returns the already created instance.
-     * Note: Initialization logic (event listeners, observers) is skipped for returned existing instances.
-     *
-     * @property {string} prefix
-     * @property {Map<string, string>} selectorToAnimation Map CSS selectors to unique animation names.
-     * @property {Map<string, Set<(element: Element) => void>>} animationCallbacks Map animation names to callback sets.
+     * @description Detects DOM node insertion using a shared, prefixed CSS animation trick.
+     * @property {Map<string, Set<(element: Element) => void>>} listeners
+     * @property {Set<string>} rules
      * @property {HTMLElement | null} styleElement
      * @property {CSSStyleSheet | null} sheet
-     * @property {Set<string>} pendingRules Selectors waiting for stylesheet injection.
-     * @property {number} animationIdCounter Counter for generating unique animation names.
-     * @property {MutationObserver | null} observer Observer for delayed style injection.
+     * @property {string[]} pendingRules
+     * @property {WeakMap<CSSRule, string>} ruleSelectors
      */
     class Sentinel {
         /**
-         * @param {string} prefix - A unique identifier for this Sentinel instance to avoid CSS conflicts.
+         * @param {string} prefix - A unique identifier for this Sentinel instance to avoid CSS conflicts. Required.
          */
         constructor(prefix) {
             if (!prefix) {
@@ -12915,255 +12907,193 @@
             /** @type {any} */
             const globalScope = window;
             globalScope.__global_sentinel_instances__ = globalScope.__global_sentinel_instances__ || {};
-
-            // Check against the prefix to prevent duplicates
             if (globalScope.__global_sentinel_instances__[prefix]) {
                 return globalScope.__global_sentinel_instances__[prefix];
             }
 
-            this.prefix = prefix;
-            this.styleId = `${prefix}-sentinel-global-rules`;
-            this.selectorToAnimation = new Map();
-            this.animationCallbacks = new Map();
-            this.animationIdCounter = 0;
-            this.observer = null;
-            this.styleElement = null;
-            this.sheet = null;
-            this.pendingRules = new Set();
-            this._isDestroyed = false;
+            // Use a unique, prefixed animation name shared by all scripts in a project.
+            this.animationName = `${prefix}-global-sentinel-animation`;
+            this.styleId = `${prefix}-sentinel-global-rules`; // A single, unified style element
+            this.listeners = new Map();
+            this.rules = new Set(); // Tracks all active selectors
+            this.styleElement = null; // Holds the reference to the single style element
+            this.sheet = null; // Cache the CSSStyleSheet reference
+            this.pendingRules = []; // Queue for rules requested before sheet is ready
+            /** @type {WeakMap<CSSRule, string>} */
+            this.ruleSelectors = new WeakMap(); // Tracks selector strings associated with CSSRule objects
 
             this._injectStyleElement();
-            // Store bound handler to allow removal later
-            this._boundHandleAnimationStart = this._handleAnimationStart.bind(this);
-            document.addEventListener('animationstart', this._boundHandleAnimationStart, true);
+            document.addEventListener('animationstart', this._handleAnimationStart.bind(this), true);
 
             globalScope.__global_sentinel_instances__[prefix] = this;
         }
 
-        destroy() {
-            // 1. Remove global event listener
-            if (this._boundHandleAnimationStart) {
-                document.removeEventListener('animationstart', this._boundHandleAnimationStart, true);
-                this._boundHandleAnimationStart = null;
-            }
-
-            // 2. Disconnect observer if active
-            if (this.observer) {
-                this.observer.disconnect();
-                this.observer = null;
-            }
-
-            // 3. Remove injected style element
-            if (this.styleElement && this.styleElement.parentNode) {
-                this.styleElement.parentNode.removeChild(this.styleElement);
-            }
-
-            // 4. Clear global instance reference
-            /** @type {any} */
-            const globalScope = window;
-            if (globalScope.__global_sentinel_instances__ && globalScope.__global_sentinel_instances__[this.prefix] === this) {
-                delete globalScope.__global_sentinel_instances__[this.prefix];
-            }
-
-            // 5. Clear internal state
-            this.selectorToAnimation.clear();
-            this.animationCallbacks.clear();
-            this.pendingRules.clear();
-            this.sheet = null;
-            this.styleElement = null;
-            this._isDestroyed = true;
-
-            Logger.debug('SENTINEL', LOG_STYLES.CYAN, 'Destroyed.');
-        }
-
         _injectStyleElement() {
             // Ensure the style element is injected only once per project prefix.
-            const existingElement = document.getElementById(this.styleId);
+            this.styleElement = document.getElementById(this.styleId);
 
-            if (existingElement) {
-                if (existingElement instanceof HTMLStyleElement) {
-                    this.styleElement = existingElement;
-                    if (existingElement.sheet) {
-                        this.sheet = existingElement.sheet;
-                        return;
-                    }
-                    // If element exists but sheet is missing (null), fall through to polling (initSheet).
-                } else {
-                    // Critical: An element with this ID exists but is NOT a style tag.
-                    throw new Error(`[Sentinel] ID conflict: Element #${this.styleId} exists but is not a <style> element.`);
-                }
-            } else {
-                // Create empty style element
-                this.styleElement = h('style', {
-                    id: this.styleId,
-                });
-                // CSP Fix: Try to fetch a valid nonce from existing scripts/styles
-                // "nonce" property exists on HTMLScriptElement/HTMLStyleElement, not basic Element.
-                let nonce;
-
-                // 1. Try to get nonce from scripts collection
-                const scripts = document.scripts;
-                for (let i = 0; i < scripts.length; i++) {
-                    if (scripts[i].nonce) {
-                        nonce = scripts[i].nonce;
-                        break;
-                    }
-                }
-
-                // 2. Fallback: Using querySelector (content attribute)
-                if (!nonce) {
-                    const style = document.querySelector('style[nonce]');
-                    const script = document.querySelector('script[nonce]');
-
-                    if (style instanceof HTMLStyleElement && style.nonce) {
-                        nonce = style.nonce;
-                    } else if (script instanceof HTMLScriptElement && script.nonce) {
-                        nonce = script.nonce;
-                    }
-                }
-
-                if (nonce) {
-                    this.styleElement.nonce = nonce;
-                }
-            }
-
-            // Polling to ensure sheet is ready (browsers may delay CSSOM creation)
-            let attempts = 0;
-            const maxAttempts = 300;
-            const initSheet = () => {
-                // Guard: If destroyed, stop polling immediately.
-                if (!this.styleElement) return;
-
-                if (this.styleElement instanceof HTMLStyleElement) {
-                    if (this.styleElement.sheet) {
-                        this.sheet = this.styleElement.sheet;
+            if (this.styleElement instanceof HTMLStyleElement) {
+                /** @type {HTMLStyleElement} */
+                const styleNode = this.styleElement;
+                const pollExisting = () => {
+                    if (styleNode.sheet) {
+                        this.sheet = styleNode.sheet;
                         this._flushPendingRules();
-                        return;
-                    }
-
-                    if (attempts < maxAttempts) {
-                        attempts++;
-                        setTimeout(initSheet, 50);
                     } else {
-                        Logger.error('SENTINEL', LOG_STYLES.RED, 'Failed to access CSSStyleSheet. Styles may not apply.');
-
-                        // Cleanup pending rules to prevent memory leaks/inconsistent state
-                        this.pendingRules.forEach((selector) => {
-                            const animName = this.selectorToAnimation.get(selector);
-                            if (animName) {
-                                this.animationCallbacks.delete(animName);
-                                this.selectorToAnimation.delete(selector);
-                            }
-                        });
-                        this.pendingRules.clear();
+                        // Poll infinitely until sheet is ready
+                        setTimeout(pollExisting, 50);
                     }
-                }
-            };
-            // If we are reusing an existing element, it's likely already in the DOM.
-            if (existingElement) {
-                initSheet();
+                };
+                pollExisting();
                 return;
             }
 
-            // Attempt immediate injection
+            // Create empty style element
+            this.styleElement = h('style', {
+                id: this.styleId,
+            });
+            // CSP Fix: Try to fetch a valid nonce from existing scripts/styles
+            // "nonce" property exists on HTMLScriptElement/HTMLStyleElement, not basic Element.
+            let nonce;
+
+            // 1. Try to get nonce from scripts collection
+            const scripts = document.scripts;
+            for (let i = 0; i < scripts.length; i++) {
+                if (scripts[i].nonce) {
+                    nonce = scripts[i].nonce;
+                    break;
+                }
+            }
+
+            // 2. Fallback: Using querySelector (content attribute)
+            if (!nonce) {
+                const style = document.querySelector('style[nonce]');
+                const script = document.querySelector('script[nonce]');
+
+                if (style instanceof HTMLStyleElement && style.nonce) {
+                    nonce = style.nonce;
+                } else if (script instanceof HTMLScriptElement && script.nonce) {
+                    nonce = script.nonce;
+                }
+            }
+
+            if (nonce) {
+                this.styleElement.nonce = nonce;
+            }
+
+            // Try to inject immediately.
+            // If the document is not yet ready (e.g. extremely early document-start), wait for the root element.
             const target = document.head || document.documentElement;
+
+            const initSheet = () => {
+                if (this.styleElement instanceof HTMLStyleElement) {
+                    /** @type {HTMLStyleElement} */
+                    const styleNode = this.styleElement;
+                    if (styleNode.sheet) {
+                        this.sheet = styleNode.sheet;
+                        // Insert the shared keyframes rule at index 0.
+                        try {
+                            const keyframes = `@keyframes ${this.animationName} { from { outline: 1px solid transparent;
+                            } to { outline: 0px solid transparent; } }`;
+                            this.sheet.insertRule(keyframes, 0);
+                        } catch (e) {
+                            Logger.error('SENTINEL', LOG_STYLES.RED, 'Failed to insert keyframes rule:', e);
+                        }
+                        this._flushPendingRules();
+                    } else {
+                        // Poll infinitely until sheet is ready
+                        setTimeout(initSheet, 50);
+                    }
+                }
+            };
+
             if (target) {
                 target.appendChild(this.styleElement);
                 initSheet();
             } else {
-                // fallback to observer if root element is missing.
-                this.observer = new MutationObserver(() => {
-                    // Guard: If destroyed, avoid execution
-                    if (!this.observer) return;
-
+                const observer = new MutationObserver(() => {
                     const retryTarget = document.head || document.documentElement;
                     if (retryTarget) {
-                        this.observer.disconnect();
-                        this.observer = null;
+                        observer.disconnect();
+
                         retryTarget.appendChild(this.styleElement);
                         initSheet();
                     }
                 });
-                this.observer.observe(document, { childList: true, subtree: true });
+                observer.observe(document, { childList: true });
+            }
+        }
+
+        /**
+         * Ensures the style element is connected to the DOM and restores rules if it was removed.
+         */
+        _ensureStyleGuard() {
+            if (this.styleElement && !this.styleElement.isConnected) {
+                const target = document.head || document.documentElement;
+                if (target) {
+                    target.appendChild(this.styleElement);
+                    if (this.styleElement instanceof HTMLStyleElement && this.styleElement.sheet) {
+                        this.sheet = this.styleElement.sheet;
+                        try {
+                            const keyframes = `@keyframes ${this.animationName} { from { outline: 1px solid transparent; } to { outline: 0px solid transparent; } }`;
+                            this.sheet.insertRule(keyframes, 0);
+                        } catch (e) {
+                            Logger.error('SENTINEL', LOG_STYLES.RED, 'Failed to restore keyframes rule:', e);
+                        }
+                        this.rules.forEach((selector) => {
+                            this._insertRule(selector);
+                        });
+                    }
+                }
             }
         }
 
         _flushPendingRules() {
-            if (!this.sheet || this.pendingRules.size === 0) return;
-            const selectors = [...this.pendingRules];
-            this.pendingRules.clear();
+            if (!this.sheet || this.pendingRules.length === 0) return;
+            const rulesToInsert = [...this.pendingRules];
+            this.pendingRules = [];
 
-            selectors.forEach((selector) => {
-                const animName = this.selectorToAnimation.get(selector);
-                if (animName) {
-                    const success = this._insertRule(selector, animName);
-                    if (!success) {
-                        // Rollback: Remove registrations if CSS insertion failed.
-                        this.selectorToAnimation.delete(selector);
-                        this.animationCallbacks.delete(animName);
-
-                        Logger.error('SENTINEL', LOG_STYLES.RED, `Pending rule insertion failed. Dropping observer for selector: "${selector}"`);
-                    }
-                }
+            rulesToInsert.forEach((selector) => {
+                this._insertRule(selector);
             });
         }
 
         /**
-         * Helper to insert rules into the stylesheet
+         * Helper to insert a single rule into the stylesheet
          * @param {string} selector
-         * @param {string} animName
-         * @returns {boolean} True if insertion succeeded, false otherwise.
          */
-        _insertRule(selector, animName) {
-            let kfIndex = -1;
-            let kfInserted = false;
-
+        _insertRule(selector) {
             try {
-                // 1. Insert Keyframes Rule (unique to this selector)
-                const keyframesText = `@keyframes ${animName} { from { transform: none; } to { transform: none; } }`;
-                kfIndex = this.sheet.cssRules.length;
-                this.sheet.insertRule(keyframesText, kfIndex);
-                kfInserted = true;
-
-                // 2. Insert Style Rule
-                const styleText = `${selector} { animation-duration: 0.001s; animation-name: ${animName}; }`;
-                const styleIndex = this.sheet.cssRules.length;
-                this.sheet.insertRule(styleText, styleIndex);
-
-                return true;
+                const index = this.sheet.cssRules.length;
+                const ruleText = `${selector} { animation-duration: 0.001s; animation-name: ${this.animationName}; }`;
+                this.sheet.insertRule(ruleText, index);
+                // Associate the inserted rule with the selector via WeakMap for safer removal later.
+                // This mimics sentinel.js behavior to handle index shifts and selector normalization.
+                const insertedRule = this.sheet.cssRules[index];
+                if (insertedRule) {
+                    this.ruleSelectors.set(insertedRule, selector);
+                }
             } catch (e) {
                 Logger.error('SENTINEL', LOG_STYLES.RED, `Failed to insert rule for selector "${selector}":`, e);
-                // Rollback: Remove the keyframes rule if style insertion failed to prevent resource leak.
-                if (kfInserted && kfIndex !== -1) {
-                    try {
-                        this.sheet.deleteRule(kfIndex);
-                    } catch (rollbackError) {
-                        Logger.error('SENTINEL', LOG_STYLES.RED, 'Failed to rollback keyframes rule:', rollbackError);
-                    }
-                }
-
-                return false;
             }
         }
 
         _handleAnimationStart(event) {
-            // Directly look up callbacks by animation name (O(1))
-            const callbacks = this.animationCallbacks.get(event.animationName);
-            if (!callbacks) return;
+            // Check if the animation is the one we're listening for.
+            if (event.animationName !== this.animationName) return;
 
             const target = event.target;
             if (!(target instanceof Element)) {
                 return;
             }
 
-            // Execute all registered callbacks for this selector
-            [...callbacks].forEach((cb) => {
-                try {
-                    cb(target);
-                } catch (e) {
-                    Logger.error('SENTINEL', LOG_STYLES.RED, 'Error in animation callback:', e);
+            // Check if the target element matches any of this instance's selectors.
+            for (const [selector, callbacks] of this.listeners.entries()) {
+                if (target.matches(selector)) {
+                    // Use a copy of the callbacks Set in case a callback removes itself.
+                    [...callbacks].forEach((cb) => cb(target));
                 }
-            });
+            }
         }
 
         /**
@@ -13171,41 +13101,23 @@
          * @param {(element: Element) => void} callback
          */
         on(selector, callback) {
-            if (this._isDestroyed) {
-                Logger.error('SENTINEL', LOG_STYLES.RED, 'Cannot register selector on a destroyed Sentinel instance.');
-                return;
+            this._ensureStyleGuard();
+
+            // Add callback to listeners
+
+            if (!this.listeners.has(selector)) {
+                this.listeners.set(selector, new Set());
             }
+            this.listeners.get(selector).add(callback);
+            // If selector is already registered in rules, do nothing
+            if (this.rules.has(selector)) return;
+            this.rules.add(selector);
 
-            // 1. Get or Create Animation Name
-            let animName = this.selectorToAnimation.get(selector);
-            if (!animName) {
-                // Generate a unique animation name based on prefix and counter to avoid collisions
-                animName = `${this.prefix}-anim-${this.animationIdCounter++}`;
-                // Pre-register to map
-                this.selectorToAnimation.set(selector, animName);
-                this.animationCallbacks.set(animName, new Set());
-
-                // Apply rules
-                if (this.sheet) {
-                    const success = this._insertRule(selector, animName);
-                    if (!success) {
-                        // ROLLBACK: Remove registrations if CSS insertion failed.
-                        // This ensures the selector is not marked as "registered" but non-functional.
-                        this.selectorToAnimation.delete(selector);
-                        this.animationCallbacks.delete(animName);
-                        return;
-                    }
-                } else {
-                    this.pendingRules.add(selector);
-                }
-            }
-
-            // 2. Add callback to the set (automatically handles duplicates)
-            // If rollback occurred above, we won't reach here for a new (failed) selector.
-            // If existing selector, we just add the callback.
-            const callbacks = this.animationCallbacks.get(animName);
-            if (callbacks) {
-                callbacks.add(callback);
+            // Apply rule
+            if (this.sheet) {
+                this._insertRule(selector);
+            } else {
+                this.pendingRules.push(selector);
             }
         }
 
@@ -13214,49 +13126,41 @@
          * @param {(element: Element) => void} callback
          */
         off(selector, callback) {
-            const animName = this.selectorToAnimation.get(selector);
-            if (!animName) return;
-
-            const callbacks = this.animationCallbacks.get(animName);
+            const callbacks = this.listeners.get(selector);
             if (!callbacks) return;
 
-            callbacks.delete(callback);
-            if (callbacks.size > 0) {
+            const wasDeleted = callbacks.delete(callback);
+            if (!wasDeleted) {
                 return;
+                // Callback not found, do nothing.
             }
 
-            // If no callbacks remain, cleanup everything for this selector
-            this.animationCallbacks.delete(animName);
-            this.selectorToAnimation.delete(selector);
+            if (callbacks.size === 0) {
+                // Remove listener and rule
+                this.listeners.delete(selector);
+                this.rules.delete(selector);
 
-            // Remove from pending rules to prevent injection if sheet is not yet ready
-            this.pendingRules.delete(selector);
-            if (this.sheet) {
-                // Iterate backwards to safely remove rules.
-                for (let i = this.sheet.cssRules.length - 1; i >= 0; i--) {
-                    const rule = this.sheet.cssRules[i];
-
-                    // 1. Check for Keyframes Rule using instanceof
-                    if (rule instanceof CSSKeyframesRule && rule.name === animName) {
-                        this.sheet.deleteRule(i);
-                        continue;
-                    }
-
-                    // 2. Check for Style Rule using instanceof
-                    if (rule instanceof CSSStyleRule && rule.style.animationName === animName) {
-                        this.sheet.deleteRule(i);
-                        continue;
+                if (this.sheet) {
+                    // Iterate backwards to avoid index shifting issues during deletion
+                    for (let i = this.sheet.cssRules.length - 1; i >= 0; i--) {
+                        const rule = this.sheet.cssRules[i];
+                        // Check for recorded selector via WeakMap or fallback to selectorText match
+                        const recordedSelector = this.ruleSelectors.get(rule);
+                        if (recordedSelector === selector || (rule instanceof CSSStyleRule && rule.selectorText === selector)) {
+                            try {
+                                this.sheet.deleteRule(i);
+                            } catch (e) {
+                                Logger.error('SENTINEL', LOG_STYLES.RED, `Failed to delete rule for selector "${selector}":`, e);
+                            }
+                            // We assume one rule per selector, so we can break after deletion
+                            break;
+                        }
                     }
                 }
             }
         }
 
         suspend() {
-            if (this._isDestroyed) {
-                Logger.error('SENTINEL', LOG_STYLES.RED, 'Cannot suspend a destroyed Sentinel instance.');
-                return;
-            }
-
             if (this.styleElement instanceof HTMLStyleElement) {
                 this.styleElement.disabled = true;
             }
@@ -13264,15 +13168,8 @@
         }
 
         resume() {
-            if (this._isDestroyed) {
-                Logger.error('SENTINEL', LOG_STYLES.RED, 'Cannot resume a destroyed Sentinel instance.');
-                return;
-            }
-
             if (this.styleElement instanceof HTMLStyleElement) {
                 this.styleElement.disabled = false;
-                // Update sheet reference as it might have been regenerated
-                this.sheet = this.styleElement.sheet;
             }
             Logger.debug('SENTINEL', LOG_STYLES.CYAN, 'Resumed.');
         }
