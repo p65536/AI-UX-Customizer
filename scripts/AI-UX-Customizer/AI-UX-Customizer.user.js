@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b491
+// @version      1.0.0-b492
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -19499,6 +19499,7 @@
                 USER_TEXT_CONTENT: '.query-text',
                 ASSISTANT_TEXT_CONTENT: '.markdown',
                 ASSISTANT_ANSWER_CONTENT: 'message-content.model-response-text',
+                VISUALLY_HIDDEN_TEXT: '.cdk-visually-hidden',
 
                 // --- Input area ---
                 INPUT_AREA_BG_TARGET: 'input-area-v2',
@@ -19725,7 +19726,13 @@
                 } else if (tagName === CONSTANTS.SELECTORS.USER_MESSAGE) {
                     // User (user-query)
                     const contentEl = messageElement.querySelector(CONSTANTS.SELECTORS.USER_TEXT_CONTENT);
-                    if (contentEl) return contentEl.textContent.trim();
+                    if (contentEl) {
+                        const clone = contentEl.cloneNode(true);
+                        // Remove visually hidden elements to prevent screen reader text from appearing in the jump list
+                        const hiddenElements = clone.querySelectorAll(CONSTANTS.SELECTORS.VISUALLY_HIDDEN_TEXT);
+                        hiddenElements.forEach((el) => el.remove());
+                        return clone.textContent.trim();
+                    }
                 }
 
                 return '';

@@ -3,6 +3,10 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b492] - 2026-02-20
+- **Bug Fixes**
+  - **[Gemini]** Fixed an issue where hidden screen reader text (e.g., "Your prompt") was incorrectly included in the Jump List preview for user messages due to recent UI changes.
+
 ## [1.0.0-b491] - 2026-02-20
 - **Performance Improvements**
   - Reduced CPU load and prevented browser lag while the AI is actively generating (streaming) messages.
