@@ -3,6 +3,11 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b491] - 2026-02-20
+- **Performance Improvements**
+  - Reduced CPU load and prevented browser lag while the AI is actively generating (streaming) messages.
+  - Optimized background layout monitoring to ignore irrelevant content expansion. UI elements (such as chat width and standing images) are now only recalculated when the actual window size changes or when scrollbars appear/disappear, ensuring smoother performance.
+
 ## [1.0.0-b490] - 2026-02-20
 - **Bug Fixes & Improvements**
   - Improved compatibility and performance by migrating to an in-memory state management system. This eliminates potential conflicts with underlying website frameworks (like React) that could previously cause redundant processing or missing UI elements.

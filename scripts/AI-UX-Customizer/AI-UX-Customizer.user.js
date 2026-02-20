@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b490
+// @version      1.0.0-b491
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -7590,9 +7590,19 @@
             this.messageCacheManager = messageCacheManager;
             // Bound listener for navigation-related cache updates
             this.boundHandleCacheUpdateForNavigation = this._handleCacheUpdateForNavigation.bind(this);
+
+            // Tracks the actual viewport dimensions to filter out height-only body mutations during streaming
+            this.lastWindowMetrics = { width: 0, height: 0, clientWidth: 0 };
         }
 
         _onInit() {
+            // Capture initial window metrics for resize filtering
+            this.lastWindowMetrics = {
+                width: window.innerWidth,
+                height: window.innerHeight,
+                clientWidth: document.documentElement.clientWidth,
+            };
+
             // Create observers using manageFactory
             // This ensures they are automatically disconnected when the manager is destroyed.
             this.layoutResizeObserver = this.manageFactory(CONSTANTS.RESOURCE_KEYS.LAYOUT_RESIZE_OBSERVER, () => {
@@ -7643,6 +7653,7 @@
             // Clear element caches to allow GC
             this.observedElements.clear();
             this.processedTurnNodes.clear();
+            this.lastWindowMetrics = null;
         }
 
         /**
@@ -7859,6 +7870,13 @@
          */
         _onNavigation() {
             try {
+                // Sync window metrics to prevent stale state after SPA navigation
+                this.lastWindowMetrics = {
+                    width: window.innerWidth,
+                    height: window.innerHeight,
+                    clientWidth: document.documentElement.clientWidth,
+                };
+
                 // Reset streaming state on navigation to prevent locks
                 this.streamingState.isActive = false;
                 this.processedTurnNodes.clear();
@@ -7996,9 +8014,24 @@
                 if (!type) continue;
 
                 switch (type) {
-                    case CONSTANTS.OBSERVED_ELEMENT_TYPES.BODY:
-                        eventsToPublish.add(EVENTS.WINDOW_RESIZED);
+                    case CONSTANTS.OBSERVED_ELEMENT_TYPES.BODY: {
+                        // Read current viewport dimensions
+                        const currentWidth = window.innerWidth;
+                        const currentHeight = window.innerHeight;
+                        const currentClientWidth = document.documentElement.clientWidth;
+
+                        // Check if the viewport has actually changed (resizing or scrollbar appearance)
+                        // Ignore height-only body mutations caused by content expansion (e.g., streaming)
+                        if (this.lastWindowMetrics.width !== currentWidth || this.lastWindowMetrics.height !== currentHeight || this.lastWindowMetrics.clientWidth !== currentClientWidth) {
+                            this.lastWindowMetrics = {
+                                width: currentWidth,
+                                height: currentHeight,
+                                clientWidth: currentClientWidth,
+                            };
+                            eventsToPublish.add(EVENTS.WINDOW_RESIZED);
+                        }
                         break;
+                    }
                     case CONSTANTS.OBSERVED_ELEMENT_TYPES.INPUT_AREA:
                         eventsToPublish.add(EVENTS.INPUT_AREA_RESIZED);
                         break;
