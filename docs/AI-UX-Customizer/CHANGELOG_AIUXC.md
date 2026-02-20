@@ -1,8 +1,14 @@
 # Changelog
 
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
--  AIUXC v1.0.0-b479+ with QTB v3.1.1+
--  AIUXC v1.0.0-b478- with QTB v3.1.0-
+-  AIUXC v1.0.0-b489+ with QTB v3.1.2+
+
+## [1.0.0-b489] - 2026-02-20
+- **Bug Fixes**
+  - **[Sentinel]** Fixed an issue where element detection could fail after SPA page navigation or long background tab inactivity.
+- **Core Changes**
+  - **[Sentinel]** Restored stable shared DOM detection architecture with added self-healing capabilities.
+  - **[Sentinel]** Improved robustness during CSS rule deletion to prevent unexpected execution errors.
 
 ## [1.0.0-b488] - 2026-02-19
 - **Bug Fixes**

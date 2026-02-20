@@ -17,6 +17,12 @@ Each script is developed independently and can be installed separately.
 
 ## Recent Updates
 
+### 2026-02-20
+- Updated `AI UX Customizer` (b488 -> b489)
+- Updated `Quick Text Buttons` (3.1.1 -> 3.1.2)
+- Updated `ChatGPT UX Customizer` (2.4.1 -> 2.4.2)
+- Updated `Gemini UX Customizer` (2.4.1 -> 2.4.2)
+
 ### 2026-02-19
 - Updated `AI UX Customizer` (b487 -> b488)
 
@@ -31,18 +37,6 @@ Each script is developed independently and can be installed separately.
 - Updated `Quick Text Buttons` (3.1.0 -> 3.1.1)
 - Updated `ChatGPT UX Customizer` (2.3.5 -> 2.4.1)
 - Updated `Gemini UX Customizer` (2.4.0 -> 2.4.1)
-
-### 2026-02-10
-- Updated `Quick Text Buttons` (3.0.0 -> 3.1.0)
-
-### 2026-02-08
-- Updated `AI UX Customizer` (b475 -> b477)
-
-### 2026-02-07
-- Updated `AI UX Customizer` (b470 -> b475)
-
-### 2026-02-06
-- Updated `AI UX Customizer` (b468 -> b470)
 
 ### 2026-01-02
 - 🧪 **Beta Release:** **AI UX Customizer (AIUXC)** has been released as a public beta!
@@ -70,11 +64,10 @@ Each script is developed independently and can be installed separately.
 
 | Platform | GitHub | Greasy Fork | Version | Last Updated | Changelog |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **ChatGPT** & **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/AI-UX-Customizer/AI-UX-Customizer.user.js) | (N/A in beta) | 1.0.0-b488 | 2026-02-19 | [View](./docs/AI-UX-Customizer/CHANGELOG_AIUXC.md) |
+| **ChatGPT** & **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/AI-UX-Customizer/AI-UX-Customizer.user.js) | (N/A in beta) | 1.0.0-b489 | 2026-02-20 | [View](./docs/AI-UX-Customizer/CHANGELOG_AIUXC.md) |
 
 > **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
-> -  AIUXC v1.0.0-b479+ with QTB v3.1.1+
-> -  AIUXC v1.0.0-b478- with QTB v3.1.0-
+> -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
 **[View Detailed Features & Manual for AI UX Customizer](./docs/AI-UX-Customizer/README.md)**
 
@@ -93,12 +86,11 @@ Click the gear icon ⚙️ in the input area to open the settings panel.
 
 | Platform | GitHub | Greasy Fork | Version | Last Updated | Changelog |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **ChatGPT** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/UX-Customizer/ChatGPT-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/543703-chatgpt-ux-customizer) | 2.4.1 | 2026-02-11 | [View](./docs/UX-Customizer/CHANGELOG_AIUXC.md) |
-| **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/UX-Customizer/Gemini-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/543704-gemini-ux-customizer) | 2.4.1 | 2026-02-11 | [View](./docs/UX-Customizer/CHANGELOG_AIUXC.md) |
+| **ChatGPT** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/UX-Customizer/ChatGPT-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/543703-chatgpt-ux-customizer) | 2.4.2 | 2026-02-20 | [View](./docs/UX-Customizer/CHANGELOG_AIUXC.md) |
+| **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/UX-Customizer/Gemini-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/543704-gemini-ux-customizer) | 2.4.2 | 2026-02-20 | [View](./docs/UX-Customizer/CHANGELOG_AIUXC.md) |
 
 > **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
-> -  GPTUX/GGGUX v2.4.1+ with QTB v3.1.1+
-> -  GPTUX/GGGUX v2.4.1- with QTB v3.1.0-
+> -  GPTUX/GGGUX v2.4.2+ with QTB v3.1.2+
 
 **[View Detailed Features & Manual for UX Customizer](./docs/UX-Customizer/README.md)**
 
@@ -115,11 +107,10 @@ Adds customizable text buttons to paste frequently used prompts into ChatGPT/Gem
 
 | Platform | GitHub | Greasy Fork | Version | Last Updated | Changelog |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **ChatGPT** & **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/Quick-Text-Buttons/Quick-Text-Buttons.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/544699-quick-text-buttons) | 3.1.1 | 2026-02-11 | [View](./docs/Quick-Text-Buttons/CHANGELOG_QTBUX.md) |
+| **ChatGPT** & **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/Quick-Text-Buttons/Quick-Text-Buttons.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/544699-quick-text-buttons) | 3.1.2 | 2026-02-20 | [View](./docs/Quick-Text-Buttons/CHANGELOG_QTBUX.md) |
 
 > **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **UX Customizer (AIUXC/GPTUX/GGGUX)**, strict version matching is required:
-> -  QTB v3.1.1+ with AIUXC v1.0.0-b479+ / GPTUX v2.4.1+ / GGGUX v2.4.1+
-> -  QTB v3.1.0- with AIUXC v1.0.0-b478- / GPTUX v2.4.0- / GGGUX v2.4.0-
+> -  QTB v3.1.2+ with AIUXC v1.0.0-b489+ / GPTUX v2.4.2+ / GGGUX v2.4.2+
 
 **[View Detailed Features & Manual for Quick Text Buttons](./docs/Quick-Text-Buttons/README.md)**
 
