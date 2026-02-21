@@ -788,7 +788,6 @@ interface PlatformConstants {
         APP_CONTROLLER: string;
         ANCHOR_LISTENER: string;
         JUMP_LIST: string;
-        REMOVAL_TASK: string;
         BUTTON_STATE_TASK: string;
         HEARTBEAT_TIMER: string;
     };

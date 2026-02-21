@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b495
+// @version      1.0.0-b496
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -323,7 +323,6 @@
             BATCH_TASK_TURN: 'batchTaskTurn',
             STREAM_CHECK: 'streamCheck',
             ZERO_MSG_TIMER: 'zeroMsgTimer',
-            REMOVAL_TASK: 'removalTask',
             BUTTON_STATE_TASK: 'buttonStateTask',
 
             // Lifecycle Resources
@@ -10547,8 +10546,8 @@
             this.messageCacheManager = messageCacheManager;
             /** @type {Map<string, Date>} */
             this.pendingTimestamps = new Map(); // Buffer for timestamps during navigation
-            /** @type {Map<HTMLElement, HTMLElement>} */
-            this.timestampDomCache = new Map();
+            /** @type {WeakMap<HTMLElement, HTMLElement>} */
+            this.timestampDomCache = new WeakMap();
             this.styleHandle = null;
             this.timestampContainerTemplate = null;
             this.timestampSpanTemplate = null;
@@ -10590,11 +10589,12 @@
             this.isNavigating = true;
             this.pendingTimestamps.clear();
 
-            // Cancel pending batch tasks and remove DOM elements immediately
+            // Cancel pending batch tasks immediately
             this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
             this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK_SINGLE, null);
-            this.manageResource(CONSTANTS.RESOURCE_KEYS.REMOVAL_TASK, null);
-            this._clearAllTimestampsDOM();
+
+            // Explicitly reset the WeakMap to drop references to old DOM elements
+            this.timestampDomCache = new WeakMap();
         }
 
         /** @private */
@@ -10659,8 +10659,8 @@
                 this._cacheUpdateUnsub = null;
             }
 
-            // Clear all visible timestamps from the DOM
-            this._clearAllTimestampsDOM();
+            // Hide all timestamps instead of physically removing them
+            this.updateAllTimestamps();
         }
 
         /** @private */
@@ -10812,48 +10812,9 @@
             this.timestampSpanTemplate = h(`span.${cls.text}`);
         }
 
-        /** @private */
-        _clearAllTimestampsDOM() {
-            this.timestampDomCache.forEach((container) => {
-                container.remove();
-            });
-            this.timestampDomCache.clear();
-        }
-
-        /** @private */
-        _syncCache() {
-            // Identifies timestamp elements for removal whose corresponding message is no longer in the cache.
-            // This prevents DOM leaks when messages are deleted.
-            const currentMessages = new Set(this.messageCacheManager.getTotalMessages());
-            const removalCandidates = [];
-            for (const [messageElement, domElement] of this.timestampDomCache.entries()) {
-                if (!currentMessages.has(messageElement)) {
-                    removalCandidates.push({ messageElement, domElement });
-                }
-            }
-            return removalCandidates;
-        }
-
         updateAllTimestamps() {
             // Cancel any existing batch task immediately
             this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
-            this.manageResource(CONSTANTS.RESOURCE_KEYS.REMOVAL_TASK, null);
-
-            // 1. Async Cache Sync & Removal
-            const removalCandidates = this._syncCache();
-            if (removalCandidates.length > 0) {
-                const cancelRemoval = runBatchUpdate(
-                    removalCandidates,
-                    CONSTANTS.PROCESSING.BATCH_SIZE,
-                    (item) => item,
-                    ({ messageElement, domElement }) => {
-                        if (domElement.isConnected) domElement.remove(); // Remove the timestamp from the DOM
-                        this.timestampDomCache.delete(messageElement); // Remove from the cache
-                    },
-                    () => this.manageResource(CONSTANTS.RESOURCE_KEYS.REMOVAL_TASK, null)
-                );
-                this.manageResource(CONSTANTS.RESOURCE_KEYS.REMOVAL_TASK, cancelRemoval);
-            }
 
             const config = this.configManager.get();
             if (!config) return;
@@ -10861,13 +10822,7 @@
             const allMessages = this.messageCacheManager.getTotalMessages();
             const isTimestampEnabled = config.platforms[PLATFORM].features.timestamp.enabled;
 
-            // 2. If the feature is disabled, ensure all DOM elements are removed and stop.
-            if (!isTimestampEnabled) {
-                this._clearAllTimestampsDOM();
-                return;
-            }
-
-            // 3. Run a batch operation with Measure/Mutate separation to create/update all
+            // Run a batch operation with Measure/Mutate separation to create/update all
             const cls = this.styleHandle.classes;
 
             const cancelFn = runBatchUpdate(
@@ -10892,7 +10847,8 @@
                             existingContainer = anchor.querySelector(`.${cls.container}`);
                             if (existingContainer) {
                                 this.timestampDomCache.set(messageElement, existingContainer);
-                            } else {
+                            } else if (isTimestampEnabled) {
+                                // Only calculate role if we need to create it
                                 const role = PlatformAdapters.General.getMessageRole(messageElement);
                                 if (role) {
                                     roleClass = role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER ? cls.user : cls.assistant;
@@ -10927,8 +10883,8 @@
                 (m) => {
                     let container = m.existingContainer;
 
-                    // Create if missing and valid
-                    if (!container && m.anchor && m.anchor.isConnected && m.roleClass) {
+                    // Create if missing and valid AND feature is enabled
+                    if (!container && m.anchor && m.anchor.isConnected && m.roleClass && isTimestampEnabled) {
                         const node = this.timestampContainerTemplate.cloneNode(true);
                         const span = this.timestampSpanTemplate.cloneNode(true);
 
@@ -10944,7 +10900,7 @@
                     // Update
                     if (container && container.isConnected) {
                         const span = container.lastElementChild; // Assuming span is appended last
-                        if (span) {
+                        if (span && isTimestampEnabled) {
                             span.textContent = m.timestampText;
                         }
                         container.classList.toggle(cls.hidden, !isTimestampEnabled || !m.timestampText);
@@ -10987,7 +10943,7 @@
             super();
             this.configManager = configManager;
             this.messageCacheManager = messageCacheManager;
-            this.numberSpanCache = new Map();
+            this.numberSpanCache = new WeakMap();
             this.styleHandle = null;
             this.numberSpanTemplate = null;
         }
@@ -10999,39 +10955,19 @@
 
             // Clean up immediately on navigation start
             this._subscribe(EVENTS.NAVIGATION_START, () => this._handleNavigationStart());
-
-            // Clear cache on navigation to prevent errors.
-            this._subscribe(EVENTS.NAVIGATION, () => {
-                this.numberSpanCache.clear();
-            });
         }
 
         _onDestroy() {
-            this.numberSpanCache.forEach((span) => {
-                span.remove();
-            });
-            this.numberSpanCache.clear();
-        }
-
-        _syncCache() {
-            const currentMessages = new Set(this.messageCacheManager.getTotalMessages());
-            const removalCandidates = [];
-            for (const [messageElement, span] of this.numberSpanCache.entries()) {
-                if (!currentMessages.has(messageElement)) {
-                    removalCandidates.push({ messageElement, span });
-                }
-            }
-            return removalCandidates;
+            // No DOM removal here. Managed by site framework.
         }
 
         /** @private */
+        /** @private */
         _handleNavigationStart() {
             this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
-            this.manageResource(CONSTANTS.RESOURCE_KEYS.REMOVAL_TASK, null);
 
-            // Remove all message number spans from the DOM
-            this.numberSpanCache.forEach((span) => span.remove());
-            this.numberSpanCache.clear();
+            // Explicitly reset the WeakMap to drop references to old DOM elements
+            this.numberSpanCache = new WeakMap();
         }
 
         injectStyle() {
@@ -11045,23 +10981,6 @@
         updateAllMessageNumbers() {
             // Cancel any existing batch task immediately
             this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
-            this.manageResource(CONSTANTS.RESOURCE_KEYS.REMOVAL_TASK, null);
-
-            // 1. Async Cache Sync & Removal
-            const removalCandidates = this._syncCache();
-            if (removalCandidates.length > 0) {
-                const cancelRemoval = runBatchUpdate(
-                    removalCandidates,
-                    CONSTANTS.PROCESSING.BATCH_SIZE,
-                    (item) => item,
-                    ({ messageElement, span }) => {
-                        if (span.isConnected) span.remove();
-                        this.numberSpanCache.delete(messageElement);
-                    },
-                    () => this.manageResource(CONSTANTS.RESOURCE_KEYS.REMOVAL_TASK, null)
-                );
-                this.manageResource(CONSTANTS.RESOURCE_KEYS.REMOVAL_TASK, cancelRemoval);
-            }
 
             const config = this.configManager.get();
             if (!config) return;
@@ -11078,7 +10997,7 @@
                     // Skip if message is no longer in DOM
                     if (!message.isConnected) return null;
 
-                    const existingSpan = this.numberSpanCache.get(message);
+                    let existingSpan = this.numberSpanCache.get(message);
                     let anchor = null;
                     let role = null;
 
@@ -11086,7 +11005,15 @@
                     if (!existingSpan) {
                         anchor = PlatformAdapters.BubbleUI.getNavPositioningParent(message);
                         if (anchor) {
-                            role = PlatformAdapters.General.getMessageRole(message);
+                            // Check DOM for existing span (Idempotency)
+                            existingSpan = anchor.querySelector(`.${cls.number}`);
+
+                            if (existingSpan) {
+                                this.numberSpanCache.set(message, existingSpan);
+                            } else if (isNavConsoleEnabled) {
+                                // Only calculate role if we need to create it
+                                role = PlatformAdapters.General.getMessageRole(message);
+                            }
                         }
                     }
 
@@ -11102,8 +11029,8 @@
                 (m) => {
                     let span = m.existingSpan;
 
-                    // Create new span if needed
-                    if (!span && m.anchor && m.anchor.isConnected && m.role) {
+                    // Create new span if needed AND feature is enabled
+                    if (!span && m.anchor && m.anchor.isConnected && m.role && isNavConsoleEnabled) {
                         m.anchor.classList.add(cls.parent);
                         const roleClass = m.role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER ? cls.user : cls.assistant;
 
@@ -11118,7 +11045,9 @@
 
                     // Update content and visibility
                     if (span && span.isConnected) {
-                        span.textContent = `#${m.displayIndex}`;
+                        if (isNavConsoleEnabled) {
+                            span.textContent = `#${m.displayIndex}`;
+                        }
                         span.classList.toggle(cls.hidden, !isNavConsoleEnabled);
                     }
                 },

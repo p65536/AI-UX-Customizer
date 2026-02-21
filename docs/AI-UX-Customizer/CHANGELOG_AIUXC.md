@@ -3,6 +3,12 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b496] - 2026-02-22
+- **Core Changes**
+  - Improved the reliability of the Timestamp and Message Number features during SPA navigation. By strictly resetting and re-evaluating internal states on every URL change, it prevents UI glitches when switching chats or using the browser's back/forward buttons.
+  - Optimized performance by delegating the cleanup of injected UI elements directly to the site's native framework.
+  - Enhanced the UI rendering engine to safely detect and reconnect with existing elements after page transitions, preventing duplicate timestamps or message numbers.
+
 ## [1.0.0-b495] - 2026-02-21
 - **Improvements**
   - Optimized internal state management to prevent conflicts with the website's native rendering engine (e.g., hydration errors).
