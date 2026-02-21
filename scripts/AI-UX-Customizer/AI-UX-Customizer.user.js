@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b492
+// @version      1.0.0-b493
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -612,11 +612,11 @@
             // --- Color Fields ---
             'assistant.bubbleBackgroundColor': {
                 type: 'color',
-                ui: { label: 'Bubble bg color:', tooltip: 'Background color of the message bubble.' },
+                ui: { label: 'Bubble bg color:', tooltip: 'Background color of the message bubble.\nNote: When unset (Auto), it defaults to the site\'s base color. To make it transparent, enter "transparent".' },
             },
             'user.bubbleBackgroundColor': {
                 type: 'color',
-                ui: { label: 'Bubble bg color:', tooltip: 'Background color of the message bubble.' },
+                ui: { label: 'Bubble bg color:', tooltip: 'Background color of the message bubble.\nTo make it transparent, enter "transparent".' },
             },
             'assistant.textColor': {
                 type: 'color',
@@ -628,11 +628,11 @@
             },
             'window.backgroundColor': {
                 type: 'color',
-                ui: { label: 'Window bg color:', tooltip: 'Main background color of the chat window.' },
+                ui: { label: 'Window bg color:', tooltip: 'Main background color of the chat window.\nTo make it transparent, enter "transparent".' },
             },
             'inputArea.backgroundColor': {
                 type: 'color',
-                ui: { label: 'Input bg color:', tooltip: 'Background color of the text input area.' },
+                ui: { label: 'Input bg color:', tooltip: 'Background color of the text input area.\nTo make it transparent, enter "transparent".' },
             },
             'inputArea.textColor': {
                 type: 'color',
@@ -2475,7 +2475,7 @@
 
                 /* --- Assistant Bubble & Text --- */
                 ${S_ASST_MSG} ${S_ASST_BUBBLE} {
-                    ${prop('background-color', CSS_VARS.ASSISTANT_BUBBLE_BG)}
+                    ${activeVars && !activeVars.has(CSS_VARS.ASSISTANT_BUBBLE_BG) ? `background-color: ${SITE_STYLES.PALETTE.bg} !important;` : prop('background-color', CSS_VARS.ASSISTANT_BUBBLE_BG)}
                     ${prop('padding', CSS_VARS.ASSISTANT_BUBBLE_PADDING)}
                     ${prop('border-radius', CSS_VARS.ASSISTANT_BUBBLE_RADIUS)}
                     ${prop('max-width', CSS_VARS.ASSISTANT_BUBBLE_MAXWIDTH)}

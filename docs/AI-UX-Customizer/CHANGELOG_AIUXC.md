@@ -3,6 +3,11 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b493] - 2026-02-21
+- **Enhancements**
+  - **[Theme]** Improved visual consistency by automatically applying the site's default surface color to the assistant's bubble when the background color is set to "Auto" (unset). This ensures text remains readable over custom window backgrounds, overriding the site's native transparent behavior.
+  - **[UI]** Updated tooltips in the theme editor for all background color settings to explicitly document that users can manually enter "transparent" to make backgrounds fully transparent.
+
 ## [1.0.0-b492] - 2026-02-20
 - **Bug Fixes**
   - **[Gemini]** Fixed an issue where hidden screen reader text (e.g., "Your prompt") was incorrectly included in the Jump List preview for user messages due to recent UI changes.
