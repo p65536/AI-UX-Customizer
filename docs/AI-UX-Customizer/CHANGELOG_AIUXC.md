@@ -3,6 +3,13 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b495] - 2026-02-21
+- **Improvements**
+  - Optimized internal state management to prevent conflicts with the website's native rendering engine (e.g., hydration errors).
+  - Improved compatibility with fast page navigation and the browser's back/forward buttons, ensuring UI elements like custom buttons and avatars reliably restore without leaving visual artifacts.
+  - Enhanced UI stability with a self-healing mechanism that automatically redraws script elements if the website unexpectedly reloads a chat bubble.
+  - Conducted general code cleanups and removed obsolete internal functions for better overall performance.
+
 ## [1.0.0-b494] - 2026-02-21
 - **Bug Fixes**
   - Fixed an issue in the settings panel where the label and tooltip for the auto-scroll feature were incorrectly unified.

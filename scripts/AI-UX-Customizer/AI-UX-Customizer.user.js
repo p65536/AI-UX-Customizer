@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b494
+// @version      1.0.0-b495
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -267,9 +267,6 @@
             HEADER: 'header',
         },
         DATA_KEYS: {
-            AVATAR_INJECT_ATTEMPTS: `${APPID}AvatarInjectAttempts`,
-            AVATAR_INJECT_FAILED: `${APPID}AvatarInjectFailed`,
-            UNIQUE_ID: `${APPID}UniqueId`,
             ORIGINAL_TITLE: 'originalTitle',
             STATE: 'state',
             FILTERED_INDEX: 'filteredIndex',
@@ -5581,22 +5578,6 @@
     }
 
     /**
-     * @description Synchronizes a cache Map against the current list of messages from MessageCacheManager.
-     * It removes entries from the map if their key (a message element) is no longer in the live message list.
-     * @param {Map<HTMLElement, any>} cacheMap The cache Map to synchronize. The keys are expected to be message HTMLElements.
-     * @param {MessageCacheManager} messageCacheManager The instance of the message cache manager.
-     */
-    function syncCacheWithMessages(cacheMap, messageCacheManager) {
-        // Use direct access to elementMap for O(1) lookups instead of creating a new Set (O(N)).
-        // This trades encapsulation for performance in hot paths.
-        for (const messageElement of cacheMap.keys()) {
-            if (!messageCacheManager.elementMap.has(messageElement)) {
-                cacheMap.delete(messageElement);
-            }
-        }
-    }
-
-    /**
      * @description A utility to prevent layout thrashing by separating DOM reads (measure)
      * from DOM writes (mutate). The mutate function is executed in the next animation frame.
      * @param {{
@@ -5847,7 +5828,7 @@
 
         /**
          * Converts a camelCase dataset key to its corresponding kebab-case HTML attribute name.
-         * Example: "aiuxcUniqueId" -> "data-aiuxc-unique-id"
+         * Example: "myCustomKey" -> "data-my-custom-key"
          * @param {string} key
          * @returns {string}
          */
@@ -8187,6 +8168,9 @@
 
             // Create an avatar template once to be cloned later for performance.
             this.avatarTemplate = h(`div${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER}`, [h(`span${CONSTANTS.SELECTORS.SIDE_AVATAR_ICON}`), h(`div${CONSTANTS.SELECTORS.SIDE_AVATAR_NAME}`)]);
+
+            this.injectAttempts = new WeakMap();
+            this.injectFailed = new WeakMap();
         }
 
         _onInit() {
@@ -8199,6 +8183,8 @@
                 this._injectionQueue = [];
                 this._debouncedProcessQueue.cancel();
                 this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
+                this.injectAttempts = new WeakMap();
+                this.injectFailed = new WeakMap();
             });
 
             // Ensure state is clean on navigation settlement.
@@ -8218,9 +8204,11 @@
             // Do NOT set this.style to null here, as it may be used by pending disposables.
             this._injectionQueue = [];
             this.avatarTemplate = null;
+            this.injectAttempts = new WeakMap();
+            this.injectFailed = new WeakMap();
 
-            // Remove all avatar containers from the DOM
-            document.querySelectorAll(CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER).forEach((el) => el.remove());
+            // Do not manually remove avatar containers from the DOM.
+            // Let the site's framework manage the DOM lifecycle to support SPA caching.
         }
 
         /**
@@ -8229,18 +8217,18 @@
         queueForInjection(msgElem) {
             const MAX_ATTEMPTS = CONSTANTS.RETRY.AVATAR_INJECTION_LIMIT;
 
-            const attempts = DomState.getInt(msgElem, CONSTANTS.DATA_KEYS.AVATAR_INJECT_ATTEMPTS, 0);
+            const attempts = this.injectAttempts.get(msgElem) || 0;
 
             if (attempts >= MAX_ATTEMPTS) {
                 // Log the failure only once to avoid spamming the console.
-                if (!DomState.has(msgElem, CONSTANTS.DATA_KEYS.AVATAR_INJECT_FAILED)) {
+                if (!this.injectFailed.has(msgElem)) {
                     Logger.warn('AVATAR RETRY FAILED', LOG_STYLES.YELLOW, `Avatar injection failed after ${MAX_ATTEMPTS} attempts. Halting retries for this element:`, msgElem);
-                    DomState.mark(msgElem, CONSTANTS.DATA_KEYS.AVATAR_INJECT_FAILED);
+                    this.injectFailed.set(msgElem, true);
                 }
                 return; // Stop trying
             }
 
-            DomState.set(msgElem, CONSTANTS.DATA_KEYS.AVATAR_INJECT_ATTEMPTS, attempts + 1);
+            this.injectAttempts.set(msgElem, attempts + 1);
 
             if (!this._injectionQueue.includes(msgElem)) {
                 this._injectionQueue.push(msgElem);
@@ -8318,8 +8306,8 @@
                     PlatformAdapters.Avatar.injectAvatar(measurement, container);
 
                     // Cleanup flags using the strongly typed originalElement property
-                    DomState.remove(measurement.originalElement, CONSTANTS.DATA_KEYS.AVATAR_INJECT_ATTEMPTS);
-                    DomState.remove(measurement.originalElement, CONSTANTS.DATA_KEYS.AVATAR_INJECT_FAILED);
+                    this.injectAttempts.delete(measurement.originalElement);
+                    this.injectFailed.delete(measurement.originalElement);
                 },
                 // On Finish
                 () => {
@@ -8494,8 +8482,7 @@
                     info.bubbleElement.classList.add(cls.collapsibleContent);
 
                     // --- Auto Collapse Logic ---
-                    const uniqueId = DomState.get(messageElement, CONSTANTS.DATA_KEYS.UNIQUE_ID);
-                    if (uniqueId && !manager.autoCollapseProcessedIds.has(uniqueId)) {
+                    if (!manager.autoCollapseProcessedIds.has(messageElement)) {
                         const config = manager.configManager.get();
                         if (config.platforms[PLATFORM].features.collapsible_button.auto_collapse_user_message.enabled) {
                             const role = PlatformAdapters.General.getMessageRole(messageElement);
@@ -8506,7 +8493,7 @@
                                 }
                             }
                         }
-                        manager.autoCollapseProcessedIds.add(uniqueId);
+                        manager.autoCollapseProcessedIds.set(messageElement, true);
                     }
                 } else {
                     element.classList.add(cls.hidden);
@@ -8588,9 +8575,9 @@
             super();
             this.configManager = configManager;
             this.messageCacheManager = messageCacheManager;
-            this.navContainers = new Map();
-            this.featureElementsCache = new Map();
-            this.autoCollapseProcessedIds = new Set();
+            this.navContainers = new WeakMap();
+            this.featureElementsCache = new WeakMap();
+            this.autoCollapseProcessedIds = new WeakMap();
             this.styleHandle = null;
             this.featureTemplates = {}; // Initialized in init
 
@@ -8620,21 +8607,18 @@
         }
 
         _onDestroy() {
-            // Remove DOM elements to prevent artifacts
-            this.navContainers.forEach((container) => container.remove());
-            this.navContainers.clear();
-
-            this.featureElementsCache.forEach((element) => element.remove());
-            this.featureElementsCache.clear();
-
-            this.autoCollapseProcessedIds.clear();
+            this.navContainers = new WeakMap();
+            this.featureElementsCache = new WeakMap();
+            this.autoCollapseProcessedIds = new WeakMap();
             // Do NOT set this.styleHandle to null here.
 
             this.featureTemplates = {};
+
+            // Do not manually remove injected DOM elements or classes.
+            // Let the site's framework manage the DOM lifecycle to support SPA caching.
         }
 
         updateAll() {
-            this._syncCaches();
             const allMessages = this.messageCacheManager.getTotalMessages();
             this._processUpdateQueue(allMessages, CONSTANTS.RESOURCE_KEYS.BATCH_TASK, () => {
                 this._updateNavButtonStates();
@@ -8693,28 +8677,20 @@
             const config = this.configManager.get();
             if (!config) return null;
 
-            // 1. Unique ID Check
-            let uniqueId = DomState.get(messageElement, CONSTANTS.DATA_KEYS.UNIQUE_ID);
-            let needsIdSet = false;
-            if (!uniqueId) {
-                uniqueId = generateUniqueId('msg');
-                needsIdSet = true;
-            }
-
-            // 2. Feature Info Gathering
+            // 1. Feature Info Gathering
             const featureTasks = this._features.map((feature) => {
                 const isEnabled = feature.isEnabled(config);
                 // getInfo is assumed to be a READ operation
                 const info = isEnabled ? feature.getInfo(messageElement) : null;
                 return {
                     feature,
-                    cacheKey: `${feature.name}-${uniqueId}`,
+                    cacheKey: feature.name,
                     isEnabled,
                     info,
                 };
             });
 
-            // 3. Navigation Anchor Check
+            // 2. Navigation Anchor Check
             const needsNavContainer = featureTasks.some((t) => t.isEnabled && t.info && t.feature.group === 'bubbleNavButtons');
             let navPositioningParent = null;
             if (needsNavContainer) {
@@ -8723,8 +8699,6 @@
 
             return {
                 messageElement,
-                uniqueId,
-                needsIdSet,
                 featureTasks,
                 navPositioningParent,
             };
@@ -8735,25 +8709,26 @@
          * @param {object} measurement
          */
         _mutateElement(measurement) {
-            const { messageElement, uniqueId, needsIdSet, featureTasks, navPositioningParent } = measurement;
+            const { messageElement, featureTasks, navPositioningParent } = measurement;
             const cls = this.styleHandle.classes;
 
-            // 1. Set ID if needed
-            if (needsIdSet) {
-                DomState.set(messageElement, CONSTANTS.DATA_KEYS.UNIQUE_ID, uniqueId);
-            }
-
-            // 2. Cleanup Anchor Class (Self-correction)
+            // 1. Cleanup Anchor Class (Self-correction)
             if (messageElement.classList.contains(cls.imageOnlyAnchor)) {
                 messageElement.classList.remove(cls.imageOnlyAnchor);
             }
 
-            // 3. Prepare Nav Container
+            // 2. Prepare Nav Container
             let bubbleNavContainer = null;
             if (navPositioningParent) {
                 if (this.navContainers.has(messageElement)) {
                     bubbleNavContainer = this.navContainers.get(messageElement);
-                } else {
+                    // Lazy check: If cached container is disconnected, discard it
+                    if (bubbleNavContainer && !bubbleNavContainer.isConnected) {
+                        bubbleNavContainer = null;
+                        this.navContainers.delete(messageElement);
+                    }
+                }
+                if (!bubbleNavContainer) {
                     // Check DOM in case it exists but wasn't cached (e.g., after reload)
                     let container = messageElement.querySelector(`.${cls.navContainer}`);
                     if (!container) {
@@ -8773,17 +8748,28 @@
                 }
             }
 
-            // 4. Apply Features
+            // 3. Apply Features
+            let msgFeaturesMap = this.featureElementsCache.get(messageElement);
+            if (!msgFeaturesMap) {
+                msgFeaturesMap = new Map();
+                this.featureElementsCache.set(messageElement, msgFeaturesMap);
+            }
+
             for (const task of featureTasks) {
                 const { feature, cacheKey, isEnabled, info } = task;
 
                 if (isEnabled && info) {
-                    let featureElement = this.featureElementsCache.get(cacheKey);
+                    let featureElement = msgFeaturesMap.get(cacheKey);
+                    // Lazy check: If cached feature element is disconnected, discard it
+                    if (featureElement && !featureElement.isConnected) {
+                        featureElement = undefined;
+                    }
+
                     if (!featureElement) {
                         // Render (Create DOM)
                         featureElement = feature.render(info, messageElement, this);
                         if (featureElement) {
-                            this.featureElementsCache.set(cacheKey, featureElement);
+                            msgFeaturesMap.set(cacheKey, featureElement);
 
                             let targetContainer = null;
                             let cleanupSelector = null;
@@ -8820,7 +8806,7 @@
                         feature.update(featureElement, info, true, messageElement);
                     }
                 } else {
-                    const featureElement = this.featureElementsCache.get(cacheKey);
+                    const featureElement = msgFeaturesMap.get(cacheKey);
                     if (featureElement) {
                         feature.update(featureElement, info, false, messageElement);
                     }
@@ -8835,14 +8821,13 @@
             this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK_TURN, null);
             this.manageResource(CONSTANTS.RESOURCE_KEYS.BUTTON_STATE_TASK, null);
 
-            // Explicitly remove injected elements from DOM to prevent ghost UI
-            this.navContainers.forEach((container) => container.remove());
-            this.navContainers.clear();
+            // Reset state for the new page
+            this.navContainers = new WeakMap();
+            this.featureElementsCache = new WeakMap();
+            this.autoCollapseProcessedIds = new WeakMap();
 
-            this.featureElementsCache.forEach((element) => element.remove());
-            this.featureElementsCache.clear();
-
-            this.autoCollapseProcessedIds.clear();
+            // Do not manually remove injected DOM elements or classes.
+            // Let the site's framework manage the DOM lifecycle to support SPA caching.
         }
 
         /** @private */
@@ -8853,20 +8838,9 @@
             this.manageResource(CONSTANTS.RESOURCE_KEYS.BUTTON_STATE_TASK, null);
 
             // Ensure caches are cleared if not already done
-            this.navContainers.clear();
-            this.featureElementsCache.clear();
-            this.autoCollapseProcessedIds.clear();
-        }
-
-        /** @private */
-        _syncCaches() {
-            syncCacheWithMessages(this.navContainers, this.messageCacheManager);
-            // Removes stale entries from caches.
-            for (const [key, element] of this.featureElementsCache.entries()) {
-                if (!element.isConnected) {
-                    this.featureElementsCache.delete(key);
-                }
-            }
+            this.navContainers = new WeakMap();
+            this.featureElementsCache = new WeakMap();
+            this.autoCollapseProcessedIds = new WeakMap();
         }
 
         injectStyle() {
@@ -8909,7 +8883,6 @@
 
         /** @private */
         _updateNavButtonStates() {
-            this._syncCaches();
             // Cancel any pending button state updates
             this.manageResource(CONSTANTS.RESOURCE_KEYS.BUTTON_STATE_TASK, null);
 
@@ -18164,10 +18137,8 @@
                 }
 
                 // Create a new virtual message container.
-                const uniqueIdAttr = DomState.toAttributeName(CONSTANTS.DATA_KEYS.UNIQUE_ID);
                 const virtualMessage = h('div', {
                     'data-message-author-role': 'assistant',
-                    [uniqueIdAttr]: generateUniqueId('virtual-msg'),
                 });
 
                 if (!(virtualMessage instanceof HTMLElement)) {

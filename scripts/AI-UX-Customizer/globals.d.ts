@@ -737,9 +737,6 @@ interface PlatformConstants {
         HEADER: string;
     };
     DATA_KEYS: {
-        AVATAR_INJECT_ATTEMPTS: string;
-        AVATAR_INJECT_FAILED: string;
-        UNIQUE_ID: string;
         ORIGINAL_TITLE: string;
         STATE: string;
         FILTERED_INDEX: string;
