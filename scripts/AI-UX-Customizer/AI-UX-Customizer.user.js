@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b493
+// @version      1.0.0-b494
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -795,8 +795,11 @@
             'features.load_full_history_on_chat_load.enabled': {
                 type: 'toggle',
                 ui: {
-                    label: 'Load full history/Scan layout',
-                    title: 'When enabled, automatically scrolls back (Gemini) or scans layout (ChatGPT) on chat load.',
+                    label: PLATFORM === PLATFORM_DEFS.CHATGPT.NAME ? 'Scan layout on chat load' : 'Load full history on chat load',
+                    title:
+                        PLATFORM === PLATFORM_DEFS.CHATGPT.NAME
+                            ? 'When enabled, automatically scans the layout of all messages when a chat is opened. This prevents layout shifts from images loading later.'
+                            : 'When enabled, automatically scrolls back through the history when a chat is opened to load all messages.',
                 },
             },
         },

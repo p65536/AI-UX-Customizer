@@ -3,6 +3,12 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b494] - 2026-02-21
+- **Bug Fixes**
+  - Fixed an issue in the settings panel where the label and tooltip for the auto-scroll feature were incorrectly unified.
+  - **[ChatGPT]** The setting label has been restored to "Scan layout on chat load" to properly reflect its behavior.
+  - **[Gemini]** The setting label has been restored to "Load full history on chat load" to properly reflect its behavior.
+
 ## [1.0.0-b493] - 2026-02-21
 - **Enhancements**
   - **[Theme]** Improved visual consistency by automatically applying the site's default surface color to the assistant's bubble when the background color is set to "Auto" (unset). This ensures text remains readable over custom window backgrounds, overriding the site's native transparent behavior.
