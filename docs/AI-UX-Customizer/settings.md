@@ -59,18 +59,18 @@ A GUI editor allows for intuitive customization of all visual elements, includin
 | `Icon` | Specifies the speaker's avatar icon using a URL, Data URI, or SVG string. |
 | `Standing image` | Specifies the character's standing image displayed on the left and right sides of the screen, using a URL or Data URI. |
 | `Bubble Settings` | **Message bubble style** |
-| `Background color` | The background color of the bubble. |
+| `Background color` | The background color of the bubble.<br>Note: When unset (Auto) for the Assistant, it defaults to the site's base color. To make it transparent, enter "transparent". |
 | `Text color` | The text color inside the bubble. |
 | `Font` | Specifies the font inside the bubble. **For "User", this font is also applied to the input area.** |
 | `Padding` | Adjusts the top/bottom and left/right inner padding of the bubble. |
 | `Radius` | Adjusts the roundness of the bubble's corners. |
 | `max Width` | Specifies the maximum width of the bubble as a percentage of the screen width. |
 | **Background (Window Background)** | |
-| `Background color` | The background color of the entire chat window. |
+| `Background color` | The background color of the entire chat window.<br>To make it transparent, enter "transparent". |
 | `Background image` | The background image of the entire chat window. |
 | `Size / Position / Repeat` | Sets the size, display position, and repeat option for the background image. |
 | **Input area (Input Area)** | |
-| `Background color` | The background color of the message input field. |
+| `Background color` | The background color of the message input field.<br>To make it transparent, enter "transparent". |
 | `Text color` | The text color of the message input field. |
 | **Footer Buttons** | |
 | `Apply` / `Save` | Saves changes. `Apply` keeps the screen open, `Save` closes the screen. |

@@ -230,7 +230,7 @@ At the beginning of each theme object, describe the theme's information in `meta
 | `standingImageUrl` | Standing image URL | `"https://.../sample.png"` | Corresponding CSS property: `background-image` format.<br>Can be a single URL or combined with `linear-gradient`, etc.  |
 | `textColor` | Text color | `"#89c4f4"` | CSS color code (\# notation/rgb()/name, etc.)<br>Corresponding CSS property: `color`  |
 | `font` | Font for the bubble | `"Meiryo, sans-serif"` | CSS font declaration<br>**Note:** For `"user"`, this font is also applied to the input area. |
-| `bubbleBackgroundColor` | Bubble background color | `"#222833"` | Corresponding CSS property: `background-color`  |
+| `bubbleBackgroundColor` | Bubble background color | `"#222833"` | Corresponding CSS property: `background-color`<br>Enter `"transparent"` to make it fully transparent.<br>**Note:** For `"assistant"`, when left unset (`null`), it automatically falls back to the site's base color.  |
 | `bubblePadding` | Bubble inner padding | `10` | Number (Unit is fixed to `px`).<br>Corresponding CSS property: `padding` |
 | `bubbleBorderRadius` | Bubble corner radius | `16` | Number (Unit is fixed to `px`).<br>Corresponding CSS property: `border-radius` |
 | `bubbleMaxWidth` | Bubble max width | `70` | Number (Unit is fixed to `%`).<br>Corresponding CSS property: `max-width` |
@@ -241,7 +241,7 @@ At the beginning of each theme object, describe the theme's information in `meta
 
 | Property Name | Description | Example | Notes/Allowed Values |
 | --- | --- | --- | --- |
-| `backgroundColor` | Chat window background color | `"#11131c"` | Corresponding CSS property: `background-color`  |
+| `backgroundColor` | Chat window background color | `"#11131c"` | Corresponding CSS property: `background-color`<br>Enter `"transparent"` to make it fully transparent.  |
 | `backgroundImageUrl` | Chat window background image | `"https://.../bg.png"` | Corresponding CSS property: `background-image` format.<br>Can be a single URL or combined with `linear-gradient`, etc.  |
 | `backgroundSize` | Background image size | `"cover"`, `"contain"` | Corresponding CSS property: `background-size`  |
 | `backgroundPosition` | Background image position | `"center center"` | Corresponding CSS property: `background-position`  |
@@ -253,13 +253,13 @@ At the beginning of each theme object, describe the theme's information in `meta
 
 | Property Name | Description | Example | Notes/Allowed Values |
 | --- | --- | --- | --- |
-| `backgroundColor` | Input area background color | `"#21212a"` | Corresponding CSS property: `background-color`  |
+| `backgroundColor` | Input area background color | `"#21212a"` | Corresponding CSS property: `background-color`<br>Enter `"transparent"` to make it fully transparent.  |
 | `textColor` | Input area text color | `"#e3e3e3"` | Corresponding CSS property: `color`  |
 
 -----
 
 ## Tips
 
-  * You can make the chat bubble background transparent by specifying an alpha value in `rgb(R G B / A)` for the background color. 
+  * You can make backgrounds fully transparent by entering `"transparent"`. You can also make them semi-transparent by specifying an alpha value in `rgb(R G B / A)` for the background color. 
   * If you don't want to change the default theme from the AI service's standard, set all properties in `defaultSet` to `null`. 
-  * While you can use `base64` encoding for local images for icons and backgrounds, it is recommended to use online resources to avoid bloating the settings JSON and potential performance degradation. 
+  * While you can use `base64` encoding for local images for icons and backgrounds, it is recommended to use online resources to avoid bloating the settings JSON and potential performance degradation.
