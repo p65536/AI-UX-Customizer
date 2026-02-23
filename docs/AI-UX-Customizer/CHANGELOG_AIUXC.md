@@ -3,6 +3,12 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b498] - 2026-02-23
+- **Bug Fixes**
+  - **[Core]** Fixed an issue in the theme editor where malformed regular expression patterns (e.g., empty patterns or those with unescaped slashes) were incorrectly accepted and saved without throwing an error.
+- **Core Changes**
+  - **[Core]** Strengthened the validation logic for theme match rules to explicitly reject unsupported flags and ensure safer, more consistent pattern parsing across the application.
+
 ## [1.0.0-b497] - 2026-02-23
 - **Bug Fixes**
   - Fixed an issue where hover effects were incorrectly applied to disabled buttons across various UI components (Theme Editor, Bubble Navigation, Fixed Console).

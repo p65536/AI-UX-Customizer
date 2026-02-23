@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b497
+// @version      1.0.0-b498
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -5465,19 +5465,36 @@
 
     /**
      * Parses a regex string in the format "/pattern/flags".
+     * Validates that the pattern is not empty and handles flag sanitization.
      * @param {string} input The string to parse.
-     * @returns {RegExp} The constructed RegExp object.
+     * @returns {RegExp} The constructed RegExp object with safe flags.
      * @throws {Error} If the format is invalid or the regex is invalid.
      */
     function parseRegexPattern(input) {
-        if (typeof input !== 'string' || !/^\/.*\/[gimsuy]*$/.test(input)) {
-            throw new Error(`Invalid format. Must be /pattern/flags string: ${input}`);
+        if (typeof input !== 'string') {
+            throw new Error(`Invalid format. Must be a string.`);
         }
-        const lastSlash = input.lastIndexOf('/');
-        const pattern = input.slice(1, lastSlash);
-        const flags = input.slice(lastSlash + 1);
+
+        // 1. Strict format check: ensures non-empty pattern and proper escaping
+        const match = input.match(/^\/((?:\\.|[^\\/])+)\/([a-z]*)$/i);
+        if (!match) {
+            throw new Error(`Invalid format. Must be /pattern/flags string with a non-empty pattern: ${input}`);
+        }
+
+        const pattern = match[1];
+        const rawFlags = match[2];
+
+        // 2. Validate allowed flags
+        if (/[^imsugy]/i.test(rawFlags)) {
+            throw new Error(`Invalid flags. Only 'i', 'm', 's', 'u', 'g', 'y' are allowed: ${input}`);
+        }
+
+        // 3. Sanitize flags: remove 'g' and 'y' to prevent stateful issues (lastIndex)
+        // We only support stateless checks.
+        const safeFlags = rawFlags.replace(/[gy]/gi, '');
+
         try {
-            return new RegExp(pattern, flags);
+            return new RegExp(pattern, safeFlags);
         } catch (e) {
             throw new Error(`Invalid RegExp: "${input}". ${e.message}`);
         }
@@ -7155,19 +7172,8 @@
             const compile = (patterns, type, set) => {
                 if (!Array.isArray(patterns)) return;
                 for (const patternStr of patterns) {
-                    // Manual parsing to sanitize flags
-                    const match = typeof patternStr === 'string' ? patternStr.match(/^\/(.*)\/([gimsuy]*)$/) : null;
-                    if (!match) continue;
-
-                    const source = match[1];
-                    let flags = match[2];
-
-                    // Sanitize flags: remove 'g' and 'y' to prevent stateful issues (lastIndex)
-                    // We only support stateless checks here.
-                    flags = flags.replace(/[gy]/g, '');
-
                     try {
-                        const regex = new RegExp(source, flags);
+                        const regex = parseRegexPattern(patternStr);
                         this.patternCache.push({ pattern: regex, set, type });
                     } catch (e) {
                         Logger.warn('CACHE', '', `Invalid ${type} pattern "${patternStr}" in theme "${set.metadata?.name}": ${e.message}`);
