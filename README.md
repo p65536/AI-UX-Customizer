@@ -18,7 +18,7 @@ Each script is developed independently and can be installed separately.
 ## Recent Updates
 
 ### 2026-02-23
-- Updated `AI UX Customizer` (b496 -> b498)
+- Updated `AI UX Customizer` (b496 -> b499)
 
 ### 2026-02-22
 - Updated `AI UX Customizer` (b495 -> b496)
@@ -64,7 +64,7 @@ Each script is developed independently and can be installed separately.
 
 | Platform | GitHub | Greasy Fork | Version | Last Updated | Changelog |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **ChatGPT** & **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/AI-UX-Customizer/AI-UX-Customizer.user.js) | (N/A in beta) | 1.0.0-b498 | 2026-02-23 | [View](./docs/AI-UX-Customizer/CHANGELOG_AIUXC.md) |
+| **ChatGPT** & **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/AI-UX-Customizer/AI-UX-Customizer.user.js) | (N/A in beta) | 1.0.0-b499 | 2026-02-23 | [View](./docs/AI-UX-Customizer/CHANGELOG_AIUXC.md) |
 
 > **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 > -  AIUXC v1.0.0-b489+ with QTB v3.1.2+

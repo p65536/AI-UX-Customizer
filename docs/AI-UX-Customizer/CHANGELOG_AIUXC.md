@@ -3,6 +3,12 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b499] - 2026-02-23
+- **Improvements(Theme Editor)**
+  - Enhanced the validation feedback for URL and Title matching patterns.
+  - Error messages now specify the exact line number of the issue (such as syntax errors or duplicate patterns), making it much easier to locate and fix mistakes.
+  - Long lists of validation errors are now truncated to prevent the modal UI from stretching excessively.
+
 ## [1.0.0-b498] - 2026-02-23
 - **Bug Fixes**
   - **[Core]** Fixed an issue in the theme editor where malformed regular expression patterns (e.g., empty patterns or those with unescaped slashes) were incorrectly accepted and saved without throwing an error.
