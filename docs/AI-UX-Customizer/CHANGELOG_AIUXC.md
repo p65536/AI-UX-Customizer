@@ -3,6 +3,13 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b497] - 2026-02-23
+- **Bug Fixes**
+  - Fixed an issue where hover effects were incorrectly applied to disabled buttons across various UI components (Theme Editor, Bubble Navigation, Fixed Console).
+  - Corrected the text color for duplicate name validation errors in the Theme Editor.
+- **Core Changes**
+  - Refactored the internal data saving and UI update flow within the Theme Editor to improve overall stability and code maintainability.
+
 ## [1.0.0-b496] - 2026-02-22
 - **Core Changes**
   - Improved the reliability of the Timestamp and Message Number features during SPA navigation. By strictly resetting and re-evaluating internal states on every URL change, it prevents UI glitches when switching chats or using the browser's back/forward buttons.

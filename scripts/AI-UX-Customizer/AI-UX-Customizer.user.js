@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b496
+// @version      1.0.0-b497
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -865,7 +865,7 @@
                     transition: background 0.12s;
                     min-width: 80px;
                 }
-                ${root} .${cls.modalButton}:hover {
+                ${root} .${cls.modalButton}:not(:disabled):hover {
                     background: ${palette.btn_hover_bg};
                     border-color: ${palette.btn_border};
                 }
@@ -880,7 +880,7 @@
                     color: #ffffff;
                     border: 1px solid transparent;
                 }
-                ${root} .${cls.primaryBtn}:hover {
+                ${root} .${cls.primaryBtn}:not(:disabled):hover {
                     background-color: #1557b0;
                 }
                 ${root} .${cls.pushRightBtn} {
@@ -891,7 +891,7 @@
                     background-color: ${palette.delete_confirm_btn_bg};
                     color: ${palette.delete_confirm_btn_text};
                 }
-                ${root} .${cls.dangerBtn}:hover {
+                ${root} .${cls.dangerBtn}:not(:disabled):hover {
                     background-color: ${palette.delete_confirm_btn_hover_bg};
                     color: ${palette.delete_confirm_btn_hover_text};
                 }
@@ -1777,7 +1777,7 @@
                     padding: 0;
                     transition: background-color 0.1s, color 0.1s;
                 }
-                ${root} .${cls.btn}:hover {
+                ${root} .${cls.btn}:not(:disabled):hover {
                     background-color: ${palette.btn_hover_bg};
                 }
                 ${root} .${cls.btn} svg {
@@ -2327,7 +2327,7 @@
                     transition: all 0.15s ease-in-out;
                     margin: 0 auto;
                 }
-                .${cls.navBtn}:hover {
+                .${cls.navBtn}:not(:disabled):hover {
                     background-color: ${palette.btn_hover_bg};
                     color: ${palette.text_primary};
                 }
@@ -14733,7 +14733,7 @@
             return h(`div.${this.style.classes.content}`);
         }
 
-        async _saveConfigAndHandleFeedback(newConfig, onSuccessCallback) {
+        async _saveConfigAndHandleFeedback(newConfig) {
             // Guard: Check if destroyed before proceeding (modal might be closed)
             if (!this.modal || this.isDestroyed) return false;
 
@@ -14757,7 +14757,6 @@
                     this.previewController.setDefaultSet(newConfig.platforms[PLATFORM].defaultSet);
                 }
 
-                if (onSuccessCallback) await onSuccessCallback();
                 return true;
             } catch (e) {
                 // Check if still valid before updating UI
@@ -14822,17 +14821,18 @@
                 }
             }
 
-            const onSuccess = async () => (shouldClose ? this.close() : this._renderUI());
-            await this._saveConfigAndHandleFeedback(newConfig, onSuccess);
+            const success = await this._saveConfigAndHandleFeedback(newConfig);
 
-            // Unlock UI (if still open)
-            this.state.isSaving = false;
-            if (!shouldClose) {
+            if (success && shouldClose) {
+                this.close();
+            } else {
+                // Unlock UI (if still open)
+                this.state.isSaving = false;
                 this._renderUI();
             }
         }
 
-        _handleThemeNew() {
+        async _handleThemeNew() {
             const { config } = this.state;
             const { config: newConfig, newThemeId } = ThemeService.create(config);
 
@@ -14847,21 +14847,21 @@
                 return;
             }
 
-            const onSuccess = () => {
+            const success = await this._saveConfigAndHandleFeedback(newConfig);
+            if (success) {
                 this.state.activeThemeKey = newThemeId;
                 this.state.uiMode = ThemeModalComponent.UI_MODES.RENAMING;
-                this._initFormWithTheme(this.state.activeThemeKey);
+                await this._initFormWithTheme(this.state.activeThemeKey);
                 this._renderUI();
                 const input = this.modal.element.querySelector(`#${this.style.classes.renameInput}`);
                 if (input) {
                     input.focus();
                     input.select();
                 }
-            };
-            this._saveConfigAndHandleFeedback(newConfig, onSuccess);
+            }
         }
 
-        _handleThemeCopy() {
+        async _handleThemeCopy() {
             const { config, activeThemeKey } = this.state;
             const result = ThemeService.copy(config, activeThemeKey);
 
@@ -14879,20 +14879,23 @@
                 return;
             }
 
-            const onSuccess = () => {
+            const success = await this._saveConfigAndHandleFeedback(newConfig);
+            if (success) {
                 this.state.activeThemeKey = newThemeId;
-                this._initFormWithTheme(this.state.activeThemeKey);
+                await this._initFormWithTheme(this.state.activeThemeKey);
                 this._renderUI();
-            };
-            this._saveConfigAndHandleFeedback(newConfig, onSuccess);
+            }
         }
 
-        _handleThemeMove(direction) {
+        async _handleThemeMove(direction) {
             const { config, activeThemeKey } = this.state;
             const newConfig = ThemeService.move(config, activeThemeKey, direction);
 
             if (newConfig) {
-                this._saveConfigAndHandleFeedback(newConfig, () => this._renderUI());
+                const success = await this._saveConfigAndHandleFeedback(newConfig);
+                if (success) {
+                    this._renderUI();
+                }
             }
         }
 
@@ -14906,7 +14909,7 @@
             }
         }
 
-        _handleRenameConfirm() {
+        async _handleRenameConfirm() {
             const { config, activeThemeKey } = this.state;
             const footerMessage = this.modal?.dom?.footerMessage;
             if (footerMessage) footerMessage.textContent = '';
@@ -14916,12 +14919,16 @@
 
             try {
                 const newConfig = ThemeService.rename(config, activeThemeKey, newName);
-                this._saveConfigAndHandleFeedback(newConfig, () => {
+                const success = await this._saveConfigAndHandleFeedback(newConfig);
+                if (success) {
                     this.state.uiMode = ThemeModalComponent.UI_MODES.NORMAL;
                     this._renderUI();
-                });
+                }
             } catch (e) {
-                if (footerMessage) footerMessage.textContent = e.message;
+                if (footerMessage) {
+                    footerMessage.textContent = e.message;
+                    footerMessage.style.color = SITE_STYLES.PALETTE.error_text;
+                }
             }
         }
 
@@ -14931,7 +14938,7 @@
             this._renderUI();
         }
 
-        _handleThemeDeleteConfirm() {
+        async _handleThemeDeleteConfirm() {
             const { config, pendingDeletionKey } = this.state;
             if (pendingDeletionKey === CONSTANTS.THEME_IDS.DEFAULT || !pendingDeletionKey) {
                 this._handleActionCancel();
@@ -14940,13 +14947,14 @@
 
             const { config: newConfig, nextActiveId } = ThemeService.delete(config, pendingDeletionKey);
 
-            this._saveConfigAndHandleFeedback(newConfig, () => {
+            const success = await this._saveConfigAndHandleFeedback(newConfig);
+            if (success) {
                 this.state.activeThemeKey = nextActiveId;
                 this.state.pendingDeletionKey = null;
                 this.state.uiMode = ThemeModalComponent.UI_MODES.NORMAL;
-                this._initFormWithTheme(nextActiveId);
+                await this._initFormWithTheme(nextActiveId);
                 this._renderUI();
-            });
+            }
         }
 
         _handleActionCancel() {
