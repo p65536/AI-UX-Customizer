@@ -3,6 +3,11 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b500] - 2026-02-25
+- **Bug Fixes & Improvements**
+  - **[ChatGPT]** Fixed a layout issue where code blocks were sometimes squashed, hidden, or cut off due to recent site updates.
+  - Improved the scrolling precision of the message navigation buttons (Previous/Next) to ensure they jump to the exact correct position.
+
 ## [1.0.0-b499] - 2026-02-23
 - **Improvements(Theme Editor)**
   - Enhanced the validation feedback for URL and Title matching patterns.
