@@ -3,6 +3,11 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b502] - 2026-02-25
+- **Bug Fixes & Improvements**
+  - **[Jumplist]** Improved text sharpness in the Jump List. This fixes an issue where text could appear slightly blurry on certain operating systems (like Windows) due to hardware acceleration conflicts.
+  - Cleaned up redundant internal CSS properties for better long-term UI stability.
+
 ## [1.0.0-b501] - 2026-02-25
 - **Bug Fixes & Improvements**
   - Fixed a potential layout issue where the top header of long code blocks (which contains the language label and copy button) might scroll out of view instead of properly sticking to the top of the screen.
