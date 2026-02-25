@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b502
+// @version      1.0.0-b503
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -17893,10 +17893,17 @@
                 PROJECT_PAGE_CLASS: `${APPID}-project-page`,
                 PROJECT_TITLE_INPUT: '[name="project-title"]',
                 CONTENT_FADE_TOP: '.content-fade-top',
+
+                // --- Sidebar Active Item (Title Fallback) ---
+                SIDEBAR_ACTIVE_LINK: 'a[data-active][data-sidebar-item="true"]',
+                SIDEBAR_LINK_TEXT: '.truncate',
             },
             URL_PATTERNS: {
                 EXCLUDED: [/^\/library/, /^\/codex/, /^\/gpts/, /^\/images/, /^\/apps/],
                 CONVERSATION_ENDPOINT: '/backend-api/conversation',
+            },
+            STRINGS: {
+                PAGE_TITLE_PREFIX: 'ChatGPT - ',
             },
         };
 
@@ -18012,10 +18019,64 @@
                 return messageElement.getAttribute(CONSTANTS.ATTRIBUTES.TURN_ROLE);
             }
 
+            /**
+             * @private
+             * @returns {string | null}
+             */
+            _getSidebarTitle() {
+                // Initialize cache if it doesn't exist
+                this._sidebarTitleCache = this._sidebarTitleCache || { path: null, title: null };
+                const currentPath = window.location.pathname;
+
+                const activeLink = document.querySelector(CONSTANTS.SELECTORS.SIDEBAR_ACTIVE_LINK);
+                if (activeLink) {
+                    const truncateEl = activeLink.querySelector(CONSTANTS.SELECTORS.SIDEBAR_LINK_TEXT);
+                    if (truncateEl) {
+                        const title = truncateEl.textContent.trim();
+                        // Update cache on successful retrieval
+                        this._sidebarTitleCache = { path: currentPath, title: title };
+                        return title;
+                    }
+                }
+
+                // Fallback to cache if the DOM element is temporarily missing (e.g., during renaming)
+                // but only if we are still on the same page.
+                if (this._sidebarTitleCache.path === currentPath) {
+                    return this._sidebarTitleCache.title;
+                }
+
+                return null;
+            }
+
             /** @override */
             getChatTitle() {
-                // gets the title from the document title.
-                return document.title.trim();
+                // Gets the title from the document title, falling back to the sidebar if stale.
+                const docTitle = document.title.trim();
+
+                // If the title is the placeholder "ChatGPT" during navigation,
+                // do not apply the fallback logic to maintain the Defer mechanism in ThemeManager.
+                if (docTitle === 'ChatGPT') {
+                    return docTitle;
+                }
+
+                const sidebarTitle = this._getSidebarTitle();
+
+                // If sidebar title exists and is NOT included in the document title,
+                // it means the document title is stale (e.g., in a Project context after new chat).
+                if (sidebarTitle && !docTitle.includes(sidebarTitle)) {
+                    // Try to construct a proper title if it looks like a project context
+                    // Format: "ChatGPT - [Project Name]"
+                    const projectPrefix = CONSTANTS.STRINGS.PAGE_TITLE_PREFIX;
+                    if (docTitle.startsWith(projectPrefix)) {
+                        const projectName = docTitle.substring(projectPrefix.length);
+                        // Construct the expected format: "[Project Name] - [Chat Title]"
+                        return `${projectName} - ${sidebarTitle}`;
+                    }
+                    // Fallback to just returning the sidebar title if the structure is unexpected
+                    return sidebarTitle;
+                }
+
+                return docTitle;
             }
 
             /** @override */
@@ -18923,9 +18984,12 @@
              */
             startSidebarObserver(dependencies) {
                 let resizeObserver = null;
+                let titleObserver = null;
+                const debouncedTitleUpdate = debounce(() => EventBus.publish(EVENTS.TITLE_CHANGED), CONSTANTS.TIMING.DEBOUNCE_DELAYS.THEME_UPDATE, true);
 
                 const setupObserver = (sidebarContainer) => {
                     resizeObserver?.disconnect();
+                    titleObserver?.disconnect();
 
                     resizeObserver = new ResizeObserver((entries) => {
                         // We only need to signal that the layout changed.
@@ -18939,6 +19003,43 @@
                     });
 
                     resizeObserver.observe(sidebarContainer);
+
+                    // Added MutationObserver to detect chat renaming and selection changes
+                    titleObserver = new MutationObserver((mutations) => {
+                        let titleChanged = false;
+
+                        for (const mutation of mutations) {
+                            const target = mutation.target;
+
+                            if (mutation.type === 'attributes' && mutation.attributeName === 'data-active') {
+                                // Chat selection changed
+                                titleChanged = true;
+                                break;
+                            } else if (mutation.type === 'childList') {
+                                // New chat added to the list
+                                titleChanged = true;
+                                break;
+                            } else if (mutation.type === 'characterData') {
+                                // Chat renamed. Check if it's within the link text element
+                                if (target.parentElement && target.parentElement.closest(CONSTANTS.SELECTORS.SIDEBAR_LINK_TEXT)) {
+                                    titleChanged = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (titleChanged) {
+                            debouncedTitleUpdate();
+                        }
+                    });
+
+                    titleObserver.observe(sidebarContainer, {
+                        childList: true,
+                        attributes: true,
+                        attributeFilter: ['data-active'],
+                        characterData: true,
+                        subtree: true,
+                    });
 
                     // Trigger once initially to ensure state capture
                     EventBus.publish(EVENTS.SIDEBAR_LAYOUT_CHANGED);
@@ -18958,6 +19059,7 @@
                 return () => {
                     sentinel.off(selector, setupObserver);
                     resizeObserver?.disconnect();
+                    titleObserver?.disconnect();
                 };
             }
 
