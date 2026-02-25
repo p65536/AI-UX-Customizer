@@ -3,6 +3,10 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b501] - 2026-02-25
+- **Bug Fixes & Improvements**
+  - Fixed a potential layout issue where the top header of long code blocks (which contains the language label and copy button) might scroll out of view instead of properly sticking to the top of the screen.
+
 ## [1.0.0-b500] - 2026-02-25
 - **Bug Fixes & Improvements**
   - **[ChatGPT]** Fixed a layout issue where code blocks were sometimes squashed, hidden, or cut off due to recent site updates.
