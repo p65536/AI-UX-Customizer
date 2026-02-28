@@ -3,6 +3,10 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b504] - 2026-03-01
+- **Core Changes**
+  - Refactored internal event definitions to improve code clarity and maintainability.
+
 ## [1.0.0-b503] - 2026-02-25
 - **Bug Fixes & Improvements**
   - **[ChatGPT]** Fixed an issue where custom themes would fail to apply to new or renamed chats within a "Project". This occurred because ChatGPT's browser title often remains stuck as "ChatGPT - [Project Name]" until a page reload. The script now bypasses this by extracting the correct chat name directly from the sidebar.

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b503
+// @version      1.0.0-b504
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -542,7 +542,7 @@
         // System & Config
         REMOTE_CONFIG_CHANGED: `${APPID}:remoteConfigChanged`,
         SUSPEND_OBSERVERS: `${APPID}:suspendObservers`,
-        RESUME_OBSERVERS_AND_REFRESH: `${APPID}:resumeObserversAndRefresh`,
+        RESUME_OBSERVERS: `${APPID}:resumeObservers`,
         CONFIG_SIZE_EXCEEDED: `${APPID}:configSizeExceeded`,
         CONFIG_WARNING_UPDATE: `${APPID}:configWarningUpdate`,
         CONFIG_SAVE_SUCCESS: `${APPID}:configSaveSuccess`,
@@ -17239,7 +17239,7 @@
                 this.observerManager.handleMessageComplete(messageElement);
             });
             this._subscribe(EVENTS.SUSPEND_OBSERVERS, () => sentinel.suspend());
-            this._subscribe(EVENTS.RESUME_OBSERVERS_AND_REFRESH, () => sentinel.resume());
+            this._subscribe(EVENTS.RESUME_OBSERVERS, () => sentinel.resume());
 
             // Correctly subscribe with no arguments
             this._subscribe(EVENTS.REMOTE_CONFIG_CHANGED, () => this._handleRemoteConfigChange());
@@ -18598,10 +18598,9 @@
                         EventBus.publish(EVENTS.AUTO_SCROLL_COMPLETE);
 
                         // On navigation, ObserverManager handles observer resumption.
-                        // All other post-scan logic (DOM rescan, cache update) is now handled
-                        // by the listener that *requested* the scan.
+                        // All other post-scan logic (DOM rescan, cache update) is now handled by the listener that *requested* the scan.
                         if (!isNavigation) {
-                            EventBus.publish(EVENTS.RESUME_OBSERVERS_AND_REFRESH);
+                            EventBus.publish(EVENTS.RESUME_OBSERVERS);
                         }
                     }
 
@@ -20091,7 +20090,7 @@
 
                         // On navigation, ObserverManager handles observer resumption.
                         if (!isNavigation) {
-                            EventBus.publish(EVENTS.RESUME_OBSERVERS_AND_REFRESH);
+                            EventBus.publish(EVENTS.RESUME_OBSERVERS);
                             // Ensure the theme is re-evaluated and applied after scrolling is complete and observers are resumed.
                             EventBus.publish(EVENTS.THEME_UPDATE);
                         }

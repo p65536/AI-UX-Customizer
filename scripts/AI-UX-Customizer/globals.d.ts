@@ -279,9 +279,9 @@ interface AppEvents {
      */
     SUSPEND_OBSERVERS: 'aiuxc:suspendObservers';
     /**
-     * @description Requests the resumption of suspended observers and a forced refresh of the UI.
+     * @description Requests the resumption of suspended observers.
      */
-    RESUME_OBSERVERS_AND_REFRESH: 'aiuxc:resumeObserversAndRefresh';
+    RESUME_OBSERVERS: 'aiuxc:resumeObservers';
     /**
      * @description Fired when the configuration size exceeds the storage limit.
      */
@@ -333,7 +333,6 @@ interface AppEventMap {
     'aiuxc:visibilityRecheck': null;
     'aiuxc:uiReposition': null;
     'aiuxc:inputAreaResized': null;
-    'aiuxc:reOpenModal': { type: 'json' | 'theme'; key?: string };
     'aiuxc:navigationStart': null;
     'aiuxc:navigationEnd': null;
     'aiuxc:navigation': null;
@@ -351,12 +350,11 @@ interface AppEventMap {
     'aiuxc:timestampAdded': { messageId: string; timestamp: Date };
     'aiuxc:remoteConfigChanged': null;
     'aiuxc:suspendObservers': null;
-    'aiuxc:resumeObserversAndRefresh': null;
+    'aiuxc:resumeObservers': null;
     'aiuxc:configSizeExceeded': { message: string };
     'aiuxc:configWarningUpdate': { show: boolean; message: string };
     'aiuxc:configSaveSuccess': null;
     'aiuxc:configUpdated': AppConfig;
-    'aiuxc:appShutdown': null;
     'aiuxc:integrityScanMessagesFound': null;
     'aiuxc:autoScrollRequest': null;
     'aiuxc:autoScrollCancelRequest': null;
