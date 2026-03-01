@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b504
+// @version      1.0.0-b505
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -155,7 +155,6 @@
         RETRY: {
             SCROLL_OFFSET_FOR_NAV: 40,
             AVATAR_INJECTION_LIMIT: 5,
-            POLLING_SCAN_LIMIT: 7,
         },
         IMAGE_PROCESSING: {
             QUALITY: 0.85,
@@ -166,12 +165,8 @@
             DEBOUNCE_DELAYS: {
                 VISIBILITY_CHECK: 250,
                 CACHE_UPDATE: 250,
-                LAYOUT_RECALCULATION: 150,
-                NAVIGATION_UPDATE: 100,
-                UI_REPOSITION: 100,
                 THEME_UPDATE: 150,
                 SETTINGS_SAVE: 300,
-                THEME_PREVIEW: 50,
                 AVATAR_INJECTION: 25,
                 JUMP_LIST_PREVIEW_HOVER: 50,
                 JUMP_LIST_PREVIEW_KEY_NAV: 150,
@@ -182,7 +177,6 @@
             TIMEOUTS: {
                 POST_NAVIGATION_DOM_SETTLE: 200,
                 SCROLL_OFFSET_CLEANUP: 1500,
-                PANEL_TRANSITION_DURATION: 350,
                 ZERO_MESSAGE_GRACE_PERIOD: 2000,
                 WAIT_FOR_MAIN_CONTENT: 10000,
                 BLOB_URL_REVOKE_DELAY: 10000, // The time to wait before revoking a Blob URL after export, allowing the download to start.
@@ -192,13 +186,10 @@
                 SUSPEND_LIMIT_MS: 5 * 60 * 1000, // 5 minutes threshold for heavy throttling/suspension
             },
             ANIMATIONS: {
-                TOAST_ENTER_DELAY: 10,
                 TOAST_LEAVE_DURATION: 300,
                 LAYOUT_STABILIZATION_MS: 500,
             },
             POLLING: {
-                MESSAGE_DISCOVERY_MS: 750, // Interval for scanning the DOM to discover messages that weren't caught by observers
-                STREAM_COMPLETION_CHECK_MS: 2000, // Interval for checking if a streaming response has completed (fallback mechanism)
                 IDLE_INDEXING_MS: 1000, // Interval for background text indexing task
                 HEARTBEAT_INTERVAL_MS: 2000, // Interval for checking DOM integrity
             },
@@ -313,7 +304,6 @@
             AUTO_SCROLL_MANAGER: 'autoScrollManager',
 
             // Observer Resources
-            MAIN_OBSERVER: 'mainObserver',
             LAYOUT_RESIZE_OBSERVER: 'layoutResizeObserver',
             INTEGRITY_SCAN: 'integrityScan',
 
@@ -321,7 +311,6 @@
             BATCH_TASK: 'batchTask',
             BATCH_TASK_SINGLE: 'batchTaskSingle',
             BATCH_TASK_TURN: 'batchTaskTurn',
-            STREAM_CHECK: 'streamCheck',
             ZERO_MSG_TIMER: 'zeroMsgTimer',
             BUTTON_STATE_TASK: 'buttonStateTask',
 

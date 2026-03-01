@@ -661,7 +661,6 @@ interface PlatformConstants {
     RETRY: {
         SCROLL_OFFSET_FOR_NAV: number;
         AVATAR_INJECTION_LIMIT: number;
-        POLLING_SCAN_LIMIT: number;
     };
     IMAGE_PROCESSING: {
         QUALITY: number;
@@ -674,8 +673,6 @@ interface PlatformConstants {
         THRESHOLDS: Record<string, number>;
         ANIMATIONS: Record<string, number>;
         POLLING: {
-            MESSAGE_DISCOVERY_MS: number;
-            STREAM_COMPLETION_CHECK_MS: number;
             IDLE_INDEXING_MS: number;
             HEARTBEAT_INTERVAL_MS: number;
         };
@@ -774,13 +771,11 @@ interface PlatformConstants {
         FIXED_NAV_MANAGER: string;
         MESSAGE_NUMBER_MANAGER: string;
         AUTO_SCROLL_MANAGER: string;
-        MAIN_OBSERVER: string;
         LAYOUT_RESIZE_OBSERVER: string;
         INTEGRITY_SCAN: string;
         BATCH_TASK: string;
         BATCH_TASK_SINGLE: string;
         BATCH_TASK_TURN: string;
-        STREAM_CHECK: string;
         ZERO_MSG_TIMER: string;
         NAVIGATION_MONITOR: string;
         APP_CONTROLLER: string;
