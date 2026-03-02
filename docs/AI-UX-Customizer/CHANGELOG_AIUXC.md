@@ -3,6 +3,10 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b509] - 2026-03-02
+- **Performance Improvements**
+  - Optimized the **Jump List** filter to reduce input delay and eliminate UI flickering during continuous typing by efficiently reusing UI elements.
+
 ## [1.0.0-b508] - 2026-03-02
 - **Performance & Fixes**
   - **[Core]** Hardened internal state management to prevent occasional silent UI freezes. The extension can now automatically recover from unexpected page layout errors without requiring a manual reload, greatly improving long-term stability and resilience.

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b508
+// @version      1.0.0-b509
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -15306,14 +15306,6 @@
 
             const searchTerm = inputElement.value;
 
-            // Clear render cache but KEEP the pool for reuse
-            this.renderedItems.clear();
-            // Note: We don't clear itemPool here, we want to reuse DOM elements even across filter changes.
-
-            if (this.listElement) {
-                this.listElement.textContent = '';
-            }
-
             // Update state
             this.state.filteredMessages = this._filterMessages(searchTerm, inputElement);
             this.state.focusedIndex = -1;
@@ -15321,6 +15313,7 @@
             if (this.scrollBox) this.scrollBox.scrollTop = 0;
 
             // Trigger re-render
+            // Note: _renderUI handles DOM recycling automatically, so we don't clear renderedItems or listElement here.
             this._requestRender();
             this._hidePreview();
         }
