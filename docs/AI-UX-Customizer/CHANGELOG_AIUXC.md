@@ -3,6 +3,11 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b506] - 2026-03-02
+- **Performance & Fixes**
+  - **[ChatGPT]** Optimized the calculation logic for standing images, ensuring faster and more reliable layout rendering when switching chats.
+  - Fixed an underlying issue where UI updates (such as adjusting to window resizing) could temporarily stall or become unresponsive during page transitions.
+
 ## [1.0.0-b505] - 2026-03-01
 - **Core Changes**
   - Cleaned up internal configuration by removing obsolete constants and resource keys, improving overall code maintainability.

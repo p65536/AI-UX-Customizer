@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b505
+// @version      1.0.0-b506
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -18768,12 +18768,13 @@
                     // On new chat pages, do not wait for the element. Calculate virtual rect immediately.
                     // We assume standard centering logic for the virtual area.
                 } else {
-                    // On existing chat pages, wait for the content to load to ensure correct positioning.
-                    const chatContent = await waitForElement(CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH, { timeout: CONSTANTS.TIMING.TIMEOUTS.WAIT_FOR_MAIN_CONTENT, context: document }, sentinel);
+                    // On existing chat pages, find the content synchronously.
+                    // If not found, abort immediately. Sentinel will trigger an update when it appears.
+                    const chatContent = document.querySelector(CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH);
                     if (chatContent) {
                         chatRect = chatContent.getBoundingClientRect();
                     } else {
-                        // If timeout occurs on a normal page, abort to avoid visual bugs.
+                        // Abort to avoid visual bugs.
                         return;
                     }
                 }
