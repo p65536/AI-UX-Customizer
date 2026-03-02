@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b507
+// @version      1.0.0-b508
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -7394,9 +7394,12 @@
             if (this.isLayoutUpdateScheduled) return;
             this.isLayoutUpdateScheduled = true;
             EventBus.queueUIWork(() => {
-                if (this.isDestroyed) return;
-                this.applyChatContentMaxWidth();
-                this.isLayoutUpdateScheduled = false;
+                try {
+                    if (this.isDestroyed) return;
+                    this.applyChatContentMaxWidth();
+                } finally {
+                    this.isLayoutUpdateScheduled = false;
+                }
             });
         }
 
@@ -8374,10 +8377,13 @@
             if (this.isUpdateScheduled) return;
             this.isUpdateScheduled = true;
             EventBus.queueUIWork(async () => {
-                if (this.isDestroyed) return;
-                this.updateVisibility();
-                await this.recalculateStandingImagesLayout();
-                this.isUpdateScheduled = false;
+                try {
+                    if (this.isDestroyed) return;
+                    this.updateVisibility();
+                    await this.recalculateStandingImagesLayout();
+                } finally {
+                    this.isUpdateScheduled = false;
+                }
             });
         }
 
@@ -9538,9 +9544,12 @@
             if (this.isRepositionScheduled) return;
             this.isRepositionScheduled = true;
             EventBus.queueUIWork(() => {
-                if (this.isDestroyed) return;
-                this.repositionContainers();
-                this.isRepositionScheduled = false;
+                try {
+                    if (this.isDestroyed) return;
+                    this.repositionContainers();
+                } finally {
+                    this.isRepositionScheduled = false;
+                }
             });
         }
 
@@ -12349,14 +12358,16 @@
             if (this.isUpdating) return;
             this.isUpdating = true;
             requestAnimationFrame(() => {
-                this._updateUIDisplay();
+                try {
+                    this._updateUIDisplay();
 
-                if (this._pendingEmit) {
-                    this._dispatchChangeEvent();
-                    this._pendingEmit = false;
+                    if (this._pendingEmit) {
+                        this._dispatchChangeEvent();
+                        this._pendingEmit = false;
+                    }
+                } finally {
+                    this.isUpdating = false;
                 }
-
-                this.isUpdating = false;
             });
         }
 
@@ -16179,9 +16190,12 @@
             if (this.isRepositionScheduled) return;
             this.isRepositionScheduled = true;
             EventBus.queueUIWork(() => {
-                if (this.isDestroyed) return;
-                this.ensureButtonPlacement();
-                this.isRepositionScheduled = false;
+                try {
+                    if (this.isDestroyed) return;
+                    this.ensureButtonPlacement();
+                } finally {
+                    this.isRepositionScheduled = false;
+                }
             });
         }
 
