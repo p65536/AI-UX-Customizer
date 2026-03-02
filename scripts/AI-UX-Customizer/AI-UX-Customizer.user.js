@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b509
+// @version      1.0.0-b510
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -13163,6 +13163,7 @@
             this.modal = null;
             this.styleHandle = null;
             this.store = null;
+            this.isOpening = false;
 
             // Debounced calculator is initialized in _onInit
         }
@@ -13179,198 +13180,203 @@
         }
 
         async open(anchorElement) {
-            if (this.modal) return;
+            if (this.modal || this.isOpening) return;
+            this.isOpening = true;
 
-            // Inject styles
-            StyleManager.request(StyleDefinitions.getCommonStyle);
-            StyleManager.request(StyleDefinitions.getModalStyle);
-            this.styleHandle = StyleManager.request(StyleDefinitions.getJsonModal);
+            try {
+                // Inject styles
+                StyleManager.request(StyleDefinitions.getCommonStyle);
+                StyleManager.request(StyleDefinitions.getModalStyle);
+                this.styleHandle = StyleManager.request(StyleDefinitions.getJsonModal);
 
-            // Common styles are now mixed in, so we use static references
-            const btnClass = StyleDefinitions.COMMON_CLASSES.modalButton;
-            const primaryBtnClass = StyleDefinitions.COMMON_CLASSES.primaryBtn;
-            const pushRightBtnClass = StyleDefinitions.COMMON_CLASSES.pushRightBtn;
-            const cls = this.styleHandle.classes;
+                // Common styles are now mixed in, so we use static references
+                const btnClass = StyleDefinitions.COMMON_CLASSES.modalButton;
+                const primaryBtnClass = StyleDefinitions.COMMON_CLASSES.primaryBtn;
+                const pushRightBtnClass = StyleDefinitions.COMMON_CLASSES.pushRightBtn;
+                const cls = this.styleHandle.classes;
 
-            // Initialize Data
-            const currentConfig = await this.callbacks.getCurrentConfig();
+                // Initialize Data
+                const currentConfig = await this.callbacks.getCurrentConfig();
 
-            // Guard: Stop if component was destroyed during await
-            if (this.isDestroyed) return;
+                // Guard: Stop if component was destroyed during await
+                if (this.isDestroyed) return;
 
-            const initialJson = JSON.stringify(currentConfig, null, 2);
-            const currentWarning = this.callbacks.getCurrentWarning();
-            const { SYSTEM_ROOT, SYSTEM_WARNING } = CONSTANTS.STORE_KEYS;
+                const initialJson = JSON.stringify(currentConfig, null, 2);
+                const currentWarning = this.callbacks.getCurrentWarning();
+                const { SYSTEM_ROOT, SYSTEM_WARNING } = CONSTANTS.STORE_KEYS;
 
-            this.store = new ReactiveStore({
-                jsonString: initialJson,
-                status: { text: '', color: '' },
-                sizeInfo: { text: 'Checking...', color: '' },
-                isProcessing: false,
-                [SYSTEM_ROOT]: { [SYSTEM_WARNING]: currentWarning },
-            });
+                this.store = new ReactiveStore({
+                    jsonString: initialJson,
+                    status: { text: '', color: '' },
+                    sizeInfo: { text: 'Checking...', color: '' },
+                    isProcessing: false,
+                    [SYSTEM_ROOT]: { [SYSTEM_WARNING]: currentWarning },
+                });
 
-            // Prepare Listener Keys
-            const warningListenerKey = createEventKey(this, EVENTS.CONFIG_WARNING_UPDATE);
-            const configUpdateListenerKey = createEventKey(this, EVENTS.CONFIG_UPDATED);
+                // Prepare Listener Keys
+                const warningListenerKey = createEventKey(this, EVENTS.CONFIG_WARNING_UPDATE);
+                const configUpdateListenerKey = createEventKey(this, EVENTS.CONFIG_UPDATED);
 
-            // Register cleanup for listeners
-            const cleanupListeners = () => {
-                this.clearStoreSubscriptions();
-                EventBus.unsubscribe(EVENTS.CONFIG_WARNING_UPDATE, warningListenerKey);
-                EventBus.unsubscribe(EVENTS.CONFIG_UPDATED, configUpdateListenerKey);
-                this._cleanupListeners();
-            };
-            this.manageResource(JsonModalComponent.RESOURCE_KEYS.LISTENERS, cleanupListeners);
+                // Register cleanup for listeners
+                const cleanupListeners = () => {
+                    this.clearStoreSubscriptions();
+                    EventBus.unsubscribe(EVENTS.CONFIG_WARNING_UPDATE, warningListenerKey);
+                    EventBus.unsubscribe(EVENTS.CONFIG_UPDATED, configUpdateListenerKey);
+                    this._cleanupListeners();
+                };
+                this.manageResource(JsonModalComponent.RESOURCE_KEYS.LISTENERS, cleanupListeners);
 
-            // Subscribe to jsonString changes to update size info
-            const sizeUnsub = this.store.subscribe((state, path) => {
-                if (path === 'jsonString') {
-                    this.debouncedCalcSize(state.jsonString);
-                }
-                // Update Button states based on size info and processing status
-                if (path === 'sizeInfo' || path === 'jsonString' || path === 'isProcessing') {
-                    const isProcessing = state.isProcessing;
-                    const isExceeded = state.sizeInfo && state.sizeInfo.color === SITE_STYLES.PALETTE.danger_text;
+                // Subscribe to jsonString changes to update size info
+                const sizeUnsub = this.store.subscribe((state, path) => {
+                    if (path === 'jsonString') {
+                        this.debouncedCalcSize(state.jsonString);
+                    }
+                    // Update Button states based on size info and processing status
+                    if (path === 'sizeInfo' || path === 'jsonString' || path === 'isProcessing') {
+                        const isProcessing = state.isProcessing;
+                        const isExceeded = state.sizeInfo && state.sizeInfo.color === SITE_STYLES.PALETTE.danger_text;
 
-                    const saveBtn = this.modal?.element?.querySelector(`#${cls.saveBtn}`);
-                    const exportBtn = this.modal?.element?.querySelector(`#${cls.exportBtn}`);
-                    const importBtn = this.modal?.element?.querySelector(`#${cls.importBtn}`);
-                    const cancelBtn = this.modal?.element?.querySelector(`#${cls.cancelBtn}`);
+                        const saveBtn = this.modal?.element?.querySelector(`#${cls.saveBtn}`);
+                        const exportBtn = this.modal?.element?.querySelector(`#${cls.exportBtn}`);
+                        const importBtn = this.modal?.element?.querySelector(`#${cls.importBtn}`);
+                        const cancelBtn = this.modal?.element?.querySelector(`#${cls.cancelBtn}`);
 
-                    // Disable other buttons during processing
-                    if (exportBtn instanceof HTMLButtonElement) exportBtn.disabled = isProcessing;
-                    if (importBtn instanceof HTMLButtonElement) importBtn.disabled = isProcessing;
-                    if (cancelBtn instanceof HTMLButtonElement) cancelBtn.disabled = isProcessing;
+                        // Disable other buttons during processing
+                        if (exportBtn instanceof HTMLButtonElement) exportBtn.disabled = isProcessing;
+                        if (importBtn instanceof HTMLButtonElement) importBtn.disabled = isProcessing;
+                        if (cancelBtn instanceof HTMLButtonElement) cancelBtn.disabled = isProcessing;
 
-                    if (saveBtn instanceof HTMLButtonElement) {
-                        // Save is disabled if processing OR size exceeded
-                        const shouldDisable = isProcessing || isExceeded;
-                        saveBtn.disabled = shouldDisable;
+                        if (saveBtn instanceof HTMLButtonElement) {
+                            // Save is disabled if processing OR size exceeded
+                            const shouldDisable = isProcessing || isExceeded;
+                            saveBtn.disabled = shouldDisable;
 
-                        if (isProcessing) {
-                            saveBtn.style.opacity = '0.5';
-                            saveBtn.style.cursor = 'wait';
-                        } else if (isExceeded) {
-                            saveBtn.title = 'Cannot save: Configuration size limit exceeded.';
-                            saveBtn.style.opacity = '0.5';
-                            saveBtn.style.cursor = 'not-allowed';
-                            // Show warning status
-                            this.store.set('status', {
-                                text: 'Size Limit Exceeded: Save disabled.',
-                                color: SITE_STYLES.PALETTE.danger_text,
-                            });
-                        } else {
-                            saveBtn.title = 'Apply changes and close.';
-                            saveBtn.style.opacity = '';
-                            saveBtn.style.cursor = '';
-                            // Clear warning status if it was set by this check
-                            const currentStatus = this.store.get('status');
-                            if (currentStatus && currentStatus.text === 'Size Limit Exceeded: Save disabled.') {
-                                this.store.set('status', { text: '', color: '' });
+                            if (isProcessing) {
+                                saveBtn.style.opacity = '0.5';
+                                saveBtn.style.cursor = 'wait';
+                            } else if (isExceeded) {
+                                saveBtn.title = 'Cannot save: Configuration size limit exceeded.';
+                                saveBtn.style.opacity = '0.5';
+                                saveBtn.style.cursor = 'not-allowed';
+                                // Show warning status
+                                this.store.set('status', {
+                                    text: 'Size Limit Exceeded: Save disabled.',
+                                    color: SITE_STYLES.PALETTE.danger_text,
+                                });
+                            } else {
+                                saveBtn.title = 'Apply changes and close.';
+                                saveBtn.style.opacity = '';
+                                saveBtn.style.cursor = '';
+                                // Clear warning status if it was set by this check
+                                const currentStatus = this.store.get('status');
+                                if (currentStatus && currentStatus.text === 'Size Limit Exceeded: Save disabled.') {
+                                    this.store.set('status', { text: '', color: '' });
+                                }
                             }
                         }
+
+                        // Update global cursor
+                        if (this.modal?.element) {
+                            this.modal.element.style.cursor = isProcessing ? 'wait' : '';
+                        }
                     }
+                });
+                // Register the unsubscribe callback for cleanup
+                this.addStoreSubscription(sizeUnsub);
 
-                    // Update global cursor
-                    if (this.modal?.element) {
-                        this.modal.element.style.cursor = isProcessing ? 'wait' : '';
+                // Subscribe to warning updates
+                EventBus.subscribe(
+                    EVENTS.CONFIG_WARNING_UPDATE,
+                    (payload) => {
+                        if (this.store) {
+                            this.store.set(CONSTANTS.STORE_KEYS.WARNING_PATH, payload);
+                        }
+                    },
+                    warningListenerKey
+                );
+
+                // Subscribe to remote configuration updates to support "Reload UI" functionality
+                EventBus.subscribe(
+                    EVENTS.CONFIG_UPDATED,
+                    async (newConfig) => {
+                        const newJson = JSON.stringify(newConfig, null, 2);
+                        if (this.store) {
+                            this.store.set('jsonString', newJson);
+                            // Reset status
+                            this.store.set('status', {
+                                text: 'Refreshed from storage.',
+                                color: SITE_STYLES.PALETTE.accent_text,
+                            });
+                        }
+                        // Clear conflict notification if present
+                        if (this.modal && this.modal.dom.footerMessage) {
+                            this.modal.dom.footerMessage.textContent = '';
+                            this.modal.dom.footerMessage.classList.remove(StyleDefinitions.COMMON_CLASSES.conflictText);
+                        }
+                    },
+                    configUpdateListenerKey
+                );
+
+                this.modal = new CustomModal({
+                    title: `${APPNAME} Settings`,
+                    width: JsonModalComponent.DEFAULTS.WIDTH, // Responsive width
+                    id: this.styleHandle.rootId, // Use the rootId for scoping
+                    zIndex: SITE_STYLES.Z_INDICES.JSON_MODAL,
+                    closeOnBackdropClick: false,
+                    buttons: [
+                        { text: 'Export', id: cls.exportBtn, className: btnClass, title: 'Export current settings to a JSON file.', onClick: () => this._handleExport() },
+                        { text: 'Import', id: cls.importBtn, className: btnClass, title: 'Click to replace settings.\nHold [Ctrl] to append themes (keep existing).', onClick: (modal, e) => this._handleImport(e.ctrlKey) },
+                        { text: 'Cancel', id: cls.cancelBtn, className: `${btnClass} ${pushRightBtnClass}`, title: 'Close without saving.', onClick: () => this.close() },
+                        { text: 'Save', id: cls.saveBtn, className: `${btnClass} ${primaryBtnClass}`, title: 'Apply changes and close.', onClick: () => this._handleSave() },
+                    ],
+                    onDestroy: () => {
+                        // When the modal is closed (by user or code), ensure all temporary resources are disposed via the manager.
+                        this.manageResource(JsonModalComponent.RESOURCE_KEYS.MODAL, null);
+                        this.manageResource(JsonModalComponent.RESOURCE_KEYS.LISTENERS, null);
+                        this.manageResource(JsonModalComponent.RESOURCE_KEYS.FILE_READER, null);
+
+                        this.store = null;
+                        this.modal = null;
+                    },
+                });
+
+                // Register Modal as a managed resource
+                this.manageResource(JsonModalComponent.RESOURCE_KEYS.MODAL, this.modal);
+
+                this._setupKeyboardListeners(cls, primaryBtnClass);
+
+                const contentContainer = this.modal.getContentContainer();
+
+                // --- UI Rendering using UIBuilder ---
+                const context = {
+                    styles: { ...StyleDefinitions.COMMON_CLASSES, ...this.styleHandle.classes },
+                    pickerRootId: StyleDefinitions.ROOT_IDS.COLOR_PICKER,
+                };
+                const ui = new UIBuilder(this.store, context, this.addStoreSubscription.bind(this));
+
+                contentContainer.style.padding = '8px';
+                const content = this._renderJsonContent(ui);
+                contentContainer.appendChild(content);
+
+                // Initial size calculation
+                this._calculateAndSetSize(initialJson);
+
+                this.callbacks.onModalOpen?.();
+                this.modal.show(anchorElement);
+
+                // Focus handling
+                requestAnimationFrame(() => {
+                    const textarea = contentContainer.querySelector('textarea');
+                    if (textarea) {
+                        textarea.focus();
+                        textarea.scrollTop = 0;
+                        textarea.selectionStart = 0;
+                        textarea.selectionEnd = 0;
                     }
-                }
-            });
-            // Register the unsubscribe callback for cleanup
-            this.addStoreSubscription(sizeUnsub);
-
-            // Subscribe to warning updates
-            EventBus.subscribe(
-                EVENTS.CONFIG_WARNING_UPDATE,
-                (payload) => {
-                    if (this.store) {
-                        this.store.set(CONSTANTS.STORE_KEYS.WARNING_PATH, payload);
-                    }
-                },
-                warningListenerKey
-            );
-
-            // Subscribe to remote configuration updates to support "Reload UI" functionality
-            EventBus.subscribe(
-                EVENTS.CONFIG_UPDATED,
-                async (newConfig) => {
-                    const newJson = JSON.stringify(newConfig, null, 2);
-                    if (this.store) {
-                        this.store.set('jsonString', newJson);
-                        // Reset status
-                        this.store.set('status', {
-                            text: 'Refreshed from storage.',
-                            color: SITE_STYLES.PALETTE.accent_text,
-                        });
-                    }
-                    // Clear conflict notification if present
-                    if (this.modal && this.modal.dom.footerMessage) {
-                        this.modal.dom.footerMessage.textContent = '';
-                        this.modal.dom.footerMessage.classList.remove(StyleDefinitions.COMMON_CLASSES.conflictText);
-                    }
-                },
-                configUpdateListenerKey
-            );
-
-            this.modal = new CustomModal({
-                title: `${APPNAME} Settings`,
-                width: JsonModalComponent.DEFAULTS.WIDTH, // Responsive width
-                id: this.styleHandle.rootId, // Use the rootId for scoping
-                zIndex: SITE_STYLES.Z_INDICES.JSON_MODAL,
-                closeOnBackdropClick: false,
-                buttons: [
-                    { text: 'Export', id: cls.exportBtn, className: btnClass, title: 'Export current settings to a JSON file.', onClick: () => this._handleExport() },
-                    { text: 'Import', id: cls.importBtn, className: btnClass, title: 'Click to replace settings.\nHold [Ctrl] to append themes (keep existing).', onClick: (modal, e) => this._handleImport(e.ctrlKey) },
-                    { text: 'Cancel', id: cls.cancelBtn, className: `${btnClass} ${pushRightBtnClass}`, title: 'Close without saving.', onClick: () => this.close() },
-                    { text: 'Save', id: cls.saveBtn, className: `${btnClass} ${primaryBtnClass}`, title: 'Apply changes and close.', onClick: () => this._handleSave() },
-                ],
-                onDestroy: () => {
-                    // When the modal is closed (by user or code), ensure all temporary resources are disposed via the manager.
-                    this.manageResource(JsonModalComponent.RESOURCE_KEYS.MODAL, null);
-                    this.manageResource(JsonModalComponent.RESOURCE_KEYS.LISTENERS, null);
-                    this.manageResource(JsonModalComponent.RESOURCE_KEYS.FILE_READER, null);
-
-                    this.store = null;
-                    this.modal = null;
-                },
-            });
-
-            // Register Modal as a managed resource
-            this.manageResource(JsonModalComponent.RESOURCE_KEYS.MODAL, this.modal);
-
-            this._setupKeyboardListeners(cls, primaryBtnClass);
-
-            const contentContainer = this.modal.getContentContainer();
-
-            // --- UI Rendering using UIBuilder ---
-            const context = {
-                styles: { ...StyleDefinitions.COMMON_CLASSES, ...this.styleHandle.classes },
-                pickerRootId: StyleDefinitions.ROOT_IDS.COLOR_PICKER,
-            };
-            const ui = new UIBuilder(this.store, context, this.addStoreSubscription.bind(this));
-
-            contentContainer.style.padding = '8px';
-            const content = this._renderJsonContent(ui);
-            contentContainer.appendChild(content);
-
-            // Initial size calculation
-            this._calculateAndSetSize(initialJson);
-
-            this.callbacks.onModalOpen?.();
-            this.modal.show(anchorElement);
-
-            // Focus handling
-            requestAnimationFrame(() => {
-                const textarea = contentContainer.querySelector('textarea');
-                if (textarea) {
-                    textarea.focus();
-                    textarea.scrollTop = 0;
-                    textarea.selectionStart = 0;
-                    textarea.selectionEnd = 0;
-                }
-            });
+                });
+            } finally {
+                this.isOpening = false;
+            }
         }
 
         _renderJsonContent(ui) {
@@ -13952,6 +13958,7 @@
             this.store = null;
             this.previewController = null;
             this.style = null; // Style handle will be stored here
+            this.isOpening = false;
 
             // Centralized state management
             this.state = {
@@ -13973,178 +13980,183 @@
          * @param {string} [selectThemeKey] - The ID of the theme to select initially.
          */
         async open(selectThemeKey) {
-            if (this.modal) return;
+            if (this.modal || this.isOpening) return;
+            this.isOpening = true;
 
-            // 1. Request all necessary styles upfront
-            StyleManager.request(StyleDefinitions.getCommonStyle);
-            StyleManager.request(StyleDefinitions.getModalStyle);
-            this.style = StyleManager.request(StyleDefinitions.getThemeModal);
-            this.pickerStyle = StyleManager.request(StyleDefinitions.getColorPicker);
+            try {
+                // 1. Request all necessary styles upfront
+                StyleManager.request(StyleDefinitions.getCommonStyle);
+                StyleManager.request(StyleDefinitions.getModalStyle);
+                this.style = StyleManager.request(StyleDefinitions.getThemeModal);
+                this.pickerStyle = StyleManager.request(StyleDefinitions.getColorPicker);
 
-            const initialConfig = await this.callbacks.getCurrentConfig();
+                const initialConfig = await this.callbacks.getCurrentConfig();
 
-            // Guard: Stop if component was destroyed during await
-            if (this.isDestroyed) return;
-            if (!initialConfig) return;
+                // Guard: Stop if component was destroyed during await
+                if (this.isDestroyed) return;
+                if (!initialConfig) return;
 
-            const { isExceeded } = this.checkSize(initialConfig);
+                const { isExceeded } = this.checkSize(initialConfig);
 
-            // Initialize state for the new session
-            this.state = {
-                activeThemeKey: selectThemeKey || CONSTANTS.THEME_IDS.DEFAULT,
-                uiMode: ThemeModalComponent.UI_MODES.NORMAL,
-                pendingDeletionKey: null,
-                config: deepClone(initialConfig), // Create a deep copy for editing
-                isSizeExceeded: isExceeded,
-                isSaving: false,
-            };
+                // Initialize state for the new session
+                this.state = {
+                    activeThemeKey: selectThemeKey || CONSTANTS.THEME_IDS.DEFAULT,
+                    uiMode: ThemeModalComponent.UI_MODES.NORMAL,
+                    pendingDeletionKey: null,
+                    config: deepClone(initialConfig), // Create a deep copy for editing
+                    isSizeExceeded: isExceeded,
+                    isSaving: false,
+                };
 
-            const primaryBtnClass = StyleDefinitions.COMMON_CLASSES.primaryBtn;
-            const cls = this.style.classes;
+                const primaryBtnClass = StyleDefinitions.COMMON_CLASSES.primaryBtn;
+                const cls = this.style.classes;
 
-            // Prepare Listener Keys
-            const warningListenerKey = createEventKey(this, EVENTS.CONFIG_WARNING_UPDATE);
-            const configUpdateListenerKey = createEventKey(this, EVENTS.CONFIG_UPDATED);
+                // Prepare Listener Keys
+                const warningListenerKey = createEventKey(this, EVENTS.CONFIG_WARNING_UPDATE);
+                const configUpdateListenerKey = createEventKey(this, EVENTS.CONFIG_UPDATED);
 
-            // Register cleanup for listeners
-            const cleanupListeners = () => {
-                this.clearStoreSubscriptions();
-                EventBus.unsubscribe(EVENTS.CONFIG_WARNING_UPDATE, warningListenerKey);
-                EventBus.unsubscribe(EVENTS.CONFIG_UPDATED, configUpdateListenerKey);
-            };
-            this.manageResource(ThemeModalComponent.RESOURCE_KEYS.LISTENERS, cleanupListeners);
+                // Register cleanup for listeners
+                const cleanupListeners = () => {
+                    this.clearStoreSubscriptions();
+                    EventBus.unsubscribe(EVENTS.CONFIG_WARNING_UPDATE, warningListenerKey);
+                    EventBus.unsubscribe(EVENTS.CONFIG_UPDATED, configUpdateListenerKey);
+                };
+                this.manageResource(ThemeModalComponent.RESOURCE_KEYS.LISTENERS, cleanupListeners);
 
-            // Subscribe to warning updates
-            EventBus.subscribe(
-                EVENTS.CONFIG_WARNING_UPDATE,
-                (payload) => {
-                    if (this.store) {
-                        this.store.set(CONSTANTS.STORE_KEYS.WARNING_PATH, payload);
-                    }
-                },
-                warningListenerKey
-            );
+                // Subscribe to warning updates
+                EventBus.subscribe(
+                    EVENTS.CONFIG_WARNING_UPDATE,
+                    (payload) => {
+                        if (this.store) {
+                            this.store.set(CONSTANTS.STORE_KEYS.WARNING_PATH, payload);
+                        }
+                    },
+                    warningListenerKey
+                );
 
-            // Subscribe to remote configuration updates to support "Reload UI" functionality
-            EventBus.subscribe(
-                EVENTS.CONFIG_UPDATED,
-                async (newConfig) => {
-                    // Guard: Skip UI refresh if we are currently saving changes ourselves.
-                    // This prevents resetting the scroll position and focus processing during "Apply".
-                    if (this.state.isSaving) return;
+                // Subscribe to remote configuration updates to support "Reload UI" functionality
+                EventBus.subscribe(
+                    EVENTS.CONFIG_UPDATED,
+                    async (newConfig) => {
+                        // Guard: Skip UI refresh if we are currently saving changes ourselves.
+                        // This prevents resetting the scroll position and focus processing during "Apply".
+                        if (this.state.isSaving) return;
 
-                    // Update internal state with new config
-                    this.state.config = deepClone(newConfig);
-                    const sizeInfo = this.checkSize(newConfig);
-                    this.state.isSizeExceeded = sizeInfo.isExceeded;
+                        // Update internal state with new config
+                        this.state.config = deepClone(newConfig);
+                        const sizeInfo = this.checkSize(newConfig);
+                        this.state.isSizeExceeded = sizeInfo.isExceeded;
 
-                    // Re-initialize form with current active key (or fallback if deleted)
-                    const themeExists = this.state.activeThemeKey === CONSTANTS.THEME_IDS.DEFAULT || this.state.config.themeSets.some((t) => t.metadata.id === this.state.activeThemeKey);
+                        // Re-initialize form with current active key (or fallback if deleted)
+                        const themeExists = this.state.activeThemeKey === CONSTANTS.THEME_IDS.DEFAULT || this.state.config.themeSets.some((t) => t.metadata.id === this.state.activeThemeKey);
 
-                    if (!themeExists) {
-                        this.state.activeThemeKey = CONSTANTS.THEME_IDS.DEFAULT;
-                    }
+                        if (!themeExists) {
+                            this.state.activeThemeKey = CONSTANTS.THEME_IDS.DEFAULT;
+                        }
 
-                    // Update preview controller with new default set
-                    if (this.previewController) {
-                        this.previewController.setDefaultSet(newConfig.platforms[PLATFORM].defaultSet);
-                    }
+                        // Update preview controller with new default set
+                        if (this.previewController) {
+                            this.previewController.setDefaultSet(newConfig.platforms[PLATFORM].defaultSet);
+                        }
 
-                    // Refresh form and UI
-                    await this._initFormWithTheme(this.state.activeThemeKey);
-                    this._renderUI();
+                        // Refresh form and UI
+                        await this._initFormWithTheme(this.state.activeThemeKey);
+                        this._renderUI();
 
-                    // Clear conflict notification if present
-                    if (this.modal && this.modal.dom.footerMessage) {
-                        this.modal.dom.footerMessage.textContent = '';
-                        this.modal.dom.footerMessage.classList.remove(StyleDefinitions.COMMON_CLASSES.conflictText);
-                    }
-                },
-                configUpdateListenerKey
-            );
+                        // Clear conflict notification if present
+                        if (this.modal && this.modal.dom.footerMessage) {
+                            this.modal.dom.footerMessage.textContent = '';
+                            this.modal.dom.footerMessage.classList.remove(StyleDefinitions.COMMON_CLASSES.conflictText);
+                        }
+                    },
+                    configUpdateListenerKey
+                );
 
-            this.modal = new CustomModal({
-                title: `${APPNAME} - Theme settings`,
-                width: ThemeModalComponent.DEFAULTS.WIDTH,
-                id: this.style.rootId, // Use rootId from style definition
-                zIndex: CONSTANTS.Z_INDICES.THEME_MODAL,
-                closeOnBackdropClick: false,
-                buttons: [
-                    { text: 'Cancel', id: cls.cancelBtn, className: ``, title: 'Discard changes and close the modal.', onClick: () => this.close() },
-                    { text: 'Apply', id: cls.applyBtn, className: ``, title: 'Save changes and keep the modal open.', onClick: () => this._handleThemeAction(false) },
-                    { text: 'Save', id: cls.saveBtn, className: primaryBtnClass, title: 'Save changes and close the modal.', onClick: () => this._handleThemeAction(true) },
-                ],
-                onCancel: (e) => {
-                    // If not in normal mode, cancel the close event and revert the UI mode.
-                    if (this.state.uiMode !== ThemeModalComponent.UI_MODES.NORMAL) {
-                        e.preventDefault();
-                        this._handleActionCancel();
-                    }
-                },
-                onDestroy: () => {
-                    // When the modal is closed (by user or code), ensure all temporary resources are disposed via the manager.
-                    this.manageResource(ThemeModalComponent.RESOURCE_KEYS.MODAL, null);
-                    this.manageResource(ThemeModalComponent.RESOURCE_KEYS.PREVIEW_CTRL, null);
-                    this.manageResource(ThemeModalComponent.RESOURCE_KEYS.LISTENERS, null);
+                this.modal = new CustomModal({
+                    title: `${APPNAME} - Theme settings`,
+                    width: ThemeModalComponent.DEFAULTS.WIDTH,
+                    id: this.style.rootId, // Use rootId from style definition
+                    zIndex: CONSTANTS.Z_INDICES.THEME_MODAL,
+                    closeOnBackdropClick: false,
+                    buttons: [
+                        { text: 'Cancel', id: cls.cancelBtn, className: ``, title: 'Discard changes and close the modal.', onClick: () => this.close() },
+                        { text: 'Apply', id: cls.applyBtn, className: ``, title: 'Save changes and keep the modal open.', onClick: () => this._handleThemeAction(false) },
+                        { text: 'Save', id: cls.saveBtn, className: primaryBtnClass, title: 'Save changes and close the modal.', onClick: () => this._handleThemeAction(true) },
+                    ],
+                    onCancel: (e) => {
+                        // If not in normal mode, cancel the close event and revert the UI mode.
+                        if (this.state.uiMode !== ThemeModalComponent.UI_MODES.NORMAL) {
+                            e.preventDefault();
+                            this._handleActionCancel();
+                        }
+                    },
+                    onDestroy: () => {
+                        // When the modal is closed (by user or code), ensure all temporary resources are disposed via the manager.
+                        this.manageResource(ThemeModalComponent.RESOURCE_KEYS.MODAL, null);
+                        this.manageResource(ThemeModalComponent.RESOURCE_KEYS.PREVIEW_CTRL, null);
+                        this.manageResource(ThemeModalComponent.RESOURCE_KEYS.LISTENERS, null);
 
-                    this.store = null;
-                    this.modal = null;
-                    this.previewController = null;
-                    // Release memory: Clear the temporary state containing the config copy
-                    this.state = {
-                        activeThemeKey: null,
-                        uiMode: ThemeModalComponent.UI_MODES.NORMAL,
-                        pendingDeletionKey: null,
-                        config: null,
-                        isSizeExceeded: false,
-                        isSaving: false,
-                    };
-                },
-            });
+                        this.store = null;
+                        this.modal = null;
+                        this.previewController = null;
+                        // Release memory: Clear the temporary state containing the config copy
+                        this.state = {
+                            activeThemeKey: null,
+                            uiMode: ThemeModalComponent.UI_MODES.NORMAL,
+                            pendingDeletionKey: null,
+                            config: null,
+                            isSizeExceeded: false,
+                            isSaving: false,
+                        };
+                    },
+                });
 
-            // Register Modal as a managed resource
-            this.manageResource(ThemeModalComponent.RESOURCE_KEYS.MODAL, this.modal);
+                // Register Modal as a managed resource
+                this.manageResource(ThemeModalComponent.RESOURCE_KEYS.MODAL, this.modal);
 
-            const headerControls = this._createHeaderControls();
-            const mainContent = this._createMainContent();
+                const headerControls = this._createHeaderControls();
+                const mainContent = this._createMainContent();
 
-            // Override base modal styles for specific layout needs
-            Object.assign(this.modal.dom.header.style, {
-                borderBottom: `1px solid ${SITE_STYLES.PALETTE.border}`,
-                paddingBottom: CONSTANTS.UI_SPECS.THEME_MODAL_HEADER_PADDING,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'stretch',
-                gap: '12px',
-            });
-            Object.assign(this.modal.dom.footer.style, {
-                borderTop: `1px solid ${SITE_STYLES.PALETTE.border}`,
-                paddingTop: CONSTANTS.UI_SPECS.THEME_MODAL_FOOTER_PADDING,
-            });
-            this.modal.dom.header.appendChild(headerControls);
-            this.modal.setContent(mainContent);
+                // Override base modal styles for specific layout needs
+                Object.assign(this.modal.dom.header.style, {
+                    borderBottom: `1px solid ${SITE_STYLES.PALETTE.border}`,
+                    paddingBottom: CONSTANTS.UI_SPECS.THEME_MODAL_HEADER_PADDING,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'stretch',
+                    gap: '12px',
+                });
+                Object.assign(this.modal.dom.footer.style, {
+                    borderTop: `1px solid ${SITE_STYLES.PALETTE.border}`,
+                    paddingTop: CONSTANTS.UI_SPECS.THEME_MODAL_FOOTER_PADDING,
+                });
+                this.modal.dom.header.appendChild(headerControls);
+                this.modal.setContent(mainContent);
 
-            this._setupEventListeners();
+                this._setupEventListeners();
 
-            // Initialize Store and Form Engine with current theme
-            await this._initFormWithTheme(this.state.activeThemeKey);
+                // Initialize Store and Form Engine with current theme
+                await this._initFormWithTheme(this.state.activeThemeKey);
 
-            // Connect Controller to DOM
-            this.previewController = new ThemePreviewController(this.modal.element, this.store, initialConfig.platforms[PLATFORM].defaultSet);
-            this.manageResource(ThemeModalComponent.RESOURCE_KEYS.PREVIEW_CTRL, this.previewController);
+                // Connect Controller to DOM
+                this.previewController = new ThemePreviewController(this.modal.element, this.store, initialConfig.platforms[PLATFORM].defaultSet);
+                this.manageResource(ThemeModalComponent.RESOURCE_KEYS.PREVIEW_CTRL, this.previewController);
 
-            // Sync initial mode.
-            this.previewController.setIsEditingDefault(this.state.activeThemeKey === CONSTANTS.THEME_IDS.DEFAULT);
+                // Sync initial mode.
+                this.previewController.setIsEditingDefault(this.state.activeThemeKey === CONSTANTS.THEME_IDS.DEFAULT);
 
-            this.callbacks.onModalOpen?.();
+                this.callbacks.onModalOpen?.();
 
-            this._renderUI(); // Update header controls
+                this._renderUI(); // Update header controls
 
-            this.modal.show(null);
-            requestAnimationFrame(() => {
-                const scrollableArea = this.modal.element.querySelector(`.${this.style.classes.scrollableArea}`);
-                if (scrollableArea) scrollableArea.scrollTop = 0;
-            });
+                this.modal.show(null);
+                requestAnimationFrame(() => {
+                    const scrollableArea = this.modal.element.querySelector(`.${this.style.classes.scrollableArea}`);
+                    if (scrollableArea) scrollableArea.scrollTop = 0;
+                });
+            } finally {
+                this.isOpening = false;
+            }
         }
 
         _onDestroy() {
