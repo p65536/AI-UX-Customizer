@@ -3,6 +3,11 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b507] - 2026-03-02
+- **Performance & Fixes**
+  - **[Gemini]** Fixed an issue where the "Load full history on chat load" auto-scroll feature could sometimes fail to trigger or conflict with the site's default scrolling behavior.
+  - Improved background memory management across the app by replacing long-running wait states with faster, safely cancellable checks during page navigation.
+
 ## [1.0.0-b506] - 2026-03-02
 - **Performance & Fixes**
   - **[ChatGPT]** Optimized the calculation logic for standing images, ensuring faster and more reliable layout rendering when switching chats.

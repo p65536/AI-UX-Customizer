@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b506
+// @version      1.0.0-b507
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -5264,52 +5264,6 @@
         if (!def) return null;
         const children = def.children ? def.children.map((child) => createIconFromDef(child)) : [];
         return h(def.tag, def.props, children);
-    }
-
-    /**
-     * Waits for a specific HTMLElement to appear in the DOM using a high-performance, Sentinel-based approach.
-     * It specifically checks for `instanceof HTMLElement` and will not resolve for other element types (e.g., SVGElement), even if they match the selector.
-     * @param {string} selector The CSS selector for the element.
-     * @param {object} options
-     * @param {number} options.timeout The maximum time to wait in milliseconds.
-     * @param {Document | HTMLElement} options.context The element to search within.
-     * @param {Sentinel} sentinelInstance The Sentinel instance to use.
-     * @returns {Promise<HTMLElement | null>} A promise that resolves with the HTMLElement or null if timed out.
-     */
-    function waitForElement(selector, options, sentinelInstance) {
-        // First, check if the element already exists.
-        const context = options.context;
-        const existingEl = context.querySelector(selector);
-        if (existingEl instanceof HTMLElement) {
-            return Promise.resolve(existingEl);
-        }
-
-        // If not, use Sentinel wrapped in a Promise.
-        return new Promise((resolve) => {
-            let timer = null;
-            let sentinelCallback = null;
-
-            const cleanup = () => {
-                if (timer) clearTimeout(timer);
-                if (sentinelCallback) sentinelInstance.off(selector, sentinelCallback);
-            };
-
-            timer = setTimeout(() => {
-                cleanup();
-                Logger.warn('WAIT TIMEOUT', LOG_STYLES.YELLOW, `Timed out after ${options.timeout}ms waiting for element "${selector}"`);
-                resolve(null);
-            }, options.timeout);
-
-            sentinelCallback = (element) => {
-                // Ensure the found element is an HTMLElement and is within the specified context.
-                if (element instanceof HTMLElement && context.contains(element)) {
-                    cleanup();
-                    resolve(element);
-                }
-            };
-
-            sentinelInstance.on(selector, sentinelCallback);
-        });
     }
 
     /**
@@ -20015,20 +19969,49 @@
                         // Set the flag immediately to prevent re-entrancy from other events.
                         this.isScrolling = true;
 
-                        this.observerContainer = await waitForElement(CONSTANTS.SELECTORS.CHAT_WINDOW_CONTENT, { timeout: CONSTANTS.TIMING.TIMEOUTS.WAIT_FOR_MAIN_CONTENT, context: document }, sentinel);
-                        // Guard against cancellation during await
-                        if (!this.isScrolling) return;
+                        // Polling to find both the observer container and scroll container.
+                        // Maximum wait: 3 seconds (60 attempts * 50ms)
+                        let attempts = 0;
+                        const maxAttempts = 60;
+                        let parentContainer = null;
+                        let childContainer = null;
 
-                        const scrollContainerEl = this.observerContainer?.querySelector(CONSTANTS.SELECTORS.CHAT_HISTORY_SCROLL_CONTAINER);
+                        while (attempts < maxAttempts) {
+                            if (!this.isScrolling) return; // Abort if cancelled during polling
 
-                        if (!this.observerContainer || !(scrollContainerEl instanceof HTMLElement)) {
+                            parentContainer = document.querySelector(CONSTANTS.SELECTORS.CHAT_WINDOW_CONTENT);
+                            if (parentContainer instanceof HTMLElement) {
+                                childContainer = parentContainer.querySelector(CONSTANTS.SELECTORS.CHAT_HISTORY_SCROLL_CONTAINER);
+                                if (childContainer instanceof HTMLElement) {
+                                    // Both parent and child are ready in the DOM
+                                    break;
+                                }
+                            }
+
+                            await new Promise((r) => setTimeout(r, 50));
+                            attempts++;
+                        }
+
+                        if (!(parentContainer instanceof HTMLElement) || !(childContainer instanceof HTMLElement)) {
                             Logger.warn('AUTOSCROLL WARN', LOG_STYLES.YELLOW, 'Could not find required containers.');
                             // Reset flags to allow re-triggering
                             this.isInitialScrollCheckDone = false;
                             this.isScrolling = false;
                             return;
                         }
-                        this.scrollContainer = scrollContainerEl;
+
+                        // --- Yield to Render Pipeline for UI Stabilization ---
+                        // Wait for the framework (e.g. Angular) to finish its internal DOM manipulation
+                        // (like auto-scrolling to the bottom of the new messages) before we intercept it.
+                        // This prevents race conditions where our scroll up is immediately overwritten by the framework's scroll down.
+                        await new Promise((r) => requestAnimationFrame(r)); // 1. Queue into render cycle
+                        await new Promise((r) => setTimeout(r, 0)); // 2. Clear macro-task queue (force framework tasks to execute)
+                        await new Promise((r) => requestAnimationFrame(r)); // 3. Wait for the next paint to ensure UI is stable
+
+                        if (!this.isScrolling) return; // Final abort check after yielding
+
+                        this.observerContainer = parentContainer;
+                        this.scrollContainer = childContainer;
 
                         Logger.log('', '', 'AutoScrollManager: Starting auto-scroll with MutationObserver.');
                         this.toastShown = false;
