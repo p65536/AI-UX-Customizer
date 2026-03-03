@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b510
+// @version      1.0.0-b511
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -7938,6 +7938,7 @@
                 Logger.debug('CACHE', LOG_STYLES.TEAL, `Cache update has 0 messages. Starting ${CONSTANTS.TIMING.TIMEOUTS.ZERO_MESSAGE_GRACE_PERIOD}ms grace period...`);
 
                 const id = setTimeout(() => {
+                    if (this.isDestroyed) return;
                     // If the timer finishes *without* being canceled by another cache update,
                     // we are definitively on a 0-message page. Navigation is complete.
                     Logger.debug('CACHE', LOG_STYLES.TEAL, 'Grace period ended. Assuming 0-message page. Firing NAVIGATION_END.');
@@ -9188,6 +9189,8 @@
 
             // Use runWhenIdle utility
             runWhenIdle((deadline) => {
+                if (this.isDestroyed || !this.jumpListStyleHandle) return;
+
                 const cls = this.jumpListStyleHandle.classes;
 
                 while (this.indexingQueue.length > 0 && deadline.timeRemaining() > 1) {
@@ -9898,9 +9901,11 @@
 
             if (highlightedMessage) {
                 requestAnimationFrame(() => {
+                    if (this.isDestroyed) return;
                     document.body.offsetHeight; // Forcing reflow
 
                     requestAnimationFrame(() => {
+                        if (this.isDestroyed) return;
                         this._scrollToMessage(highlightedMessage);
                     });
                 });
@@ -10431,8 +10436,10 @@
             this.manageResource(CONSTANTS.RESOURCE_KEYS.INTEGRITY_SCAN, null);
 
             const timerId = setTimeout(() => {
+                if (this.isDestroyed) return;
                 this.isScanPending = false;
                 runWhenIdle(() => {
+                    if (this.isDestroyed) return;
                     const newItemsFound = this.scanForUnprocessedMessages();
                     if (newItemsFound > 0) {
                         Logger.log('IntegrityScan', '', `Scan complete. Found ${newItemsFound} unprocessed items.`);
@@ -14151,6 +14158,7 @@
 
                 this.modal.show(null);
                 requestAnimationFrame(() => {
+                    if (this.isDestroyed || !this.modal || !this.modal.element) return;
                     const scrollableArea = this.modal.element.querySelector(`.${this.style.classes.scrollableArea}`);
                     if (scrollableArea) scrollableArea.scrollTop = 0;
                 });

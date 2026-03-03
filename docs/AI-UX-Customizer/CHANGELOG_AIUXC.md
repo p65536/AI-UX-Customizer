@@ -3,6 +3,13 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b511] - 2026-03-03
+- **Bug Fixes**
+  - Fixed rare errors and crashes that could occur when rapidly switching between chats or immediately closing the Theme Editor.
+  - Resolved an edge-case issue in the Navigation Console where using the "Collapse all messages" feature could trigger unintended background scrolling.
+- **Core Changes**
+  - Improved background task management to ensure that layout scanning and jump list indexing stop completely when navigating away from a chat, preventing ghost updates and conserving browser resources.
+
 ## [1.0.0-b510] - 2026-03-02
 - **Bug Fixes**
   - Fixed an issue where double-clicking the settings or theme buttons could cause multiple modal windows to open at the same time.
