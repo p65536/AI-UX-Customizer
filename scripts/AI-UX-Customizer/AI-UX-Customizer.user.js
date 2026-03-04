@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b514
+// @version      1.0.0-b515
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -18459,6 +18459,8 @@
                         MESSAGE_THRESHOLD: 5, // Lower threshold for ChatGPT as it's for layout scanning
                         // Delay between simulated PageUp scrolls (in ms)
                         SCAN_INTERVAL_MS: 30,
+                        // Multiplier for scroll step to speed up scanning
+                        SCAN_STEP_MULTIPLIER: 5,
                     };
 
                     /**
@@ -18526,8 +18528,9 @@
                                 return;
                             }
 
-                            // Scroll up by one page (client height)
-                            this.scrollContainer.scrollTop = Math.max(0, currentTop - this.scrollContainer.clientHeight);
+                            // Scroll up by multiple pages to speed up the scan
+                            const stepSize = this.scrollContainer.clientHeight * AutoScrollManager.CONFIG.SCAN_STEP_MULTIPLIER;
+                            this.scrollContainer.scrollTop = Math.max(0, currentTop - stepSize);
 
                             // Continue loop via requestAnimationFrame
                             this.scanLoopId = requestAnimationFrame(scanPageUp);

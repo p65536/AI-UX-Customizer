@@ -3,6 +3,10 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b515] - 2026-03-05
+- **Improvements**
+  - **[ChatGPT]** Accelerated the layout scan process for Firefox users. The time required to stabilize the layout and prevent scroll issues when loading long conversations has been drastically reduced.
+
 ## [1.0.0-b514] - 2026-03-04
 - **UI Adjustments**
   - Improved the visibility of items in the navigation JumpList. Hovered or focused items are now clearly highlighted with a background overlay, and the currently active message is distinctly indicated by a thick vertical marker on the left edge and bold text, replacing the previous subtle outline.
