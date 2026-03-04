@@ -3,6 +3,10 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b512] - 2026-03-04
+- **UI Adjustments**
+  - Adjusted the vertical position of message numbers to prevent overlap with the message bubble navigation buttons and align them better with timestamps.
+
 ## [1.0.0-b511] - 2026-03-03
 - **Bug Fixes**
   - Fixed rare errors and crashes that could occur when rapidly switching between chats or immediately closing the Theme Editor.
