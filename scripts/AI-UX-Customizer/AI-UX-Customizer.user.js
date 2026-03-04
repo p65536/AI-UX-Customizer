@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b513
+// @version      1.0.0-b514
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -1916,17 +1916,15 @@
                 }
                 ${root} #${cls.listId} li:hover, 
                 ${root} #${cls.listId} li.${cls.focused} {
-                    outline: 1px solid ${palette.jump_list_hover_outline};
-                    outline-offset: -1px;
+                    box-shadow: inset 3px 0 0 rgb(128 128 128 / 0.8), inset 0 0 0 100px rgb(128 128 128 / 0.4);
                 }
                 ${root} #${cls.listId} li.${cls.current} {
-                    outline: 2px solid ${palette.jump_list_current_outline};
-                    outline-offset: -2px;
+                    box-shadow: inset 8px 0 0 ${palette.jump_list_current_outline};
+                    font-weight: bold;
                 }
                 ${root} #${cls.listId} li.${cls.current}:hover, 
                 ${root} #${cls.listId} li.${cls.current}.${cls.focused} {
-                    outline-width: 2px;
-                    outline-offset: -2px;
+                    box-shadow: inset 8px 0 0 ${palette.jump_list_current_outline}, inset 0 0 0 100px rgb(128 128 128 / 0.4);
                 }
                 ${root} #${cls.listId} li.${cls.userItem} {
                     background-color: var(${CSS_VARS.USER_BUBBLE_BG}, transparent);
