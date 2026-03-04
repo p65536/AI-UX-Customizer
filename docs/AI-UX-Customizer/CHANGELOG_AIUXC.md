@@ -3,6 +3,11 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b513] - 2026-03-04
+- **UI Adjustments**
+  - Redesigned the message bubble buttons (collapse, previous/next, top) into a cohesive "floating" style (semi-transparent dark background without borders). This matches the look of timestamps and message numbers, making the interface cleaner and more consistent.
+  - Unified the size of the bubble buttons to be more compact and perfectly aligned with the top edge of the messages.
+
 ## [1.0.0-b512] - 2026-03-04
 - **UI Adjustments**
   - Adjusted the vertical position of message numbers to prevent overlap with the message bubble navigation buttons and align them better with timestamps.

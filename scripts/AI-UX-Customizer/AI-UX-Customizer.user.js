@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b512
+// @version      1.0.0-b513
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -2191,8 +2191,8 @@
                 ${collapsibleParentSelector}::before {
                     content: '';
                     position: absolute;
-                    top: -24px;
-                    height: 24px;
+                    top: -20px;
+                    height: 20px;
                     inset-inline: 0;
                 }
                 /* Add a transparent border in the normal state to prevent width changes on collapse */
@@ -2202,18 +2202,18 @@
                 }
                 .${cls.collapsibleBtn} {
                     position: absolute;
-                    top: -24px;
-                    width: 24px;
-                    height: 24px;
-                    padding: 4px;
-                    border-radius: 5px;
+                    top: -20px;
+                    width: 20px;
+                    height: 20px;
+                    padding: 2px;
+                    border-radius: 4px;
                     box-sizing: border-box;
                     cursor: pointer;
                     visibility: hidden;
                     opacity: 0;
-                    transition: visibility 0s linear 0.1s, opacity 0.1s ease-in-out;
-                    background-color: ${palette.btn_bg};
-                    color: ${palette.text_secondary};
+                    transition: visibility 0s linear 0.1s, opacity 0.1s ease-in-out, background-color 0.15s ease-in-out, color 0.15s ease-in-out;
+                    background-color: rgb(0 0 0 / 0.4);
+                    color: rgb(255 255 255 / 0.7);
                     border: 0;
                     }
                 .${cls.collapsibleBtn}.${cls.hidden} {
@@ -2230,8 +2230,8 @@
                 }
                 
                 .${cls.collapsibleBtn}:hover {
-                    background-color: ${palette.btn_hover_bg};
-                    color: ${palette.text_primary};
+                    background-color: rgb(0 0 0 / 0.6);
+                    color: rgb(255 255 255 / 1);
                 }
                 .${cls.collapsibleBtn} svg {
                     width: 100%;
@@ -2302,12 +2302,12 @@
                     width: 20px;
                     height: 20px;
                     padding: 2px;
-                    border-radius: 5px;
+                    border-radius: 4px;
                     box-sizing: border-box;
                     cursor: pointer;
-                    background: ${palette.btn_bg};
-                    color: ${palette.text_secondary};
-                    border: 1px solid ${palette.border};
+                    background-color: rgb(0 0 0 / 0.4);
+                    color: rgb(255 255 255 / 0.7);
+                    border: 0;
                     display: flex;
                     align-items: center;
                     justify-content: center;
@@ -2315,8 +2315,8 @@
                     margin: 0 auto;
                 }
                 .${cls.navBtn}:not(:disabled):hover {
-                    background-color: ${palette.btn_hover_bg};
-                    color: ${palette.text_primary};
+                    background-color: rgb(0 0 0 / 0.6);
+                    color: rgb(255 255 255 / 1);
                 }
                 .${cls.navBtn}:disabled {
                     opacity: 0.4;
