@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b519
+// @version      1.0.0-b520
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -3151,7 +3151,7 @@
          * @param {string} level The new log level. Must be one of 'error', 'warn', 'info', 'log', 'debug'.
          */
         static setLevel(level) {
-            if (Object.prototype.hasOwnProperty.call(this.levels, level)) {
+            if (Object.hasOwn(this.levels, level)) {
                 this.level = level;
             } else {
                 // Use default style (empty string) for the badge
@@ -3411,7 +3411,7 @@
                 configKey: `${actor}.name`,
                 fallbackKey: `platforms.${PLATFORM}.defaultSet.${actor}.name`,
                 cssVar: CSS_VARS[`${actorUpper}_NAME`],
-                transformer: (value) => (value ? `'${value.replace(/'/g, "\\'")}'` : null),
+                transformer: (value) => (value ? `'${value.replaceAll("'", "\\'")}'` : null),
             },
             // Display control variable for Avatar Name
             {
@@ -5080,9 +5080,9 @@
                 continue;
             }
 
-            if (Object.prototype.hasOwnProperty.call(source, key)) {
+            if (Object.hasOwn(source, key)) {
                 // Strict check: Ignore keys that do not exist in the target (default config).
-                if (!Object.prototype.hasOwnProperty.call(target, key)) {
+                if (!Object.hasOwn(target, key)) {
                     continue;
                 }
 
@@ -5151,7 +5151,7 @@
 
         if (id) el.id = id.slice(1);
         if (classList) {
-            const classes = classList.replace(/\./g, ' ').trim();
+            const classes = classList.replaceAll('.', ' ').trim();
             if (classes) {
                 el.classList.add(...classes.split(/\s+/));
             }
@@ -5315,7 +5315,7 @@
         // Basic sanitization: remove <script> tags.
         const sanitizedSvg = svg.replace(/<script.+?<\/script>/gs, '');
         // Gemini's CSP blocks single quotes in data URLs, so they must be encoded.
-        const encodedSvg = encodeURIComponent(sanitizedSvg).replace(/'/g, '%27').replace(/"/g, '%22');
+        const encodedSvg = encodeURIComponent(sanitizedSvg).replaceAll("'", '%27').replaceAll('"', '%22');
         return `data:image/svg+xml,${encodedSvg}`;
     }
 
@@ -5511,7 +5511,7 @@
             current = current[key];
         }
 
-        const lastKey = keys[keys.length - 1];
+        const lastKey = keys.at(-1);
 
         if (!lastKey) {
             Logger.warn('', '', `setPropertyByPath: Invalid empty key at end of path "${path}".`);
@@ -5765,7 +5765,7 @@
          * @returns {boolean}
          */
         static has(element, key) {
-            return Object.prototype.hasOwnProperty.call(element.dataset, key);
+            return Object.hasOwn(element.dataset, key);
         }
 
         /**
@@ -6904,7 +6904,7 @@
                 return;
             }
 
-            const lastMessage = this.totalMessages[this.totalMessages.length - 1];
+            const lastMessage = this.totalMessages.at(-1);
 
             // Check if the new message is strictly AFTER the last cached message in the DOM.
             // DOCUMENT_POSITION_FOLLOWING (4): The node (messageElement) follows the reference node (lastMessage).
@@ -9085,7 +9085,7 @@
         selectLastMessage() {
             const totalMessages = this.messageCacheManager.getTotalMessages();
             if (totalMessages.length > 0) {
-                const lastMessage = totalMessages[totalMessages.length - 1];
+                const lastMessage = totalMessages.at(-1);
                 this.navigateToMessage(lastMessage);
             }
         }
@@ -9369,7 +9369,7 @@
                 // If initial selection is already done (e.g. re-enabling via settings),
                 // default to the last message instead of the first, but do not scroll.
                 if (this.state.isInitialSelectionDone) {
-                    this.setHighlightAndIndices(totalMessages[totalMessages.length - 1]);
+                    this.setHighlightAndIndices(totalMessages.at(-1));
                 } else {
                     this.setHighlightAndIndices(totalMessages[0]);
                 }
@@ -9485,10 +9485,7 @@
             const centerSlot = h(`div.${cls.group}`, [roleBtn, counter]);
             const rightSlot = h(`div.${cls.group}`, [btnNext, btnLast, btnFold]);
 
-            this.navConsole.textContent = '';
-            this.navConsole.appendChild(leftSlot);
-            this.navConsole.appendChild(centerSlot);
-            this.navConsole.appendChild(rightSlot);
+            this.navConsole.replaceChildren(leftSlot, centerSlot, rightSlot);
 
             // Cache UI references
             this.uiCache = {
@@ -9702,10 +9699,11 @@
                 // Only update DOM if icon type changed
                 const currentIconType = DomState.get(roleBtn, CONSTANTS.DATA_KEYS.ICON_TYPE);
                 if (currentIconType !== currentData.icon) {
-                    roleBtn.textContent = '';
                     const iconDef = StyleDefinitions.ICONS[currentData.icon];
                     if (iconDef) {
-                        roleBtn.appendChild(createIconFromDef(iconDef));
+                        roleBtn.replaceChildren(createIconFromDef(iconDef));
+                    } else {
+                        roleBtn.replaceChildren();
                     }
                     DomState.set(roleBtn, CONSTANTS.DATA_KEYS.ICON_TYPE, currentData.icon);
                 }
@@ -10323,7 +10321,7 @@
 
             // Force refresh the last message in the cache to ensure latest text content.
             // This is critical for streaming messages where content changes but element identity remains.
-            const lastMessage = messages[messages.length - 1];
+            const lastMessage = messages.at(-1);
             if (lastMessage && this.searchCache.has(lastMessage)) {
                 this.searchCache.delete(lastMessage);
             }
@@ -12248,7 +12246,6 @@
 
         _createDom() {
             const cls = this.options.classes;
-            this.rootElement.textContent = '';
 
             // References to key elements will be captured during creation.
             let svPlane, svThumb, hueSlider, alphaSlider, alphaTrack;
@@ -12286,7 +12283,7 @@
                 ]),
             ]);
 
-            this.rootElement.appendChild(colorPicker);
+            this.rootElement.replaceChildren(colorPicker);
 
             // Return references to the created elements.
             return { svPlane, svThumb, hueSlider, alphaSlider, alphaTrack };
@@ -12598,8 +12595,7 @@
          * @param {Node} element
          */
         setContent(element) {
-            this.dom.content.textContent = '';
-            this.dom.content.appendChild(element);
+            this.dom.content.replaceChildren(element);
         }
 
         getContentContainer() {
@@ -12900,8 +12896,6 @@
             this._uiSubscriptions.forEach((unsub) => unsub());
             this._uiSubscriptions = [];
 
-            this.element.textContent = '';
-
             // Merge classes directly from StyleDefinitions for common styles
             const cls = { ...StyleDefinitions.COMMON_CLASSES, ...this.style.classes };
             const prefix = this.style.prefix;
@@ -13053,7 +13047,7 @@
             const featuresSection = ui.group('Features', featureRows, sizeCheck);
 
             // Assemble
-            this.element.append(warningBanner, themeSection, submenuSection, optionsSection, featuresSection);
+            this.element.replaceChildren(warningBanner, themeSection, submenuSection, optionsSection, featuresSection);
 
             this._setupStaticListeners();
             this._setupObservers(ui);
@@ -13779,7 +13773,7 @@
             // Recursively set all configuration values to null to signify "inherit from default".
             const nullify = (obj) => {
                 for (const key in obj) {
-                    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                    if (Object.hasOwn(obj, key)) {
                         if (obj[key] && typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
                             nullify(obj[key]);
                         } else {
@@ -14214,8 +14208,6 @@
 
             const contentArea = this.modal.element.querySelector(`.${this.style.classes.content}`);
             if (contentArea) {
-                contentArea.textContent = '';
-
                 const context = {
                     styles: {
                         ...StyleDefinitions.COMMON_CLASSES,
@@ -14231,7 +14223,7 @@
 
                 // Render the entire form structure
                 const formContent = this._renderThemeForm(ui, themeKey);
-                contentArea.appendChild(formContent);
+                contentArea.replaceChildren(formContent);
 
                 // Add error monitoring to auto-clear footer message
                 this.addStoreSubscription(
@@ -14636,14 +14628,14 @@
             // --- Populate select box if not renaming ---
             if (!isRenaming) {
                 const scroll = select.scrollTop;
-                select.textContent = '';
-                select.appendChild(h('option', { value: CONSTANTS.THEME_IDS.DEFAULT }, 'Default Settings'));
+                const options = [h('option', { value: CONSTANTS.THEME_IDS.DEFAULT }, 'Default Settings')];
                 config.themeSets.forEach((theme, index) => {
                     const rawName = (theme.metadata?.name || '').trim() || `Theme ${index + 1}`;
                     // Display index to help user identify position (UI only, does not affect data)
                     const displayName = `${index + 1}. ${rawName}`;
-                    select.appendChild(h('option', { value: theme.metadata.id }, displayName));
+                    options.push(h('option', { value: theme.metadata.id }, displayName));
                 });
+                select.replaceChildren(...options);
                 select.value = activeThemeKey;
                 select.scrollTop = scroll;
             }
@@ -15566,8 +15558,7 @@
             }
 
             // Phase 1: Write (Update Content)
-            this.previewTooltip.textContent = '';
-            this.previewTooltip.appendChild(contentFragment);
+            this.previewTooltip.replaceChildren(contentFragment);
 
             // Phase 2: Read & Position (Synchronous in this frame)
             if (!this.previewTooltip) return;
@@ -16344,10 +16335,9 @@
                     },
                 });
 
-                messageArea.textContent = '';
                 messageArea.classList.add(conflictTextClass);
                 messageArea.style.color = styles.PALETTE.error_text || 'red';
-                messageArea.append(messageText, reloadBtn);
+                messageArea.replaceChildren(messageText, reloadBtn);
             }
         }
 
@@ -17298,7 +17288,7 @@
             if (!needsRepair && this.messageCacheManager) {
                 const totalMessages = this.messageCacheManager.getTotalMessages();
                 if (totalMessages.length > 0) {
-                    const lastMsg = totalMessages[totalMessages.length - 1];
+                    const lastMsg = totalMessages.at(-1);
                     if (!lastMsg.isConnected) {
                         needsRepair = true;
                         reason = 'Disconnected DOM elements';
@@ -17372,7 +17362,7 @@
                 const totalMessages = this.messageCacheManager.getTotalMessages();
                 if (totalMessages.length > 0) {
                     // Check the last message as a proxy for the entire list stability
-                    const lastMsg = totalMessages[totalMessages.length - 1];
+                    const lastMsg = totalMessages.at(-1);
                     if (!lastMsg.isConnected) {
                         Logger.debug('HEARTBEAT', LOG_STYLES.ORANGE, 'Disconnected element detected. Scheduling self-healing.');
                         // Use runWhenIdle to defer repair during high load (scrolling/resizing)
