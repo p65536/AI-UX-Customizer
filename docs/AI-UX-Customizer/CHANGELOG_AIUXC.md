@@ -3,6 +3,11 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b516] - 2026-03-05
+- **Performance Improvements**
+  - Optimized the avatar rendering process to reduce CPU overhead and improve overall responsiveness, especially when loading long chat histories.
+  - Eliminated redundant background processing when navigating between pages or restoring chat states, resulting in a smoother user experience.
+
 ## [1.0.0-b515] - 2026-03-05
 - **Improvements**
   - **[ChatGPT]** Accelerated the layout scan process for Firefox users. The time required to stabilize the layout and prevent scroll issues when loading long conversations has been drastically reduced.

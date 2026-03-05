@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b515
+// @version      1.0.0-b516
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -8127,7 +8127,8 @@
             this.style = null; // Handle for styles
 
             // A queue to hold incoming avatar injection requests.
-            this._injectionQueue = [];
+            /** @type {Set<HTMLElement>} */
+            this._injectionQueue = new Set();
             // A debounced function to process the queue in a single batch.
             this._debouncedProcessQueue = debounce(this._processInjectionQueue.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.AVATAR_INJECTION, true);
 
@@ -8145,7 +8146,7 @@
 
             // Clear queue and cancel pending tasks on navigation start to prevent memory leaks and unnecessary processing.
             this._subscribe(EVENTS.NAVIGATION_START, () => {
-                this._injectionQueue = [];
+                this._injectionQueue.clear();
                 this._debouncedProcessQueue.cancel();
                 this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
                 this.injectAttempts = new WeakMap();
@@ -8154,7 +8155,7 @@
 
             // Ensure state is clean on navigation settlement.
             this._subscribe(EVENTS.NAVIGATION, () => {
-                this._injectionQueue = [];
+                this._injectionQueue.clear();
             });
 
             // Self-Healing: Re-check all messages after navigation completes.
@@ -8167,7 +8168,7 @@
         _onDestroy() {
             // Cleanup handled by disposables.
             // Do NOT set this.style to null here, as it may be used by pending disposables.
-            this._injectionQueue = [];
+            this._injectionQueue.clear();
             this.avatarTemplate = null;
             this.injectAttempts = new WeakMap();
             this.injectFailed = new WeakMap();
@@ -8180,6 +8181,11 @@
          * @param {HTMLElement} msgElem
          */
         queueForInjection(msgElem) {
+            // Avoid unnecessary queuing if the avatar is already injected
+            if (msgElem.querySelector(CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER)) {
+                return;
+            }
+
             const MAX_ATTEMPTS = CONSTANTS.RETRY.AVATAR_INJECTION_LIMIT;
 
             const attempts = this.injectAttempts.get(msgElem) || 0;
@@ -8195,9 +8201,7 @@
 
             this.injectAttempts.set(msgElem, attempts + 1);
 
-            if (!this._injectionQueue.includes(msgElem)) {
-                this._injectionQueue.push(msgElem);
-            }
+            this._injectionQueue.add(msgElem);
             this._debouncedProcessQueue();
         }
 
@@ -8218,13 +8222,13 @@
             // Cancel any existing batch task immediately
             this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
 
-            if (this._injectionQueue.length === 0) {
+            if (this._injectionQueue.size === 0) {
                 return;
             }
-            Logger.debug('AVATAR QUEUE', LOG_STYLES.CYAN, `Processing ${this._injectionQueue.length} items.`);
+            Logger.debug('AVATAR QUEUE', LOG_STYLES.CYAN, `Processing ${this._injectionQueue.size} items.`);
 
             const messagesToProcess = [...this._injectionQueue];
-            this._injectionQueue = [];
+            this._injectionQueue.clear();
 
             const reservedKeys = new Set(); // For scope duplication check
 
