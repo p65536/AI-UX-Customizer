@@ -3,6 +3,12 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b517] - 2026-03-05
+- **Performance Improvements**
+  - Optimized the internal DOM queries used for detecting and injecting custom avatars, resulting in faster and more efficient rendering during chat updates.
+- **Under the Hood**
+  - Cleaned up unused style definitions and standardized internal component interfaces to improve overall script stability and maintainability.
+
 ## [1.0.0-b516] - 2026-03-05
 - **Performance Improvements**
   - Optimized the avatar rendering process to reduce CPU overhead and improve overall responsiveness, especially when loading long chat histories.

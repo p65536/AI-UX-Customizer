@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b516
+// @version      1.0.0-b517
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -4687,7 +4687,6 @@
 
         static getAvatar() {
             const key = 'avatar';
-            const prefix = `${APPID}-${key}`;
 
             // Define CSS variable names centrally
             const vars = {
@@ -4695,13 +4694,9 @@
                 iconMargin: CSS_VARS.ICON_MARGIN,
             };
 
-            const classes = {
-                processed: `${prefix}-processed`,
-            };
-
             const cssGenerator = () => PlatformAdapters.Avatar.getCss();
 
-            return { key, rootId: null, classes, vars, generator: cssGenerator };
+            return { key, rootId: null, classes: {}, vars, generator: cssGenerator };
         }
     }
 
@@ -8182,7 +8177,7 @@
          */
         queueForInjection(msgElem) {
             // Avoid unnecessary queuing if the avatar is already injected
-            if (msgElem.querySelector(CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER)) {
+            if (msgElem.getElementsByClassName(CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER_CLASS).length > 0) {
                 return;
             }
 
@@ -17816,6 +17811,7 @@
 
                 // --- Selectors for Avatar ---
                 SIDE_AVATAR_CONTAINER: '.side-avatar-container',
+                SIDE_AVATAR_CONTAINER_CLASS: 'side-avatar-container',
                 SIDE_AVATAR_ICON: '.side-avatar-icon',
                 SIDE_AVATAR_NAME: '.side-avatar-name',
 
@@ -18675,7 +18671,7 @@
                 if (!centeredWrapper) return null;
 
                 // Check if avatar container already exists *inside the centered wrapper*.
-                if (centeredWrapper.querySelector(CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER)) {
+                if (centeredWrapper.getElementsByClassName(CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER_CLASS).length > 0) {
                     // Already present. Return context to ensure processed class is added, but do not inject.
                     return {
                         shouldInject: false,
@@ -19521,6 +19517,7 @@
 
                 // --- Selectors for Avatar ---
                 SIDE_AVATAR_CONTAINER: '.side-avatar-container',
+                SIDE_AVATAR_CONTAINER_CLASS: 'side-avatar-container',
                 SIDE_AVATAR_ICON: '.side-avatar-icon',
                 SIDE_AVATAR_NAME: '.side-avatar-name',
 
@@ -20250,7 +20247,7 @@
             /** @override */
             measureAvatarTarget(msgElem) {
                 // The guard should only check for the existence of the avatar container itself.
-                if (msgElem.querySelector(CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER)) {
+                if (msgElem.getElementsByClassName(CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER_CLASS).length > 0) {
                     // (Logic adapted: Return context to ensure processed check is maintained, but do not inject)
                     return {
                         shouldInject: false,
