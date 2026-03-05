@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b520
+// @version      1.0.0-b521
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -825,8 +825,7 @@
          * @returns {object} The platform specific config (e.g. config.platforms.ChatGPT).
          */
         getPlatformConfig(config) {
-            if (!config || !config.platforms) return {};
-            return config.platforms[PLATFORM] || {};
+            return config?.platforms?.[PLATFORM] ?? {};
         },
     };
 
@@ -3382,7 +3381,7 @@
          * Sets the flag indicating the script has now been executed.
          */
         static setExecuted() {
-            window[this.#GUARD_KEY] = window[this.#GUARD_KEY] || {};
+            window[this.#GUARD_KEY] ??= {};
             window[this.#GUARD_KEY][this.#APP_KEY] = true;
         }
     }
@@ -3569,9 +3568,7 @@
                 Logger.error('', '', 'EventBus.subscribe requires a unique key.');
                 return;
             }
-            if (!this.events[event]) {
-                this.events[event] = new Map();
-            }
+            this.events[event] ??= new Map();
             this.events[event].set(key, listener);
         },
         /**
@@ -5074,28 +5071,25 @@
      * @returns {object} The mutated target object.
      */
     function resolveConfig(target, source) {
-        for (const key in source) {
+        for (const [key, sourceVal] of Object.entries(source)) {
             // Security: Prevent prototype pollution
             if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
                 continue;
             }
 
-            if (Object.hasOwn(source, key)) {
-                // Strict check: Ignore keys that do not exist in the target (default config).
-                if (!Object.hasOwn(target, key)) {
-                    continue;
-                }
+            // Strict check: Ignore keys that do not exist in the target (default config).
+            if (!Object.hasOwn(target, key)) {
+                continue;
+            }
 
-                const sourceVal = source[key];
-                const targetVal = target[key];
+            const targetVal = target[key];
 
-                if (isObject(sourceVal) && isObject(targetVal)) {
-                    // If both are objects, recurse
-                    resolveConfig(targetVal, sourceVal);
-                } else if (typeof sourceVal !== 'undefined') {
-                    // Otherwise, overwrite or set the value from the source
-                    target[key] = sourceVal;
-                }
+            if (isObject(sourceVal) && isObject(targetVal)) {
+                // If both are objects, recurse
+                resolveConfig(targetVal, sourceVal);
+            } else if (typeof sourceVal !== 'undefined') {
+                // Otherwise, overwrite or set the value from the source
+                target[key] = sourceVal;
             }
         }
         return target;
@@ -5256,7 +5250,7 @@
      */
     function createIconFromDef(def) {
         if (!def) return null;
-        const children = def.children ? def.children.map((child) => createIconFromDef(child)) : [];
+        const children = def.children?.map((child) => createIconFromDef(child)) ?? [];
         return h(def.tag, def.props, children);
     }
 
@@ -6227,7 +6221,7 @@
             }
 
             const completeConfig = deepClone(this.DEFAULT_CONFIG);
-            const resolvedConfig = resolveConfig(completeConfig, loadedConfig || {});
+            const resolvedConfig = resolveConfig(completeConfig, loadedConfig ?? {});
             ConfigProcessor.process(resolvedConfig);
 
             if (updateState) {
@@ -11845,7 +11839,7 @@
          * @param {object} newDefaultSet - The updated default theme configuration.
          */
         setDefaultSet(newDefaultSet) {
-            this.defaultSet = newDefaultSet || {};
+            this.defaultSet = newDefaultSet ?? {};
         }
 
         /**
@@ -11941,8 +11935,8 @@
             const element = this.dom[actor];
             if (!(element instanceof HTMLElement)) return;
 
-            const currentConfig = config || {};
-            const defaultConfig = this.defaultSet[actor] || {};
+            const currentConfig = config ?? {};
+            const defaultConfig = this.defaultSet[actor] ?? {};
 
             // Apply standard styles
             this._applyStyles(element, currentConfig, defaultConfig, actor, {
@@ -11983,8 +11977,8 @@
             const element = this.dom.inputArea;
             if (!(element instanceof HTMLElement)) return;
 
-            const currentConfig = config || {};
-            const defaultConfig = this.defaultSet.inputArea || {};
+            const currentConfig = config ?? {};
+            const defaultConfig = this.defaultSet.inputArea ?? {};
 
             this._applyStyles(element, currentConfig, defaultConfig, 'inputArea', {
                 color: 'textColor',
@@ -12001,8 +11995,8 @@
             const element = this.dom.window;
             if (!(element instanceof HTMLElement)) return;
 
-            const currentConfig = config || {};
-            const defaultConfig = this.defaultSet.window || {};
+            const currentConfig = config ?? {};
+            const defaultConfig = this.defaultSet.window ?? {};
 
             // Only background-color is previewed for window
             this._applyStyles(element, currentConfig, defaultConfig, 'window', {
@@ -13772,13 +13766,11 @@
 
             // Recursively set all configuration values to null to signify "inherit from default".
             const nullify = (obj) => {
-                for (const key in obj) {
-                    if (Object.hasOwn(obj, key)) {
-                        if (obj[key] && typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
-                            nullify(obj[key]);
-                        } else {
-                            obj[key] = null;
-                        }
+                for (const [key, value] of Object.entries(obj)) {
+                    if (value && typeof value === 'object' && !Array.isArray(value)) {
+                        nullify(value);
+                    } else {
+                        obj[key] = null;
                     }
                 }
             };
@@ -16499,7 +16491,7 @@
 
             /** @type {any} */
             const globalScope = window;
-            globalScope.__global_sentinel_instances__ = globalScope.__global_sentinel_instances__ || {};
+            globalScope.__global_sentinel_instances__ ??= {};
             if (globalScope.__global_sentinel_instances__[prefix]) {
                 return globalScope.__global_sentinel_instances__[prefix];
             }
