@@ -783,6 +783,7 @@ interface PlatformConstants {
         JUMP_LIST: string;
         BUTTON_STATE_TASK: string;
         HEARTBEAT_TIMER: string;
+        SELF_HEAL_TASK: string;
     };
     // Platform specific additions
     OBSERVER_OPTIONS?: MutationObserverInit;

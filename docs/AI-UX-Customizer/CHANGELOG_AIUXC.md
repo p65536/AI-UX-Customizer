@@ -3,6 +3,10 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b519] - 2026-03-05
+- **Core Changes**
+  - Improved internal task management to ensure background processes (such as data indexing and self-healing checks) are strictly canceled when no longer needed, preventing potential memory leaks and improving overall stability.
+
 ## [1.0.0-b518] - 2026-03-05
 - **Improvements**
   - Updated the color picker in the theme editor to proactively support modern browser color formats, preventing potential issues where saved colors might fail to load correctly in the UI.

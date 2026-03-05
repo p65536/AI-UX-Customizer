@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b518
+// @version      1.0.0-b519
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -324,6 +324,7 @@
 
             // System Resources
             HEARTBEAT_TIMER: 'heartbeatTimer',
+            SELF_HEAL_TASK: 'selfHealTask',
         },
     };
 
@@ -9185,7 +9186,8 @@
             if (this.indexingQueue.length === 0) return;
 
             // Use runWhenIdle utility
-            runWhenIdle((deadline) => {
+            this.idleIndexingCancelFn = runWhenIdle((deadline) => {
+                this.idleIndexingCancelFn = null;
                 if (this.isDestroyed || !this.jumpListStyleHandle) return;
 
                 const cls = this.jumpListStyleHandle.classes;
@@ -10435,7 +10437,8 @@
             const timerId = setTimeout(() => {
                 if (this.isDestroyed) return;
                 this.isScanPending = false;
-                runWhenIdle(() => {
+                const cancelIdleFn = runWhenIdle(() => {
+                    this.manageResource(CONSTANTS.RESOURCE_KEYS.INTEGRITY_SCAN, null);
                     if (this.isDestroyed) return;
                     const newItemsFound = this.scanForUnprocessedMessages();
                     if (newItemsFound > 0) {
@@ -10445,6 +10448,7 @@
                         Logger.debug('IntegrityScan', '', 'Scan complete. No missing items found.');
                     }
                 }, MessageLifecycleManager.CONFIG.IDLE_TIMEOUT_MS);
+                this.manageResource(CONSTANTS.RESOURCE_KEYS.INTEGRITY_SCAN, cancelIdleFn);
             }, MessageLifecycleManager.CONFIG.INTEGRITY_SCAN_DELAY_MS);
 
             // Register the timer resource for automatic cleanup
@@ -15036,6 +15040,7 @@
             // --- Render scheduling ---
             this.renderRafId = null;
             this.isRenderScheduled = false;
+            this.idleIndexingCancelFn = null;
 
             // Pending state for preview update aggregation
             this.pendingPreviewIndex = -1;
@@ -15231,6 +15236,11 @@
         _onDestroy() {
             // ResizeObserver is automatically disconnected by BaseManager
             this.resizeObserver = null;
+
+            if (this.idleIndexingCancelFn) {
+                this.idleIndexingCancelFn();
+                this.idleIndexingCancelFn = null;
+            }
 
             this._cancelScheduledPreview();
             this._cancelScheduledFilter();
@@ -17300,10 +17310,12 @@
                 Logger.warn('SELF HEAL', LOG_STYLES.ORANGE, `State inconsistency detected (${reason}). Scheduling repair...`);
 
                 // Use runWhenIdle to avoid freezing the UI immediately upon return
-                runWhenIdle(() => {
+                const cancelIdleFn = runWhenIdle(() => {
+                    this.manageResource(CONSTANTS.RESOURCE_KEYS.SELF_HEAL_TASK, null);
                     if (this.isDestroyed || this.isNavigating) return;
                     this._performSelfHealing();
                 }, CONSTANTS.TIMING.TIMEOUTS.SELF_HEAL_IDLE_TIMEOUT_MS);
+                this.manageResource(CONSTANTS.RESOURCE_KEYS.SELF_HEAL_TASK, cancelIdleFn);
             }
         }
 
@@ -17364,10 +17376,12 @@
                     if (!lastMsg.isConnected) {
                         Logger.debug('HEARTBEAT', LOG_STYLES.ORANGE, 'Disconnected element detected. Scheduling self-healing.');
                         // Use runWhenIdle to defer repair during high load (scrolling/resizing)
-                        runWhenIdle(() => {
+                        const cancelIdleFn = runWhenIdle(() => {
+                            this.manageResource(CONSTANTS.RESOURCE_KEYS.SELF_HEAL_TASK, null);
                             if (this.isDestroyed || this.isNavigating) return;
                             this._performSelfHealing();
                         }, CONSTANTS.TIMING.TIMEOUTS.SELF_HEAL_IDLE_TIMEOUT_MS);
+                        this.manageResource(CONSTANTS.RESOURCE_KEYS.SELF_HEAL_TASK, cancelIdleFn);
                     }
                 }
             }
