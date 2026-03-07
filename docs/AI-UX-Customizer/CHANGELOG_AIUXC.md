@@ -3,6 +3,11 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b523] - 2026-03-07
+- **Bug Fixes & Improvements**
+  - Fixed a potential issue where internal page-monitoring rules could duplicate during rapid page navigations, preventing gradual performance degradation over time.
+  - Improved the overall stability and error handling of the core observation engine (`Sentinel`) when the browser dynamically reconstructs the page structure.
+
 ## [1.0.0-b522] - 2026-03-07
 - **Bug Fixes**
   - **[ChatGPT]** Fixed an issue where standing images were not hiding correctly when the newly updated Activity panel was opened.
