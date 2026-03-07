@@ -3,6 +3,11 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b525] - 2026-03-07
+- **Bug Fixes & Improvements**
+  - Fixed an issue where the background DOM observer might fail to suspend correctly during rapid page loads, layout reconstructions, or when script instances are reloaded.
+  - Improved the stability of the observation engine by ensuring that an error in one component's listener does not disrupt the functionality of other components.
+
 ## [1.0.0-b524] - 2026-03-07
 - **Core Changes**
   - Improved the lifecycle management of the internal element observation engine (`Sentinel`).

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b524
+// @version      1.0.0-b525
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -16498,6 +16498,7 @@
 
             this.prefix = prefix;
             this.isDestroyed = false;
+            this.isSuspended = false;
             this._initObserver = null;
 
             // Use a unique, prefixed animation name shared by all scripts in a project.
@@ -16552,6 +16553,8 @@
             this.styleElement = document.getElementById(this.styleId);
 
             if (this.styleElement instanceof HTMLStyleElement) {
+                this.styleElement.disabled = this.isSuspended;
+
                 /** @type {HTMLStyleElement} */
                 const styleNode = this.styleElement;
                 const pollExisting = () => {
@@ -16599,6 +16602,10 @@
 
             if (nonce) {
                 this.styleElement.nonce = nonce;
+            }
+
+            if (this.styleElement instanceof HTMLStyleElement) {
+                this.styleElement.disabled = this.isSuspended;
             }
 
             // Try to inject immediately.
@@ -16656,6 +16663,7 @@
                 if (target) {
                     target.appendChild(this.styleElement);
                     if (this.styleElement instanceof HTMLStyleElement && this.styleElement.sheet) {
+                        this.styleElement.disabled = this.isSuspended;
                         this.sheet = this.styleElement.sheet;
 
                         try {
@@ -16709,6 +16717,8 @@
         }
 
         _handleAnimationStart(event) {
+            if (this.isDestroyed) return;
+
             // Check if the animation is the one we're listening for.
             if (event.animationName !== this.animationName) return;
 
@@ -16721,7 +16731,13 @@
             for (const [selector, callbacks] of this.listeners.entries()) {
                 if (target.matches(selector)) {
                     // Use a copy of the callbacks Set in case a callback removes itself.
-                    [...callbacks].forEach((cb) => cb(target));
+                    [...callbacks].forEach((cb) => {
+                        try {
+                            cb(target);
+                        } catch (e) {
+                            Logger.error('SENTINEL', LOG_STYLES.RED, `Listener error for selector "${selector}":`, e);
+                        }
+                    });
                 }
             }
         }
@@ -16794,6 +16810,7 @@
 
         suspend() {
             if (this.isDestroyed) return;
+            this.isSuspended = true;
             if (this.styleElement instanceof HTMLStyleElement) {
                 this.styleElement.disabled = true;
             }
@@ -16802,6 +16819,7 @@
 
         resume() {
             if (this.isDestroyed) return;
+            this.isSuspended = false;
             if (this.styleElement instanceof HTMLStyleElement) {
                 this.styleElement.disabled = false;
             }
