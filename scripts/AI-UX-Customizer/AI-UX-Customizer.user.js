@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b523
+// @version      1.0.0-b524
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -16496,6 +16496,10 @@
                 return globalScope.__global_sentinel_instances__[prefix];
             }
 
+            this.prefix = prefix;
+            this.isDestroyed = false;
+            this._initObserver = null;
+
             // Use a unique, prefixed animation name shared by all scripts in a project.
             this.animationName = `${prefix}-global-sentinel-animation`;
             this.styleId = `${prefix}-sentinel-global-rules`; // A single, unified style element
@@ -16507,10 +16511,40 @@
             /** @type {WeakMap<CSSRule, string>} */
             this.ruleSelectors = new WeakMap(); // Tracks selector strings associated with CSSRule objects
 
+            this._boundHandleAnimationStart = this._handleAnimationStart.bind(this);
+
             this._injectStyleElement();
-            document.addEventListener('animationstart', this._handleAnimationStart.bind(this), true);
+            document.addEventListener('animationstart', this._boundHandleAnimationStart, true);
 
             globalScope.__global_sentinel_instances__[prefix] = this;
+        }
+
+        destroy() {
+            if (this.isDestroyed) return;
+            this.isDestroyed = true;
+
+            document.removeEventListener('animationstart', this._boundHandleAnimationStart, true);
+
+            if (this._initObserver) {
+                this._initObserver.disconnect();
+                this._initObserver = null;
+            }
+
+            if (this.styleElement) {
+                this.styleElement.remove();
+                this.styleElement = null;
+            }
+
+            this.sheet = null;
+            this.listeners.clear();
+            this.rules.clear();
+            this.pendingRules = [];
+
+            /** @type {any} */
+            const globalScope = window;
+            if (globalScope.__global_sentinel_instances__) {
+                delete globalScope.__global_sentinel_instances__[this.prefix];
+            }
         }
 
         _injectStyleElement() {
@@ -16521,6 +16555,7 @@
                 /** @type {HTMLStyleElement} */
                 const styleNode = this.styleElement;
                 const pollExisting = () => {
+                    if (this.isDestroyed) return;
                     if (styleNode.sheet) {
                         this.sheet = styleNode.sheet;
                         this._flushPendingRules();
@@ -16571,6 +16606,7 @@
             const target = document.head || document.documentElement;
 
             const initSheet = () => {
+                if (this.isDestroyed) return;
                 if (this.styleElement instanceof HTMLStyleElement) {
                     /** @type {HTMLStyleElement} */
                     const styleNode = this.styleElement;
@@ -16596,16 +16632,18 @@
                 target.appendChild(this.styleElement);
                 initSheet();
             } else {
-                const observer = new MutationObserver(() => {
+                this._initObserver = new MutationObserver(() => {
+                    if (this.isDestroyed) return;
                     const retryTarget = document.head || document.documentElement;
                     if (retryTarget) {
-                        observer.disconnect();
+                        this._initObserver.disconnect();
+                        this._initObserver = null;
 
                         retryTarget.appendChild(this.styleElement);
                         initSheet();
                     }
                 });
-                observer.observe(document, { childList: true });
+                this._initObserver.observe(document, { childList: true });
             }
         }
 
@@ -16693,6 +16731,7 @@
          * @param {(element: Element) => void} callback
          */
         on(selector, callback) {
+            if (this.isDestroyed) return;
             this._ensureStyleGuard();
 
             // Add callback to listeners
@@ -16718,6 +16757,7 @@
          * @param {(element: Element) => void} callback
          */
         off(selector, callback) {
+            if (this.isDestroyed) return;
             const callbacks = this.listeners.get(selector);
             if (!callbacks) return;
 
@@ -16753,6 +16793,7 @@
         }
 
         suspend() {
+            if (this.isDestroyed) return;
             if (this.styleElement instanceof HTMLStyleElement) {
                 this.styleElement.disabled = true;
             }
@@ -16760,6 +16801,7 @@
         }
 
         resume() {
+            if (this.isDestroyed) return;
             if (this.styleElement instanceof HTMLStyleElement) {
                 this.styleElement.disabled = false;
             }
