@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b528
+// @version      1.0.0-b529
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -10545,7 +10545,6 @@
             this.styleHandle = null;
             this.timestampContainerTemplate = null;
             this.timestampSpanTemplate = null;
-            this.currentChatId = null;
             this.isEnabled = false; // Add state tracking
             this.isNavigating = true; // Track navigation state (Initialize as true to buffer initial page load)
             /** @type {(() => void) | null} */
@@ -10558,13 +10557,6 @@
             // Register automatic cleanup of UI and listeners when destroyed
             this.addDisposable(() => this.disable());
 
-            // Subscribe to navigation events to clear the cache and load new data
-            // This must always run, even when disabled, to clear the cache on page change.
-            this._subscribe(EVENTS.NAVIGATION, () => {
-                this._handleNavigation();
-                // Cancel pending batch tasks on navigation
-                this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
-            });
             this._subscribe(EVENTS.NAVIGATION_START, () => this._handleNavigationStart());
             this._subscribe(EVENTS.NAVIGATION_END, () => this._handleNavigationEnd());
 
@@ -10657,23 +10649,12 @@
             this.updateAllTimestamps();
         }
 
-        /** @private */
-        _handleNavigation() {
-            // Reset chat ID as we are on a new page
-            this.currentChatId = null;
-        }
-
         /**
          * @private
          * @param {object} detail
-         * @param {string} detail.chatId
          * @param {Map<string, Date>} detail.timestamps
          */
-        _loadHistoricalTimestamps({ chatId, timestamps }) {
-            if (chatId !== this.currentChatId) {
-                this.currentChatId = chatId;
-            }
-
+        _loadHistoricalTimestamps({ timestamps }) {
             // Data is already stored in Adapter by the time this event fires.
             if (timestamps && timestamps.size > 0) {
                 Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, `Notified of ${timestamps.size} historical timestamps.`);
@@ -19512,6 +19493,8 @@
                         chatId = data.conversation_id;
                     }
 
+                    // This acts as a filter to ensure we are processing actual chat data,
+                    // not other endpoints like /conversations (history list).
                     if (!chatId) return;
 
                     // Parse the JSON data
@@ -19521,7 +19504,7 @@
                         // Store in persistent cache
                         timestamps.forEach((date, id) => this.addTimestamp(id, date));
                         // Publish event
-                        EventBus.publish(EVENTS.TIMESTAMPS_LOADED, { chatId, timestamps });
+                        EventBus.publish(EVENTS.TIMESTAMPS_LOADED, { timestamps });
                     }
                 } catch (e) {
                     Logger.error('TIMESTAMP ERROR', LOG_STYLES.RED, 'Failed to parse conversation JSON:', e);
