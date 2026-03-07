@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b526
+// @version      1.0.0-b527
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -3010,6 +3010,7 @@
             /** @type {Map<string, Date>} */
             this.cache = new Map();
             this.MAX_CACHE_SIZE = 10000;
+            this.isInitialized = false;
         }
 
         /**
@@ -17173,7 +17174,12 @@
                     localStorage.setItem(CONSTANTS.STORE_KEYS.LOCAL_TIMESTAMP_ENABLED, String(isTimestampEnabled));
                     // Force the correct interception state based on the loaded config to prevent rogue background processes
                     if (isTimestampEnabled) {
-                        PlatformAdapters.Timestamp.init();
+                        // Safe initialization check: prevent late-binding that could corrupt site fetch polyfills.
+                        if (!PlatformAdapters.Timestamp.isInitialized) {
+                            Logger.warn('TIMESTAMP', LOG_STYLES.YELLOW, 'Timestamp is enabled but fetch was not wrapped at document-start (e.g., due to cleared local storage). Interception will start on the next reload.');
+                        } else {
+                            PlatformAdapters.Timestamp.init();
+                        }
                     } else {
                         PlatformAdapters.Timestamp.cleanup();
                     }
@@ -17773,12 +17779,6 @@
             // If already running, do nothing
             if (this.appController) return;
 
-            // Enable Timestamp monitoring immediately upon valid URL detection.
-            // This ensures we catch early API calls even before the DOM is ready.
-            if (PlatformAdapters.Timestamp.isTimestampEnabledSync(DEFAULT_THEME_CONFIG.platforms[PLATFORM])) {
-                PlatformAdapters.Timestamp.init();
-            }
-
             const anchorSelector = CONSTANTS.SELECTORS.INPUT_TEXT_FIELD_TARGET;
             const anchor = document.querySelector(anchorSelector);
 
@@ -17849,8 +17849,9 @@
     // Singleton instance for observing DOM node insertions.
     const sentinel = new Sentinel(OWNERID);
 
-    // Initialize network interception immediately to capture early data, but only if not on an excluded page.
-    if (!PlatformAdapters.General.isExcludedPage() && PlatformAdapters.Timestamp.isTimestampEnabledSync(DEFAULT_THEME_CONFIG.platforms[PLATFORM])) {
+    // Initialize network interception immediately to safely wrap fetch before site scripts load.
+    // It starts in a disabled (pass-through) state and is activated later by the AppController if needed.
+    if (PlatformAdapters.Timestamp.isTimestampEnabledSync(DEFAULT_THEME_CONFIG.platforms[PLATFORM])) {
         PlatformAdapters.Timestamp.init();
     }
 

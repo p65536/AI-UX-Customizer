@@ -3,6 +3,12 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b527] - 2026-03-07
+- **Bug Fixes**
+  - **[ChatGPT]** Fixed a critical issue where the Message Timestamp feature could potentially interfere with the site's normal network connections during page navigation or after clearing browser data.
+- **Core Changes**
+  - Hardened the network interception logic to ensure it initializes safely and reliably only at the very beginning of the page load, preventing conflicts with the site's internal scripts.
+
 ## [1.0.0-b526] - 2026-03-07
 - **Bug Fixes**
   - **[ChatGPT]** Fixed a critical issue where turning off the Timestamp feature or navigating between pages could disrupt the site's network communications.

@@ -630,6 +630,7 @@ interface FixedNavAdapter {
 }
 
 interface TimestampAdapter {
+    isInitialized: boolean;
     init(): void;
     cleanup(): void;
     hasTimestampLogic(): boolean;
