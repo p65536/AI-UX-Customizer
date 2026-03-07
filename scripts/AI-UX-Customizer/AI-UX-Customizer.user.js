@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b529
+// @version      1.0.0-b530
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -17150,22 +17150,23 @@
 
             // --- Sync and Self-Heal localStorage Timestamp state ---
             if (PlatformAdapters.Timestamp.hasTimestampLogic()) {
+                const isTimestampEnabled = Boolean(config?.platforms?.[PLATFORM]?.features?.timestamp?.enabled);
                 try {
-                    const isTimestampEnabled = Boolean(config?.platforms?.[PLATFORM]?.features?.timestamp?.enabled);
                     localStorage.setItem(CONSTANTS.STORE_KEYS.LOCAL_TIMESTAMP_ENABLED, String(isTimestampEnabled));
-                    // Force the correct interception state based on the loaded config to prevent rogue background processes
-                    if (isTimestampEnabled) {
-                        // Safe initialization check: prevent late-binding that could corrupt site fetch polyfills.
-                        if (!PlatformAdapters.Timestamp.isInitialized) {
-                            Logger.warn('TIMESTAMP', LOG_STYLES.YELLOW, 'Timestamp is enabled but fetch was not wrapped at document-start (e.g., due to cleared local storage). Interception will start on the next reload.');
-                        } else {
-                            PlatformAdapters.Timestamp.init();
-                        }
-                    } else {
-                        PlatformAdapters.Timestamp.cleanup();
-                    }
                 } catch (e) {
                     Logger.warn('APP', '', 'Failed to self-heal localStorage for timestamp toggle sync.', e);
+                }
+
+                // Force the correct interception state based on the loaded config to prevent rogue background processes
+                if (isTimestampEnabled) {
+                    // Safe initialization check: prevent late-binding that could corrupt site fetch polyfills.
+                    if (!PlatformAdapters.Timestamp.isInitialized) {
+                        Logger.warn('TIMESTAMP', LOG_STYLES.YELLOW, 'Timestamp is enabled but fetch was not wrapped at document-start (e.g., due to cleared local storage). Interception will start on the next reload.');
+                    } else {
+                        PlatformAdapters.Timestamp.init();
+                    }
+                } else {
+                    PlatformAdapters.Timestamp.cleanup();
                 }
             }
 
@@ -17806,8 +17807,6 @@
             // Cleanup anchor listener
             this.manageResource(CONSTANTS.RESOURCE_KEYS.ANCHOR_LISTENER, null);
 
-            PlatformAdapters.Timestamp.cleanup(); // Disable Timestamp monitoring
-
             if (this.appController) {
                 Logger.log('LIFECYCLE', LOG_STYLES.YELLOW, 'Shutting down AppController (Excluded Page).');
                 // Dispose the resource (calls destroy())
@@ -17831,7 +17830,7 @@
     const sentinel = new Sentinel(OWNERID);
 
     // Initialize network interception immediately to safely wrap fetch before site scripts load.
-    // It starts in a disabled (pass-through) state and is activated later by the AppController if needed.
+    // It starts in an active state to ensure early API calls are not missed during initial load or SPA navigation.
     if (PlatformAdapters.Timestamp.isTimestampEnabledSync(DEFAULT_THEME_CONFIG.platforms[PLATFORM])) {
         PlatformAdapters.Timestamp.init();
     }

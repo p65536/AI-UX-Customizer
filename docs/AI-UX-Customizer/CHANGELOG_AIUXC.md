@@ -3,6 +3,11 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b530] - 2026-03-07
+- **Bug Fixes**
+  - **[ChatGPT]** Fixed an issue where message timestamps would fail to load immediately after navigating from certain pages (like the "Explore GPTs" page) back to a normal chat.
+  - **[ChatGPT]** Fixed a potential bug where the timestamp feature could become permanently stuck in the wrong state if the browser's privacy settings blocked access to local storage.
+
 ## [1.0.0-b529] - 2026-03-07
 - **Core Changes**
   - **[ChatGPT]** Optimized the Message Timestamp internal logic by removing unused state tracking and redundant navigation event listeners, resulting in cleaner code and marginally better performance.
