@@ -3,6 +3,13 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b526] - 2026-03-07
+- **Bug Fixes**
+  - **[ChatGPT]** Fixed a critical issue where turning off the Timestamp feature or navigating between pages could disrupt the site's network communications.
+- **Improvements**
+  - **[ChatGPT]** Improved the reliability of the Timestamp feature by synchronizing its state to ensure it initializes accurately upon page load.
+  - **[ChatGPT]** Safely enforces an automatic page reload when toggling the "Show timestamp" setting to prevent background errors and ensure the feature applies cleanly.
+
 ## [1.0.0-b525] - 2026-03-07
 - **Bug Fixes & Improvements**
   - Fixed an issue where the background DOM observer might fail to suspend correctly during rapid page loads, layout reconstructions, or when script instances are reloaded.

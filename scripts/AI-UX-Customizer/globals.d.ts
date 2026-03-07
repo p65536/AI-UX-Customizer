@@ -633,6 +633,7 @@ interface TimestampAdapter {
     init(): void;
     cleanup(): void;
     hasTimestampLogic(): boolean;
+    isTimestampEnabledSync(defaultConfig: PlatformConfig): boolean;
     addTimestamp(id: string, date: Date): void;
     getTimestamp(id: string): Date | undefined;
 }
@@ -749,6 +750,7 @@ interface PlatformConstants {
         WARNING_SHOW_PATH: string;
         ERRORS_PATH: string;
         SIZE_EXCEEDED_PATH: string;
+        LOCAL_TIMESTAMP_ENABLED: string;
     };
     RESOURCE_KEYS: {
         SETTINGS_BUTTON: string;

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b525
+// @version      1.0.0-b526
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -275,6 +275,7 @@
             WARNING_SHOW_PATH: '_system.warning.show',
             ERRORS_PATH: '_system.errors',
             SIZE_EXCEEDED_PATH: '_system.isSizeExceeded',
+            LOCAL_TIMESTAMP_ENABLED: `${APPID}_timestamp_enabled`,
         },
         RESOURCE_KEYS: {
             // UI Components
@@ -731,7 +732,7 @@
             // --- Features ---
             'features.timestamp.enabled': {
                 type: 'toggle',
-                ui: { label: 'Show timestamp', title: 'Displays the timestamp for each message.' },
+                ui: { label: 'Show timestamp', title: 'Displays the timestamp for each message.\nNote: Enabling this feature will automatically reload the page.' },
             },
             'features.collapsible_button.enabled': {
                 type: 'toggle',
@@ -3054,6 +3055,15 @@
          */
         getTimestamp(id) {
             return this.cache.get(id);
+        }
+
+        /**
+         * Synchronously checks if the timestamp feature is enabled.
+         * @param {object} defaultConfig
+         * @returns {boolean}
+         */
+        isTimestampEnabledSync(defaultConfig) {
+            return false;
         }
     }
 
@@ -6237,6 +6247,16 @@
          * @returns {Promise<void>}
          */
         async save(obj) {
+            // --- Sync timestamp toggle to localStorage (ChatGPT only) ---
+            if (PlatformAdapters.Timestamp.hasTimestampLogic()) {
+                try {
+                    const isTimestampEnabled = Boolean(obj?.platforms?.[PLATFORM]?.features?.timestamp?.enabled);
+                    localStorage.setItem(CONSTANTS.STORE_KEYS.LOCAL_TIMESTAMP_ENABLED, String(isTimestampEnabled));
+                } catch (e) {
+                    Logger.warn('Config', '', 'Failed to access localStorage for timestamp toggle sync.', e);
+                }
+            }
+
             // 1. Sanitization & Normalization
             // Do NOT deepClone the entire object to avoid performance hit with large images.
             const { themeSets, ...configWithoutThemes } = obj;
@@ -17146,6 +17166,22 @@
             const config = this.configManager.get();
             config.themeSets = this._ensureUniqueThemeIds(config.themeSets);
 
+            // --- Sync and Self-Heal localStorage Timestamp state ---
+            if (PlatformAdapters.Timestamp.hasTimestampLogic()) {
+                try {
+                    const isTimestampEnabled = Boolean(config?.platforms?.[PLATFORM]?.features?.timestamp?.enabled);
+                    localStorage.setItem(CONSTANTS.STORE_KEYS.LOCAL_TIMESTAMP_ENABLED, String(isTimestampEnabled));
+                    // Force the correct interception state based on the loaded config to prevent rogue background processes
+                    if (isTimestampEnabled) {
+                        PlatformAdapters.Timestamp.init();
+                    } else {
+                        PlatformAdapters.Timestamp.cleanup();
+                    }
+                } catch (e) {
+                    Logger.warn('APP', '', 'Failed to self-heal localStorage for timestamp toggle sync.', e);
+                }
+            }
+
             // Shared state for streaming status
             // Store as instance property to access within AppController (e.g. for Heartbeat guard)
             this.streamingState = { isActive: false };
@@ -17474,11 +17510,21 @@
                 const newConfig = await this.configManager.load(true);
                 if (this.isDestroyed) return;
 
+                // --- Sync localStorage Timestamp state for remote updates ---
+                if (PlatformAdapters.Timestamp.hasTimestampLogic()) {
+                    try {
+                        const isTimestampEnabled = Boolean(newConfig?.platforms?.[PLATFORM]?.features?.timestamp?.enabled);
+                        localStorage.setItem(CONSTANTS.STORE_KEYS.LOCAL_TIMESTAMP_ENABLED, String(isTimestampEnabled));
+                    } catch (e) {
+                        Logger.warn('SYNC', '', 'Failed to sync localStorage for timestamp toggle during remote update.', e);
+                    }
+                }
+
                 // 3. Detect changes
                 const { themeChanged } = this._detectConfigChanges(oldConfig, newConfig);
 
                 // 4. Apply Updates
-                await this._applyUiUpdates(newConfig, themeChanged, oldTimestampEnabled);
+                await this._applyUiUpdates(newConfig, themeChanged, oldTimestampEnabled, true);
 
                 // Reset warning state as we have successfully reloaded a valid config
                 EventBus.publish(EVENTS.CONFIG_WARNING_UPDATE, { show: false, message: '' });
@@ -17526,7 +17572,7 @@
             return { themeChanged };
         }
 
-        async _applyUiUpdates(completeConfig, themeChanged, oldTimestampEnabled) {
+        async _applyUiUpdates(completeConfig, themeChanged, oldTimestampEnabled, isRemote) {
             this.avatarManager.updateIconSizeCss();
             this.bubbleUIManager.updateAll();
             this.messageNumberManager.updateAllMessageNumbers();
@@ -17550,8 +17596,21 @@
 
                 if (newTimestampEnabled && !oldTimestampEnabled) {
                     this.timestampManager.enable();
+                    // Fetch interception MUST start at document-start to be reliable.
+                    // Late binding wraps site polyfills, causing data corruption or null responses.
+                    // Therefore, we must reload the page.
+                    if (!isRemote) {
+                        Logger.log('TIMESTAMP', LOG_STYLES.TEAL, 'Timestamp enabled. Reloading to safely apply API interception...');
+                        window.location.reload();
+                        return; // Prevent further UI updates as the page is reloading
+                    } else {
+                        // For remote updates, do NOT reload (prevents data loss in active tab) and do NOT call init() (prevents crash from late-binding).
+                        // Interception will naturally start on the next navigation/reload.
+                        Logger.log('TIMESTAMP', LOG_STYLES.TEAL, 'Remote timestamp enable detected. Interception will start on next reload.');
+                    }
                 } else if (!newTimestampEnabled && oldTimestampEnabled) {
                     this.timestampManager.disable();
+                    PlatformAdapters.Timestamp.cleanup();
                 } else if (newTimestampEnabled) {
                     // If already enabled, just force an update (e.g., if nav console was toggled)
                     this.timestampManager.updateAllTimestamps();
@@ -17623,7 +17682,7 @@
                     this.uiManager.clearConflictNotification(activeModal);
                 }
 
-                await this._applyUiUpdates(completeConfig, themeChanged, oldTimestampEnabled);
+                await this._applyUiUpdates(completeConfig, themeChanged, oldTimestampEnabled, false);
             } catch (e) {
                 Logger.error('SAVE FAILED', LOG_STYLES.RED, 'Configuration save failed:', e.message);
                 EventBus.publish(EVENTS.CONFIG_SIZE_EXCEEDED, { message: `Save failed: ${e.message}` });
@@ -17716,7 +17775,9 @@
 
             // Enable Timestamp monitoring immediately upon valid URL detection.
             // This ensures we catch early API calls even before the DOM is ready.
-            PlatformAdapters.Timestamp.init();
+            if (PlatformAdapters.Timestamp.isTimestampEnabledSync(DEFAULT_THEME_CONFIG.platforms[PLATFORM])) {
+                PlatformAdapters.Timestamp.init();
+            }
 
             const anchorSelector = CONSTANTS.SELECTORS.INPUT_TEXT_FIELD_TARGET;
             const anchor = document.querySelector(anchorSelector);
@@ -17789,7 +17850,7 @@
     const sentinel = new Sentinel(OWNERID);
 
     // Initialize network interception immediately to capture early data, but only if not on an excluded page.
-    if (!PlatformAdapters.General.isExcludedPage()) {
+    if (!PlatformAdapters.General.isExcludedPage() && PlatformAdapters.Timestamp.isTimestampEnabledSync(DEFAULT_THEME_CONFIG.platforms[PLATFORM])) {
         PlatformAdapters.Timestamp.init();
     }
 
@@ -19297,12 +19358,15 @@
                 super();
                 this.originalFetch = unsafeWindow.fetch.bind(unsafeWindow);
                 this.isInitialized = false;
+                this.isInterceptionEnabled = false;
                 this.fetchWrapperSymbol = Symbol.for(`${APPID}:FETCH_WRAPPER`);
                 this._lastFetchObserveErrorAt = 0; // Rate-limit observer errors to avoid log spam
             }
 
             /** @override */
             init() {
+                this.isInterceptionEnabled = true;
+
                 if (this.isInitialized) return;
 
                 // Check if unsafeWindow is available and valid
@@ -19338,11 +19402,11 @@
 
             /** @override */
             cleanup() {
-                // Restore the original fetch if we modified it
-                if (this.isInitialized && this.originalFetch) {
-                    unsafeWindow.fetch = this.originalFetch;
-                    this.isInitialized = false;
-                    Logger.debug('TIMESTAMP', LOG_STYLES.TEAL, 'Restored original unsafeWindow.fetch');
+                // Disable interception logic safely without modifying the global fetch reference.
+                // Restoring the original fetch here can destroy site-specific polyfills or interceptors applied after our initialization.
+                if (this.isInitialized) {
+                    this.isInterceptionEnabled = false;
+                    Logger.debug('TIMESTAMP', LOG_STYLES.TEAL, 'Disabled fetch interception (pass-through mode activated).');
                 }
                 // Data cache is preserved (BaseTimestampAdapter behavior)
             }
@@ -19350,6 +19414,19 @@
             /** @override */
             hasTimestampLogic() {
                 return true;
+            }
+
+            /** @override */
+            isTimestampEnabledSync(defaultConfig) {
+                try {
+                    const storedValue = localStorage.getItem(CONSTANTS.STORE_KEYS.LOCAL_TIMESTAMP_ENABLED);
+                    if (storedValue !== null) {
+                        return storedValue === 'true';
+                    }
+                } catch (e) {
+                    Logger.warn('TIMESTAMP', '', 'Failed to access localStorage. Falling back to default config.', e);
+                }
+                return Boolean(defaultConfig?.features?.timestamp?.enabled);
             }
 
             _getChatIdFromUrl(url) {
@@ -19364,6 +19441,9 @@
             }
 
             _wrappedFetch(input, init) {
+                // Pass-through immediately if interception is disabled to avoid interfering with site logic.
+                if (!this.isInterceptionEnabled) return this.originalFetch(input, init);
+
                 // 1. Call the original fetch immediately.
                 // We return this Promise chain to the site code.
                 return this.originalFetch(input, init).then((response) => {
@@ -19399,7 +19479,7 @@
              * @param {Response} response
              */
             async _processIntercentedResponse(input, response) {
-                if (!this.isInitialized) return;
+                if (!this.isInterceptionEnabled) return;
 
                 // Check URL patterns
                 const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
@@ -19426,7 +19506,8 @@
                     const data = await response.json();
 
                     // If ID wasn't in URL, try to find it in the response (POST request / New Chat)
-                    if (!chatId && data.conversation_id) {
+                    // Added strict null check for 'data' to prevent TypeError if site polyfills or backend returns null
+                    if (!chatId && data && data.conversation_id) {
                         chatId = data.conversation_id;
                     }
 
