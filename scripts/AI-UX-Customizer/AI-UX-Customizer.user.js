@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b531
+// @version      1.0.0-b532
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -12161,10 +12161,39 @@
          * @returns {{r: number, g: number, b: number, a: number} | null} RGBA object or null if invalid.
          */
         static resolveColor(str) {
-            // First check validity using the lightweight global validator (no DOM insertion)
+            if (!str || typeof str !== 'string' || str.trim() === '') return null;
+
+            const s = str.trim().toLowerCase();
+
+            // --- Fast Path: Keyword ---
+            if (s === 'transparent') {
+                return { r: 0, g: 0, b: 0, a: 0 };
+            }
+
+            // --- Fast Path: HEX ---
+            if (/^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/.test(s)) {
+                let hex = s.substring(1);
+                if (hex.length === 3 || hex.length === 4) {
+                    hex = Array.from(hex)
+                        .map((c) => c + c)
+                        .join('');
+                }
+                if (hex.length === 6 || hex.length === 8) {
+                    return {
+                        r: parseInt(hex.substring(0, 2), 16),
+                        g: parseInt(hex.substring(2, 4), 16),
+                        b: parseInt(hex.substring(4, 6), 16),
+                        a: hex.length === 8 ? parseInt(hex.substring(6, 8), 16) / 255 : 1,
+                    };
+                }
+            }
+
+            // --- Fallback: DOM Parsing ---
+            // Before heavy DOM manipulation, check validity using the lightweight global validator.
+            // This prevents creating an Option element for inputs that are already handled by fast paths.
             if (!validateColorString(str)) return null;
 
-            // Then use DOM to parse components (e.g. 'red' -> 255, 0, 0)
+            // Then use DOM to parse complex components (e.g. 'red' -> 255, 0, 0, hsl, color-mix)
             const temp = document.createElement('div');
             temp.style.color = 'initial';
             temp.style.color = str;
