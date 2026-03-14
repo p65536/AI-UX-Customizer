@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b530
+// @version      1.0.0-b531
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -11856,7 +11856,7 @@
             // This ensures that switching between "Default" (no fallback) and "Custom" (with fallback)
             // updates the preview appearance even if the underlying data hasn't changed.
             if (this.store) {
-                const state = this.store.getData();
+                const state = this.store.getStateRef();
                 this.onStoreUpdate(state, 'user');
                 this.onStoreUpdate(state, 'assistant');
                 this.onStoreUpdate(state, 'window');
@@ -12799,7 +12799,7 @@
 
             // Merge system state into the config for the store
             const storeState = {
-                ...deepClone(currentConfig),
+                ...currentConfig,
                 [SYSTEM_ROOT]: {
                     [SYSTEM_WARNING]: warningState,
                     [SYSTEM_SIZE_EXCEEDED]: sizeInfo.isExceeded,
@@ -13100,7 +13100,7 @@
          */
         async _handleDebouncedSave() {
             if (!this.store) return;
-            const storeData = this.store.getData();
+            const storeData = this.store.getStateRef();
             const newConfig = sanitizeConfigForSave(storeData);
             try {
                 await this.callbacks.onSave?.(newConfig);
@@ -14759,7 +14759,7 @@
             }
 
             // Get current form data from Store and sanitize it
-            const storeData = this.store.getData();
+            const storeData = this.store.getStateRef();
             let themeData = sanitizeConfigForSave(storeData);
 
             // Normalize data (remove empty patterns) before validation and saving

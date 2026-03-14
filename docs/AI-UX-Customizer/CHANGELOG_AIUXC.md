@@ -3,6 +3,11 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b531] - 2026-03-14
+- **Performance Improvements**
+  - Optimized memory usage and overall processing speed by eliminating redundant background data cloning operations.
+  - Improved the responsiveness of the Settings Panel and Theme Editor when loading menus, saving configurations, and updating live previews.
+
 ## [1.0.0-b530] - 2026-03-07
 - **Bug Fixes**
   - **[ChatGPT]** Fixed an issue where message timestamps would fail to load immediately after navigating from certain pages (like the "Explore GPTs" page) back to a normal chat.
