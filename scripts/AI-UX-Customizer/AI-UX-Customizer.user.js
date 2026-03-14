@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b532
+// @version      1.0.0-b533
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -8445,6 +8445,19 @@
             name: 'collapsible',
             isEnabled: (config) => config.platforms[PLATFORM].features.collapsible_button.enabled,
             getInfo: (msgElem) => PlatformAdapters.BubbleUI.getCollapsibleInfo(msgElem),
+            measure: (info, messageElement, manager) => {
+                if (!info) return null;
+                const config = manager.configManager.get();
+                if (config.platforms[PLATFORM].features.collapsible_button.auto_collapse_user_message.enabled) {
+                    if (!manager.autoCollapseProcessedIds.has(messageElement)) {
+                        const role = PlatformAdapters.General.getMessageRole(messageElement);
+                        if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER) {
+                            return { height: info.bubbleElement.offsetHeight };
+                        }
+                    }
+                }
+                return null;
+            },
             render: (info, msgElem, manager) => {
                 const button = manager.featureTemplates.collapsibleButton.cloneNode(true);
                 if (!(button instanceof HTMLElement)) return null;
@@ -8455,7 +8468,7 @@
                 };
                 return button;
             },
-            update: (element, info, isEnabled, messageElement, manager) => {
+            update: (element, info, isEnabled, messageElement, manager, measurement) => {
                 const cls = manager.styleHandle.classes;
                 if (isEnabled && info) {
                     element.classList.remove(cls.hidden);
@@ -8465,17 +8478,10 @@
                     info.bubbleElement.classList.add(cls.collapsibleContent);
 
                     // --- Auto Collapse Logic ---
+                    if (measurement && measurement.height > CONSTANTS.UI_SPECS.COLLAPSIBLE.HEIGHT_THRESHOLD) {
+                        info.msgWrapper.classList.add(cls.collapsed);
+                    }
                     if (!manager.autoCollapseProcessedIds.has(messageElement)) {
-                        const config = manager.configManager.get();
-                        if (config.platforms[PLATFORM].features.collapsible_button.auto_collapse_user_message.enabled) {
-                            const role = PlatformAdapters.General.getMessageRole(messageElement);
-                            if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER) {
-                                const height = info.bubbleElement.offsetHeight;
-                                if (height > CONSTANTS.UI_SPECS.COLLAPSIBLE.HEIGHT_THRESHOLD) {
-                                    info.msgWrapper.classList.add(cls.collapsed);
-                                }
-                            }
-                        }
                         manager.autoCollapseProcessedIds.set(messageElement, true);
                     }
                 } else {
@@ -8572,7 +8578,7 @@
                 ...def,
                 // Wrap update method to inject 'this' (manager) as the last argument
                 // This allows the external definition to access manager state (styles, config, etc.)
-                update: (element, info, isEnabled, messageElement) => def.update(element, info, isEnabled, messageElement, this),
+                update: (element, info, isEnabled, messageElement, measurement) => def.update(element, info, isEnabled, messageElement, this, measurement),
             }));
         }
 
@@ -8665,11 +8671,15 @@
                 const isEnabled = feature.isEnabled(config);
                 // getInfo is assumed to be a READ operation
                 const info = isEnabled ? feature.getInfo(messageElement) : null;
+                // Execute feature-specific measurement if defined
+                const measurement = isEnabled && typeof feature.measure === 'function' ? feature.measure(info, messageElement, this) : null;
+
                 return {
                     feature,
                     cacheKey: feature.name,
                     isEnabled,
                     info,
+                    measurement,
                 };
             });
 
@@ -8739,7 +8749,7 @@
             }
 
             for (const task of featureTasks) {
-                const { feature, cacheKey, isEnabled, info } = task;
+                const { feature, cacheKey, isEnabled, info, measurement: featureMeasurement } = task;
 
                 if (isEnabled && info) {
                     let featureElement = msgFeaturesMap.get(cacheKey);
@@ -8786,12 +8796,12 @@
                         }
                     }
                     if (featureElement) {
-                        feature.update(featureElement, info, true, messageElement);
+                        feature.update(featureElement, info, true, messageElement, featureMeasurement);
                     }
                 } else {
                     const featureElement = msgFeaturesMap.get(cacheKey);
                     if (featureElement) {
-                        feature.update(featureElement, info, false, messageElement);
+                        feature.update(featureElement, info, false, messageElement, featureMeasurement);
                     }
                 }
             }
