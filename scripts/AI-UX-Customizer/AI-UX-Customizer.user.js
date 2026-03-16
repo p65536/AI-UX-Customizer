@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b533
+// @version      1.0.0-b534
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -9183,11 +9183,10 @@
         /** @private */
         _syncSearchCache() {
             const totalMessages = this.messageCacheManager.getTotalMessages();
-            const currentSet = new Set(totalMessages);
 
             // 1. Cleanup: Remove messages that are no longer in the DOM
             for (const msg of this.searchCache.keys()) {
-                if (!currentSet.has(msg)) {
+                if (!this.messageCacheManager.findMessageIndex(msg)) {
                     this.searchCache.delete(msg);
                 }
             }
@@ -9362,7 +9361,7 @@
 
             // Validate the currently highlighted message.
             if (this.state.highlightedMessage) {
-                if (!totalMessages.includes(this.state.highlightedMessage)) {
+                if (!this.messageCacheManager.findMessageIndex(this.state.highlightedMessage)) {
                     Logger.log('NAVIGATION', '', 'Highlighted message was removed from the DOM. Reselecting...');
                     // The highlighted message was deleted. Find the best candidate to re-highlight.
                     const lastKnownIndex = this.state.currentIndices.total;

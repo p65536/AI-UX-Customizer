@@ -3,6 +3,11 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b534] - 2026-03-17
+- **Performance Improvements**
+  - Optimized internal memory usage and message tracking, reducing lag and overhead during rapid message generation (streaming).
+  - Improved overall UI responsiveness when navigating and interacting with long chat histories.
+
 ## [1.0.0-b533] - 2026-03-14
 - **Performance Improvements**
   - Fixed a performance bottleneck that could cause UI stuttering or frame rate drops when rendering chat bubble features (such as the collapsible button).
