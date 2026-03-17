@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b537
+// @version      1.0.0-b538
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -5268,18 +5268,12 @@
 
     /**
      * Generates a unique ID string with a given prefix.
-     * Uses crypto.randomUUID() if available, otherwise falls back to timestamp + random.
+     * Uses crypto.randomUUID() which is natively supported in secure contexts.
      * @param {string} prefix - The prefix for the ID.
      * @returns {string}
      */
     function generateUniqueId(prefix) {
-        let uuid;
-        if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-            uuid = crypto.randomUUID();
-        } else {
-            uuid = Date.now() + '-' + Math.random().toString(36).substring(2, 9);
-        }
-        return `${APPID}-${prefix}-${uuid}`;
+        return `${APPID}-${prefix}-${crypto.randomUUID()}`;
     }
 
     /**
