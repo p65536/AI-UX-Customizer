@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b538
+// @version      1.0.0-b539
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -4832,15 +4832,15 @@
 
                         // If it's already WebP and fits dimensions, skip re-compression.
                         if (isWebP && !needsResize) {
-                            return new Promise((resolve, reject) => {
-                                const reader = new FileReader();
-                                reader.onload = () => {
-                                    if (typeof reader.result === 'string') resolve(reader.result);
-                                    else reject(new Error('Failed to read file as a data URL.'));
-                                };
-                                reader.onerror = () => reject(new Error('Failed to read file.'));
-                                reader.readAsDataURL(file);
-                            });
+                            const { promise, resolve, reject } = Promise.withResolvers();
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                                if (typeof reader.result === 'string') resolve(reader.result);
+                                else reject(new Error('Failed to read file as a data URL.'));
+                            };
+                            reader.onerror = () => reject(new Error('Failed to read file.'));
+                            reader.readAsDataURL(file);
+                            return promise;
                         }
 
                         // 2. Calculate dimensions (Aspect Ratio Logic)
@@ -4871,15 +4871,15 @@
                         });
 
                         // 5. Convert Blob to Data URL
-                        return new Promise((resolve, reject) => {
-                            const reader = new FileReader();
-                            reader.onload = () => {
-                                if (typeof reader.result === 'string') resolve(reader.result);
-                                else reject(new Error('Failed to convert blob to Data URL.'));
-                            };
-                            reader.onerror = () => reject(new Error('FileReader error during blob conversion.'));
-                            reader.readAsDataURL(blob);
-                        });
+                        const { promise, resolve, reject } = Promise.withResolvers();
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                            if (typeof reader.result === 'string') resolve(reader.result);
+                            else reject(new Error('Failed to convert blob to Data URL.'));
+                        };
+                        reader.onerror = () => reject(new Error('FileReader error during blob conversion.'));
+                        reader.readAsDataURL(blob);
+                        return promise;
                     } catch (e) {
                         // Fallback to legacy path if OffscreenCanvas fails
                         Logger.warn('DataConverter', '', 'Modern image processing failed. Falling back to legacy method.', e);
@@ -4906,63 +4906,64 @@
          * @returns {Promise<string>}
          */
         _imageToDataUrlLegacy(file, options) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        // Check if we can skip re-compression
-                        const isWebP = file.type === 'image/webp';
-                        const needsResize = (options.maxWidth && img.width > options.maxWidth) || (options.maxHeight && img.height > options.maxHeight);
+            const { promise, resolve, reject } = Promise.withResolvers();
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    // Check if we can skip re-compression
+                    const isWebP = file.type === 'image/webp';
+                    const needsResize = (options.maxWidth && img.width > options.maxWidth) || (options.maxHeight && img.height > options.maxHeight);
 
-                        if (isWebP && !needsResize) {
-                            // It's an appropriately sized WebP, so just use the original Data URL.
-                            if (event.target && typeof event.target.result === 'string') {
-                                resolve(event.target.result);
-                            } else {
-                                reject(new Error('Failed to read file as a data URL.'));
-                            }
-                            return;
+                    if (isWebP && !needsResize) {
+                        // It's an appropriately sized WebP, so just use the original Data URL.
+                        if (event.target && typeof event.target.result === 'string') {
+                            resolve(event.target.result);
+                        } else {
+                            reject(new Error('Failed to read file as a data URL.'));
                         }
-
-                        // Otherwise, proceed with canvas-based resizing and re-compression.
-                        const canvas = document.createElement('canvas');
-                        const ctx = canvas.getContext('2d');
-
-                        if (!ctx) {
-                            reject(new Error('Failed to get 2D context from canvas.'));
-                            return;
-                        }
-
-                        let { width, height } = img;
-                        if (needsResize) {
-                            const ratio = width / height;
-                            if (options.maxWidth && width > options.maxWidth) {
-                                width = options.maxWidth;
-                                height = width / ratio;
-                            }
-                            if (options.maxHeight && height > options.maxHeight) {
-                                height = options.maxHeight;
-                                width = height * ratio;
-                            }
-                        }
-
-                        canvas.width = Math.round(width);
-                        canvas.height = Math.round(height);
-                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-                        resolve(canvas.toDataURL('image/webp', options.quality || CONSTANTS.IMAGE_PROCESSING.QUALITY));
-                    };
-                    img.onerror = (err) => reject(new Error('Failed to load image.'));
-                    if (event.target && typeof event.target.result === 'string') {
-                        img.src = event.target.result;
-                    } else {
-                        reject(new Error('Failed to read file as a data URL.'));
+                        return;
                     }
+
+                    // Otherwise, proceed with canvas-based resizing and re-compression.
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+
+                    if (!ctx) {
+                        reject(new Error('Failed to get 2D context from canvas.'));
+                        return;
+                    }
+
+                    let { width, height } = img;
+                    if (needsResize) {
+                        const ratio = width / height;
+                        if (options.maxWidth && width > options.maxWidth) {
+                            width = options.maxWidth;
+                            height = width / ratio;
+                        }
+                        if (options.maxHeight && height > options.maxHeight) {
+                            height = options.maxHeight;
+                            width = height * ratio;
+                        }
+                    }
+
+                    canvas.width = Math.round(width);
+                    canvas.height = Math.round(height);
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                    resolve(canvas.toDataURL('image/webp', options.quality || CONSTANTS.IMAGE_PROCESSING.QUALITY));
                 };
-                reader.onerror = (err) => reject(new Error('Failed to read file.'));
-                reader.readAsDataURL(file);
-            });
+                img.onerror = (err) => reject(new Error('Failed to load image.'));
+                if (event.target && typeof event.target.result === 'string') {
+                    img.src = event.target.result;
+                } else {
+                    reject(new Error('Failed to read file as a data URL.'));
+                }
+            };
+            reader.onerror = (err) => reject(new Error('Failed to read file.'));
+            reader.readAsDataURL(file);
+
+            return promise;
         }
     }
 
@@ -5539,29 +5540,30 @@
      * @template T
      */
     function withLayoutCycle({ measure, mutate }) {
-        return new Promise((resolve, reject) => {
-            let measuredData;
+        const { promise, resolve, reject } = Promise.withResolvers();
+        let measuredData;
 
-            // Phase 1: Synchronously read all required layout properties from the DOM.
+        // Phase 1: Synchronously read all required layout properties from the DOM.
+        try {
+            measuredData = measure();
+        } catch (e) {
+            Logger.error('LAYOUT ERROR', LOG_STYLES.RED, 'Error during measure phase:', e);
+            reject(e);
+            return promise;
+        }
+
+        // Phase 2: Schedule the DOM mutations to run in the next animation frame.
+        requestAnimationFrame(() => {
             try {
-                measuredData = measure();
+                mutate(measuredData);
+                resolve();
             } catch (e) {
-                Logger.error('LAYOUT ERROR', LOG_STYLES.RED, 'Error during measure phase:', e);
+                Logger.error('LAYOUT ERROR', LOG_STYLES.RED, 'Error during mutate phase:', e);
                 reject(e);
-                return;
             }
-
-            // Phase 2: Schedule the DOM mutations to run in the next animation frame.
-            requestAnimationFrame(() => {
-                try {
-                    mutate(measuredData);
-                    resolve();
-                } catch (e) {
-                    Logger.error('LAYOUT ERROR', LOG_STYLES.RED, 'Error during mutate phase:', e);
-                    reject(e);
-                }
-            });
         });
+
+        return promise;
     }
 
     /**

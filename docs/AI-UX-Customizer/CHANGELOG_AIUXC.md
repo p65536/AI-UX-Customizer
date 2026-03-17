@@ -3,6 +3,10 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b539] - 2026-03-17
+- **Core Changes**
+  - Refactored internal asynchronous operations to use the modern ES2024 Promise API (`Promise.withResolvers()`), reducing code nesting and improving maintainability.
+
 ## [1.0.0-b538] - 2026-03-17
 - **Core Changes**
   - Optimized internal ID generation by adopting modern Web APIs.
