@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b545
+// @version      1.0.0-b546
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -19122,14 +19122,23 @@
           resizeObserver?.disconnect();
           titleObserver?.disconnect();
 
+          let lastWidth = -1;
+          let lastHeight = -1;
+
           resizeObserver = new ResizeObserver((entries) => {
             // We only need to signal that the layout changed.
             // Throttling is handled by the subscriber (ThemeManager).
+            let layoutChanged = false;
             for (const entry of entries) {
-              if (entry.contentBoxSize) {
-                EventBus.publish(EVENTS.SIDEBAR_LAYOUT_CHANGED);
-                break; // Only fire once per frame even if multiple entries
+              const { width, height } = entry.contentRect;
+              if (width !== lastWidth || height !== lastHeight) {
+                lastWidth = width;
+                lastHeight = height;
+                layoutChanged = true;
               }
+            }
+            if (layoutChanged) {
+              EventBus.publish(EVENTS.SIDEBAR_LAYOUT_CHANGED);
             }
           });
 
@@ -20591,14 +20600,23 @@
           resizeObserver?.disconnect();
           titleObserver?.disconnect();
 
+          let lastWidth = -1;
+          let lastHeight = -1;
+
           // 1. Layout Observer (ResizeObserver)
           resizeObserver = new ResizeObserver((entries) => {
+            let layoutChanged = false;
             for (const entry of entries) {
               // Only fire if size actually changed
-              if (entry.contentBoxSize) {
-                EventBus.publish(EVENTS.SIDEBAR_LAYOUT_CHANGED);
-                break;
+              const { width, height } = entry.contentRect;
+              if (width !== lastWidth || height !== lastHeight) {
+                lastWidth = width;
+                lastHeight = height;
+                layoutChanged = true;
               }
+            }
+            if (layoutChanged) {
+              EventBus.publish(EVENTS.SIDEBAR_LAYOUT_CHANGED);
             }
           });
           resizeObserver.observe(sidebar);
