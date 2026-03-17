@@ -534,7 +534,7 @@ interface GeneralAdapter {
     findMessageElement(element: Element): HTMLElement | null;
     filterMessage(element: Element): boolean;
     ensureMessageContainerForImage(element: HTMLElement): HTMLElement | null;
-    initializeSentinel(callback: (element: HTMLElement) => void): void;
+    initializeSentinel(callback: (element: HTMLElement) => void): () => void;
     performInitialScan(lifecycleManager: IMessageLifecycleManager): number;
     onNavigationEnd(lifecycleManager: IMessageLifecycleManager): void;
     scrollTo(element: HTMLElement, options?: { offset?: number; smooth?: boolean }): void;

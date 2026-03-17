@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b534
+// @version      1.0.0-b535
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -2649,6 +2649,7 @@
         /**
          * Sets up Sentinel listeners to detect new message content.
          * @param {(element: HTMLElement) => void} callback The callback to execute when content is found.
+         * @returns {() => void} A cleanup function.
          * @throws {Error} Must be implemented by subclasses.
          */
         initializeSentinel(callback) {
@@ -17335,7 +17336,7 @@
 
             // Setup Message Processor using Platform Adapter
             // This connects the low-level Sentinel detection to the high-level EventBus.
-            this.sentinelCleanup = /** @type {() => void} */ (/** @type {unknown} */ (PlatformAdapters.General.initializeSentinel((el) => this.handleRawMessage(el))));
+            this.sentinelCleanup = PlatformAdapters.General.initializeSentinel((el) => this.handleRawMessage(el));
             this.addDisposable(this.sentinelCleanup);
 
             // --- Self-Healing Logic for Tab Suspension ---
