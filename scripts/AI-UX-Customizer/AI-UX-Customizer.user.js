@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b550
+// @version      1.0.0-b551
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -2425,8 +2425,7 @@
       `;
     },
 
-    getThemeBaseCss(cls, activeVars) {
-      const overrides = PlatformAdapters.ThemeManager.getStyleOverrides();
+    getThemeBaseCss(cls, activeVars, styleOverrides) {
       const selectors = CONSTANTS.SELECTORS;
 
       const S_USER_MSG = selectors.USER_MESSAGE;
@@ -2474,7 +2473,7 @@
             ${prop('padding', CSS_VARS.ASSISTANT_BUBBLE_PADDING)}
             ${prop('border-radius', CSS_VARS.ASSISTANT_BUBBLE_RADIUS)}
             ${prop('max-width', CSS_VARS.ASSISTANT_BUBBLE_MAXWIDTH)}
-            ${overrides.assistant || ''}
+            ${styleOverrides.assistant || ''}
         }
         ${S_ASST_MSG} ${selectors.ASSISTANT_TEXT_CONTENT} {
             ${prop('color', CSS_VARS.ASSISTANT_TEXT_COLOR)}
@@ -2517,7 +2516,7 @@
             ${prop('padding', CSS_VARS.USER_BUBBLE_PADDING)}
             ${prop('border-radius', CSS_VARS.USER_BUBBLE_RADIUS)}
             ${prop('max-width', CSS_VARS.USER_BUBBLE_MAXWIDTH)}
-            ${overrides.user || ''}
+            ${styleOverrides.user || ''}
         }
         ${S_USER_MSG} ${selectors.USER_TEXT_CONTENT} {
             ${prop('color', CSS_VARS.USER_TEXT_COLOR)}
@@ -7297,7 +7296,10 @@
     static getDynamicRules() {
       const key = 'dynamic-rules';
       // Generator accepts activeVars set to filter outputs
-      const cssGenerator = (cls, activeVars) => StyleTemplates.getThemeBaseCss(cls, activeVars);
+      const cssGenerator = (cls, activeVars) => {
+        const styleOverrides = PlatformAdapters.ThemeManager.getStyleOverrides();
+        return StyleTemplates.getThemeBaseCss(cls, activeVars, styleOverrides);
+      };
       return { key, rootId: null, classes: {}, vars: {}, generator: cssGenerator };
     }
 

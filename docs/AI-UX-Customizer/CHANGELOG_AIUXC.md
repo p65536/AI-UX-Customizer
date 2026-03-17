@@ -3,6 +3,10 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b551] - 2026-03-17
+- **Core Changes**
+  - Refactored the internal CSS generation engine to use Dependency Injection. This decouples the style templates from global platform states and strictly enforces explicit data handling, further improving overall code maintainability and preventing silent rendering bugs.
+
 ## [1.0.0-b550] - 2026-03-17
 - **Core Changes**
   - Reorganized the internal code structure to eliminate reliance on function hoisting. This architectural improvement establishes a natural execution flow, enhancing code readability and long-term maintainability without affecting the script's functionality.
