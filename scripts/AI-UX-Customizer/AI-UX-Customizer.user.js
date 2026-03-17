@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b549
+// @version      1.0.0-b550
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -67,7 +67,6 @@
 
   /**
    * Identify the current platform based on the hostname.
-   * The implementation uses function hoisting and is defined at the bottom of the file.
    * @returns {string | null}
    */
   const detectedPlatform = identifyPlatform();
@@ -3090,6 +3089,2923 @@
     ensureButtonPlacement(settingsButton) {
       throw new Error('ensureButtonPlacement must be implemented by the platform adapter.');
     }
+  }
+
+  // =================================================================================
+  // SECTION: Platform Definition Factories
+  // Description: Encapsulates platform-specific constants and adapters to abstract site differences.
+  // =================================================================================
+
+  /**
+   * Returns definitions and adapters specifically for ChatGPT.
+   * @returns {PlatformDefinitions} The set of constants and adapters.
+   */
+  function defineChatGPTValues() {
+    // =============================================================================
+    // SECTION: Platform Constants
+    // =============================================================================
+
+    // ---- Default Settings & Theme Configuration ----
+    const CONSTANTS = {
+      ...SHARED_CONSTANTS,
+      UI_SPECS: {
+        ...SHARED_CONSTANTS.UI_SPECS,
+        HEADER_POSITION_MIN_WIDTH: 960,
+      },
+      OBSERVER_OPTIONS: {
+        childList: true,
+        subtree: false,
+      },
+      Z_INDICES: {
+        ...SHARED_CONSTANTS.Z_INDICES,
+        BUBBLE_NAVIGATION: 'auto',
+        STANDING_IMAGE: 'auto',
+        NAV_CONSOLE: 'auto',
+      },
+      ATTRIBUTES: {
+        MESSAGE_ROLE: 'data-message-author-role',
+        TURN_ROLE: 'data-turn',
+        MESSAGE_ID: 'data-message-id',
+      },
+      SELECTORS: {
+        // --- Main containers ---
+        MAIN_APP_CONTAINER: 'div[data-scroll-root], div:has(> main#main)',
+        MESSAGE_WRAPPER_FINDER: '.w-full',
+        // Root container for message search optimization
+        MESSAGES_ROOT: 'main',
+
+        // --- Message containers ---
+        CONVERSATION_UNIT: 'article[data-testid^="conversation-turn-"]',
+        MESSAGE_ID_HOLDER: '[data-message-id]',
+        MESSAGE_ROOT_NODE: 'article[data-testid^="conversation-turn-"]',
+
+        // --- Selectors for messages ---
+        USER_MESSAGE: 'div[data-message-author-role="user"]',
+        ASSISTANT_MESSAGE: 'div[data-message-author-role="assistant"]',
+
+        // --- Selectors for finding elements to tag ---
+        RAW_USER_BUBBLE: 'div.user-message-bubble-color',
+        RAW_ASSISTANT_BUBBLE: 'div:has(> .markdown)',
+        RAW_ASSISTANT_BUBBLE_FINDER: '.markdown',
+        ASSISTANT_MESSAGE_CONTENT: 'div.markdown.prose',
+        RAW_USER_IMAGE_BUBBLE: 'div.overflow-hidden:has(img)',
+        RAW_ASSISTANT_IMAGE_BUBBLE: 'div.group\\/imagegen-image',
+
+        // --- Text content ---
+        USER_TEXT_CONTENT: '.whitespace-pre-wrap',
+        ASSISTANT_TEXT_CONTENT: '.markdown',
+
+        // --- Input area ---
+        INPUT_AREA_BG_TARGET: 'form[data-type="unified-composer"] div[style*="border-radius"]',
+        INPUT_TEXT_FIELD_TARGET: 'div.ProseMirror#prompt-textarea',
+        INPUT_RESIZE_TARGET: 'form[data-type="unified-composer"]',
+
+        // --- Input area (Button Injection) ---
+        INSERTION_ANCHOR: 'form[data-type="unified-composer"] div[class*="[grid-area:trailing]"]',
+
+        // --- Avatar area ---
+        AVATAR_USER: 'article[data-turn="user"]',
+        AVATAR_ASSISTANT: 'article[data-turn="assistant"]',
+
+        // --- Selectors for Avatar ---
+        SIDE_AVATAR_CONTAINER: '.side-avatar-container',
+        SIDE_AVATAR_CONTAINER_CLASS: 'side-avatar-container',
+        SIDE_AVATAR_ICON: '.side-avatar-icon',
+        SIDE_AVATAR_NAME: '.side-avatar-name',
+
+        // --- Other UI Selectors ---
+        SIDEBAR_WIDTH_TARGET: 'div[id="stage-slideover-sidebar"]',
+        SIDEBAR_STATE_INDICATOR: '#stage-sidebar-tiny-bar',
+        RIGHT_SIDEBAR: '[data-testid="stage-thread-flyout"], div.bg-token-sidebar-surface-primary.shrink-0:not(#stage-slideover-sidebar)',
+        CHAT_CONTENT_MAX_WIDTH: '.group\\/turn-messages, div[class*="--thread-content-max-width"].grid',
+        SCROLL_CONTAINER: 'div[data-scroll-root], div:has(> main#main)',
+        STANDING_IMAGE_ANCHOR: '.group\\/turn-messages, div[class*="--thread-content-max-width"].grid',
+        PLACEHOLDER_PREFIX: 'placeholder-request-',
+        SCROLL_TO_BOTTOM_BUTTON: '#thread-bottom-container button.absolute.z-30.rounded-full',
+
+        // --- Site Specific Selectors ---
+        BUTTON_SHARE_CHAT: '[data-testid="share-chat-button"]',
+        PAGE_HEADER: '#page-header',
+        TITLE_OBSERVER_TARGET: 'title',
+
+        // --- Header Integration Selectors ---
+        HEADER_ACTIONS: '#conversation-header-actions',
+        HEADER_FALLBACK_SECTION: '#page-header > div:last-child',
+
+        // --- BubbleFeature-specific Selectors ---
+        BUBBLE_FEATURE_MESSAGE_CONTAINERS: 'div[data-message-author-role]',
+
+        // --- FixedNav-specific Selectors ---
+        FIXED_NAV_INPUT_AREA_TARGET: 'form[data-type="unified-composer"]',
+        FIXED_NAV_MESSAGE_CONTAINERS: 'div[data-message-author-role]',
+        FIXED_NAV_ROLE_USER: 'user',
+        FIXED_NAV_ROLE_ASSISTANT: 'assistant',
+
+        // --- Turn Completion Selector ---
+        TURN_COMPLETE_SELECTOR: 'button[data-testid="copy-turn-action-button"]',
+
+        // --- Canvas ---
+        CANVAS_CONTAINER: 'section.popover button',
+        CANVAS_RESIZE_TARGET: 'section.popover',
+
+        // --- Research Panel ---
+        RESEARCH_PANEL: '[data-testid="screen-threadFlyOut"]',
+        SIDEBAR_SURFACE_PRIMARY: 'div[class*="bg-token-sidebar-surface-primary"]',
+
+        // --- Deep Research ---
+        DEEP_RESEARCH_RESULT: '.deep-research-result',
+
+        // --- Style Optimization Selectors (JS-based :has replacement) ---
+        PROJECT_PAGE_CLASS: `${APPID}-project-page`,
+        PROJECT_TITLE_INPUT: '[name="project-title"]',
+        CONTENT_FADE_TOP: '.content-fade-top',
+
+        // --- Sidebar Active Item (Title Fallback) ---
+        SIDEBAR_ACTIVE_LINK: 'a[data-active][data-sidebar-item="true"]',
+        SIDEBAR_LINK_TEXT: '.truncate',
+      },
+      URL_PATTERNS: {
+        EXCLUDED: [/^\/library/, /^\/codex/, /^\/gpts/, /^\/images/, /^\/apps/],
+        CONVERSATION_ENDPOINT: '/backend-api/conversation',
+      },
+      STRINGS: {
+        PAGE_TITLE_PREFIX: 'ChatGPT - ',
+      },
+    };
+
+    // ---- Site-specific Style Variables ----
+    const UI_PALETTE = {
+      bg: 'var(--main-surface-primary)',
+      input_bg: 'var(--bg-primary)',
+      text_primary: 'var(--text-primary)',
+      text_secondary: 'var(--text-secondary)',
+      border: 'var(--border-default)',
+      border_medium: 'var(--border-medium)',
+      border_light: 'var(--border-light)',
+      btn_bg: 'var(--interactive-bg-tertiary-default)',
+      btn_hover_bg: 'var(--interactive-bg-secondary-hover)',
+      btn_text: 'var(--text-primary)',
+      btn_border: 'var(--border-default)',
+      toggle_bg_off: 'var(--bg-primary)',
+      toggle_bg_on: 'var(--text-accent)',
+      toggle_knob: 'var(--text-primary)',
+      danger_text: 'var(--text-danger)',
+      accent_text: 'var(--text-accent)',
+      loading_spinner: '#ffca28',
+      // Shared properties
+      slider_display_text: 'var(--text-primary)',
+      label_text: 'var(--text-secondary)',
+      error_text: 'var(--text-danger)',
+      // Component Specifics: Settings Button
+      settings_btn_width: 'calc(var(--spacing)*9)',
+      settings_btn_height: 'calc(var(--spacing)*9)',
+      settings_btn_color: 'var(--text-primary)',
+      settings_btn_hover_bg: 'var(--interactive-bg-secondary-hover)',
+      // Component Specifics: Theme Modal
+      delete_confirm_btn_text: 'var(--interactive-label-danger-secondary-default)',
+      delete_confirm_btn_bg: 'var(--interactive-bg-danger-secondary-default)',
+      delete_confirm_btn_hover_text: 'var(--interactive-label-danger-secondary-hover)',
+      delete_confirm_btn_hover_bg: 'var(--interactive-bg-danger-secondary-hover)',
+      // Component Specifics: Fixed Nav
+      fixed_nav_bg: 'var(--sidebar-surface-primary)',
+      fixed_nav_border: 'var(--border-medium)',
+      fixed_nav_separator_bg: 'var(--border-default)',
+      fixed_nav_label_text: 'var(--text-secondary)',
+      fixed_nav_counter_bg: 'var(--bg-primary)',
+      fixed_nav_counter_text: 'var(--text-primary)',
+      fixed_nav_counter_border: 'var(--border-default)',
+      fixed_nav_assistant_text: '#e57373',
+      fixed_nav_btn_accent_text: 'var(--text-accent)',
+      fixed_nav_btn_danger_text: 'var(--text-danger)',
+      fixed_nav_highlight_outline: 'var(--text-accent)',
+      fixed_nav_highlight_radius: '12px',
+      // Component Specifics: Jump List
+      jump_list_bg: 'var(--sidebar-surface-primary)',
+      jump_list_border: 'var(--border-medium)',
+      jump_list_hover_outline: 'var(--text-accent)',
+      jump_list_current_outline: 'var(--text-accent)',
+    };
+
+    const SITE_STYLES = {
+      PALETTE: UI_PALETTE,
+      Z_INDICES: CONSTANTS.Z_INDICES,
+    };
+
+    // =================================================================================
+    // SECTION: Platform-Specific Adapter Classes
+    // Description: Implementation of Base Adapters for ChatGPT.
+    // =================================================================================
+
+    class ChatGPTGeneralAdapter extends BaseGeneralAdapter {
+      /** @override */
+      isCanvasModeActive() {
+        return !!document.querySelector(CONSTANTS.SELECTORS.CANVAS_CONTAINER);
+      }
+
+      /** @override */
+      isExcludedPage() {
+        const excludedPatterns = CONSTANTS.URL_PATTERNS.EXCLUDED;
+        const pathname = window.location.pathname;
+        return excludedPatterns.some((pattern) => pattern.test(pathname));
+      }
+
+      /** @override */
+      isNewChatPage() {
+        const path = window.location.pathname;
+        // Main new chat page or GPT/Project top page (no conversation ID)
+        return path === '/' || (path.startsWith('/g/') && !path.includes('/c/'));
+      }
+
+      /** @override */
+      isChatPage() {
+        // Any URL containing '/c/' is a conversation page
+        return window.location.pathname.includes('/c/');
+      }
+
+      /** @override */
+      getMessagesRoot() {
+        const root = document.querySelector(CONSTANTS.SELECTORS.MESSAGES_ROOT);
+        return root instanceof HTMLElement ? root : document.body;
+      }
+
+      /** @override */
+      getMessageId(element) {
+        if (!element) return null;
+        return element.getAttribute(CONSTANTS.ATTRIBUTES.MESSAGE_ID);
+      }
+
+      /** @override */
+      getMessageRole(messageElement) {
+        if (!messageElement) return null;
+        const role = messageElement.getAttribute(CONSTANTS.ATTRIBUTES.MESSAGE_ROLE);
+        if (role) {
+          return role;
+        }
+        // If not found, check for the turn attribute (article[data-turn])
+        return messageElement.getAttribute(CONSTANTS.ATTRIBUTES.TURN_ROLE);
+      }
+
+      /**
+       * @private
+       * @returns {string | null}
+       */
+      _getSidebarTitle() {
+        // Initialize cache if it doesn't exist
+        this._sidebarTitleCache = this._sidebarTitleCache || { path: null, title: null };
+        const currentPath = window.location.pathname;
+
+        const activeLink = document.querySelector(CONSTANTS.SELECTORS.SIDEBAR_ACTIVE_LINK);
+        if (activeLink) {
+          const truncateEl = activeLink.querySelector(CONSTANTS.SELECTORS.SIDEBAR_LINK_TEXT);
+          if (truncateEl) {
+            const title = truncateEl.textContent.trim();
+            // Update cache on successful retrieval
+            this._sidebarTitleCache = { path: currentPath, title: title };
+            return title;
+          }
+        }
+
+        // Fallback to cache if the DOM element is temporarily missing (e.g., during renaming)
+        // but only if we are still on the same page.
+        if (this._sidebarTitleCache.path === currentPath) {
+          return this._sidebarTitleCache.title;
+        }
+
+        return null;
+      }
+
+      /** @override */
+      getChatTitle() {
+        // Gets the title from the document title, falling back to the sidebar if stale.
+        const docTitle = document.title.trim();
+
+        // If the title is the placeholder "ChatGPT" during navigation,
+        // do not apply the fallback logic to maintain the Defer mechanism in ThemeManager.
+        if (docTitle === 'ChatGPT') {
+          return docTitle;
+        }
+
+        const sidebarTitle = this._getSidebarTitle();
+
+        // If sidebar title exists and is NOT included in the document title,
+        // it means the document title is stale (e.g., in a Project context after new chat).
+        if (sidebarTitle && !docTitle.includes(sidebarTitle)) {
+          // Try to construct a proper title if it looks like a project context
+          // Format: "ChatGPT - [Project Name]"
+          const projectPrefix = CONSTANTS.STRINGS.PAGE_TITLE_PREFIX;
+          if (docTitle.startsWith(projectPrefix)) {
+            const projectName = docTitle.substring(projectPrefix.length);
+            // Construct the expected format: "[Project Name] - [Chat Title]"
+            return `${projectName} - ${sidebarTitle}`;
+          }
+          // Fallback to just returning the sidebar title if the structure is unexpected
+          return sidebarTitle;
+        }
+
+        return docTitle;
+      }
+
+      /** @override */
+      getJumpListDisplayText(messageElement) {
+        const role = this.getMessageRole(messageElement);
+
+        // 1. Check for text content first.
+        if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER) {
+          const contentEl = messageElement.querySelector(CONSTANTS.SELECTORS.USER_TEXT_CONTENT);
+          if (contentEl) return contentEl.textContent.trim();
+        } else {
+          const contentEl = messageElement.querySelector(CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT);
+          if (contentEl) return contentEl.textContent.trim();
+        }
+
+        // 2. If no text, check for an image within the message container.
+        if (messageElement.querySelector(CONSTANTS.SELECTORS.RAW_USER_IMAGE_BUBBLE) || messageElement.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE)) {
+          return '(Image)';
+        }
+
+        // 3. If neither, return empty.
+        return '';
+      }
+
+      /** @override */
+      findMessageElement(contentElement) {
+        const messageElement = contentElement.closest(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
+
+        // Filter out placeholder elements created during generation to prevent false positives (NAV SKIP logs).
+        // These elements often lack the necessary structure for UI injection immediately after creation.
+        if (messageElement instanceof HTMLElement) {
+          const messageId = this.getMessageId(messageElement);
+          if (messageId && messageId.startsWith(CONSTANTS.SELECTORS.PLACEHOLDER_PREFIX)) {
+            return null;
+          }
+          return messageElement;
+        }
+
+        return null;
+      }
+
+      /** @override */
+      filterMessage(messageElement) {
+        // Filter out placeholder elements created during generation.
+        // Including these would cause the message count to fluctuate incorrectly during streaming.
+        const messageId = this.getMessageId(messageElement);
+        if (messageId && messageId.startsWith(CONSTANTS.SELECTORS.PLACEHOLDER_PREFIX)) {
+          return false;
+        }
+
+        const role = this.getMessageRole(messageElement);
+        if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT) {
+          // Check if the message has any visible content, either text or an image generated by our script.
+          const hasText = messageElement.querySelector(CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT)?.textContent?.trim();
+          const hasImage = messageElement.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE);
+
+          // If it has neither text nor an image inside it, check the turn context.
+          if (!hasText && !hasImage) {
+            const turnContainer = messageElement.closest(CONSTANTS.SELECTORS.CONVERSATION_UNIT);
+            // If the turn contains an image elsewhere, this empty message is likely a ghost artifact. Filter it out.
+            if (turnContainer && turnContainer.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE)) {
+              return false; // Exclude this ghost message
+            }
+          }
+        }
+        return true; // Keep all other messages
+      }
+
+      /** @override */
+      ensureMessageContainerForImage(imageContentElement) {
+        // If already inside a message container, do nothing and return it.
+        const existingContainer = imageContentElement.closest(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
+        if (existingContainer instanceof HTMLElement) {
+          return existingContainer;
+        }
+
+        // Create a new virtual message container.
+        const virtualMessage = h('div', {
+          'data-message-author-role': 'assistant',
+        });
+
+        if (!(virtualMessage instanceof HTMLElement)) {
+          return null;
+        }
+
+        // Replace the image element with the new wrapper, and move the image inside.
+        imageContentElement.parentNode.insertBefore(virtualMessage, imageContentElement);
+        virtualMessage.appendChild(imageContentElement);
+
+        return virtualMessage;
+      }
+
+      /** @override */
+      initializeSentinel(callback) {
+        // prettier-ignore
+        const combinedSelector = [
+            `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE}`,
+            `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_IMAGE_BUBBLE}`,
+            `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE_CONTENT}`,
+            `${CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE}`,
+          ].join(', ');
+
+        sentinel.on(combinedSelector, callback);
+
+        return () => {
+          sentinel.off(combinedSelector, callback);
+        };
+      }
+
+      /** @override */
+      performInitialScan(lifecycleManager) {
+        Logger.debug('SCAN', LOG_STYLES.CYAN, 'Performing initial scan for message elements.');
+
+        // prettier-ignore
+        const selectors = [
+            CONSTANTS.SELECTORS.RAW_USER_BUBBLE,
+            CONSTANTS.SELECTORS.ASSISTANT_MESSAGE_CONTENT,
+            CONSTANTS.SELECTORS.RAW_USER_IMAGE_BUBBLE,
+            CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE
+          ];
+
+        const selector = selectors.join(', ');
+
+        const nodes = document.querySelectorAll(selector);
+        nodes.forEach((node) => {
+          lifecycleManager.processRawMessage(node);
+        });
+
+        if (nodes.length > 0) {
+          Logger.log('', '', `Found ${nodes.length} item(s) on initial scan.`);
+        }
+        return nodes.length;
+      }
+
+      /** @override */
+      onNavigationEnd(lifecycleManager) {
+        // Schedule integrity scan for all browsers on existing chat pages.
+        if (!isNewChatPage()) {
+          Logger.log('', '', 'Scheduling integrity scan to capture any missed messages.');
+          lifecycleManager.scheduleIntegrityScan();
+        }
+      }
+
+      /** @override */
+      scrollTo(element) {
+        const offset = CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV;
+        const behavior = 'auto';
+
+        const scrollContainerSelector = CONSTANTS.SELECTORS.SCROLL_CONTAINER;
+        const scrollContainer = scrollContainerSelector ? document.querySelector(scrollContainerSelector) : null;
+
+        if (scrollContainer) {
+          let scrollTargetElement = element;
+
+          // Determine the bubble element based on role to use as the scroll target
+          const role = this.getMessageRole(element);
+          if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER) {
+            const bubble = element.querySelector(CONSTANTS.SELECTORS.RAW_USER_BUBBLE);
+            if (bubble) scrollTargetElement = bubble;
+          } else if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT) {
+            const content = element.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE_FINDER);
+            if (content && content.parentElement) scrollTargetElement = content.parentElement;
+          }
+
+          const targetScrollTop = scrollContainer.scrollTop + scrollTargetElement.getBoundingClientRect().top - scrollContainer.getBoundingClientRect().top - offset;
+          scrollContainer.scrollTo({
+            top: targetScrollTop,
+            behavior,
+          });
+        }
+      }
+    }
+
+    class ChatGPTStyleManagerAdapter extends BaseStyleManagerAdapter {
+      /** @override */
+      getStaticCss(cls) {
+        return `
+          :root {
+              ${CSS_VARS.MESSAGE_MARGIN_TOP}: 24px;
+          }
+          ${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} {
+              transition: background-image 0.3s ease-in-out;
+          }
+          /* Add margin between messages to prevent overlap */
+          ${CONSTANTS.SELECTORS.USER_MESSAGE},
+          ${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} {
+              margin-top: var(${CSS_VARS.MESSAGE_MARGIN_TOP});
+          }
+          ${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE},
+          ${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE} {
+              box-sizing: border-box;
+          }
+          /* (2025/12/17 updated) Hide borders, shadows, and backgrounds on the header */
+          #page-header {
+              background: none !important;
+              border: none !important;
+              box-shadow: none !important;
+              outline: none !important;
+          }
+          /* Remove pseudo-elements that might create borders or shadows */
+          #page-header::after,
+          #page-header::before {
+              display: none !important;
+          }
+          /* Remove standalone border elements */
+          div[data-edge="true"] {
+              display: none !important;
+          }
+          ${CONSTANTS.SELECTORS.BUTTON_SHARE_CHAT} {
+              background: transparent;
+          }
+          ${CONSTANTS.SELECTORS.BUTTON_SHARE_CHAT}:hover {
+              background-color: var(--interactive-bg-secondary-hover);
+          }
+          /* (2025/07/01) ChatGPT UI change fix: Remove bottom gradient that conflicts with theme backgrounds. */
+          .content-fade::after {
+              background: none !important;
+          }
+          /* (2025/12/06) Project page top fade fix: Remove top gradient and mask only for project headers. */
+          main ${CONSTANTS.SELECTORS.CONTENT_FADE_TOP}.${CONSTANTS.SELECTORS.PROJECT_PAGE_CLASS},
+          main ${CONSTANTS.SELECTORS.CONTENT_FADE_TOP}.${CONSTANTS.SELECTORS.PROJECT_PAGE_CLASS}::before,
+          main ${CONSTANTS.SELECTORS.CONTENT_FADE_TOP}.${CONSTANTS.SELECTORS.PROJECT_PAGE_CLASS}::after {
+              background: none !important;
+              mask-image: none !important;
+              -webkit-mask-image: none !important;
+          }
+          /* This rule is now conditional on a body class and scoped to the scroll container to avoid affecting other elements. */
+          body.${cls.maxWidthActive} main ${CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH} {
+              max-width: var(${CSS_VARS.CHAT_CONTENT_MAX_WIDTH}) !important;
+          }
+          
+          /* Hide default scroll-to-bottom button */
+          ${CONSTANTS.SELECTORS.SCROLL_TO_BOTTOM_BUTTON} {
+              display: none !important;
+          }
+      `;
+      }
+
+      /** @override */
+      getBubbleCss(cls) {
+        return StyleTemplates.getBubbleUiCss(cls, {
+          // ChatGPT: Default class selector is sufficient for parent
+          collapsibleParentSelector: `.${cls.collapsibleParent}`,
+          // ChatGPT: Button positioning depends on role attribute
+          collapsibleBtnExtraCss: `
+              ${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} .${cls.collapsibleBtn} {
+                  left: 4px;
+              }
+              ${CONSTANTS.SELECTORS.USER_MESSAGE} .${cls.collapsibleBtn} {
+                  right: 4px;
+              }
+          `,
+          // ChatGPT: No extra CSS needed (native reflow works)
+          collapsibleCollapsedContentExtraCss: ``,
+        });
+      }
+    }
+
+    class ChatGPTThemeManagerAdapter extends BaseThemeManagerAdapter {
+      /** @override */
+      shouldDeferInitialTheme(themeManager) {
+        const initialTitle = themeManager.getChatTitleAndCache();
+        // Defer if the title is the ambiguous "ChatGPT" and we are NOT on the "New Chat" page.
+        // This indicates a transition to a specific chat page that hasn't loaded its final title yet.
+        if (initialTitle === 'ChatGPT' && !isNewChatPage()) {
+          Logger.log('', '', 'Initial theme application deferred by platform adapter, waiting for final title.');
+          return true;
+        }
+        return false;
+      }
+
+      /** @override */
+      selectThemeForUpdate(themeManager, config, urlChanged, titleChanged) {
+        const currentTitle = themeManager.getChatTitleAndCache();
+
+        // 1. Invalidate cache on URL change to force pattern re-evaluation.
+        if (urlChanged) {
+          themeManager.cachedThemeSet = null;
+        }
+
+        // 2. Get the candidate theme based on the current context (URL, Title).
+        const candidateTheme = themeManager.getThemeSet();
+
+        // 3. Flicker prevention logic:
+        // If the URL changed, the title is currently "ChatGPT" (loading),
+        // and the resolved theme is the default one (meaning no URL pattern matched),
+        // then keep the previous theme to avoid a flash of the default theme before the title loads.
+        // Exception: Do not maintain the previous theme if we are navigating to the "New Chat" page.
+        const isDefaultTheme = candidateTheme.metadata.id === CONSTANTS.THEME_IDS.DEFAULT;
+        const shouldKeepPreviousTheme = urlChanged && currentTitle === 'ChatGPT' && isDefaultTheme && themeManager.lastAppliedThemeSet && !isNewChatPage();
+
+        if (shouldKeepPreviousTheme) {
+          return themeManager.lastAppliedThemeSet;
+        }
+
+        // Otherwise, apply the candidate theme immediately.
+        // This handles cases where:
+        // - URL patterns matched (candidate is not default) -> Instant switch
+        // - Title is already loaded -> Correct theme
+        // - Navigating to New Chat -> Default theme
+        return candidateTheme;
+      }
+
+      /** @override */
+      getStyleOverrides() {
+        return {
+          user: ' margin-left: auto; margin-right: 0;',
+          assistant: ' margin-left: 0; margin-right: auto;',
+        };
+      }
+    }
+
+    class ChatGPTBubbleUIAdapter extends BaseBubbleUIAdapter {
+      /** @override */
+      getNavPositioningParent(messageElement) {
+        // 1. Handle text content first (most common case)
+        const role = PlatformAdapters.General.getMessageRole(messageElement);
+
+        if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT) {
+          const contentEl = messageElement.querySelector(CONSTANTS.SELECTORS.ASSISTANT_MESSAGE_CONTENT);
+          // Structure: Row (positioningParent) > Bubble > Content (contentEl)
+          if (contentEl && contentEl.parentElement && contentEl.parentElement.parentElement instanceof HTMLElement) {
+            return contentEl.parentElement.parentElement;
+          }
+        } else {
+          const textBubbleParent = messageElement.querySelector(CONSTANTS.SELECTORS.RAW_USER_BUBBLE)?.parentElement;
+          if (textBubbleParent instanceof HTMLElement) {
+            return textBubbleParent;
+          }
+        }
+
+        // 2. If no text, it might be an image-only message element.
+        if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER) {
+          // Find the image within this specific user message element
+          const userImageContainer = messageElement.querySelector(CONSTANTS.SELECTORS.RAW_USER_IMAGE_BUBBLE);
+          if (userImageContainer && userImageContainer.parentElement instanceof HTMLElement) {
+            return userImageContainer.parentElement;
+          }
+        } else if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT) {
+          // For assistants, search *within* this messageElement for an image.
+          // This prevents empty message shells from finding images elsewhere in the turn.
+          const assistantImageContainer = messageElement.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE);
+          if (assistantImageContainer instanceof HTMLElement && assistantImageContainer.parentElement instanceof HTMLElement) {
+            // Return the PARENT of the image container as the anchor
+            return assistantImageContainer.parentElement;
+          }
+        }
+
+        return null;
+      }
+
+      /** @override */
+      getCollapsibleInfo(messageElement) {
+        const msgWrapper = messageElement.closest(CONSTANTS.SELECTORS.MESSAGE_WRAPPER_FINDER);
+        if (!(msgWrapper instanceof HTMLElement)) return null;
+
+        const role = messageElement.getAttribute(CONSTANTS.ATTRIBUTES.MESSAGE_ROLE);
+        let bubbleElement = null;
+
+        if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER) {
+          bubbleElement = messageElement.querySelector(CONSTANTS.SELECTORS.RAW_USER_BUBBLE);
+        } else {
+          const contentEl = messageElement.querySelector(CONSTANTS.SELECTORS.ASSISTANT_MESSAGE_CONTENT);
+          if (contentEl) {
+            bubbleElement = contentEl.parentElement;
+          }
+        }
+
+        if (!(bubbleElement instanceof HTMLElement)) return null;
+
+        const positioningParent = bubbleElement.parentElement;
+        if (!(positioningParent instanceof HTMLElement)) return null;
+
+        return { msgWrapper, bubbleElement, positioningParent };
+      }
+    }
+
+    class ChatGPTToastAdapter extends BaseToastAdapter {
+      /** @override */
+      getAutoScrollMessage() {
+        return 'Scanning layout to prevent scroll issues...';
+      }
+
+      /** @override */
+      getToastPositionX() {
+        // Use the input resize target (form container) as it spans the correct width
+        const inputArea = document.querySelector(CONSTANTS.SELECTORS.INPUT_RESIZE_TARGET);
+        if (inputArea instanceof HTMLElement && inputArea.offsetWidth > 0) {
+          const rect = inputArea.getBoundingClientRect();
+          return rect.left + rect.width / 2;
+        }
+        return null;
+      }
+    }
+
+    class ChatGPTAppControllerAdapter extends BaseAppControllerAdapter {
+      /** @override */
+      initializePlatformManagers(controller) {
+        // =================================================================================
+        // SECTION: Auto Scroll Manager
+        // Description: Manages the "layout scan" (simulated PageUp scroll)
+        //              to force layout calculation and prevent scroll anchoring issues.
+        // =================================================================================
+
+        /**
+         * @class AutoScrollManager
+         * @extends BaseAutoScrollManager
+         */
+        class AutoScrollManager extends BaseAutoScrollManager {
+          static CONFIG = {
+            // The minimum number of messages required to trigger the auto-scroll feature.
+            MESSAGE_THRESHOLD: 5, // Lower threshold for ChatGPT as it's for layout scanning
+            // Delay between simulated PageUp scrolls (in ms)
+            SCAN_INTERVAL_MS: 30,
+            // Multiplier for scroll step to speed up scanning
+            SCAN_STEP_MULTIPLIER: 5,
+          };
+
+          /**
+           * @param {ConfigManager} configManager
+           * @param {MessageCacheManager} messageCacheManager
+           * @param {MessageLifecycleManager} messageLifecycleManager
+           */
+          constructor(configManager, messageCacheManager, messageLifecycleManager) {
+            super(configManager, messageCacheManager);
+            this.messageLifecycleManager = messageLifecycleManager;
+            this.scrollContainer = null;
+            this.isInitialScrollCheckDone = false;
+            this.scanLoopId = null; // Use for setTimeout loop
+            this.boundStop = null;
+            this.isLayoutScanComplete = false;
+          }
+
+          /** @override */
+          _onInit() {
+            super._onInit();
+            this.isLayoutScanComplete = false;
+          }
+
+          async start() {
+            if (!isFirefox()) return;
+            if (this.isScrolling || this.isLayoutScanComplete) return;
+
+            // Set the flag immediately to prevent re-entrancy from other events (e.g. button mashing).
+            this.isScrolling = true;
+            Logger.log('', '', 'AutoScrollManager: Starting layout scan (Unthrottled rAF).');
+
+            const scrollContainerEl = document.querySelector(CONSTANTS.SELECTORS.SCROLL_CONTAINER);
+            if (!(scrollContainerEl instanceof HTMLElement)) {
+              Logger.warn('AUTOSCROLL WARN', LOG_STYLES.YELLOW, 'Could not find scroll container.');
+              this.isScrolling = false;
+              return;
+            }
+            this.scrollContainer = scrollContainerEl;
+
+            EventBus.publish(EVENTS.AUTO_SCROLL_START);
+            EventBus.publish(EVENTS.SUSPEND_OBSERVERS);
+
+            // Hide the container to prevent visual flickering
+            this.scrollContainer.style.transition = 'none';
+            this.scrollContainer.style.opacity = '0';
+
+            this.boundStop = () => this.stop(false);
+            this.scrollContainer.addEventListener('wheel', this.boundStop, { passive: true, once: true });
+            this.scrollContainer.addEventListener('touchmove', this.boundStop, { passive: true, once: true });
+
+            const originalScrollTop = this.scrollContainer.scrollTop;
+
+            // Force scroll to the bottom to ensure the scan starts from the end.
+            this.scrollContainer.scrollTop = this.scrollContainer.scrollHeight;
+
+            const scanPageUp = () => {
+              if (!this.isScrolling || !this.scrollContainer) return; // Stop if cancelled
+
+              const currentTop = this.scrollContainer.scrollTop;
+              if (currentTop <= 0) {
+                // Reached the top, restore and stop
+                this.scrollContainer.scrollTop = originalScrollTop; // Restore original position
+                this.isLayoutScanComplete = true; // Set completion flag
+                this.stop(false);
+                return;
+              }
+
+              // Scroll up by multiple pages to speed up the scan
+              const stepSize = this.scrollContainer.clientHeight * AutoScrollManager.CONFIG.SCAN_STEP_MULTIPLIER;
+              this.scrollContainer.scrollTop = Math.max(0, currentTop - stepSize);
+
+              // Continue loop via requestAnimationFrame
+              this.scanLoopId = requestAnimationFrame(scanPageUp);
+            };
+
+            // Start the loop
+            // Add a minimal delay to ensure scrollTop change is registered before scan starts
+            this.scanLoopId = requestAnimationFrame(scanPageUp);
+          }
+
+          stop(isNavigation) {
+            if (!this.isScrolling && !this.scanLoopId) return; // Prevent multiple stops
+
+            Logger.log('', '', 'AutoScrollManager: Stopping layout scan.');
+            this.isScrolling = false;
+
+            if (this.scanLoopId) {
+              cancelAnimationFrame(this.scanLoopId);
+              this.scanLoopId = null;
+            }
+
+            // Restore visibility
+            if (this.scrollContainer) {
+              this.scrollContainer.style.opacity = '1';
+              this.scrollContainer.style.transition = '';
+            }
+            this.scrollContainer = null;
+
+            // Cleanup listeners
+            if (this.boundStop) {
+              this.scrollContainer?.removeEventListener('wheel', this.boundStop);
+              this.scrollContainer?.removeEventListener('touchmove', this.boundStop);
+              this.boundStop = null;
+            }
+
+            EventBus.publish(EVENTS.AUTO_SCROLL_COMPLETE);
+
+            // On navigation, ObserverManager handles observer resumption.
+            // All other post-scan logic (DOM rescan, cache update) is now handled by the listener that *requested* the scan.
+            if (!isNavigation) {
+              EventBus.publish(EVENTS.RESUME_OBSERVERS);
+            }
+          }
+
+          /**
+           * @private
+           * @description Defines the logic to run *after* a scan completes.
+           */
+          _onScanComplete() {
+            // Run the manual scan to create any missing message wrappers
+            if (this.messageLifecycleManager) {
+              this.messageLifecycleManager.scanForUnprocessedMessages();
+            }
+            // Immediately request a cache update to reflect the scan
+            EventBus.publish(EVENTS.CACHE_UPDATE_REQUEST);
+          }
+
+          /** @override */
+          _onCacheUpdated() {
+            if (!isFirefox()) return;
+            if (!this.isEnabled || this.isInitialScrollCheckDone || this.isScrolling) {
+              return;
+            }
+
+            const messageCount = this.messageCacheManager.getTotalMessages().length;
+
+            // Wait for at least one message to ensure history has started loading (First Paint logic)
+            if (messageCount === 0) return;
+
+            // Latch on first data: Mark initialization as done immediately regardless of threshold.
+            // This prevents subsequent message additions (e.g. user sending a message) from triggering a delayed scan.
+            this.isInitialScrollCheckDone = true;
+
+            if (messageCount >= AutoScrollManager.CONFIG.MESSAGE_THRESHOLD) {
+              Logger.log('', '', `AutoScrollManager: ${messageCount} messages found. Triggering layout scan.`);
+
+              // Register the post-scan logic to run *once* on completion
+              this._subscribeOnce(EVENTS.AUTO_SCROLL_COMPLETE, () => this._onScanComplete());
+              // Start the scan
+              EventBus.publish(EVENTS.AUTO_SCROLL_REQUEST);
+            } else {
+              Logger.log('', '', `AutoScrollManager: ${messageCount} messages found (below threshold). Layout scan skipped.`);
+            }
+          }
+
+          /** @override */
+          _onNavigation() {
+            if (this.isScrolling) {
+              // Stop scroll without triggering a UI refresh, as a new page is loading.
+              this.stop(true);
+            }
+            this.isInitialScrollCheckDone = false;
+            this.isLayoutScanComplete = false;
+          }
+        }
+        controller.autoScrollManager = controller.manageFactory(CONSTANTS.RESOURCE_KEYS.AUTO_SCROLL_MANAGER, () => new AutoScrollManager(controller.configManager, controller.messageCacheManager, controller.messageLifecycleManager));
+      }
+
+      /** @override */
+      applyPlatformSpecificUiUpdates(controller, newConfig) {
+        // Enable or disable the auto-scroll manager based on the new config.
+        if (newConfig.platforms[PLATFORM].features.load_full_history_on_chat_load.enabled) {
+          controller.autoScrollManager?.enable();
+        } else {
+          controller.autoScrollManager?.disable();
+        }
+      }
+    }
+
+    class ChatGPTAvatarAdapter extends BaseAvatarAdapter {
+      /** @override */
+      getCss() {
+        const extraCss = `
+                    /* Set the message ID holder as the positioning anchor for Timestamps */
+                    ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER} {
+                        position: relative !important;
+                    }
+                `;
+        return StyleTemplates.getAvatarCss(extraCss);
+      }
+
+      /** @override */
+      measureAvatarTarget(msgElem) {
+        let turnContainer;
+
+        // Check if msgElem is the turn container (article) or a message element (div) inside it
+        if (msgElem.matches(CONSTANTS.SELECTORS.CONVERSATION_UNIT)) {
+          // Case 1: msgElem is the ARTICLE (from self-healing Sentinel)
+          turnContainer = msgElem;
+        } else {
+          // Case 2: msgElem is the DIV (from initial Sentinel or ensureMessageContainerForImage)
+          turnContainer = msgElem.closest(CONSTANTS.SELECTORS.CONVERSATION_UNIT);
+        }
+        if (!turnContainer) return null;
+
+        const centeredWrapper = turnContainer.querySelector(CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH);
+        if (!centeredWrapper) return null;
+
+        // Check if avatar container already exists *inside the centered wrapper*.
+        if (centeredWrapper.getElementsByClassName(CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER_CLASS).length > 0) {
+          // Already present. Return context to ensure processed class is added, but do not inject.
+          return {
+            shouldInject: false,
+            targetElement: null,
+            processedTarget: turnContainer,
+            exclusionKey: turnContainer,
+            originalElement: msgElem,
+          };
+        }
+
+        // Find the *first* message element within this turn.
+        const firstMessageElement = turnContainer.querySelector(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
+        if (!(firstMessageElement instanceof HTMLElement)) {
+          return null; // No message element found to attach to
+        }
+
+        // Guard: Skip avatar injection for Deep Research result containers.
+        // These containers have their own layout that conflicts with the avatar.
+        if (firstMessageElement.querySelector(CONSTANTS.SELECTORS.DEEP_RESEARCH_RESULT)) {
+          return null;
+        }
+
+        return {
+          shouldInject: true,
+          targetElement: firstMessageElement,
+          processedTarget: turnContainer,
+          exclusionKey: turnContainer,
+          originalElement: msgElem,
+        };
+      }
+
+      /** @override */
+      injectAvatar(measurement, avatarContainer) {
+        const { shouldInject, targetElement } = measurement;
+
+        // Inject the avatar directly into the *first message element*
+        if (shouldInject && targetElement && avatarContainer) {
+          targetElement.prepend(avatarContainer);
+        }
+      }
+    }
+
+    class ChatGPTStandingImageAdapter extends BaseStandingImageAdapter {
+      /** @override */
+      async recalculateLayout(instance) {
+        const rootStyle = document.documentElement.style;
+        const cls = instance.style.classes;
+        const v = instance.style.vars;
+
+        // Check for Canvas mode
+        const isCanvasActive = PlatformAdapters.General.isCanvasModeActive();
+
+        // Check for Right Sidebar (Activity Panel)
+        const rightSidebar = document.querySelector(CONSTANTS.SELECTORS.RIGHT_SIDEBAR);
+        let isRightSidebarOpen = false;
+        if (rightSidebar instanceof HTMLElement && rightSidebar.offsetWidth > 0) {
+          const rect = rightSidebar.getBoundingClientRect();
+          // Robustness check: Ensure it's actually on the right side
+          if (rect.left > window.innerWidth / 2) {
+            isRightSidebarOpen = true;
+          }
+        }
+
+        // If canvas mode is active or the activity panel is open, hide standing images.
+        if (isCanvasActive || isRightSidebarOpen) {
+          rootStyle.setProperty(v.assistantWidth, '0px');
+          rootStyle.setProperty(v.userWidth, '0px');
+          return;
+        }
+
+        // --- Determine Message Area Rect ---
+        let chatRect = null;
+        const isNewChat = PlatformAdapters.General.isNewChatPage();
+
+        if (isNewChat) {
+          // On new chat pages, do not wait for the element. Calculate virtual rect immediately.
+          // We assume standard centering logic for the virtual area.
+        } else {
+          // On existing chat pages, find the content synchronously.
+          // If not found, abort immediately. Sentinel will trigger an update when it appears.
+          const chatContent = document.querySelector(CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH);
+          if (chatContent) {
+            chatRect = chatContent.getBoundingClientRect();
+          } else {
+            // Abort to avoid visual bugs.
+            return;
+          }
+        }
+
+        await withLayoutCycle({
+          measure: () => {
+            // --- Read Phase ---
+            const assistantImg = document.getElementById(cls.assistantImageId);
+            const userImg = document.getElementById(cls.userImageId);
+
+            return {
+              chatRect: chatRect, // Can be null (for virtual calculation) or pre-fetched rect
+              sidebarWidth: getSidebarWidth(),
+              windowWidth: window.innerWidth,
+              windowHeight: window.innerHeight,
+              assistantImgHeight: assistantImg ? assistantImg.offsetHeight : 0,
+              userImgHeight: userImg ? userImg.offsetHeight : 0,
+            };
+          },
+          mutate: (measured) => {
+            // --- Write Phase ---
+            if (instance.isDestroyed) return;
+            if (!measured) return;
+
+            const { sidebarWidth, windowWidth, windowHeight, assistantImgHeight, userImgHeight } = measured;
+            let { chatRect } = measured;
+
+            const config = instance.configManager.get();
+
+            // --- Virtual Rect Calculation (if needed) ---
+            if (!chatRect) {
+              // Default width fallback (50vw per requirement)
+              let targetWidth = windowWidth * 0.5;
+
+              const configWidth = config.platforms[PLATFORM].options.chat_content_max_width;
+              if (configWidth && typeof configWidth === 'string' && configWidth.endsWith('vw')) {
+                const vwValue = parseInt(configWidth, 10);
+                if (!isNaN(vwValue)) {
+                  targetWidth = (windowWidth * vwValue) / 100;
+                }
+              }
+
+              // Calculate centered position relative to the available space (window - sidebar)
+              const availableSpace = windowWidth - sidebarWidth;
+              // If the configured width is wider than available space, clamp it
+              const effectiveWidth = Math.min(targetWidth, availableSpace);
+
+              const left = sidebarWidth + (availableSpace - effectiveWidth) / 2;
+
+              chatRect = new DOMRect(left, 0, effectiveWidth, 0);
+            }
+
+            // Apply right sidebar width for positioning
+            rootStyle.setProperty(v.rightSidebarWidth, '0px');
+
+            // Set Assistant base position (Platform specific)
+            rootStyle.setProperty(v.assistantLeft, sidebarWidth + 'px');
+
+            // Calculate available widths
+            const assistantAvailableWidth = chatRect.left - sidebarWidth;
+            const userAvailableWidth = windowWidth - chatRect.right;
+
+            // Delegate common calculation
+            StandingImageLayout.apply(instance, {
+              assistantAvailableWidth,
+              userAvailableWidth,
+              assistantImgHeight,
+              userImgHeight,
+              windowHeight,
+            });
+          },
+        });
+      }
+
+      /** @override */
+      updateVisibility(instance) {
+        const isCanvasActive = PlatformAdapters.General.isCanvasModeActive();
+        const cls = instance.style.classes;
+        const v = instance.style.vars;
+
+        [cls.userImageId, cls.assistantImageId].forEach((id) => {
+          const imgElement = document.getElementById(id);
+          if (!imgElement) return;
+
+          // Determine actor based on index or ID check
+          const isUser = id === cls.userImageId;
+          const varName = isUser ? v.userImage : v.assistantImage;
+
+          const hasImage = !!document.documentElement.style.getPropertyValue(varName);
+          imgElement.style.opacity = hasImage && !isCanvasActive && !instance.isAutoScrolling ? '1' : '0';
+        });
+      }
+    }
+
+    class ChatGPTObserverAdapter extends BaseObserverAdapter {
+      /**
+       * @private
+       * @description Starts a stateful observer for the right sidebar (Activity/Thread flyout).
+       * @param {object} dependencies
+       * @returns {() => void}
+       */
+      startRightSidebarObserver(dependencies) {
+        // Use shared logic from ObserverManager via dependencies
+        return dependencies.startGenericPanelObserver({
+          triggerSelector: CONSTANTS.SELECTORS.RIGHT_SIDEBAR,
+          observerType: CONSTANTS.OBSERVED_ELEMENT_TYPES.SIDE_PANEL,
+          targetResolver: (el) => el, // Target Resolver (Trigger is the Panel)
+          immediateCallback: () => EventBus.publish(EVENTS.SIDEBAR_LAYOUT_CHANGED),
+        });
+      }
+
+      /**
+       * @private
+       * @description Starts a stateful observer for the Research Panel.
+       * @param {object} dependencies
+       * @returns {() => void}
+       */
+      startResearchPanelObserver(dependencies) {
+        // Use shared logic from ObserverManager via dependencies
+        return dependencies.startGenericPanelObserver({
+          triggerSelector: CONSTANTS.SELECTORS.RESEARCH_PANEL,
+          observerType: CONSTANTS.OBSERVED_ELEMENT_TYPES.SIDE_PANEL,
+          // Target Resolver: The trigger is inside a section, inside the main div.
+          // We need the parent div that holds the width.
+          targetResolver: (el) => el.closest(CONSTANTS.SELECTORS.SIDEBAR_SURFACE_PRIMARY),
+          immediateCallback: () => EventBus.publish(EVENTS.VISIBILITY_RECHECK),
+        });
+      }
+
+      /**
+       * @private
+       * @description Starts a stateful observer to detect the appearance and disappearance of the Canvas panel using a high-performance hybrid approach.
+       * @param {object} dependencies The required methods from ObserverManager.
+       * @returns {() => void} A cleanup function.
+       */
+      startCanvasObserver(dependencies) {
+        // Use shared logic from ObserverManager via dependencies
+        return dependencies.startGenericPanelObserver({
+          triggerSelector: CONSTANTS.SELECTORS.CANVAS_CONTAINER, // Trigger (Button)
+          observerType: CONSTANTS.OBSERVED_ELEMENT_TYPES.SIDE_PANEL,
+          targetResolver: (el) => el.closest(CONSTANTS.SELECTORS.CANVAS_RESIZE_TARGET), // Target Resolver (Find Parent Panel)
+          immediateCallback: () => EventBus.publish(EVENTS.VISIBILITY_RECHECK),
+        });
+      }
+
+      /**
+       * @param {object} dependencies The dependencies passed from ObserverManager (unused in this method).
+       * @private
+       * @description Sets up the monitoring for title changes.
+       * @returns {() => void} A cleanup function to stop the observer.
+       */
+      startGlobalTitleObserver(dependencies) {
+        let titleObserver = null;
+
+        const setupObserver = (targetElement) => {
+          titleObserver?.disconnect(); // Disconnect if already running
+
+          // Encapsulate state within the closure
+          let lastObservedTitle = (targetElement.textContent || '').trim();
+          const currentObservedTitleSource = targetElement;
+
+          titleObserver = new MutationObserver(() => {
+            const currentText = (currentObservedTitleSource?.textContent || '').trim();
+            if (currentText !== lastObservedTitle) {
+              lastObservedTitle = currentText;
+              EventBus.publish(EVENTS.TITLE_CHANGED);
+            }
+          });
+          titleObserver.observe(targetElement, {
+            childList: true,
+            characterData: true,
+            subtree: true,
+          });
+        };
+
+        const selector = CONSTANTS.SELECTORS.TITLE_OBSERVER_TARGET;
+        sentinel.on(selector, setupObserver);
+
+        const existingTarget = document.querySelector(selector);
+        if (existingTarget) {
+          setupObserver(existingTarget);
+        }
+
+        // Return the cleanup function for this observer.
+        return () => {
+          sentinel.off(selector, setupObserver);
+          titleObserver?.disconnect();
+        };
+      }
+
+      /**
+       * @param {object} dependencies The dependencies passed from ObserverManager (unused in this method).
+       * @private
+       * @description Sets up a robust, two-tiered observer for the sidebar.
+       * @returns {() => void} A cleanup function.
+       */
+      startSidebarObserver(dependencies) {
+        let resizeObserver = null;
+        let titleObserver = null;
+        const debouncedTitleUpdate = debounce(() => EventBus.publish(EVENTS.TITLE_CHANGED), CONSTANTS.TIMING.DEBOUNCE_DELAYS.THEME_UPDATE, true);
+
+        const setupObserver = (sidebarContainer) => {
+          resizeObserver?.disconnect();
+          titleObserver?.disconnect();
+
+          let lastWidth = -1;
+          let lastHeight = -1;
+
+          resizeObserver = new ResizeObserver((entries) => {
+            // We only need to signal that the layout changed.
+            // Throttling is handled by the subscriber (ThemeManager).
+            let layoutChanged = false;
+            for (const entry of entries) {
+              const { width, height } = entry.contentRect;
+              if (width !== lastWidth || height !== lastHeight) {
+                lastWidth = width;
+                lastHeight = height;
+                layoutChanged = true;
+              }
+            }
+            if (layoutChanged) {
+              EventBus.publish(EVENTS.SIDEBAR_LAYOUT_CHANGED);
+            }
+          });
+
+          resizeObserver.observe(sidebarContainer);
+
+          // Added MutationObserver to detect chat renaming and selection changes
+          titleObserver = new MutationObserver((mutations) => {
+            let titleChanged = false;
+
+            for (const mutation of mutations) {
+              const target = mutation.target;
+
+              if (mutation.type === 'attributes' && mutation.attributeName === 'data-active') {
+                // Chat selection changed
+                titleChanged = true;
+                break;
+              } else if (mutation.type === 'childList') {
+                // New chat added to the list
+                titleChanged = true;
+                break;
+              } else if (mutation.type === 'characterData') {
+                // Chat renamed. Check if it's within the link text element
+                if (target.parentElement && target.parentElement.closest(CONSTANTS.SELECTORS.SIDEBAR_LINK_TEXT)) {
+                  titleChanged = true;
+                  break;
+                }
+              }
+            }
+
+            if (titleChanged) {
+              debouncedTitleUpdate();
+            }
+          });
+
+          titleObserver.observe(sidebarContainer, {
+            childList: true,
+            attributes: true,
+            attributeFilter: ['data-active'],
+            characterData: true,
+            subtree: true,
+          });
+
+          // Trigger once initially to ensure state capture
+          EventBus.publish(EVENTS.SIDEBAR_LAYOUT_CHANGED);
+        };
+
+        // Use Sentinel to detect when the sidebar container is added or re-added to the DOM.
+        const selector = CONSTANTS.SELECTORS.SIDEBAR_WIDTH_TARGET;
+        sentinel.on(selector, setupObserver);
+
+        // Initial check
+        const initialSidebar = document.querySelector(selector);
+        if (initialSidebar) {
+          setupObserver(initialSidebar);
+        }
+
+        // Cleanup
+        return () => {
+          sentinel.off(selector, setupObserver);
+          resizeObserver?.disconnect();
+          titleObserver?.disconnect();
+        };
+      }
+
+      /**
+       * @private
+       * @description Starts a stateful observer for the input area to detect resizing and DOM reconstruction (button removal).
+       * @param {object} dependencies The ObserverManager dependencies.
+       * @returns {() => void} A cleanup function.
+       */
+      startInputAreaObserver(dependencies) {
+        // Use shared logic from ObserverManager via dependencies
+        return dependencies.startGenericInputAreaObserver({
+          triggerSelector: CONSTANTS.SELECTORS.INPUT_RESIZE_TARGET,
+          resizeTargetSelector: CONSTANTS.SELECTORS.INPUT_RESIZE_TARGET,
+        });
+      }
+
+      /**
+       * @private
+       * @description Optimizes style application by detecting DOM elements via JS instead of using expensive CSS :has().
+       * Specifically handles the Project Page top gradient removal by adding a class to the container when the project title input is present.
+       * @param {object} dependencies
+       * @returns {() => void} A cleanup function.
+       */
+      startStyleOptimizationObserver(dependencies) {
+        const triggerSelector = CONSTANTS.SELECTORS.PROJECT_TITLE_INPUT;
+        const targetSelector = CONSTANTS.SELECTORS.CONTENT_FADE_TOP;
+        const className = CONSTANTS.SELECTORS.PROJECT_PAGE_CLASS;
+
+        const listener = (element) => {
+          // Find the parent/ancestor container to apply the class to
+          const target = element.closest(targetSelector);
+          if (target instanceof HTMLElement) {
+            target.classList.add(className);
+          }
+        };
+
+        // Use Sentinel to efficiently detect the input element
+        sentinel.on(triggerSelector, listener);
+
+        // Initial check in case it's already present
+        const existing = document.querySelector(triggerSelector);
+        if (existing) {
+          listener(existing);
+        }
+
+        return () => {
+          sentinel.off(triggerSelector, listener);
+        };
+      }
+
+      /** @override */
+      getPlatformObserverStarters() {
+        // prettier-ignore
+        return [
+          this.startGlobalTitleObserver,
+          this.startSidebarObserver,
+          this.startCanvasObserver,
+          this.startRightSidebarObserver,
+          this.startResearchPanelObserver,
+          this.startInputAreaObserver,
+          this.startStyleOptimizationObserver,
+        ];
+      }
+
+      /** @override */
+      isTurnComplete(turnNode) {
+        // A turn is complete if it's an assistant message that has rendered its action buttons.
+        // User message turns are handled implicitly and don't trigger this "complete" state in the context of streaming.
+        const assistantActions = turnNode.querySelector(CONSTANTS.SELECTORS.TURN_COMPLETE_SELECTOR);
+        return !!assistantActions;
+      }
+    }
+
+    class ChatGPTSettingsPanelAdapter extends BaseSettingsPanelAdapter {
+      /** @override */
+      getPlatformSpecificFeatureToggles() {
+        const toggles = [{ configKey: 'features.timestamp.enabled' }, { configKey: 'features.collapsible_button.auto_collapse_user_message.enabled' }];
+
+        if (isFirefox()) {
+          toggles.unshift({ configKey: 'features.load_full_history_on_chat_load.enabled' });
+        }
+
+        return toggles;
+      }
+    }
+
+    class ChatGPTFixedNavAdapter extends BaseFixedNavAdapter {
+      /** @override */
+      isHeaderPositionAvailable(navConsoleWidth) {
+        // 1. Check for panels that compress the layout (Canvas)
+        if (PlatformAdapters.General.isCanvasModeActive()) {
+          return false;
+        }
+
+        // 2. Check available width in the main container (accounts for sidebar)
+        const container = document.querySelector(CONSTANTS.SELECTORS.SCROLL_CONTAINER);
+        if (container instanceof HTMLElement) {
+          return container.offsetWidth >= CONSTANTS.UI_SPECS.HEADER_POSITION_MIN_WIDTH;
+        }
+
+        // Fallback to window width if container not found
+        return window.innerWidth >= CONSTANTS.UI_SPECS.HEADER_POSITION_MIN_WIDTH;
+      }
+
+      /** @override */
+      getNavAnchorContainer() {
+        // Try to find the specific action container first
+        const actionContainer = document.querySelector(CONSTANTS.SELECTORS.HEADER_ACTIONS);
+        if (actionContainer && actionContainer.parentElement) {
+          return actionContainer.parentElement;
+        }
+
+        // Fallback: If on a new chat page or structure changed, try to find the end of the header
+        // The header usually has 3 main divs (Left, Center, Right). We want the Right one.
+        const rightSection = document.querySelector(CONSTANTS.SELECTORS.HEADER_FALLBACK_SECTION);
+        if (rightSection instanceof HTMLElement) {
+          return rightSection;
+        }
+        return null;
+      }
+
+      /** @override */
+      handleInfiniteScroll(fixedNavManagerInstance, highlightedMessage, previousTotalMessages) {
+        // No-op for ChatGPT as it does not use infinite scrolling for chat history.
+        // This method exists to maintain architectural consistency with the Gemini version.
+      }
+
+      /** @override */
+      applyAdditionalHighlight(messageElement, styleHandle) {
+        const role = PlatformAdapters.General.getMessageRole(messageElement);
+        if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT) {
+          const turnContainer = messageElement.closest(CONSTANTS.SELECTORS.CONVERSATION_UNIT);
+          const hasImage = turnContainer && turnContainer.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE);
+          const textContent = messageElement.querySelector(CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT);
+          const hasText = textContent && textContent.textContent.trim() !== '';
+
+          // Apply to turn container only if it's an image-only or effectively image-only message.
+          if (hasImage && !hasText) {
+            turnContainer.classList.add(styleHandle.classes.highlightTurn);
+          }
+        }
+      }
+
+      /** @override */
+      getPlatformSpecificButtons(fixedNavManagerInstance, styleHandle) {
+        const cls = styleHandle.classes;
+        const autoscrollBtn = h(
+          `button#${cls.autoscrollBtnId}.${cls.btn}`,
+          {
+            title: 'Run layout scan and rescan DOM',
+            dataset: { [CONSTANTS.DATA_KEYS.ORIGINAL_TITLE]: 'Run layout scan and rescan DOM' },
+            onclick: () => {
+              // 1. Subscribe once to the completion event
+              fixedNavManagerInstance.registerPlatformListenerOnce(EVENTS.AUTO_SCROLL_COMPLETE, () => {
+                // 2. Perform the "DOM Rescan" logic *after* scan is complete.
+                if (fixedNavManagerInstance.messageLifecycleManager) {
+                  fixedNavManagerInstance.messageLifecycleManager.scanForUnprocessedMessages();
+                }
+                EventBus.publish(EVENTS.CACHE_UPDATE_REQUEST);
+              });
+
+              // 3. Start the scan.
+              EventBus.publish(EVENTS.AUTO_SCROLL_REQUEST);
+            },
+          },
+          [createIconFromDef(StyleDefinitions.ICONS.scrollToTop)]
+        );
+
+        return [autoscrollBtn];
+      }
+
+      /** @override */
+      updatePlatformSpecificButtonState(autoscrollBtn, isAutoScrolling, autoScrollManager) {
+        if (!isFirefox()) {
+          autoscrollBtn.disabled = true;
+          autoscrollBtn.title = 'Layout scan is not required on your browser.';
+          autoscrollBtn.style.opacity = '0.5';
+          return;
+        }
+
+        const isScanComplete = autoScrollManager?.isLayoutScanComplete;
+        const isDisabled = isAutoScrolling || isScanComplete;
+
+        autoscrollBtn.disabled = isDisabled;
+        autoscrollBtn.style.opacity = '1';
+
+        if (isScanComplete) {
+          autoscrollBtn.title = 'Layout scan complete';
+        } else if (isAutoScrolling) {
+          autoscrollBtn.title = 'Scanning layout...';
+        } else {
+          autoscrollBtn.title = DomState.get(autoscrollBtn, CONSTANTS.DATA_KEYS.ORIGINAL_TITLE);
+        }
+      }
+    }
+
+    class ChatGPTTimestampAdapter extends BaseTimestampAdapter {
+      constructor() {
+        super();
+        this.originalFetch = unsafeWindow.fetch.bind(unsafeWindow);
+        this.isInitialized = false;
+        this.isInterceptionEnabled = false;
+        this.fetchWrapperSymbol = Symbol.for(`${APPID}:FETCH_WRAPPER`);
+        this._lastFetchObserveErrorAt = 0; // Rate-limit observer errors to avoid log spam
+      }
+
+      /** @override */
+      init() {
+        this.isInterceptionEnabled = true;
+
+        if (this.isInitialized) return;
+
+        // Check if unsafeWindow is available and valid
+        if (typeof unsafeWindow === 'undefined' || !unsafeWindow.fetch) {
+          Logger.error('TIMESTAMP', '', 'unsafeWindow.fetch is unavailable. Adapter disabled.');
+          return;
+        }
+
+        try {
+          // Backup original fetch from the page context
+          // Bind to unsafeWindow to ensure correct 'this' context
+          this.originalFetch = unsafeWindow.fetch.bind(unsafeWindow);
+
+          // Create the wrapper logic
+          const wrappedFetch = this._wrappedFetch.bind(this);
+
+          // Mark our wrapper to prevent double-wrapping
+          wrappedFetch[this.fetchWrapperSymbol] = true;
+
+          // Override the page's fetch
+          unsafeWindow.fetch = wrappedFetch;
+
+          this.isInitialized = true;
+          Logger.debug('TIMESTAMP', LOG_STYLES.TEAL, 'Successfully intercepted unsafeWindow.fetch');
+        } catch (e) {
+          Logger.error('FETCH WRAP FAILED', LOG_STYLES.RED, 'Could not wrap fetch:', e);
+          // Attempt to restore if partially failed
+          if (this.originalFetch) {
+            unsafeWindow.fetch = this.originalFetch;
+          }
+        }
+      }
+
+      /** @override */
+      cleanup() {
+        // Disable interception logic safely without modifying the global fetch reference.
+        // Restoring the original fetch here can destroy site-specific polyfills or interceptors applied after our initialization.
+        if (this.isInitialized) {
+          this.isInterceptionEnabled = false;
+          Logger.debug('TIMESTAMP', LOG_STYLES.TEAL, 'Disabled fetch interception (pass-through mode activated).');
+        }
+        // Data cache is preserved (BaseTimestampAdapter behavior)
+      }
+
+      /** @override */
+      hasTimestampLogic() {
+        return true;
+      }
+
+      /** @override */
+      isTimestampEnabledSync(defaultConfig) {
+        try {
+          const storedValue = localStorage.getItem(CONSTANTS.STORE_KEYS.LOCAL_TIMESTAMP_ENABLED);
+          if (storedValue !== null) {
+            return storedValue === 'true';
+          }
+        } catch (e) {
+          Logger.warn('TIMESTAMP', '', 'Failed to access localStorage. Falling back to default config.', e);
+        }
+        return Boolean(defaultConfig?.features?.timestamp?.enabled);
+      }
+
+      _getChatIdFromUrl(url) {
+        if (!url) return null;
+        // Match .../conversation/[ID] only. Must end with the ID.
+        // The ID must contain at least 4 hyphens.
+        // (e.g., 8-4-4-4-12 format)
+        const endpoint = CONSTANTS.URL_PATTERNS.CONVERSATION_ENDPOINT;
+        const pattern = new RegExp(`${escapeRegExp(endpoint)}\\/([^/]*-[^/]*-[^/]*-[^/]*-[^/]+)$`);
+        const match = url.match(pattern);
+        return match ? match[1] : null;
+      }
+
+      _wrappedFetch(input, init) {
+        // Pass-through immediately if interception is disabled to avoid interfering with site logic.
+        if (!this.isInterceptionEnabled) return this.originalFetch(input, init);
+
+        // 1. Call the original fetch immediately.
+        // We return this Promise chain to the site code.
+        return this.originalFetch(input, init).then((response) => {
+          try {
+            // 2. Clone the response immediately upon resolution.
+            // This ensures we get a copy before the site's code consumes the stream.
+            // Wrapped in try-catch to act as a failsafe; if cloning fails (e.g. stream locked),
+            // we must still return the original response to avoid breaking the site.
+            const clonedResponse = response.clone();
+
+            // 3. Process the clone asynchronously (Fire-and-forget).
+            this._processIntercentedResponse(input, clonedResponse).catch((e) => {
+              // Rate-limit error logging
+              const now = Date.now();
+              if (now - this._lastFetchObserveErrorAt > 60000) {
+                this._lastFetchObserveErrorAt = now;
+                Logger.debug('FETCH', LOG_STYLES.ORANGE, 'Internal processing failed:', e);
+              }
+            });
+          } catch (e) {
+            // Log error but suppress it to protect the main application flow
+            Logger.debug('FETCH', LOG_STYLES.ORANGE, 'Response cloning failed:', e);
+          }
+
+          // 4. Return the ORIGINAL response to the site.
+          return response;
+        });
+      }
+
+      /**
+       * Processes the intercepted response to extract timestamps.
+       * @param {RequestInfo|URL} input
+       * @param {Response} response
+       */
+      async _processIntercentedResponse(input, response) {
+        if (!this.isInterceptionEnabled) return;
+
+        // Check URL patterns
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+        let normalizedUrl = url;
+        try {
+          // Resolve relative URLs relative to the current page
+          normalizedUrl = new URL(url, location.href).pathname;
+        } catch {
+          // Ignore URL parsing errors
+        }
+
+        // Try to get ID from URL first (GET request)
+        let chatId = this._getChatIdFromUrl(normalizedUrl);
+
+        // Only process conversation endpoints
+        if (!normalizedUrl.includes(CONSTANTS.URL_PATTERNS.CONVERSATION_ENDPOINT)) return;
+
+        // Check response status
+        if (!response.ok || response.status !== 200) return;
+
+        Logger.debug('FETCH', LOG_STYLES.ORANGE, 'Target API URL intercepted:', url);
+
+        try {
+          const data = await response.json();
+
+          // If ID wasn't in URL, try to find it in the response (POST request / New Chat)
+          // Added strict null check for 'data' to prevent TypeError if site polyfills or backend returns null
+          if (!chatId && data && data.conversation_id) {
+            chatId = data.conversation_id;
+          }
+
+          // This acts as a filter to ensure we are processing actual chat data,
+          // not other endpoints like /conversations (history list).
+          if (!chatId) return;
+
+          // Parse the JSON data
+          const timestamps = this._extractTimestamps(data);
+
+          if (timestamps.size > 0) {
+            // Store in persistent cache
+            timestamps.forEach((date, id) => this.addTimestamp(id, date));
+            // Publish event
+            EventBus.publish(EVENTS.TIMESTAMPS_LOADED, { timestamps });
+          }
+        } catch (e) {
+          Logger.error('TIMESTAMP ERROR', LOG_STYLES.RED, 'Failed to parse conversation JSON:', e);
+        }
+      }
+
+      /**
+       * Extracts timestamps from the parsed JSON object.
+       * @param {object} data - The parsed JSON response.
+       * @returns {Map<string, Date>}
+       */
+      _extractTimestamps(data) {
+        /** @type {Map<string, Date>} */
+        const newTimestamps = new Map();
+        let added = 0;
+
+        if (data && data.mapping) {
+          Object.values(data.mapping).forEach((item) => {
+            if (item && item.message && item.message.id && item.message.create_time) {
+              // Add to our temporary map. We don't check for existence,
+              // TimestampManager will handle merging/overwriting.
+              newTimestamps.set(item.message.id, new Date(item.message.create_time * 1000));
+              added++;
+            }
+          });
+
+          if (added > 0) {
+            Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, `Parsed ${added} historical timestamps.`);
+          } else {
+            Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, 'API response processed, but no valid timestamps were found in data.mapping.');
+          }
+        } else {
+          Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, 'API response processed, but data.mapping was not found or was empty.');
+        }
+        return newTimestamps;
+      }
+    }
+
+    class ChatGPTUIManagerAdapter extends BaseUIManagerAdapter {
+      /** @override */
+      ensureButtonPlacement(settingsButton) {
+        ensureSettingsButtonPlacement(settingsButton, CONSTANTS.SELECTORS.INSERTION_ANCHOR, PlatformAdapters.General.isExcludedPage);
+      }
+    }
+
+    const PlatformAdapters = {
+      General: new ChatGPTGeneralAdapter(),
+      StyleManager: new ChatGPTStyleManagerAdapter(),
+      ThemeManager: new ChatGPTThemeManagerAdapter(),
+      BubbleUI: new ChatGPTBubbleUIAdapter(),
+      Toast: new ChatGPTToastAdapter(),
+      AppController: new ChatGPTAppControllerAdapter(),
+      Avatar: new ChatGPTAvatarAdapter(),
+      StandingImage: new ChatGPTStandingImageAdapter(),
+      Observer: new ChatGPTObserverAdapter(),
+      SettingsPanel: new ChatGPTSettingsPanelAdapter(),
+      FixedNav: new ChatGPTFixedNavAdapter(),
+      Timestamp: new ChatGPTTimestampAdapter(),
+      UIManager: new ChatGPTUIManagerAdapter(),
+    };
+
+    return {
+      CONSTANTS,
+      SITE_STYLES,
+      PlatformAdapters,
+    };
+  }
+
+  /**
+   * Returns definitions and adapters specifically for Gemini.
+   * @returns {PlatformDefinitions} The set of constants and adapters.
+   */
+  function defineGeminiValues() {
+    // =============================================================================
+    // SECTION: Platform Constants
+    // =============================================================================
+
+    // ---- Default Settings & Theme Configuration ----
+    const CONSTANTS = {
+      ...SHARED_CONSTANTS,
+      UI_SPECS: {
+        ...SHARED_CONSTANTS.UI_SPECS,
+        HEADER_POSITION_MIN_WIDTH: 960,
+      },
+      OBSERVER_OPTIONS: {
+        childList: true,
+        subtree: true,
+      },
+      Z_INDICES: {
+        ...SHARED_CONSTANTS.Z_INDICES,
+        BUBBLE_NAVIGATION: 'auto',
+        STANDING_IMAGE: 1,
+        NAV_CONSOLE: 500,
+      },
+      ATTRIBUTES: {
+        MESSAGE_ID: 'data-message-id',
+      },
+      SELECTORS: {
+        // --- Main containers ---
+        MAIN_APP_CONTAINER: 'bard-sidenav-content',
+        CHAT_WINDOW_CONTENT: 'chat-window-content',
+        CHAT_WINDOW: 'chat-window',
+        CHAT_HISTORY_MAIN: 'div#chat-history',
+        INPUT_CONTAINER: 'input-container',
+        // Root container for message search optimization
+        MESSAGES_ROOT: 'chat-history',
+
+        // --- Message containers ---
+        CONVERSATION_UNIT: 'user-query, model-response',
+        MESSAGE_ID_HOLDER: '[data-message-id]',
+        MESSAGE_ROOT_NODE: 'user-query, model-response',
+        USER_QUERY_CONTAINER: 'user-query-content',
+
+        // --- Selectors for messages ---
+        USER_MESSAGE: 'user-query',
+        ASSISTANT_MESSAGE: 'model-response',
+
+        // --- Selectors for finding elements to tag ---
+        RAW_USER_BUBBLE: '.user-query-bubble-with-background',
+        RAW_ASSISTANT_BUBBLE: '.response-container-with-gpi',
+
+        // --- Text content ---
+        USER_TEXT_CONTENT: '.query-text',
+        ASSISTANT_TEXT_CONTENT: '.markdown',
+        ASSISTANT_ANSWER_CONTENT: 'message-content.model-response-text',
+        VISUALLY_HIDDEN_TEXT: '.cdk-visually-hidden',
+
+        // --- Input area ---
+        INPUT_AREA_BG_TARGET: 'input-area-v2',
+        INPUT_TEXT_FIELD_TARGET: 'rich-textarea .ql-editor',
+        INPUT_RESIZE_TARGET: 'input-area-v2',
+
+        // --- Input area (Button Injection) ---
+        INSERTION_ANCHOR: 'input-area-v2 .trailing-actions-wrapper',
+
+        // --- Avatar area ---
+        AVATAR_USER: 'user-query',
+        AVATAR_ASSISTANT: 'model-response',
+
+        // --- Selectors for Avatar ---
+        SIDE_AVATAR_CONTAINER: '.side-avatar-container',
+        SIDE_AVATAR_CONTAINER_CLASS: 'side-avatar-container',
+        SIDE_AVATAR_ICON: '.side-avatar-icon',
+        SIDE_AVATAR_NAME: '.side-avatar-name',
+
+        // --- Other UI Selectors ---
+        SIDEBAR_WIDTH_TARGET: 'bard-sidenav',
+        // Used for CSS max-width application
+        CHAT_CONTENT_MAX_WIDTH: '.conversation-container',
+        // Used for standing image layout calculation
+        STANDING_IMAGE_ANCHOR: '.conversation-container user-query, .conversation-container model-response, .bot-info-card-container',
+        SCROLL_CONTAINER: null,
+
+        // --- Site Specific Selectors ---
+        CONVERSATION_TITLE_WRAPPER: '[data-test-id="conversation"].selected',
+        CONVERSATION_TITLE_TEXT: '.conversation-title',
+        CHAT_HISTORY_SCROLL_CONTAINER: '[data-test-id="chat-history-container"]',
+
+        // --- BubbleFeature-specific Selectors ---
+        BUBBLE_FEATURE_MESSAGE_CONTAINERS: 'user-query, model-response',
+
+        // --- FixedNav-specific Selectors ---
+        FIXED_NAV_INPUT_AREA_TARGET: 'input-area-v2',
+        FIXED_NAV_MESSAGE_CONTAINERS: 'user-query, model-response',
+        FIXED_NAV_ROLE_USER: 'user-query',
+        FIXED_NAV_ROLE_ASSISTANT: 'model-response',
+
+        // --- Turn Completion Selector ---
+        TURN_COMPLETE_SELECTOR: 'model-response message-actions',
+
+        // --- Canvas ---
+        CANVAS_CONTAINER: 'immersive-panel',
+        CANVAS_CLOSE_BUTTON: 'button[data-test-id="close-button"]',
+
+        // --- File Panel ---
+        FILE_PANEL_CONTAINER: 'context-sidebar',
+
+        // --- Gem Selectors ---
+        GEM_SELECTED_ITEM: 'bot-list-item.bot-list-item--selected',
+        GEM_NAME: '.bot-name',
+
+        // --- List Item Selectors for Observation ---
+        CHAT_HISTORY_ITEM: '[data-test-id="conversation"]',
+        GEM_LIST_ITEM: 'bot-list-item',
+
+        // --- Gem Manager ---
+        GEM_MANAGER_CONTAINER: 'all-bots',
+
+        // --- Auto Scroll ---
+        PROGRESS_BAR: 'mat-progress-bar[role="progressbar"]',
+
+        // --- Header Integration Selectors ---
+        HEADER_RIGHT_SECTION: 'top-bar-actions .right-section',
+      },
+      URL_PATTERNS: {
+        EXCLUDED: [],
+      },
+    };
+
+    // ---- Site-specific Style Variables ----
+    const UI_PALETTE = {
+      bg: 'var(--gem-sys-color--surface-container-highest)',
+      input_bg: 'var(--gem-sys-color--surface-container-low)',
+      text_primary: 'var(--gem-sys-color--on-surface)',
+      text_secondary: 'var(--gem-sys-color--on-surface-variant)',
+      border: 'var(--gem-sys-color--outline)',
+      border_medium: 'var(--gem-sys-color--outline)',
+      border_light: 'var(--gem-sys-color--outline-low)',
+      btn_bg: 'var(--gem-sys-color--surface-container-high)',
+      btn_hover_bg: 'var(--gem-sys-color--surface-container-higher)',
+      btn_text: 'var(--gem-sys-color--on-surface-variant)',
+      btn_border: 'var(--gem-sys-color--outline)',
+      toggle_bg_off: 'var(--gem-sys-color--surface-container)',
+      toggle_bg_on: 'var(--gem-sys-color--primary)',
+      toggle_knob: 'var(--gem-sys-color--on-primary-container)',
+      danger_text: 'var(--gem-sys-color--error)',
+      accent_text: 'var(--gem-sys-color--primary)',
+      loading_spinner: '#ffca28',
+      // Shared properties
+      slider_display_text: 'var(--gem-sys-color--on-surface)',
+      label_text: 'var(--gem-sys-color--on-surface-variant)',
+      error_text: 'var(--gem-sys-color--error)',
+      // Component Specifics: Settings Button
+      settings_btn_width: '40px',
+      settings_btn_height: '40px',
+      settings_btn_color: 'var(--mat-icon-button-icon-color, var(--mat-sys-on-surface-variant))',
+      settings_btn_hover_bg: 'color-mix(in srgb, var(--mat-icon-button-state-layer-color) 8%, transparent)',
+      // Component Specifics: Theme Modal
+      delete_confirm_btn_text: 'var(--gem-sys-color--on-error-container)',
+      delete_confirm_btn_bg: 'var(--gem-sys-color--error-container)',
+      delete_confirm_btn_hover_text: 'var(--gem-sys-color--on-error-container)',
+      delete_confirm_btn_hover_bg: 'var(--gem-sys-color--error-container)',
+      // Component Specifics: Fixed Nav
+      fixed_nav_bg: 'var(--gem-sys-color--surface-container)',
+      fixed_nav_border: 'var(--gem-sys-color--outline)',
+      fixed_nav_separator_bg: 'var(--gem-sys-color--outline)',
+      fixed_nav_label_text: 'var(--text-secondary)',
+      fixed_nav_counter_bg: 'var(--gem-sys-color--surface-container-high)',
+      fixed_nav_counter_text: 'var(--gem-sys-color--on-surface-variant)',
+      fixed_nav_counter_border: 'var(--gem-sys-color--outline)',
+      fixed_nav_assistant_text: '#e57373',
+      fixed_nav_btn_accent_text: 'var(--gem-sys-color--primary)',
+      fixed_nav_btn_danger_text: 'var(--gem-sys-color--error)',
+      fixed_nav_highlight_outline: 'var(--gem-sys-color--primary)',
+      fixed_nav_highlight_radius: '12px',
+      // Component Specifics: Jump List
+      jump_list_bg: 'var(--gem-sys-color--surface-container)',
+      jump_list_border: 'var(--gem-sys-color--outline)',
+      jump_list_hover_outline: 'var(--gem-sys-color--outline)',
+      jump_list_current_outline: 'var(--gem-sys-color--primary)',
+    };
+
+    const SITE_STYLES = {
+      PALETTE: UI_PALETTE,
+      Z_INDICES: CONSTANTS.Z_INDICES,
+    };
+
+    // =================================================================================
+    // SECTION: Platform-Specific Adapter Classes
+    // Description: Implementation of Base Adapters for Gemini.
+    // =================================================================================
+
+    class GeminiGeneralAdapter extends BaseGeneralAdapter {
+      /** @override */
+      isCanvasModeActive() {
+        return !!document.querySelector(CONSTANTS.SELECTORS.CANVAS_CONTAINER);
+      }
+
+      /** @override */
+      isExcludedPage() {
+        const excludedPatterns = CONSTANTS.URL_PATTERNS.EXCLUDED;
+        const pathname = window.location.pathname;
+        return excludedPatterns.some((pattern) => pattern.test(pathname));
+      }
+
+      /** @override */
+      isFilePanelActive() {
+        return !!document.querySelector(CONSTANTS.SELECTORS.FILE_PANEL_CONTAINER);
+      }
+
+      /** @override */
+      isNewChatPage() {
+        const path = window.location.pathname;
+        // 1. /app (Standard New Chat)
+        // 2. /gems/view (Gems List)
+        // 3. /gem/[GemID] (Gem Top - no ChatID)
+        return /^\/app\/?$/.test(path) || /^\/gems\/view\/?$/.test(path) || /^\/gem\/[^/]+\/?$/.test(path);
+      }
+
+      /** @override */
+      isChatPage() {
+        const path = window.location.pathname;
+        // 1. /app/[ChatID] (Standard Chat)
+        // 2. /gem/[GemID]/[ChatID] (Gem Chat)
+        return /^\/app\/[^/]+/.test(path) || /^\/gem\/[^/]+\/[^/]+/.test(path);
+      }
+
+      /** @override */
+      getMessagesRoot() {
+        const root = document.getElementById(CONSTANTS.SELECTORS.MESSAGES_ROOT);
+        return root instanceof HTMLElement ? root : document.body;
+      }
+
+      /** @override */
+      getMessageId(element) {
+        if (!element) return null;
+        return element.getAttribute(CONSTANTS.ATTRIBUTES.MESSAGE_ID);
+      }
+
+      /** @override */
+      getMessageRole(messageElement) {
+        if (!messageElement) return null;
+        return messageElement.tagName.toLowerCase();
+      }
+
+      /** @override */
+      getChatTitle() {
+        // 1. Try to get title from selected chat history item
+        const chatTitle = document.querySelector(CONSTANTS.SELECTORS.CONVERSATION_TITLE_WRAPPER)?.querySelector(CONSTANTS.SELECTORS.CONVERSATION_TITLE_TEXT)?.textContent.trim();
+        if (chatTitle) {
+          return chatTitle;
+        }
+
+        // 2. If no chat selected, try to get title from selected Gem
+        const selectedGem = document.querySelector(CONSTANTS.SELECTORS.GEM_SELECTED_ITEM);
+        if (selectedGem) {
+          return selectedGem.querySelector(CONSTANTS.SELECTORS.GEM_NAME)?.textContent.trim() ?? null;
+        }
+
+        // Return null if no specific chat or Gem is active (e.g., initial load or "New Chat" page).
+        // This signals the ThemeManager to apply the default theme set.
+        return null;
+      }
+
+      /** @override */
+      getJumpListDisplayText(messageElement) {
+        const tagName = messageElement.tagName.toLowerCase();
+
+        if (tagName === CONSTANTS.SELECTORS.ASSISTANT_MESSAGE) {
+          // Assistant (model-response)
+          // Gemini has a specific structure: try the main answer container first.
+          const answerContainer = messageElement.querySelector(CONSTANTS.SELECTORS.ASSISTANT_ANSWER_CONTENT);
+          if (answerContainer) {
+            const textEl = answerContainer.querySelector(CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT);
+            if (textEl) return textEl.textContent.trim();
+          }
+
+          // Fallback: Try finding text content directly if container structure varies
+          const fallbackTextEl = messageElement.querySelector(CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT);
+          if (fallbackTextEl) return fallbackTextEl.textContent.trim();
+        } else if (tagName === CONSTANTS.SELECTORS.USER_MESSAGE) {
+          // User (user-query)
+          const contentEl = messageElement.querySelector(CONSTANTS.SELECTORS.USER_TEXT_CONTENT);
+          if (contentEl) {
+            const clone = contentEl.cloneNode(true);
+            // Remove visually hidden elements to prevent screen reader text from appearing in the jump list
+            const hiddenElements = clone.querySelectorAll(CONSTANTS.SELECTORS.VISUALLY_HIDDEN_TEXT);
+            hiddenElements.forEach((el) => el.remove());
+            return clone.textContent.trim();
+          }
+        }
+
+        return '';
+      }
+
+      /** @override */
+      findMessageElement(contentElement) {
+        return contentElement.closest(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
+      }
+
+      /** @override */
+      initializeSentinel(callback) {
+        // prettier-ignore
+        const combinedSelector = [
+            `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE}`,
+            `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_IMAGE_BUBBLE}`,
+            `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE}`,
+            `${CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE}`, // Assistant images are direct children usually
+          ].join(', ');
+
+        sentinel.on(combinedSelector, callback);
+
+        return () => {
+          sentinel.off(combinedSelector, callback);
+        };
+      }
+
+      /** @override */
+      scrollTo(element) {
+        const offset = CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV;
+        const behavior = 'auto';
+
+        // Use scrollIntoView + scroll-margin-top logic
+        const originalScrollMargin = element.style.scrollMarginTop;
+        element.style.scrollMarginTop = `${offset}px`;
+
+        element.scrollIntoView({ behavior, block: 'start' });
+
+        setTimeout(() => {
+          element.style.scrollMarginTop = originalScrollMargin;
+        }, CONSTANTS.TIMING.TIMEOUTS.SCROLL_OFFSET_CLEANUP);
+      }
+    }
+
+    class GeminiStyleManagerAdapter extends BaseStyleManagerAdapter {
+      /** @override */
+      getStaticCss(cls) {
+        return `
+          ${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} {
+              transition: background-image 0.3s ease-in-out;
+          }
+          /* This rule is now conditional on a body class, which is toggled by applyChatContentMaxWidth. */
+          body.${cls.maxWidthActive} ${CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH}{
+              max-width: var(${CSS_VARS.CHAT_CONTENT_MAX_WIDTH}) !important;
+              margin-inline: auto !important;
+          }
+
+          /* Ensure the user message container inside the turn expands and aligns the bubble to the right. */
+          ${CONSTANTS.SELECTORS.CHAT_HISTORY_MAIN} ${CONSTANTS.SELECTORS.USER_MESSAGE} {
+              width: 100% !important;
+              max-width: none !important;
+              display: flex !important;
+              justify-content: flex-end !important;
+          }
+
+          /* Make content areas transparent to show the main background */
+          ${CONSTANTS.SELECTORS.CHAT_WINDOW},
+          ${CONSTANTS.SELECTORS.INPUT_CONTAINER},
+          ${CONSTANTS.SELECTORS.INPUT_AREA_BG_TARGET},
+          ${CONSTANTS.SELECTORS.GEM_MANAGER_CONTAINER},
+          ${CONSTANTS.SELECTORS.GEM_MANAGER_CONTAINER} > .container {
+              background: none !important;
+          }
+
+          /* Forcefully hide the gradient pseudo-element on the input container */
+          ${CONSTANTS.SELECTORS.INPUT_CONTAINER}::before {
+              display: none !important;
+          }
+        `;
+      }
+
+      /** @override */
+      getBubbleCss(cls) {
+        return StyleTemplates.getBubbleUiCss(cls, {
+          // Gemini: Parent is specifically the model-response element
+          collapsibleParentSelector: `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE}.${cls.collapsibleParent}`,
+          // Gemini: Collapsible button is only for assistant
+          collapsibleBtnExtraCss: `
+              .${cls.collapsibleBtn} {
+                  left: 4px;
+              }
+            `,
+          // Gemini: Content area needs overflow handling
+          collapsibleCollapsedContentExtraCss: 'overflow-y: auto;',
+        });
+      }
+    }
+
+    class GeminiThemeManagerAdapter extends BaseThemeManagerAdapter {
+      /** @override */
+      shouldDeferInitialTheme(themeManager) {
+        // This issue is specific to ChatGPT's title behavior, so Gemini never defers.
+        return false;
+      }
+
+      /** @override */
+      selectThemeForUpdate(themeManager, config, urlChanged, titleChanged) {
+        // If the URL has changed, we must invalidate the cache to allow 'urlPatterns' (and 'matchPatterns') to be re-evaluated against the new context.
+        if (urlChanged) {
+          themeManager.cachedThemeSet = null;
+        }
+
+        // Always return the evaluated theme set.
+        return themeManager.getThemeSet();
+      }
+
+      /** @override */
+      getStyleOverrides() {
+        // The default block alignment is sufficient for Gemini.
+        return {};
+      }
+    }
+
+    class GeminiBubbleUIAdapter extends BaseBubbleUIAdapter {
+      /** @override */
+      getNavPositioningParent(messageElement) {
+        const role = PlatformAdapters.General.getMessageRole(messageElement);
+
+        if (role === CONSTANTS.SELECTORS.USER_MESSAGE) {
+          // For user messages, use the specific content container as the positioning context.
+          const container = messageElement.querySelector(CONSTANTS.SELECTORS.USER_QUERY_CONTAINER);
+          return container instanceof HTMLElement ? container : null;
+        } else {
+          // For model-response, the element itself remains the correct context.
+          return messageElement;
+        }
+      }
+
+      /** @override */
+      getCollapsibleInfo(messageElement) {
+        if (messageElement.tagName.toLowerCase() !== CONSTANTS.SELECTORS.ASSISTANT_MESSAGE) {
+          return null;
+        }
+
+        const bubbleElement = messageElement.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE);
+        if (!(bubbleElement instanceof HTMLElement)) return null;
+
+        // For Gemini, the messageElement serves as both msgWrapper and positioningParent
+        return {
+          msgWrapper: messageElement,
+          bubbleElement,
+          positioningParent: messageElement,
+        };
+      }
+    }
+
+    class GeminiToastAdapter extends BaseToastAdapter {
+      /** @override */
+      getAutoScrollMessage() {
+        return 'Auto-scrolling to load history...';
+      }
+
+      /** @override */
+      getToastPositionX() {
+        // Use the input resize target (input-area-v2)
+        const inputArea = document.querySelector(CONSTANTS.SELECTORS.INPUT_RESIZE_TARGET);
+        if (inputArea instanceof HTMLElement && inputArea.offsetWidth > 0) {
+          const rect = inputArea.getBoundingClientRect();
+          return rect.left + rect.width / 2;
+        }
+        return null;
+      }
+    }
+
+    class GeminiAppControllerAdapter extends BaseAppControllerAdapter {
+      /** @override */
+      initializePlatformManagers(controller) {
+        // =================================================================================
+        // SECTION: Auto Scroll Manager
+        // Description: Manages the auto-scrolling feature to load the entire chat history.
+        // =================================================================================
+
+        /**
+         * @class AutoScrollManager
+         * @extends BaseAutoScrollManager
+         */
+        class AutoScrollManager extends BaseAutoScrollManager {
+          static CONFIG = {
+            // The minimum number of messages required to trigger the auto-scroll feature.
+            MESSAGE_THRESHOLD: 20,
+            // The maximum time (in ms) to wait for the progress bar to appear after scrolling up.
+            APPEAR_TIMEOUT_MS: 2000,
+            // The maximum time (in ms) to wait for the progress bar to disappear after it has appeared.
+            DISAPPEAR_TIMEOUT_MS: 5000,
+            // The maximum time (in ms) to wait for Canvas to close before aborting scroll.
+            CANVAS_CLOSE_TIMEOUT_MS: 1000,
+          };
+
+          /**
+           * @param {ConfigManager} configManager
+           * @param {MessageCacheManager} messageCacheManager
+           * @param {ToastManager} toastManager
+           */
+          constructor(configManager, messageCacheManager, toastManager) {
+            super(configManager, messageCacheManager);
+            this.toastManager = toastManager;
+            this.scrollContainer = null;
+            this.observerContainer = null;
+            this.toastShown = false;
+            this.isInitialScrollCheckDone = false;
+            this.boundStop = null;
+            this.PROGRESS_BAR_SELECTOR = CONSTANTS.SELECTORS.PROGRESS_BAR;
+            this.progressObserver = null;
+            this.appearTimeout = null;
+            this.disappearTimeout = null;
+          }
+
+          /** @override */
+          _onInit() {
+            super._onInit();
+            this._subscribe(EVENTS.STREAMING_START, () => this._onStreamingStart());
+            this.isInitialScrollCheckDone = false;
+          }
+
+          async start() {
+            if (this.isScrolling) return;
+
+            // Canvas (Immersive Panel) Handling
+            // If Canvas is open, it changes the DOM structure and causes freezing during scroll.
+            // We must close it before starting the scroll process.
+            const canvas = document.querySelector(CONSTANTS.SELECTORS.CANVAS_CONTAINER);
+            if (canvas) {
+              Logger.debug('AUTOSCROLL', LOG_STYLES.CYAN, 'Canvas detected. Attempting to close...');
+
+              // Scope the search strictly within the canvas container to avoid false positives
+              const closeBtn = canvas.querySelector(CONSTANTS.SELECTORS.CANVAS_CLOSE_BUTTON);
+
+              if (closeBtn instanceof HTMLElement) {
+                closeBtn.click();
+                // Notify user about the action
+                if (this.toastManager) {
+                  this.toastManager.show('Canvas closed for auto-scroll', false);
+                }
+
+                // Wait for Canvas to disappear from DOM
+                const startWait = Date.now();
+                while (document.querySelector(CONSTANTS.SELECTORS.CANVAS_CONTAINER)) {
+                  if (Date.now() - startWait > AutoScrollManager.CONFIG.CANVAS_CLOSE_TIMEOUT_MS) {
+                    Logger.warn('AUTOSCROLL', LOG_STYLES.YELLOW, 'Timed out waiting for Canvas to close. Aborting scroll.');
+                    return;
+                  }
+                  await new Promise((r) => requestAnimationFrame(r));
+                }
+              } else {
+                Logger.warn('AUTOSCROLL', LOG_STYLES.YELLOW, 'Canvas active but close button not found. Aborting scroll to prevent freeze.');
+                return;
+              }
+            }
+
+            // Set the flag immediately to prevent re-entrancy from other events.
+            this.isScrolling = true;
+
+            // Polling to find both the observer container and scroll container.
+            // Maximum wait: 3 seconds (60 attempts * 50ms)
+            let attempts = 0;
+            const maxAttempts = 60;
+            let parentContainer = null;
+            let childContainer = null;
+
+            while (attempts < maxAttempts) {
+              if (!this.isScrolling) return; // Abort if cancelled during polling
+
+              parentContainer = document.querySelector(CONSTANTS.SELECTORS.CHAT_WINDOW_CONTENT);
+              if (parentContainer instanceof HTMLElement) {
+                childContainer = parentContainer.querySelector(CONSTANTS.SELECTORS.CHAT_HISTORY_SCROLL_CONTAINER);
+                if (childContainer instanceof HTMLElement) {
+                  // Both parent and child are ready in the DOM
+                  break;
+                }
+              }
+
+              await new Promise((r) => setTimeout(r, 50));
+              attempts++;
+            }
+
+            if (!(parentContainer instanceof HTMLElement) || !(childContainer instanceof HTMLElement)) {
+              Logger.warn('AUTOSCROLL WARN', LOG_STYLES.YELLOW, 'Could not find required containers.');
+              // Reset flags to allow re-triggering
+              this.isInitialScrollCheckDone = false;
+              this.isScrolling = false;
+              return;
+            }
+
+            // --- Yield to Render Pipeline for UI Stabilization ---
+            // Wait for the framework (e.g. Angular) to finish its internal DOM manipulation
+            // (like auto-scrolling to the bottom of the new messages) before we intercept it.
+            // This prevents race conditions where our scroll up is immediately overwritten by the framework's scroll down.
+            await new Promise((r) => requestAnimationFrame(r)); // 1. Queue into render cycle
+            await new Promise((r) => setTimeout(r, 0)); // 2. Clear macro-task queue (force framework tasks to execute)
+            await new Promise((r) => requestAnimationFrame(r)); // 3. Wait for the next paint to ensure UI is stable
+
+            if (!this.isScrolling) return; // Final abort check after yielding
+
+            this.observerContainer = parentContainer;
+            this.scrollContainer = childContainer;
+
+            Logger.log('', '', 'AutoScrollManager: Starting auto-scroll with MutationObserver.');
+            this.toastShown = false;
+
+            EventBus.publish(EVENTS.SUSPEND_OBSERVERS);
+
+            // Hide the container to prevent visual flickering
+            this.scrollContainer.style.transition = 'none';
+            this.scrollContainer.style.opacity = '0';
+
+            this.boundStop = () => this.stop(false);
+            this.scrollContainer.addEventListener('wheel', this.boundStop, { passive: true, once: true });
+            this.scrollContainer.addEventListener('touchmove', this.boundStop, { passive: true, once: true });
+
+            this._startObserver();
+            this._triggerScroll();
+          }
+
+          stop(isNavigation) {
+            if (!this.isScrolling && !this.progressObserver) return; // Prevent multiple stops
+
+            Logger.log('', '', 'AutoScrollManager: Stopping auto-scroll.');
+            this.isScrolling = false;
+            this.toastShown = false;
+
+            // Restore visibility
+            if (this.scrollContainer instanceof HTMLElement) {
+              this.scrollContainer.style.opacity = '1';
+              this.scrollContainer.style.transition = '';
+            }
+
+            // Cleanup listeners and observers
+            if (this.boundStop) {
+              this.scrollContainer?.removeEventListener('wheel', this.boundStop);
+              this.scrollContainer?.removeEventListener('touchmove', this.boundStop);
+              this.boundStop = null;
+            }
+            this.progressObserver?.disconnect();
+            this.progressObserver = null;
+            clearTimeout(this.appearTimeout);
+            clearTimeout(this.disappearTimeout);
+            this.appearTimeout = null;
+            this.disappearTimeout = null;
+
+            this.scrollContainer = null;
+            this.observerContainer = null;
+
+            EventBus.publish(EVENTS.AUTO_SCROLL_COMPLETE);
+
+            // On navigation, ObserverManager handles observer resumption.
+            if (!isNavigation) {
+              EventBus.publish(EVENTS.RESUME_OBSERVERS);
+              // Ensure the theme is re-evaluated and applied after scrolling is complete and observers are resumed.
+              EventBus.publish(EVENTS.THEME_UPDATE);
+            }
+          }
+
+          // Starts the MutationObserver to watch for the progress bar.
+          _startObserver() {
+            if (this.progressObserver) this.progressObserver.disconnect();
+
+            const observerCallback = (mutations) => {
+              for (const mutation of mutations) {
+                this._handleProgressChange(mutation.addedNodes, mutation.removedNodes);
+              }
+            };
+
+            this.progressObserver = new MutationObserver(observerCallback);
+            this.progressObserver.observe(this.observerContainer, {
+              childList: true,
+              subtree: true,
+            });
+          }
+
+          /**
+           * Handles the appearance and disappearance of the progress bar.
+           * @param {NodeList} addedNodes
+           * @param {NodeList} removedNodes
+           */
+          _handleProgressChange(addedNodes, removedNodes) {
+            const progressBarAppeared = Array.from(addedNodes).some((node) => {
+              if (node instanceof Element) {
+                return node.matches(this.PROGRESS_BAR_SELECTOR) || node.querySelector(this.PROGRESS_BAR_SELECTOR);
+              }
+              return false;
+            });
+            const progressBarDisappeared = Array.from(removedNodes).some((node) => {
+              if (node instanceof Element) {
+                return node.matches(this.PROGRESS_BAR_SELECTOR) || node.querySelector(this.PROGRESS_BAR_SELECTOR);
+              }
+              return false;
+            });
+
+            if (progressBarAppeared) {
+              Logger.debug('AUTOSCROLL', LOG_STYLES.CYAN, 'Progress bar appeared.');
+              clearTimeout(this.appearTimeout); // Cancel the "end of history" timer
+              if (!this.toastShown) {
+                EventBus.publish(EVENTS.AUTO_SCROLL_START);
+                this.toastShown = true;
+              }
+              // Set a safety timeout in case loading gets stuck
+              this.disappearTimeout = setTimeout(() => {
+                Logger.warn('', '', 'AutoScrollManager: Timed out waiting for progress bar to disappear. Stopping.');
+                this.stop(false);
+              }, AutoScrollManager.CONFIG.DISAPPEAR_TIMEOUT_MS);
+            }
+
+            if (progressBarDisappeared) {
+              Logger.debug('AUTOSCROLL', LOG_STYLES.CYAN, 'Progress bar disappeared.');
+              clearTimeout(this.disappearTimeout); // Cancel the "stuck" timer
+              this._triggerScroll(); // Trigger the next scroll
+            }
+          }
+
+          // Scrolls the container to the top and sets a timeout to check if loading has started.
+          _triggerScroll() {
+            if (!this.isScrolling || !this.scrollContainer) return;
+            this.scrollContainer.scrollTop = 0;
+
+            // Set a timeout to detect the end of the history. If the progress bar
+            // doesn't appear within this time, we assume there's no more content to load.
+            this.appearTimeout = setTimeout(() => {
+              Logger.log('', '', 'AutoScrollManager: Progress bar did not appear. Assuming scroll is complete.');
+              this.stop(false);
+            }, AutoScrollManager.CONFIG.APPEAR_TIMEOUT_MS);
+          }
+
+          /** @override */
+          _onCacheUpdated() {
+            if (!this.isEnabled || this.isInitialScrollCheckDone) {
+              return;
+            }
+
+            const messageCount = this.messageCacheManager.getTotalMessages().length;
+
+            // Wait for at least one message to ensure history has started loading (First Paint logic)
+            if (messageCount === 0) return;
+
+            // Latch on first data: Mark initialization as done immediately regardless of threshold.
+            this.isInitialScrollCheckDone = true;
+
+            if (messageCount >= AutoScrollManager.CONFIG.MESSAGE_THRESHOLD) {
+              Logger.log('', '', `AutoScrollManager: ${messageCount} messages found. Triggering auto-scroll.`);
+              EventBus.publish(EVENTS.AUTO_SCROLL_REQUEST);
+            } else {
+              Logger.log('', '', `AutoScrollManager: ${messageCount} messages found (below threshold). Auto-scroll skipped.`);
+            }
+          }
+
+          /**
+           * @private
+           * @description Handles the STREAMING_START event to prevent auto-scroll from misfiring.
+           * Once the user starts interacting (which causes streaming), we consider the "initial" phase over.
+           */
+          _onStreamingStart() {
+            // If streaming starts (e.g., user sends a new message), permanently disable the
+            // initial auto-scroll check for this page load.
+            if (!this.isInitialScrollCheckDone) {
+              Logger.log('', '', 'AutoScrollManager: Streaming detected. Disabling initial auto-scroll check.');
+              this.isInitialScrollCheckDone = true;
+            }
+          }
+
+          /** @override */
+          _onNavigation() {
+            if (this.isScrolling) {
+              // Stop scroll without triggering a UI refresh, as a new page is loading.
+              this.stop(true);
+            }
+            this.isInitialScrollCheckDone = false;
+          }
+        }
+        // Inject toastManager into the constructor
+        controller.autoScrollManager = controller.manageFactory(CONSTANTS.RESOURCE_KEYS.AUTO_SCROLL_MANAGER, () => new AutoScrollManager(controller.configManager, controller.messageCacheManager, controller.toastManager));
+      }
+
+      /** @override */
+      applyPlatformSpecificUiUpdates(controller, newConfig) {
+        // Enable or disable the auto-scroll manager based on the new config.
+        if (newConfig.platforms[PLATFORM].features.load_full_history_on_chat_load.enabled) {
+          controller.autoScrollManager?.enable();
+        } else {
+          controller.autoScrollManager?.disable();
+        }
+      }
+    }
+
+    class GeminiAvatarAdapter extends BaseAvatarAdapter {
+      /** @override */
+      getCss() {
+        const extraCss = `
+          /* Gemini Only: force user message and avatar to be top-aligned */
+          ${CONSTANTS.SELECTORS.AVATAR_USER} {
+              align-items: flex-start !important;
+          }
+          ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {
+              align-self: flex-start !important;
+          }
+        `;
+        return StyleTemplates.getAvatarCss(extraCss);
+      }
+
+      /** @override */
+      measureAvatarTarget(msgElem) {
+        // The guard should only check for the existence of the avatar container itself.
+        if (msgElem.getElementsByClassName(CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER_CLASS).length > 0) {
+          // (Logic adapted: Return context to ensure processed check is maintained, but do not inject)
+          return {
+            shouldInject: false,
+            targetElement: null,
+            processedTarget: msgElem,
+            exclusionKey: msgElem,
+            originalElement: msgElem,
+          };
+        }
+
+        return {
+          shouldInject: true,
+          targetElement: msgElem,
+          processedTarget: msgElem,
+          exclusionKey: msgElem,
+          originalElement: msgElem,
+        };
+      }
+
+      /** @override */
+      injectAvatar(measurement, avatarContainer) {
+        const { shouldInject, targetElement } = measurement;
+
+        // Add the container to the message element
+        if (shouldInject && targetElement && avatarContainer) {
+          targetElement.prepend(avatarContainer);
+        }
+      }
+    }
+
+    class GeminiStandingImageAdapter extends BaseStandingImageAdapter {
+      /** @override */
+      async recalculateLayout(instance) {
+        // Handle early exits that don't require measurement.
+        const v = instance.style.vars;
+        const cls = instance.style.classes;
+
+        if (PlatformAdapters.General.isCanvasModeActive() || PlatformAdapters.General.isFilePanelActive()) {
+          const rootStyle = document.documentElement.style;
+          rootStyle.setProperty(v.assistantWidth, '0px');
+          rootStyle.setProperty(v.userWidth, '0px');
+          return;
+        }
+
+        await withLayoutCycle({
+          measure: () => {
+            // --- Read Phase ---
+            const chatArea = document.querySelector(CONSTANTS.SELECTORS.MAIN_APP_CONTAINER);
+
+            // Find the message area using priority selectors defined in STANDING_IMAGE_ANCHOR
+            const selectors = CONSTANTS.SELECTORS.STANDING_IMAGE_ANCHOR.split(',').map((s) => s.trim());
+            let messageArea = null;
+            for (const selector of selectors) {
+              messageArea = document.querySelector(selector);
+              if (messageArea) break;
+            }
+
+            if (!chatArea || !messageArea) return null; // Signal to mutate to reset styles.
+
+            const assistantImg = document.getElementById(cls.assistantImageId);
+            const userImg = document.getElementById(cls.userImageId);
+
+            return {
+              chatRect: chatArea.getBoundingClientRect(),
+              messageRect: messageArea.getBoundingClientRect(),
+              windowHeight: window.innerHeight,
+              assistantImgHeight: assistantImg ? assistantImg.offsetHeight : 0,
+              userImgHeight: userImg ? userImg.offsetHeight : 0,
+            };
+          },
+          mutate: (measured) => {
+            // --- Write Phase ---
+            if (instance.isDestroyed) return;
+            const rootStyle = document.documentElement.style;
+
+            if (!measured) {
+              rootStyle.setProperty(v.assistantWidth, '0px');
+              rootStyle.setProperty(v.userWidth, '0px');
+              return;
+            }
+
+            const { chatRect, messageRect, windowHeight, assistantImgHeight, userImgHeight } = measured;
+
+            // Set Assistant base position (Platform specific)
+            rootStyle.setProperty(v.assistantLeft, `${chatRect.left}px`);
+
+            // Calculate available widths
+            const assistantAvailableWidth = messageRect.left - chatRect.left;
+            const userAvailableWidth = chatRect.right - messageRect.right;
+
+            // Delegate common calculation
+            StandingImageLayout.apply(instance, {
+              assistantAvailableWidth,
+              userAvailableWidth,
+              assistantImgHeight,
+              userImgHeight,
+              windowHeight,
+            });
+          },
+        });
+      }
+
+      /** @override */
+      updateVisibility(instance) {
+        const isCanvasActive = PlatformAdapters.General.isCanvasModeActive();
+        const isFilePanelActive = PlatformAdapters.General.isFilePanelActive();
+        const cls = instance.style.classes;
+        const v = instance.style.vars;
+
+        [cls.userImageId, cls.assistantImageId].forEach((id) => {
+          const imgElement = document.getElementById(id);
+          if (!imgElement) return;
+
+          const isUser = id === cls.userImageId;
+          const varName = isUser ? v.userImage : v.assistantImage;
+
+          const hasImage = !!document.documentElement.style.getPropertyValue(varName);
+          imgElement.style.opacity = hasImage && !isCanvasActive && !isFilePanelActive && !instance.isAutoScrolling ? '1' : '0';
+        });
+      }
+
+      /** @override */
+      setupEventListeners(instance) {
+        // Gemini-specific: Subscribe to cacheUpdated because this platform's updateVisibility() logic depends on the message count.
+        // Use scheduleUpdate to ensure layout is also recalculated after navigation or DOM updates.
+        instance.registerPlatformListener(EVENTS.CACHE_UPDATED, instance.scheduleUpdate);
+      }
+    }
+
+    class GeminiObserverAdapter extends BaseObserverAdapter {
+      /**
+       * @private
+       * @description Starts a stateful observer to detect the appearance and disappearance of panels (Immersive/File) using a high-performance hybrid approach.
+       * @param {object} dependencies The required methods from ObserverManager.
+       * @returns {() => void} A cleanup function.
+       */
+      startPanelObserver(dependencies) {
+        // Use shared logic from ObserverManager via dependencies
+        return dependencies.startGenericPanelObserver({
+          triggerSelector: `${CONSTANTS.SELECTORS.CANVAS_CONTAINER}, ${CONSTANTS.SELECTORS.FILE_PANEL_CONTAINER}`, // Trigger (Panel itself)
+          observerType: CONSTANTS.OBSERVED_ELEMENT_TYPES.SIDE_PANEL,
+          targetResolver: (el) => el, // Target Resolver (The trigger is the panel)
+          immediateCallback: () => EventBus.publish(EVENTS.VISIBILITY_RECHECK),
+        });
+      }
+
+      /**
+       * @param {object} dependencies The dependencies passed from ObserverManager (unused in this method).
+       * @private
+       * @description Sets up a targeted observer on the sidebar for title and selection changes.
+       * @returns {() => void} A cleanup function.
+       */
+      startSidebarObserver(dependencies) {
+        let resizeObserver = null;
+        let titleObserver = null;
+        const debouncedTitleUpdate = debounce(() => EventBus.publish(EVENTS.TITLE_CHANGED), CONSTANTS.TIMING.DEBOUNCE_DELAYS.THEME_UPDATE, true);
+
+        const setupObserver = (sidebar) => {
+          resizeObserver?.disconnect();
+          titleObserver?.disconnect();
+
+          let lastWidth = -1;
+          let lastHeight = -1;
+
+          // 1. Layout Observer (ResizeObserver)
+          resizeObserver = new ResizeObserver((entries) => {
+            let layoutChanged = false;
+            for (const entry of entries) {
+              // Only fire if size actually changed
+              const { width, height } = entry.contentRect;
+              if (width !== lastWidth || height !== lastHeight) {
+                lastWidth = width;
+                lastHeight = height;
+                layoutChanged = true;
+              }
+            }
+            if (layoutChanged) {
+              EventBus.publish(EVENTS.SIDEBAR_LAYOUT_CHANGED);
+            }
+          });
+          resizeObserver.observe(sidebar);
+
+          // 2. Title/Selection Observer (MutationObserver)
+          titleObserver = new MutationObserver((mutations) => {
+            let titleChanged = false;
+
+            for (const mutation of mutations) {
+              const target = mutation.target;
+
+              // Check for class changes on list items (Selection change implies title change)
+              if (mutation.type === 'attributes' && mutation.attributeName === 'class' && target instanceof Element) {
+                if (target.matches(CONSTANTS.SELECTORS.CHAT_HISTORY_ITEM) || target.matches(CONSTANTS.SELECTORS.GEM_LIST_ITEM)) {
+                  titleChanged = true;
+                }
+              }
+              // Check for title text changes (Renaming)
+              if (mutation.type === 'characterData' && target.parentElement?.matches(CONSTANTS.SELECTORS.CONVERSATION_TITLE_TEXT)) {
+                titleChanged = true;
+              }
+            }
+
+            if (titleChanged) {
+              debouncedTitleUpdate();
+            }
+          });
+
+          titleObserver.observe(sidebar, {
+            attributes: true,
+            attributeFilter: ['class'], // Only watch class for selection state
+            characterData: true, // For title text changes
+            subtree: true, // Needed for deep text nodes and list items
+            childList: false,
+          });
+
+          // Initial triggers
+          debouncedTitleUpdate();
+          EventBus.publish(EVENTS.SIDEBAR_LAYOUT_CHANGED);
+        };
+
+        const selector = CONSTANTS.SELECTORS.SIDEBAR_WIDTH_TARGET;
+        sentinel.on(selector, setupObserver);
+
+        const existingSidebar = document.querySelector(selector);
+        if (existingSidebar) {
+          setupObserver(existingSidebar);
+        }
+
+        return () => {
+          sentinel.off(selector, setupObserver);
+          resizeObserver?.disconnect();
+          titleObserver?.disconnect();
+        };
+      }
+
+      /**
+       * @private
+       * @description Starts a stateful observer for the input area to detect resizing and DOM reconstruction (button removal).
+       * @param {object} dependencies The ObserverManager dependencies.
+       * @returns {() => void} A cleanup function.
+       */
+      startInputAreaObserver(dependencies) {
+        // Use shared logic from ObserverManager via dependencies
+        return dependencies.startGenericInputAreaObserver({
+          triggerSelector: CONSTANTS.SELECTORS.INPUT_RESIZE_TARGET,
+          resizeTargetSelector: CONSTANTS.SELECTORS.INPUT_RESIZE_TARGET,
+        });
+      }
+
+      /** @override */
+      getPlatformObserverStarters() {
+        // prettier-ignore
+        return [
+          this.startSidebarObserver,
+          this.startPanelObserver,
+          this.startInputAreaObserver,
+        ];
+      }
+
+      /** @override */
+      isTurnComplete(turnNode) {
+        // In Gemini, a single turn container can include the user message.
+        // Therefore, a turn is considered complete *only* when the assistant's
+        // action buttons are present, regardless of whether a user message exists.
+        const assistantActions = turnNode.querySelector(CONSTANTS.SELECTORS.TURN_COMPLETE_SELECTOR);
+        return !!assistantActions;
+      }
+    }
+
+    class GeminiSettingsPanelAdapter extends BaseSettingsPanelAdapter {
+      /** @override */
+      getPlatformSpecificFeatureToggles() {
+        return [{ configKey: 'features.load_full_history_on_chat_load.enabled' }];
+      }
+    }
+
+    class GeminiFixedNavAdapter extends BaseFixedNavAdapter {
+      /** @override */
+      isHeaderPositionAvailable(navConsoleWidth) {
+        // 1. Check for panels that compress the layout (Canvas or File Panel)
+        if (PlatformAdapters.General.isCanvasModeActive() || PlatformAdapters.General.isFilePanelActive()) {
+          return false;
+        }
+
+        // 2. Check available width in the main container (accounts for sidebar)
+        const container = document.querySelector(CONSTANTS.SELECTORS.MAIN_APP_CONTAINER);
+        if (container instanceof HTMLElement) {
+          return container.offsetWidth >= CONSTANTS.UI_SPECS.HEADER_POSITION_MIN_WIDTH;
+        }
+
+        // Fallback to window width if container not found
+        return window.innerWidth >= CONSTANTS.UI_SPECS.HEADER_POSITION_MIN_WIDTH;
+      }
+
+      /** @override */
+      getNavAnchorContainer() {
+        // Target the right section of the top bar actions
+        const el = document.querySelector(CONSTANTS.SELECTORS.HEADER_RIGHT_SECTION);
+        return el instanceof HTMLElement ? el : null;
+      }
+
+      /** @override */
+      handleInfiniteScroll(fixedNavManagerInstance, highlightedMessage, previousTotalMessages) {
+        const currentTotalMessages = fixedNavManagerInstance.messageCacheManager.getTotalMessages().length;
+
+        // If new messages have been loaded (scrolled up), and a message is currently highlighted.
+        if (currentTotalMessages > previousTotalMessages && highlightedMessage) {
+          // Re-calculate the indices based on the updated (larger) message cache.
+          fixedNavManagerInstance.setHighlightAndIndices(highlightedMessage);
+        }
+      }
+
+      /** @override */
+      getPlatformSpecificButtons(fixedNavManagerInstance, styleHandle) {
+        const cls = styleHandle.classes;
+        const autoscrollBtn = h(
+          `button#${cls.autoscrollBtnId}.${cls.btn}`,
+          {
+            title: 'Load full chat history',
+            dataset: { [CONSTANTS.DATA_KEYS.ORIGINAL_TITLE]: 'Load full chat history' },
+            onclick: () => EventBus.publish(EVENTS.AUTO_SCROLL_REQUEST),
+          },
+          [createIconFromDef(StyleDefinitions.ICONS.scrollToTop)]
+        );
+
+        return [autoscrollBtn];
+      }
+
+      /** @override */
+      updatePlatformSpecificButtonState(autoscrollBtn, isAutoScrolling, autoScrollManager) {
+        autoscrollBtn.disabled = isAutoScrolling;
+
+        if (isAutoScrolling) {
+          autoscrollBtn.title = 'Loading history...';
+        } else {
+          autoscrollBtn.title = DomState.get(autoscrollBtn, CONSTANTS.DATA_KEYS.ORIGINAL_TITLE);
+        }
+      }
+    }
+
+    class GeminiTimestampAdapter extends BaseTimestampAdapter {
+      // No-op adapter, inherits defaults
+    }
+
+    class GeminiUIManagerAdapter extends BaseUIManagerAdapter {
+      /** @override */
+      ensureButtonPlacement(settingsButton) {
+        ensureSettingsButtonPlacement(settingsButton, CONSTANTS.SELECTORS.INSERTION_ANCHOR, PlatformAdapters.General.isExcludedPage);
+      }
+    }
+
+    const PlatformAdapters = {
+      General: new GeminiGeneralAdapter(),
+      StyleManager: new GeminiStyleManagerAdapter(),
+      ThemeManager: new GeminiThemeManagerAdapter(),
+      BubbleUI: new GeminiBubbleUIAdapter(),
+      Toast: new GeminiToastAdapter(),
+      AppController: new GeminiAppControllerAdapter(),
+      Avatar: new GeminiAvatarAdapter(),
+      StandingImage: new GeminiStandingImageAdapter(),
+      Observer: new GeminiObserverAdapter(),
+      SettingsPanel: new GeminiSettingsPanelAdapter(),
+      FixedNav: new GeminiFixedNavAdapter(),
+      Timestamp: new GeminiTimestampAdapter(),
+      UIManager: new GeminiUIManagerAdapter(),
+    };
+
+    return {
+      CONSTANTS,
+      SITE_STYLES,
+      PlatformAdapters,
+    };
   }
 
   // =================================================================================
@@ -17900,2921 +20816,4 @@
   // Initialize lifecycle management to handle app startup and navigation
   const lifecycleManager = new LifecycleManager();
   lifecycleManager.init();
-
-  // =================================================================================
-  // SECTION: Platform Definition Factories
-  // Description: Encapsulates platform-specific constants and adapters to abstract site differences.
-  // =================================================================================
-
-  /**
-   * Returns definitions and adapters specifically for ChatGPT.
-   * @returns {PlatformDefinitions} The set of constants and adapters.
-   */
-  function defineChatGPTValues() {
-    // =============================================================================
-    // SECTION: Platform Constants
-    // =============================================================================
-
-    // ---- Default Settings & Theme Configuration ----
-    const CONSTANTS = {
-      ...SHARED_CONSTANTS,
-      UI_SPECS: {
-        ...SHARED_CONSTANTS.UI_SPECS,
-        HEADER_POSITION_MIN_WIDTH: 960,
-      },
-      OBSERVER_OPTIONS: {
-        childList: true,
-        subtree: false,
-      },
-      Z_INDICES: {
-        ...SHARED_CONSTANTS.Z_INDICES,
-        BUBBLE_NAVIGATION: 'auto',
-        STANDING_IMAGE: 'auto',
-        NAV_CONSOLE: 'auto',
-      },
-      ATTRIBUTES: {
-        MESSAGE_ROLE: 'data-message-author-role',
-        TURN_ROLE: 'data-turn',
-        MESSAGE_ID: 'data-message-id',
-      },
-      SELECTORS: {
-        // --- Main containers ---
-        MAIN_APP_CONTAINER: 'div[data-scroll-root], div:has(> main#main)',
-        MESSAGE_WRAPPER_FINDER: '.w-full',
-        // Root container for message search optimization
-        MESSAGES_ROOT: 'main',
-
-        // --- Message containers ---
-        CONVERSATION_UNIT: 'article[data-testid^="conversation-turn-"]',
-        MESSAGE_ID_HOLDER: '[data-message-id]',
-        MESSAGE_ROOT_NODE: 'article[data-testid^="conversation-turn-"]',
-
-        // --- Selectors for messages ---
-        USER_MESSAGE: 'div[data-message-author-role="user"]',
-        ASSISTANT_MESSAGE: 'div[data-message-author-role="assistant"]',
-
-        // --- Selectors for finding elements to tag ---
-        RAW_USER_BUBBLE: 'div.user-message-bubble-color',
-        RAW_ASSISTANT_BUBBLE: 'div:has(> .markdown)',
-        RAW_ASSISTANT_BUBBLE_FINDER: '.markdown',
-        ASSISTANT_MESSAGE_CONTENT: 'div.markdown.prose',
-        RAW_USER_IMAGE_BUBBLE: 'div.overflow-hidden:has(img)',
-        RAW_ASSISTANT_IMAGE_BUBBLE: 'div.group\\/imagegen-image',
-
-        // --- Text content ---
-        USER_TEXT_CONTENT: '.whitespace-pre-wrap',
-        ASSISTANT_TEXT_CONTENT: '.markdown',
-
-        // --- Input area ---
-        INPUT_AREA_BG_TARGET: 'form[data-type="unified-composer"] div[style*="border-radius"]',
-        INPUT_TEXT_FIELD_TARGET: 'div.ProseMirror#prompt-textarea',
-        INPUT_RESIZE_TARGET: 'form[data-type="unified-composer"]',
-
-        // --- Input area (Button Injection) ---
-        INSERTION_ANCHOR: 'form[data-type="unified-composer"] div[class*="[grid-area:trailing]"]',
-
-        // --- Avatar area ---
-        AVATAR_USER: 'article[data-turn="user"]',
-        AVATAR_ASSISTANT: 'article[data-turn="assistant"]',
-
-        // --- Selectors for Avatar ---
-        SIDE_AVATAR_CONTAINER: '.side-avatar-container',
-        SIDE_AVATAR_CONTAINER_CLASS: 'side-avatar-container',
-        SIDE_AVATAR_ICON: '.side-avatar-icon',
-        SIDE_AVATAR_NAME: '.side-avatar-name',
-
-        // --- Other UI Selectors ---
-        SIDEBAR_WIDTH_TARGET: 'div[id="stage-slideover-sidebar"]',
-        SIDEBAR_STATE_INDICATOR: '#stage-sidebar-tiny-bar',
-        RIGHT_SIDEBAR: '[data-testid="stage-thread-flyout"], div.bg-token-sidebar-surface-primary.shrink-0:not(#stage-slideover-sidebar)',
-        CHAT_CONTENT_MAX_WIDTH: '.group\\/turn-messages, div[class*="--thread-content-max-width"].grid',
-        SCROLL_CONTAINER: 'div[data-scroll-root], div:has(> main#main)',
-        STANDING_IMAGE_ANCHOR: '.group\\/turn-messages, div[class*="--thread-content-max-width"].grid',
-        PLACEHOLDER_PREFIX: 'placeholder-request-',
-        SCROLL_TO_BOTTOM_BUTTON: '#thread-bottom-container button.absolute.z-30.rounded-full',
-
-        // --- Site Specific Selectors ---
-        BUTTON_SHARE_CHAT: '[data-testid="share-chat-button"]',
-        PAGE_HEADER: '#page-header',
-        TITLE_OBSERVER_TARGET: 'title',
-
-        // --- Header Integration Selectors ---
-        HEADER_ACTIONS: '#conversation-header-actions',
-        HEADER_FALLBACK_SECTION: '#page-header > div:last-child',
-
-        // --- BubbleFeature-specific Selectors ---
-        BUBBLE_FEATURE_MESSAGE_CONTAINERS: 'div[data-message-author-role]',
-
-        // --- FixedNav-specific Selectors ---
-        FIXED_NAV_INPUT_AREA_TARGET: 'form[data-type="unified-composer"]',
-        FIXED_NAV_MESSAGE_CONTAINERS: 'div[data-message-author-role]',
-        FIXED_NAV_ROLE_USER: 'user',
-        FIXED_NAV_ROLE_ASSISTANT: 'assistant',
-
-        // --- Turn Completion Selector ---
-        TURN_COMPLETE_SELECTOR: 'button[data-testid="copy-turn-action-button"]',
-
-        // --- Canvas ---
-        CANVAS_CONTAINER: 'section.popover button',
-        CANVAS_RESIZE_TARGET: 'section.popover',
-
-        // --- Research Panel ---
-        RESEARCH_PANEL: '[data-testid="screen-threadFlyOut"]',
-        SIDEBAR_SURFACE_PRIMARY: 'div[class*="bg-token-sidebar-surface-primary"]',
-
-        // --- Deep Research ---
-        DEEP_RESEARCH_RESULT: '.deep-research-result',
-
-        // --- Style Optimization Selectors (JS-based :has replacement) ---
-        PROJECT_PAGE_CLASS: `${APPID}-project-page`,
-        PROJECT_TITLE_INPUT: '[name="project-title"]',
-        CONTENT_FADE_TOP: '.content-fade-top',
-
-        // --- Sidebar Active Item (Title Fallback) ---
-        SIDEBAR_ACTIVE_LINK: 'a[data-active][data-sidebar-item="true"]',
-        SIDEBAR_LINK_TEXT: '.truncate',
-      },
-      URL_PATTERNS: {
-        EXCLUDED: [/^\/library/, /^\/codex/, /^\/gpts/, /^\/images/, /^\/apps/],
-        CONVERSATION_ENDPOINT: '/backend-api/conversation',
-      },
-      STRINGS: {
-        PAGE_TITLE_PREFIX: 'ChatGPT - ',
-      },
-    };
-
-    // ---- Site-specific Style Variables ----
-    const UI_PALETTE = {
-      bg: 'var(--main-surface-primary)',
-      input_bg: 'var(--bg-primary)',
-      text_primary: 'var(--text-primary)',
-      text_secondary: 'var(--text-secondary)',
-      border: 'var(--border-default)',
-      border_medium: 'var(--border-medium)',
-      border_light: 'var(--border-light)',
-      btn_bg: 'var(--interactive-bg-tertiary-default)',
-      btn_hover_bg: 'var(--interactive-bg-secondary-hover)',
-      btn_text: 'var(--text-primary)',
-      btn_border: 'var(--border-default)',
-      toggle_bg_off: 'var(--bg-primary)',
-      toggle_bg_on: 'var(--text-accent)',
-      toggle_knob: 'var(--text-primary)',
-      danger_text: 'var(--text-danger)',
-      accent_text: 'var(--text-accent)',
-      loading_spinner: '#ffca28',
-      // Shared properties
-      slider_display_text: 'var(--text-primary)',
-      label_text: 'var(--text-secondary)',
-      error_text: 'var(--text-danger)',
-      // Component Specifics: Settings Button
-      settings_btn_width: 'calc(var(--spacing)*9)',
-      settings_btn_height: 'calc(var(--spacing)*9)',
-      settings_btn_color: 'var(--text-primary)',
-      settings_btn_hover_bg: 'var(--interactive-bg-secondary-hover)',
-      // Component Specifics: Theme Modal
-      delete_confirm_btn_text: 'var(--interactive-label-danger-secondary-default)',
-      delete_confirm_btn_bg: 'var(--interactive-bg-danger-secondary-default)',
-      delete_confirm_btn_hover_text: 'var(--interactive-label-danger-secondary-hover)',
-      delete_confirm_btn_hover_bg: 'var(--interactive-bg-danger-secondary-hover)',
-      // Component Specifics: Fixed Nav
-      fixed_nav_bg: 'var(--sidebar-surface-primary)',
-      fixed_nav_border: 'var(--border-medium)',
-      fixed_nav_separator_bg: 'var(--border-default)',
-      fixed_nav_label_text: 'var(--text-secondary)',
-      fixed_nav_counter_bg: 'var(--bg-primary)',
-      fixed_nav_counter_text: 'var(--text-primary)',
-      fixed_nav_counter_border: 'var(--border-default)',
-      fixed_nav_assistant_text: '#e57373',
-      fixed_nav_btn_accent_text: 'var(--text-accent)',
-      fixed_nav_btn_danger_text: 'var(--text-danger)',
-      fixed_nav_highlight_outline: 'var(--text-accent)',
-      fixed_nav_highlight_radius: '12px',
-      // Component Specifics: Jump List
-      jump_list_bg: 'var(--sidebar-surface-primary)',
-      jump_list_border: 'var(--border-medium)',
-      jump_list_hover_outline: 'var(--text-accent)',
-      jump_list_current_outline: 'var(--text-accent)',
-    };
-
-    const SITE_STYLES = {
-      PALETTE: UI_PALETTE,
-      Z_INDICES: CONSTANTS.Z_INDICES,
-    };
-
-    // =================================================================================
-    // SECTION: Platform-Specific Adapter Classes
-    // Description: Implementation of Base Adapters for ChatGPT.
-    // =================================================================================
-
-    class ChatGPTGeneralAdapter extends BaseGeneralAdapter {
-      /** @override */
-      isCanvasModeActive() {
-        return !!document.querySelector(CONSTANTS.SELECTORS.CANVAS_CONTAINER);
-      }
-
-      /** @override */
-      isExcludedPage() {
-        const excludedPatterns = CONSTANTS.URL_PATTERNS.EXCLUDED;
-        const pathname = window.location.pathname;
-        return excludedPatterns.some((pattern) => pattern.test(pathname));
-      }
-
-      /** @override */
-      isNewChatPage() {
-        const path = window.location.pathname;
-        // Main new chat page or GPT/Project top page (no conversation ID)
-        return path === '/' || (path.startsWith('/g/') && !path.includes('/c/'));
-      }
-
-      /** @override */
-      isChatPage() {
-        // Any URL containing '/c/' is a conversation page
-        return window.location.pathname.includes('/c/');
-      }
-
-      /** @override */
-      getMessagesRoot() {
-        const root = document.querySelector(CONSTANTS.SELECTORS.MESSAGES_ROOT);
-        return root instanceof HTMLElement ? root : document.body;
-      }
-
-      /** @override */
-      getMessageId(element) {
-        if (!element) return null;
-        return element.getAttribute(CONSTANTS.ATTRIBUTES.MESSAGE_ID);
-      }
-
-      /** @override */
-      getMessageRole(messageElement) {
-        if (!messageElement) return null;
-        const role = messageElement.getAttribute(CONSTANTS.ATTRIBUTES.MESSAGE_ROLE);
-        if (role) {
-          return role;
-        }
-        // If not found, check for the turn attribute (article[data-turn])
-        return messageElement.getAttribute(CONSTANTS.ATTRIBUTES.TURN_ROLE);
-      }
-
-      /**
-       * @private
-       * @returns {string | null}
-       */
-      _getSidebarTitle() {
-        // Initialize cache if it doesn't exist
-        this._sidebarTitleCache = this._sidebarTitleCache || { path: null, title: null };
-        const currentPath = window.location.pathname;
-
-        const activeLink = document.querySelector(CONSTANTS.SELECTORS.SIDEBAR_ACTIVE_LINK);
-        if (activeLink) {
-          const truncateEl = activeLink.querySelector(CONSTANTS.SELECTORS.SIDEBAR_LINK_TEXT);
-          if (truncateEl) {
-            const title = truncateEl.textContent.trim();
-            // Update cache on successful retrieval
-            this._sidebarTitleCache = { path: currentPath, title: title };
-            return title;
-          }
-        }
-
-        // Fallback to cache if the DOM element is temporarily missing (e.g., during renaming)
-        // but only if we are still on the same page.
-        if (this._sidebarTitleCache.path === currentPath) {
-          return this._sidebarTitleCache.title;
-        }
-
-        return null;
-      }
-
-      /** @override */
-      getChatTitle() {
-        // Gets the title from the document title, falling back to the sidebar if stale.
-        const docTitle = document.title.trim();
-
-        // If the title is the placeholder "ChatGPT" during navigation,
-        // do not apply the fallback logic to maintain the Defer mechanism in ThemeManager.
-        if (docTitle === 'ChatGPT') {
-          return docTitle;
-        }
-
-        const sidebarTitle = this._getSidebarTitle();
-
-        // If sidebar title exists and is NOT included in the document title,
-        // it means the document title is stale (e.g., in a Project context after new chat).
-        if (sidebarTitle && !docTitle.includes(sidebarTitle)) {
-          // Try to construct a proper title if it looks like a project context
-          // Format: "ChatGPT - [Project Name]"
-          const projectPrefix = CONSTANTS.STRINGS.PAGE_TITLE_PREFIX;
-          if (docTitle.startsWith(projectPrefix)) {
-            const projectName = docTitle.substring(projectPrefix.length);
-            // Construct the expected format: "[Project Name] - [Chat Title]"
-            return `${projectName} - ${sidebarTitle}`;
-          }
-          // Fallback to just returning the sidebar title if the structure is unexpected
-          return sidebarTitle;
-        }
-
-        return docTitle;
-      }
-
-      /** @override */
-      getJumpListDisplayText(messageElement) {
-        const role = this.getMessageRole(messageElement);
-
-        // 1. Check for text content first.
-        if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER) {
-          const contentEl = messageElement.querySelector(CONSTANTS.SELECTORS.USER_TEXT_CONTENT);
-          if (contentEl) return contentEl.textContent.trim();
-        } else {
-          const contentEl = messageElement.querySelector(CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT);
-          if (contentEl) return contentEl.textContent.trim();
-        }
-
-        // 2. If no text, check for an image within the message container.
-        if (messageElement.querySelector(CONSTANTS.SELECTORS.RAW_USER_IMAGE_BUBBLE) || messageElement.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE)) {
-          return '(Image)';
-        }
-
-        // 3. If neither, return empty.
-        return '';
-      }
-
-      /** @override */
-      findMessageElement(contentElement) {
-        const messageElement = contentElement.closest(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
-
-        // Filter out placeholder elements created during generation to prevent false positives (NAV SKIP logs).
-        // These elements often lack the necessary structure for UI injection immediately after creation.
-        if (messageElement instanceof HTMLElement) {
-          const messageId = this.getMessageId(messageElement);
-          if (messageId && messageId.startsWith(CONSTANTS.SELECTORS.PLACEHOLDER_PREFIX)) {
-            return null;
-          }
-          return messageElement;
-        }
-
-        return null;
-      }
-
-      /** @override */
-      filterMessage(messageElement) {
-        // Filter out placeholder elements created during generation.
-        // Including these would cause the message count to fluctuate incorrectly during streaming.
-        const messageId = this.getMessageId(messageElement);
-        if (messageId && messageId.startsWith(CONSTANTS.SELECTORS.PLACEHOLDER_PREFIX)) {
-          return false;
-        }
-
-        const role = this.getMessageRole(messageElement);
-        if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT) {
-          // Check if the message has any visible content, either text or an image generated by our script.
-          const hasText = messageElement.querySelector(CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT)?.textContent?.trim();
-          const hasImage = messageElement.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE);
-
-          // If it has neither text nor an image inside it, check the turn context.
-          if (!hasText && !hasImage) {
-            const turnContainer = messageElement.closest(CONSTANTS.SELECTORS.CONVERSATION_UNIT);
-            // If the turn contains an image elsewhere, this empty message is likely a ghost artifact. Filter it out.
-            if (turnContainer && turnContainer.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE)) {
-              return false; // Exclude this ghost message
-            }
-          }
-        }
-        return true; // Keep all other messages
-      }
-
-      /** @override */
-      ensureMessageContainerForImage(imageContentElement) {
-        // If already inside a message container, do nothing and return it.
-        const existingContainer = imageContentElement.closest(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
-        if (existingContainer instanceof HTMLElement) {
-          return existingContainer;
-        }
-
-        // Create a new virtual message container.
-        const virtualMessage = h('div', {
-          'data-message-author-role': 'assistant',
-        });
-
-        if (!(virtualMessage instanceof HTMLElement)) {
-          return null;
-        }
-
-        // Replace the image element with the new wrapper, and move the image inside.
-        imageContentElement.parentNode.insertBefore(virtualMessage, imageContentElement);
-        virtualMessage.appendChild(imageContentElement);
-
-        return virtualMessage;
-      }
-
-      /** @override */
-      initializeSentinel(callback) {
-        // prettier-ignore
-        const combinedSelector = [
-            `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE}`,
-            `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_IMAGE_BUBBLE}`,
-            `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE_CONTENT}`,
-            `${CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE}`,
-          ].join(', ');
-
-        sentinel.on(combinedSelector, callback);
-
-        return () => {
-          sentinel.off(combinedSelector, callback);
-        };
-      }
-
-      /** @override */
-      performInitialScan(lifecycleManager) {
-        Logger.debug('SCAN', LOG_STYLES.CYAN, 'Performing initial scan for message elements.');
-
-        // prettier-ignore
-        const selectors = [
-            CONSTANTS.SELECTORS.RAW_USER_BUBBLE,
-            CONSTANTS.SELECTORS.ASSISTANT_MESSAGE_CONTENT,
-            CONSTANTS.SELECTORS.RAW_USER_IMAGE_BUBBLE,
-            CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE
-          ];
-
-        const selector = selectors.join(', ');
-
-        const nodes = document.querySelectorAll(selector);
-        nodes.forEach((node) => {
-          lifecycleManager.processRawMessage(node);
-        });
-
-        if (nodes.length > 0) {
-          Logger.log('', '', `Found ${nodes.length} item(s) on initial scan.`);
-        }
-        return nodes.length;
-      }
-
-      /** @override */
-      onNavigationEnd(lifecycleManager) {
-        // Schedule integrity scan for all browsers on existing chat pages.
-        if (!isNewChatPage()) {
-          Logger.log('', '', 'Scheduling integrity scan to capture any missed messages.');
-          lifecycleManager.scheduleIntegrityScan();
-        }
-      }
-
-      /** @override */
-      scrollTo(element) {
-        const offset = CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV;
-        const behavior = 'auto';
-
-        const scrollContainerSelector = CONSTANTS.SELECTORS.SCROLL_CONTAINER;
-        const scrollContainer = scrollContainerSelector ? document.querySelector(scrollContainerSelector) : null;
-
-        if (scrollContainer) {
-          let scrollTargetElement = element;
-
-          // Determine the bubble element based on role to use as the scroll target
-          const role = this.getMessageRole(element);
-          if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER) {
-            const bubble = element.querySelector(CONSTANTS.SELECTORS.RAW_USER_BUBBLE);
-            if (bubble) scrollTargetElement = bubble;
-          } else if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT) {
-            const content = element.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE_FINDER);
-            if (content && content.parentElement) scrollTargetElement = content.parentElement;
-          }
-
-          const targetScrollTop = scrollContainer.scrollTop + scrollTargetElement.getBoundingClientRect().top - scrollContainer.getBoundingClientRect().top - offset;
-          scrollContainer.scrollTo({
-            top: targetScrollTop,
-            behavior,
-          });
-        }
-      }
-    }
-
-    class ChatGPTStyleManagerAdapter extends BaseStyleManagerAdapter {
-      /** @override */
-      getStaticCss(cls) {
-        return `
-          :root {
-              ${CSS_VARS.MESSAGE_MARGIN_TOP}: 24px;
-          }
-          ${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} {
-              transition: background-image 0.3s ease-in-out;
-          }
-          /* Add margin between messages to prevent overlap */
-          ${CONSTANTS.SELECTORS.USER_MESSAGE},
-          ${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} {
-              margin-top: var(${CSS_VARS.MESSAGE_MARGIN_TOP});
-          }
-          ${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE},
-          ${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE} {
-              box-sizing: border-box;
-          }
-          /* (2025/12/17 updated) Hide borders, shadows, and backgrounds on the header */
-          #page-header {
-              background: none !important;
-              border: none !important;
-              box-shadow: none !important;
-              outline: none !important;
-          }
-          /* Remove pseudo-elements that might create borders or shadows */
-          #page-header::after,
-          #page-header::before {
-              display: none !important;
-          }
-          /* Remove standalone border elements */
-          div[data-edge="true"] {
-              display: none !important;
-          }
-          ${CONSTANTS.SELECTORS.BUTTON_SHARE_CHAT} {
-              background: transparent;
-          }
-          ${CONSTANTS.SELECTORS.BUTTON_SHARE_CHAT}:hover {
-              background-color: var(--interactive-bg-secondary-hover);
-          }
-          /* (2025/07/01) ChatGPT UI change fix: Remove bottom gradient that conflicts with theme backgrounds. */
-          .content-fade::after {
-              background: none !important;
-          }
-          /* (2025/12/06) Project page top fade fix: Remove top gradient and mask only for project headers. */
-          main ${CONSTANTS.SELECTORS.CONTENT_FADE_TOP}.${CONSTANTS.SELECTORS.PROJECT_PAGE_CLASS},
-          main ${CONSTANTS.SELECTORS.CONTENT_FADE_TOP}.${CONSTANTS.SELECTORS.PROJECT_PAGE_CLASS}::before,
-          main ${CONSTANTS.SELECTORS.CONTENT_FADE_TOP}.${CONSTANTS.SELECTORS.PROJECT_PAGE_CLASS}::after {
-              background: none !important;
-              mask-image: none !important;
-              -webkit-mask-image: none !important;
-          }
-          /* This rule is now conditional on a body class and scoped to the scroll container to avoid affecting other elements. */
-          body.${cls.maxWidthActive} main ${CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH} {
-              max-width: var(${CSS_VARS.CHAT_CONTENT_MAX_WIDTH}) !important;
-          }
-          
-          /* Hide default scroll-to-bottom button */
-          ${CONSTANTS.SELECTORS.SCROLL_TO_BOTTOM_BUTTON} {
-              display: none !important;
-          }
-      `;
-      }
-
-      /** @override */
-      getBubbleCss(cls) {
-        return StyleTemplates.getBubbleUiCss(cls, {
-          // ChatGPT: Default class selector is sufficient for parent
-          collapsibleParentSelector: `.${cls.collapsibleParent}`,
-          // ChatGPT: Button positioning depends on role attribute
-          collapsibleBtnExtraCss: `
-              ${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} .${cls.collapsibleBtn} {
-                  left: 4px;
-              }
-              ${CONSTANTS.SELECTORS.USER_MESSAGE} .${cls.collapsibleBtn} {
-                  right: 4px;
-              }
-          `,
-          // ChatGPT: No extra CSS needed (native reflow works)
-          collapsibleCollapsedContentExtraCss: ``,
-        });
-      }
-    }
-
-    class ChatGPTThemeManagerAdapter extends BaseThemeManagerAdapter {
-      /** @override */
-      shouldDeferInitialTheme(themeManager) {
-        const initialTitle = themeManager.getChatTitleAndCache();
-        // Defer if the title is the ambiguous "ChatGPT" and we are NOT on the "New Chat" page.
-        // This indicates a transition to a specific chat page that hasn't loaded its final title yet.
-        if (initialTitle === 'ChatGPT' && !isNewChatPage()) {
-          Logger.log('', '', 'Initial theme application deferred by platform adapter, waiting for final title.');
-          return true;
-        }
-        return false;
-      }
-
-      /** @override */
-      selectThemeForUpdate(themeManager, config, urlChanged, titleChanged) {
-        const currentTitle = themeManager.getChatTitleAndCache();
-
-        // 1. Invalidate cache on URL change to force pattern re-evaluation.
-        if (urlChanged) {
-          themeManager.cachedThemeSet = null;
-        }
-
-        // 2. Get the candidate theme based on the current context (URL, Title).
-        const candidateTheme = themeManager.getThemeSet();
-
-        // 3. Flicker prevention logic:
-        // If the URL changed, the title is currently "ChatGPT" (loading),
-        // and the resolved theme is the default one (meaning no URL pattern matched),
-        // then keep the previous theme to avoid a flash of the default theme before the title loads.
-        // Exception: Do not maintain the previous theme if we are navigating to the "New Chat" page.
-        const isDefaultTheme = candidateTheme.metadata.id === CONSTANTS.THEME_IDS.DEFAULT;
-        const shouldKeepPreviousTheme = urlChanged && currentTitle === 'ChatGPT' && isDefaultTheme && themeManager.lastAppliedThemeSet && !isNewChatPage();
-
-        if (shouldKeepPreviousTheme) {
-          return themeManager.lastAppliedThemeSet;
-        }
-
-        // Otherwise, apply the candidate theme immediately.
-        // This handles cases where:
-        // - URL patterns matched (candidate is not default) -> Instant switch
-        // - Title is already loaded -> Correct theme
-        // - Navigating to New Chat -> Default theme
-        return candidateTheme;
-      }
-
-      /** @override */
-      getStyleOverrides() {
-        return {
-          user: ' margin-left: auto; margin-right: 0;',
-          assistant: ' margin-left: 0; margin-right: auto;',
-        };
-      }
-    }
-
-    class ChatGPTBubbleUIAdapter extends BaseBubbleUIAdapter {
-      /** @override */
-      getNavPositioningParent(messageElement) {
-        // 1. Handle text content first (most common case)
-        const role = PlatformAdapters.General.getMessageRole(messageElement);
-
-        if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT) {
-          const contentEl = messageElement.querySelector(CONSTANTS.SELECTORS.ASSISTANT_MESSAGE_CONTENT);
-          // Structure: Row (positioningParent) > Bubble > Content (contentEl)
-          if (contentEl && contentEl.parentElement && contentEl.parentElement.parentElement instanceof HTMLElement) {
-            return contentEl.parentElement.parentElement;
-          }
-        } else {
-          const textBubbleParent = messageElement.querySelector(CONSTANTS.SELECTORS.RAW_USER_BUBBLE)?.parentElement;
-          if (textBubbleParent instanceof HTMLElement) {
-            return textBubbleParent;
-          }
-        }
-
-        // 2. If no text, it might be an image-only message element.
-        if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER) {
-          // Find the image within this specific user message element
-          const userImageContainer = messageElement.querySelector(CONSTANTS.SELECTORS.RAW_USER_IMAGE_BUBBLE);
-          if (userImageContainer && userImageContainer.parentElement instanceof HTMLElement) {
-            return userImageContainer.parentElement;
-          }
-        } else if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT) {
-          // For assistants, search *within* this messageElement for an image.
-          // This prevents empty message shells from finding images elsewhere in the turn.
-          const assistantImageContainer = messageElement.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE);
-          if (assistantImageContainer instanceof HTMLElement && assistantImageContainer.parentElement instanceof HTMLElement) {
-            // Return the PARENT of the image container as the anchor
-            return assistantImageContainer.parentElement;
-          }
-        }
-
-        return null;
-      }
-
-      /** @override */
-      getCollapsibleInfo(messageElement) {
-        const msgWrapper = messageElement.closest(CONSTANTS.SELECTORS.MESSAGE_WRAPPER_FINDER);
-        if (!(msgWrapper instanceof HTMLElement)) return null;
-
-        const role = messageElement.getAttribute(CONSTANTS.ATTRIBUTES.MESSAGE_ROLE);
-        let bubbleElement = null;
-
-        if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER) {
-          bubbleElement = messageElement.querySelector(CONSTANTS.SELECTORS.RAW_USER_BUBBLE);
-        } else {
-          const contentEl = messageElement.querySelector(CONSTANTS.SELECTORS.ASSISTANT_MESSAGE_CONTENT);
-          if (contentEl) {
-            bubbleElement = contentEl.parentElement;
-          }
-        }
-
-        if (!(bubbleElement instanceof HTMLElement)) return null;
-
-        const positioningParent = bubbleElement.parentElement;
-        if (!(positioningParent instanceof HTMLElement)) return null;
-
-        return { msgWrapper, bubbleElement, positioningParent };
-      }
-    }
-
-    class ChatGPTToastAdapter extends BaseToastAdapter {
-      /** @override */
-      getAutoScrollMessage() {
-        return 'Scanning layout to prevent scroll issues...';
-      }
-
-      /** @override */
-      getToastPositionX() {
-        // Use the input resize target (form container) as it spans the correct width
-        const inputArea = document.querySelector(CONSTANTS.SELECTORS.INPUT_RESIZE_TARGET);
-        if (inputArea instanceof HTMLElement && inputArea.offsetWidth > 0) {
-          const rect = inputArea.getBoundingClientRect();
-          return rect.left + rect.width / 2;
-        }
-        return null;
-      }
-    }
-
-    class ChatGPTAppControllerAdapter extends BaseAppControllerAdapter {
-      /** @override */
-      initializePlatformManagers(controller) {
-        // =================================================================================
-        // SECTION: Auto Scroll Manager
-        // Description: Manages the "layout scan" (simulated PageUp scroll)
-        //              to force layout calculation and prevent scroll anchoring issues.
-        // =================================================================================
-
-        /**
-         * @class AutoScrollManager
-         * @extends BaseAutoScrollManager
-         */
-        class AutoScrollManager extends BaseAutoScrollManager {
-          static CONFIG = {
-            // The minimum number of messages required to trigger the auto-scroll feature.
-            MESSAGE_THRESHOLD: 5, // Lower threshold for ChatGPT as it's for layout scanning
-            // Delay between simulated PageUp scrolls (in ms)
-            SCAN_INTERVAL_MS: 30,
-            // Multiplier for scroll step to speed up scanning
-            SCAN_STEP_MULTIPLIER: 5,
-          };
-
-          /**
-           * @param {ConfigManager} configManager
-           * @param {MessageCacheManager} messageCacheManager
-           * @param {MessageLifecycleManager} messageLifecycleManager
-           */
-          constructor(configManager, messageCacheManager, messageLifecycleManager) {
-            super(configManager, messageCacheManager);
-            this.messageLifecycleManager = messageLifecycleManager;
-            this.scrollContainer = null;
-            this.isInitialScrollCheckDone = false;
-            this.scanLoopId = null; // Use for setTimeout loop
-            this.boundStop = null;
-            this.isLayoutScanComplete = false;
-          }
-
-          /** @override */
-          _onInit() {
-            super._onInit();
-            this.isLayoutScanComplete = false;
-          }
-
-          async start() {
-            if (!isFirefox()) return;
-            if (this.isScrolling || this.isLayoutScanComplete) return;
-
-            // Set the flag immediately to prevent re-entrancy from other events (e.g. button mashing).
-            this.isScrolling = true;
-            Logger.log('', '', 'AutoScrollManager: Starting layout scan (Unthrottled rAF).');
-
-            const scrollContainerEl = document.querySelector(CONSTANTS.SELECTORS.SCROLL_CONTAINER);
-            if (!(scrollContainerEl instanceof HTMLElement)) {
-              Logger.warn('AUTOSCROLL WARN', LOG_STYLES.YELLOW, 'Could not find scroll container.');
-              this.isScrolling = false;
-              return;
-            }
-            this.scrollContainer = scrollContainerEl;
-
-            EventBus.publish(EVENTS.AUTO_SCROLL_START);
-            EventBus.publish(EVENTS.SUSPEND_OBSERVERS);
-
-            // Hide the container to prevent visual flickering
-            this.scrollContainer.style.transition = 'none';
-            this.scrollContainer.style.opacity = '0';
-
-            this.boundStop = () => this.stop(false);
-            this.scrollContainer.addEventListener('wheel', this.boundStop, { passive: true, once: true });
-            this.scrollContainer.addEventListener('touchmove', this.boundStop, { passive: true, once: true });
-
-            const originalScrollTop = this.scrollContainer.scrollTop;
-
-            // Force scroll to the bottom to ensure the scan starts from the end.
-            this.scrollContainer.scrollTop = this.scrollContainer.scrollHeight;
-
-            const scanPageUp = () => {
-              if (!this.isScrolling || !this.scrollContainer) return; // Stop if cancelled
-
-              const currentTop = this.scrollContainer.scrollTop;
-              if (currentTop <= 0) {
-                // Reached the top, restore and stop
-                this.scrollContainer.scrollTop = originalScrollTop; // Restore original position
-                this.isLayoutScanComplete = true; // Set completion flag
-                this.stop(false);
-                return;
-              }
-
-              // Scroll up by multiple pages to speed up the scan
-              const stepSize = this.scrollContainer.clientHeight * AutoScrollManager.CONFIG.SCAN_STEP_MULTIPLIER;
-              this.scrollContainer.scrollTop = Math.max(0, currentTop - stepSize);
-
-              // Continue loop via requestAnimationFrame
-              this.scanLoopId = requestAnimationFrame(scanPageUp);
-            };
-
-            // Start the loop
-            // Add a minimal delay to ensure scrollTop change is registered before scan starts
-            this.scanLoopId = requestAnimationFrame(scanPageUp);
-          }
-
-          stop(isNavigation) {
-            if (!this.isScrolling && !this.scanLoopId) return; // Prevent multiple stops
-
-            Logger.log('', '', 'AutoScrollManager: Stopping layout scan.');
-            this.isScrolling = false;
-
-            if (this.scanLoopId) {
-              cancelAnimationFrame(this.scanLoopId);
-              this.scanLoopId = null;
-            }
-
-            // Restore visibility
-            if (this.scrollContainer) {
-              this.scrollContainer.style.opacity = '1';
-              this.scrollContainer.style.transition = '';
-            }
-            this.scrollContainer = null;
-
-            // Cleanup listeners
-            if (this.boundStop) {
-              this.scrollContainer?.removeEventListener('wheel', this.boundStop);
-              this.scrollContainer?.removeEventListener('touchmove', this.boundStop);
-              this.boundStop = null;
-            }
-
-            EventBus.publish(EVENTS.AUTO_SCROLL_COMPLETE);
-
-            // On navigation, ObserverManager handles observer resumption.
-            // All other post-scan logic (DOM rescan, cache update) is now handled by the listener that *requested* the scan.
-            if (!isNavigation) {
-              EventBus.publish(EVENTS.RESUME_OBSERVERS);
-            }
-          }
-
-          /**
-           * @private
-           * @description Defines the logic to run *after* a scan completes.
-           */
-          _onScanComplete() {
-            // Run the manual scan to create any missing message wrappers
-            if (this.messageLifecycleManager) {
-              this.messageLifecycleManager.scanForUnprocessedMessages();
-            }
-            // Immediately request a cache update to reflect the scan
-            EventBus.publish(EVENTS.CACHE_UPDATE_REQUEST);
-          }
-
-          /** @override */
-          _onCacheUpdated() {
-            if (!isFirefox()) return;
-            if (!this.isEnabled || this.isInitialScrollCheckDone || this.isScrolling) {
-              return;
-            }
-
-            const messageCount = this.messageCacheManager.getTotalMessages().length;
-
-            // Wait for at least one message to ensure history has started loading (First Paint logic)
-            if (messageCount === 0) return;
-
-            // Latch on first data: Mark initialization as done immediately regardless of threshold.
-            // This prevents subsequent message additions (e.g. user sending a message) from triggering a delayed scan.
-            this.isInitialScrollCheckDone = true;
-
-            if (messageCount >= AutoScrollManager.CONFIG.MESSAGE_THRESHOLD) {
-              Logger.log('', '', `AutoScrollManager: ${messageCount} messages found. Triggering layout scan.`);
-
-              // Register the post-scan logic to run *once* on completion
-              this._subscribeOnce(EVENTS.AUTO_SCROLL_COMPLETE, () => this._onScanComplete());
-              // Start the scan
-              EventBus.publish(EVENTS.AUTO_SCROLL_REQUEST);
-            } else {
-              Logger.log('', '', `AutoScrollManager: ${messageCount} messages found (below threshold). Layout scan skipped.`);
-            }
-          }
-
-          /** @override */
-          _onNavigation() {
-            if (this.isScrolling) {
-              // Stop scroll without triggering a UI refresh, as a new page is loading.
-              this.stop(true);
-            }
-            this.isInitialScrollCheckDone = false;
-            this.isLayoutScanComplete = false;
-          }
-        }
-        controller.autoScrollManager = controller.manageFactory(CONSTANTS.RESOURCE_KEYS.AUTO_SCROLL_MANAGER, () => new AutoScrollManager(controller.configManager, controller.messageCacheManager, controller.messageLifecycleManager));
-      }
-
-      /** @override */
-      applyPlatformSpecificUiUpdates(controller, newConfig) {
-        // Enable or disable the auto-scroll manager based on the new config.
-        if (newConfig.platforms[PLATFORM].features.load_full_history_on_chat_load.enabled) {
-          controller.autoScrollManager?.enable();
-        } else {
-          controller.autoScrollManager?.disable();
-        }
-      }
-    }
-
-    class ChatGPTAvatarAdapter extends BaseAvatarAdapter {
-      /** @override */
-      getCss() {
-        const extraCss = `
-                    /* Set the message ID holder as the positioning anchor for Timestamps */
-                    ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER} {
-                        position: relative !important;
-                    }
-                `;
-        return StyleTemplates.getAvatarCss(extraCss);
-      }
-
-      /** @override */
-      measureAvatarTarget(msgElem) {
-        let turnContainer;
-
-        // Check if msgElem is the turn container (article) or a message element (div) inside it
-        if (msgElem.matches(CONSTANTS.SELECTORS.CONVERSATION_UNIT)) {
-          // Case 1: msgElem is the ARTICLE (from self-healing Sentinel)
-          turnContainer = msgElem;
-        } else {
-          // Case 2: msgElem is the DIV (from initial Sentinel or ensureMessageContainerForImage)
-          turnContainer = msgElem.closest(CONSTANTS.SELECTORS.CONVERSATION_UNIT);
-        }
-        if (!turnContainer) return null;
-
-        const centeredWrapper = turnContainer.querySelector(CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH);
-        if (!centeredWrapper) return null;
-
-        // Check if avatar container already exists *inside the centered wrapper*.
-        if (centeredWrapper.getElementsByClassName(CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER_CLASS).length > 0) {
-          // Already present. Return context to ensure processed class is added, but do not inject.
-          return {
-            shouldInject: false,
-            targetElement: null,
-            processedTarget: turnContainer,
-            exclusionKey: turnContainer,
-            originalElement: msgElem,
-          };
-        }
-
-        // Find the *first* message element within this turn.
-        const firstMessageElement = turnContainer.querySelector(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
-        if (!(firstMessageElement instanceof HTMLElement)) {
-          return null; // No message element found to attach to
-        }
-
-        // Guard: Skip avatar injection for Deep Research result containers.
-        // These containers have their own layout that conflicts with the avatar.
-        if (firstMessageElement.querySelector(CONSTANTS.SELECTORS.DEEP_RESEARCH_RESULT)) {
-          return null;
-        }
-
-        return {
-          shouldInject: true,
-          targetElement: firstMessageElement,
-          processedTarget: turnContainer,
-          exclusionKey: turnContainer,
-          originalElement: msgElem,
-        };
-      }
-
-      /** @override */
-      injectAvatar(measurement, avatarContainer) {
-        const { shouldInject, targetElement } = measurement;
-
-        // Inject the avatar directly into the *first message element*
-        if (shouldInject && targetElement && avatarContainer) {
-          targetElement.prepend(avatarContainer);
-        }
-      }
-    }
-
-    class ChatGPTStandingImageAdapter extends BaseStandingImageAdapter {
-      /** @override */
-      async recalculateLayout(instance) {
-        const rootStyle = document.documentElement.style;
-        const cls = instance.style.classes;
-        const v = instance.style.vars;
-
-        // Check for Canvas mode
-        const isCanvasActive = PlatformAdapters.General.isCanvasModeActive();
-
-        // Check for Right Sidebar (Activity Panel)
-        const rightSidebar = document.querySelector(CONSTANTS.SELECTORS.RIGHT_SIDEBAR);
-        let isRightSidebarOpen = false;
-        if (rightSidebar instanceof HTMLElement && rightSidebar.offsetWidth > 0) {
-          const rect = rightSidebar.getBoundingClientRect();
-          // Robustness check: Ensure it's actually on the right side
-          if (rect.left > window.innerWidth / 2) {
-            isRightSidebarOpen = true;
-          }
-        }
-
-        // If canvas mode is active or the activity panel is open, hide standing images.
-        if (isCanvasActive || isRightSidebarOpen) {
-          rootStyle.setProperty(v.assistantWidth, '0px');
-          rootStyle.setProperty(v.userWidth, '0px');
-          return;
-        }
-
-        // --- Determine Message Area Rect ---
-        let chatRect = null;
-        const isNewChat = PlatformAdapters.General.isNewChatPage();
-
-        if (isNewChat) {
-          // On new chat pages, do not wait for the element. Calculate virtual rect immediately.
-          // We assume standard centering logic for the virtual area.
-        } else {
-          // On existing chat pages, find the content synchronously.
-          // If not found, abort immediately. Sentinel will trigger an update when it appears.
-          const chatContent = document.querySelector(CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH);
-          if (chatContent) {
-            chatRect = chatContent.getBoundingClientRect();
-          } else {
-            // Abort to avoid visual bugs.
-            return;
-          }
-        }
-
-        await withLayoutCycle({
-          measure: () => {
-            // --- Read Phase ---
-            const assistantImg = document.getElementById(cls.assistantImageId);
-            const userImg = document.getElementById(cls.userImageId);
-
-            return {
-              chatRect: chatRect, // Can be null (for virtual calculation) or pre-fetched rect
-              sidebarWidth: getSidebarWidth(),
-              windowWidth: window.innerWidth,
-              windowHeight: window.innerHeight,
-              assistantImgHeight: assistantImg ? assistantImg.offsetHeight : 0,
-              userImgHeight: userImg ? userImg.offsetHeight : 0,
-            };
-          },
-          mutate: (measured) => {
-            // --- Write Phase ---
-            if (instance.isDestroyed) return;
-            if (!measured) return;
-
-            const { sidebarWidth, windowWidth, windowHeight, assistantImgHeight, userImgHeight } = measured;
-            let { chatRect } = measured;
-
-            const config = instance.configManager.get();
-
-            // --- Virtual Rect Calculation (if needed) ---
-            if (!chatRect) {
-              // Default width fallback (50vw per requirement)
-              let targetWidth = windowWidth * 0.5;
-
-              const configWidth = config.platforms[PLATFORM].options.chat_content_max_width;
-              if (configWidth && typeof configWidth === 'string' && configWidth.endsWith('vw')) {
-                const vwValue = parseInt(configWidth, 10);
-                if (!isNaN(vwValue)) {
-                  targetWidth = (windowWidth * vwValue) / 100;
-                }
-              }
-
-              // Calculate centered position relative to the available space (window - sidebar)
-              const availableSpace = windowWidth - sidebarWidth;
-              // If the configured width is wider than available space, clamp it
-              const effectiveWidth = Math.min(targetWidth, availableSpace);
-
-              const left = sidebarWidth + (availableSpace - effectiveWidth) / 2;
-
-              chatRect = new DOMRect(left, 0, effectiveWidth, 0);
-            }
-
-            // Apply right sidebar width for positioning
-            rootStyle.setProperty(v.rightSidebarWidth, '0px');
-
-            // Set Assistant base position (Platform specific)
-            rootStyle.setProperty(v.assistantLeft, sidebarWidth + 'px');
-
-            // Calculate available widths
-            const assistantAvailableWidth = chatRect.left - sidebarWidth;
-            const userAvailableWidth = windowWidth - chatRect.right;
-
-            // Delegate common calculation
-            StandingImageLayout.apply(instance, {
-              assistantAvailableWidth,
-              userAvailableWidth,
-              assistantImgHeight,
-              userImgHeight,
-              windowHeight,
-            });
-          },
-        });
-      }
-
-      /** @override */
-      updateVisibility(instance) {
-        const isCanvasActive = PlatformAdapters.General.isCanvasModeActive();
-        const cls = instance.style.classes;
-        const v = instance.style.vars;
-
-        [cls.userImageId, cls.assistantImageId].forEach((id) => {
-          const imgElement = document.getElementById(id);
-          if (!imgElement) return;
-
-          // Determine actor based on index or ID check
-          const isUser = id === cls.userImageId;
-          const varName = isUser ? v.userImage : v.assistantImage;
-
-          const hasImage = !!document.documentElement.style.getPropertyValue(varName);
-          imgElement.style.opacity = hasImage && !isCanvasActive && !instance.isAutoScrolling ? '1' : '0';
-        });
-      }
-    }
-
-    class ChatGPTObserverAdapter extends BaseObserverAdapter {
-      /**
-       * @private
-       * @description Starts a stateful observer for the right sidebar (Activity/Thread flyout).
-       * @param {object} dependencies
-       * @returns {() => void}
-       */
-      startRightSidebarObserver(dependencies) {
-        // Use shared logic from ObserverManager via dependencies
-        return dependencies.startGenericPanelObserver({
-          triggerSelector: CONSTANTS.SELECTORS.RIGHT_SIDEBAR,
-          observerType: CONSTANTS.OBSERVED_ELEMENT_TYPES.SIDE_PANEL,
-          targetResolver: (el) => el, // Target Resolver (Trigger is the Panel)
-          immediateCallback: () => EventBus.publish(EVENTS.SIDEBAR_LAYOUT_CHANGED),
-        });
-      }
-
-      /**
-       * @private
-       * @description Starts a stateful observer for the Research Panel.
-       * @param {object} dependencies
-       * @returns {() => void}
-       */
-      startResearchPanelObserver(dependencies) {
-        // Use shared logic from ObserverManager via dependencies
-        return dependencies.startGenericPanelObserver({
-          triggerSelector: CONSTANTS.SELECTORS.RESEARCH_PANEL,
-          observerType: CONSTANTS.OBSERVED_ELEMENT_TYPES.SIDE_PANEL,
-          // Target Resolver: The trigger is inside a section, inside the main div.
-          // We need the parent div that holds the width.
-          targetResolver: (el) => el.closest(CONSTANTS.SELECTORS.SIDEBAR_SURFACE_PRIMARY),
-          immediateCallback: () => EventBus.publish(EVENTS.VISIBILITY_RECHECK),
-        });
-      }
-
-      /**
-       * @private
-       * @description Starts a stateful observer to detect the appearance and disappearance of the Canvas panel using a high-performance hybrid approach.
-       * @param {object} dependencies The required methods from ObserverManager.
-       * @returns {() => void} A cleanup function.
-       */
-      startCanvasObserver(dependencies) {
-        // Use shared logic from ObserverManager via dependencies
-        return dependencies.startGenericPanelObserver({
-          triggerSelector: CONSTANTS.SELECTORS.CANVAS_CONTAINER, // Trigger (Button)
-          observerType: CONSTANTS.OBSERVED_ELEMENT_TYPES.SIDE_PANEL,
-          targetResolver: (el) => el.closest(CONSTANTS.SELECTORS.CANVAS_RESIZE_TARGET), // Target Resolver (Find Parent Panel)
-          immediateCallback: () => EventBus.publish(EVENTS.VISIBILITY_RECHECK),
-        });
-      }
-
-      /**
-       * @param {object} dependencies The dependencies passed from ObserverManager (unused in this method).
-       * @private
-       * @description Sets up the monitoring for title changes.
-       * @returns {() => void} A cleanup function to stop the observer.
-       */
-      startGlobalTitleObserver(dependencies) {
-        let titleObserver = null;
-
-        const setupObserver = (targetElement) => {
-          titleObserver?.disconnect(); // Disconnect if already running
-
-          // Encapsulate state within the closure
-          let lastObservedTitle = (targetElement.textContent || '').trim();
-          const currentObservedTitleSource = targetElement;
-
-          titleObserver = new MutationObserver(() => {
-            const currentText = (currentObservedTitleSource?.textContent || '').trim();
-            if (currentText !== lastObservedTitle) {
-              lastObservedTitle = currentText;
-              EventBus.publish(EVENTS.TITLE_CHANGED);
-            }
-          });
-          titleObserver.observe(targetElement, {
-            childList: true,
-            characterData: true,
-            subtree: true,
-          });
-        };
-
-        const selector = CONSTANTS.SELECTORS.TITLE_OBSERVER_TARGET;
-        sentinel.on(selector, setupObserver);
-
-        const existingTarget = document.querySelector(selector);
-        if (existingTarget) {
-          setupObserver(existingTarget);
-        }
-
-        // Return the cleanup function for this observer.
-        return () => {
-          sentinel.off(selector, setupObserver);
-          titleObserver?.disconnect();
-        };
-      }
-
-      /**
-       * @param {object} dependencies The dependencies passed from ObserverManager (unused in this method).
-       * @private
-       * @description Sets up a robust, two-tiered observer for the sidebar.
-       * @returns {() => void} A cleanup function.
-       */
-      startSidebarObserver(dependencies) {
-        let resizeObserver = null;
-        let titleObserver = null;
-        const debouncedTitleUpdate = debounce(() => EventBus.publish(EVENTS.TITLE_CHANGED), CONSTANTS.TIMING.DEBOUNCE_DELAYS.THEME_UPDATE, true);
-
-        const setupObserver = (sidebarContainer) => {
-          resizeObserver?.disconnect();
-          titleObserver?.disconnect();
-
-          let lastWidth = -1;
-          let lastHeight = -1;
-
-          resizeObserver = new ResizeObserver((entries) => {
-            // We only need to signal that the layout changed.
-            // Throttling is handled by the subscriber (ThemeManager).
-            let layoutChanged = false;
-            for (const entry of entries) {
-              const { width, height } = entry.contentRect;
-              if (width !== lastWidth || height !== lastHeight) {
-                lastWidth = width;
-                lastHeight = height;
-                layoutChanged = true;
-              }
-            }
-            if (layoutChanged) {
-              EventBus.publish(EVENTS.SIDEBAR_LAYOUT_CHANGED);
-            }
-          });
-
-          resizeObserver.observe(sidebarContainer);
-
-          // Added MutationObserver to detect chat renaming and selection changes
-          titleObserver = new MutationObserver((mutations) => {
-            let titleChanged = false;
-
-            for (const mutation of mutations) {
-              const target = mutation.target;
-
-              if (mutation.type === 'attributes' && mutation.attributeName === 'data-active') {
-                // Chat selection changed
-                titleChanged = true;
-                break;
-              } else if (mutation.type === 'childList') {
-                // New chat added to the list
-                titleChanged = true;
-                break;
-              } else if (mutation.type === 'characterData') {
-                // Chat renamed. Check if it's within the link text element
-                if (target.parentElement && target.parentElement.closest(CONSTANTS.SELECTORS.SIDEBAR_LINK_TEXT)) {
-                  titleChanged = true;
-                  break;
-                }
-              }
-            }
-
-            if (titleChanged) {
-              debouncedTitleUpdate();
-            }
-          });
-
-          titleObserver.observe(sidebarContainer, {
-            childList: true,
-            attributes: true,
-            attributeFilter: ['data-active'],
-            characterData: true,
-            subtree: true,
-          });
-
-          // Trigger once initially to ensure state capture
-          EventBus.publish(EVENTS.SIDEBAR_LAYOUT_CHANGED);
-        };
-
-        // Use Sentinel to detect when the sidebar container is added or re-added to the DOM.
-        const selector = CONSTANTS.SELECTORS.SIDEBAR_WIDTH_TARGET;
-        sentinel.on(selector, setupObserver);
-
-        // Initial check
-        const initialSidebar = document.querySelector(selector);
-        if (initialSidebar) {
-          setupObserver(initialSidebar);
-        }
-
-        // Cleanup
-        return () => {
-          sentinel.off(selector, setupObserver);
-          resizeObserver?.disconnect();
-          titleObserver?.disconnect();
-        };
-      }
-
-      /**
-       * @private
-       * @description Starts a stateful observer for the input area to detect resizing and DOM reconstruction (button removal).
-       * @param {object} dependencies The ObserverManager dependencies.
-       * @returns {() => void} A cleanup function.
-       */
-      startInputAreaObserver(dependencies) {
-        // Use shared logic from ObserverManager via dependencies
-        return dependencies.startGenericInputAreaObserver({
-          triggerSelector: CONSTANTS.SELECTORS.INPUT_RESIZE_TARGET,
-          resizeTargetSelector: CONSTANTS.SELECTORS.INPUT_RESIZE_TARGET,
-        });
-      }
-
-      /**
-       * @private
-       * @description Optimizes style application by detecting DOM elements via JS instead of using expensive CSS :has().
-       * Specifically handles the Project Page top gradient removal by adding a class to the container when the project title input is present.
-       * @param {object} dependencies
-       * @returns {() => void} A cleanup function.
-       */
-      startStyleOptimizationObserver(dependencies) {
-        const triggerSelector = CONSTANTS.SELECTORS.PROJECT_TITLE_INPUT;
-        const targetSelector = CONSTANTS.SELECTORS.CONTENT_FADE_TOP;
-        const className = CONSTANTS.SELECTORS.PROJECT_PAGE_CLASS;
-
-        const listener = (element) => {
-          // Find the parent/ancestor container to apply the class to
-          const target = element.closest(targetSelector);
-          if (target instanceof HTMLElement) {
-            target.classList.add(className);
-          }
-        };
-
-        // Use Sentinel to efficiently detect the input element
-        sentinel.on(triggerSelector, listener);
-
-        // Initial check in case it's already present
-        const existing = document.querySelector(triggerSelector);
-        if (existing) {
-          listener(existing);
-        }
-
-        return () => {
-          sentinel.off(triggerSelector, listener);
-        };
-      }
-
-      /** @override */
-      getPlatformObserverStarters() {
-        // prettier-ignore
-        return [
-          this.startGlobalTitleObserver,
-          this.startSidebarObserver,
-          this.startCanvasObserver,
-          this.startRightSidebarObserver,
-          this.startResearchPanelObserver,
-          this.startInputAreaObserver,
-          this.startStyleOptimizationObserver,
-        ];
-      }
-
-      /** @override */
-      isTurnComplete(turnNode) {
-        // A turn is complete if it's an assistant message that has rendered its action buttons.
-        // User message turns are handled implicitly and don't trigger this "complete" state in the context of streaming.
-        const assistantActions = turnNode.querySelector(CONSTANTS.SELECTORS.TURN_COMPLETE_SELECTOR);
-        return !!assistantActions;
-      }
-    }
-
-    class ChatGPTSettingsPanelAdapter extends BaseSettingsPanelAdapter {
-      /** @override */
-      getPlatformSpecificFeatureToggles() {
-        const toggles = [{ configKey: 'features.timestamp.enabled' }, { configKey: 'features.collapsible_button.auto_collapse_user_message.enabled' }];
-
-        if (isFirefox()) {
-          toggles.unshift({ configKey: 'features.load_full_history_on_chat_load.enabled' });
-        }
-
-        return toggles;
-      }
-    }
-
-    class ChatGPTFixedNavAdapter extends BaseFixedNavAdapter {
-      /** @override */
-      isHeaderPositionAvailable(navConsoleWidth) {
-        // 1. Check for panels that compress the layout (Canvas)
-        if (PlatformAdapters.General.isCanvasModeActive()) {
-          return false;
-        }
-
-        // 2. Check available width in the main container (accounts for sidebar)
-        const container = document.querySelector(CONSTANTS.SELECTORS.SCROLL_CONTAINER);
-        if (container instanceof HTMLElement) {
-          return container.offsetWidth >= CONSTANTS.UI_SPECS.HEADER_POSITION_MIN_WIDTH;
-        }
-
-        // Fallback to window width if container not found
-        return window.innerWidth >= CONSTANTS.UI_SPECS.HEADER_POSITION_MIN_WIDTH;
-      }
-
-      /** @override */
-      getNavAnchorContainer() {
-        // Try to find the specific action container first
-        const actionContainer = document.querySelector(CONSTANTS.SELECTORS.HEADER_ACTIONS);
-        if (actionContainer && actionContainer.parentElement) {
-          return actionContainer.parentElement;
-        }
-
-        // Fallback: If on a new chat page or structure changed, try to find the end of the header
-        // The header usually has 3 main divs (Left, Center, Right). We want the Right one.
-        const rightSection = document.querySelector(CONSTANTS.SELECTORS.HEADER_FALLBACK_SECTION);
-        if (rightSection instanceof HTMLElement) {
-          return rightSection;
-        }
-        return null;
-      }
-
-      /** @override */
-      handleInfiniteScroll(fixedNavManagerInstance, highlightedMessage, previousTotalMessages) {
-        // No-op for ChatGPT as it does not use infinite scrolling for chat history.
-        // This method exists to maintain architectural consistency with the Gemini version.
-      }
-
-      /** @override */
-      applyAdditionalHighlight(messageElement, styleHandle) {
-        const role = PlatformAdapters.General.getMessageRole(messageElement);
-        if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT) {
-          const turnContainer = messageElement.closest(CONSTANTS.SELECTORS.CONVERSATION_UNIT);
-          const hasImage = turnContainer && turnContainer.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE);
-          const textContent = messageElement.querySelector(CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT);
-          const hasText = textContent && textContent.textContent.trim() !== '';
-
-          // Apply to turn container only if it's an image-only or effectively image-only message.
-          if (hasImage && !hasText) {
-            turnContainer.classList.add(styleHandle.classes.highlightTurn);
-          }
-        }
-      }
-
-      /** @override */
-      getPlatformSpecificButtons(fixedNavManagerInstance, styleHandle) {
-        const cls = styleHandle.classes;
-        const autoscrollBtn = h(
-          `button#${cls.autoscrollBtnId}.${cls.btn}`,
-          {
-            title: 'Run layout scan and rescan DOM',
-            dataset: { [CONSTANTS.DATA_KEYS.ORIGINAL_TITLE]: 'Run layout scan and rescan DOM' },
-            onclick: () => {
-              // 1. Subscribe once to the completion event
-              fixedNavManagerInstance.registerPlatformListenerOnce(EVENTS.AUTO_SCROLL_COMPLETE, () => {
-                // 2. Perform the "DOM Rescan" logic *after* scan is complete.
-                if (fixedNavManagerInstance.messageLifecycleManager) {
-                  fixedNavManagerInstance.messageLifecycleManager.scanForUnprocessedMessages();
-                }
-                EventBus.publish(EVENTS.CACHE_UPDATE_REQUEST);
-              });
-
-              // 3. Start the scan.
-              EventBus.publish(EVENTS.AUTO_SCROLL_REQUEST);
-            },
-          },
-          [createIconFromDef(StyleDefinitions.ICONS.scrollToTop)]
-        );
-
-        return [autoscrollBtn];
-      }
-
-      /** @override */
-      updatePlatformSpecificButtonState(autoscrollBtn, isAutoScrolling, autoScrollManager) {
-        if (!isFirefox()) {
-          autoscrollBtn.disabled = true;
-          autoscrollBtn.title = 'Layout scan is not required on your browser.';
-          autoscrollBtn.style.opacity = '0.5';
-          return;
-        }
-
-        const isScanComplete = autoScrollManager?.isLayoutScanComplete;
-        const isDisabled = isAutoScrolling || isScanComplete;
-
-        autoscrollBtn.disabled = isDisabled;
-        autoscrollBtn.style.opacity = '1';
-
-        if (isScanComplete) {
-          autoscrollBtn.title = 'Layout scan complete';
-        } else if (isAutoScrolling) {
-          autoscrollBtn.title = 'Scanning layout...';
-        } else {
-          autoscrollBtn.title = DomState.get(autoscrollBtn, CONSTANTS.DATA_KEYS.ORIGINAL_TITLE);
-        }
-      }
-    }
-
-    class ChatGPTTimestampAdapter extends BaseTimestampAdapter {
-      constructor() {
-        super();
-        this.originalFetch = unsafeWindow.fetch.bind(unsafeWindow);
-        this.isInitialized = false;
-        this.isInterceptionEnabled = false;
-        this.fetchWrapperSymbol = Symbol.for(`${APPID}:FETCH_WRAPPER`);
-        this._lastFetchObserveErrorAt = 0; // Rate-limit observer errors to avoid log spam
-      }
-
-      /** @override */
-      init() {
-        this.isInterceptionEnabled = true;
-
-        if (this.isInitialized) return;
-
-        // Check if unsafeWindow is available and valid
-        if (typeof unsafeWindow === 'undefined' || !unsafeWindow.fetch) {
-          Logger.error('TIMESTAMP', '', 'unsafeWindow.fetch is unavailable. Adapter disabled.');
-          return;
-        }
-
-        try {
-          // Backup original fetch from the page context
-          // Bind to unsafeWindow to ensure correct 'this' context
-          this.originalFetch = unsafeWindow.fetch.bind(unsafeWindow);
-
-          // Create the wrapper logic
-          const wrappedFetch = this._wrappedFetch.bind(this);
-
-          // Mark our wrapper to prevent double-wrapping
-          wrappedFetch[this.fetchWrapperSymbol] = true;
-
-          // Override the page's fetch
-          unsafeWindow.fetch = wrappedFetch;
-
-          this.isInitialized = true;
-          Logger.debug('TIMESTAMP', LOG_STYLES.TEAL, 'Successfully intercepted unsafeWindow.fetch');
-        } catch (e) {
-          Logger.error('FETCH WRAP FAILED', LOG_STYLES.RED, 'Could not wrap fetch:', e);
-          // Attempt to restore if partially failed
-          if (this.originalFetch) {
-            unsafeWindow.fetch = this.originalFetch;
-          }
-        }
-      }
-
-      /** @override */
-      cleanup() {
-        // Disable interception logic safely without modifying the global fetch reference.
-        // Restoring the original fetch here can destroy site-specific polyfills or interceptors applied after our initialization.
-        if (this.isInitialized) {
-          this.isInterceptionEnabled = false;
-          Logger.debug('TIMESTAMP', LOG_STYLES.TEAL, 'Disabled fetch interception (pass-through mode activated).');
-        }
-        // Data cache is preserved (BaseTimestampAdapter behavior)
-      }
-
-      /** @override */
-      hasTimestampLogic() {
-        return true;
-      }
-
-      /** @override */
-      isTimestampEnabledSync(defaultConfig) {
-        try {
-          const storedValue = localStorage.getItem(CONSTANTS.STORE_KEYS.LOCAL_TIMESTAMP_ENABLED);
-          if (storedValue !== null) {
-            return storedValue === 'true';
-          }
-        } catch (e) {
-          Logger.warn('TIMESTAMP', '', 'Failed to access localStorage. Falling back to default config.', e);
-        }
-        return Boolean(defaultConfig?.features?.timestamp?.enabled);
-      }
-
-      _getChatIdFromUrl(url) {
-        if (!url) return null;
-        // Match .../conversation/[ID] only. Must end with the ID.
-        // The ID must contain at least 4 hyphens.
-        // (e.g., 8-4-4-4-12 format)
-        const endpoint = CONSTANTS.URL_PATTERNS.CONVERSATION_ENDPOINT;
-        const pattern = new RegExp(`${escapeRegExp(endpoint)}\\/([^/]*-[^/]*-[^/]*-[^/]*-[^/]+)$`);
-        const match = url.match(pattern);
-        return match ? match[1] : null;
-      }
-
-      _wrappedFetch(input, init) {
-        // Pass-through immediately if interception is disabled to avoid interfering with site logic.
-        if (!this.isInterceptionEnabled) return this.originalFetch(input, init);
-
-        // 1. Call the original fetch immediately.
-        // We return this Promise chain to the site code.
-        return this.originalFetch(input, init).then((response) => {
-          try {
-            // 2. Clone the response immediately upon resolution.
-            // This ensures we get a copy before the site's code consumes the stream.
-            // Wrapped in try-catch to act as a failsafe; if cloning fails (e.g. stream locked),
-            // we must still return the original response to avoid breaking the site.
-            const clonedResponse = response.clone();
-
-            // 3. Process the clone asynchronously (Fire-and-forget).
-            this._processIntercentedResponse(input, clonedResponse).catch((e) => {
-              // Rate-limit error logging
-              const now = Date.now();
-              if (now - this._lastFetchObserveErrorAt > 60000) {
-                this._lastFetchObserveErrorAt = now;
-                Logger.debug('FETCH', LOG_STYLES.ORANGE, 'Internal processing failed:', e);
-              }
-            });
-          } catch (e) {
-            // Log error but suppress it to protect the main application flow
-            Logger.debug('FETCH', LOG_STYLES.ORANGE, 'Response cloning failed:', e);
-          }
-
-          // 4. Return the ORIGINAL response to the site.
-          return response;
-        });
-      }
-
-      /**
-       * Processes the intercepted response to extract timestamps.
-       * @param {RequestInfo|URL} input
-       * @param {Response} response
-       */
-      async _processIntercentedResponse(input, response) {
-        if (!this.isInterceptionEnabled) return;
-
-        // Check URL patterns
-        const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-        let normalizedUrl = url;
-        try {
-          // Resolve relative URLs relative to the current page
-          normalizedUrl = new URL(url, location.href).pathname;
-        } catch {
-          // Ignore URL parsing errors
-        }
-
-        // Try to get ID from URL first (GET request)
-        let chatId = this._getChatIdFromUrl(normalizedUrl);
-
-        // Only process conversation endpoints
-        if (!normalizedUrl.includes(CONSTANTS.URL_PATTERNS.CONVERSATION_ENDPOINT)) return;
-
-        // Check response status
-        if (!response.ok || response.status !== 200) return;
-
-        Logger.debug('FETCH', LOG_STYLES.ORANGE, 'Target API URL intercepted:', url);
-
-        try {
-          const data = await response.json();
-
-          // If ID wasn't in URL, try to find it in the response (POST request / New Chat)
-          // Added strict null check for 'data' to prevent TypeError if site polyfills or backend returns null
-          if (!chatId && data && data.conversation_id) {
-            chatId = data.conversation_id;
-          }
-
-          // This acts as a filter to ensure we are processing actual chat data,
-          // not other endpoints like /conversations (history list).
-          if (!chatId) return;
-
-          // Parse the JSON data
-          const timestamps = this._extractTimestamps(data);
-
-          if (timestamps.size > 0) {
-            // Store in persistent cache
-            timestamps.forEach((date, id) => this.addTimestamp(id, date));
-            // Publish event
-            EventBus.publish(EVENTS.TIMESTAMPS_LOADED, { timestamps });
-          }
-        } catch (e) {
-          Logger.error('TIMESTAMP ERROR', LOG_STYLES.RED, 'Failed to parse conversation JSON:', e);
-        }
-      }
-
-      /**
-       * Extracts timestamps from the parsed JSON object.
-       * @param {object} data - The parsed JSON response.
-       * @returns {Map<string, Date>}
-       */
-      _extractTimestamps(data) {
-        /** @type {Map<string, Date>} */
-        const newTimestamps = new Map();
-        let added = 0;
-
-        if (data && data.mapping) {
-          Object.values(data.mapping).forEach((item) => {
-            if (item && item.message && item.message.id && item.message.create_time) {
-              // Add to our temporary map. We don't check for existence,
-              // TimestampManager will handle merging/overwriting.
-              newTimestamps.set(item.message.id, new Date(item.message.create_time * 1000));
-              added++;
-            }
-          });
-
-          if (added > 0) {
-            Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, `Parsed ${added} historical timestamps.`);
-          } else {
-            Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, 'API response processed, but no valid timestamps were found in data.mapping.');
-          }
-        } else {
-          Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, 'API response processed, but data.mapping was not found or was empty.');
-        }
-        return newTimestamps;
-      }
-    }
-
-    class ChatGPTUIManagerAdapter extends BaseUIManagerAdapter {
-      /** @override */
-      ensureButtonPlacement(settingsButton) {
-        ensureSettingsButtonPlacement(settingsButton, CONSTANTS.SELECTORS.INSERTION_ANCHOR, PlatformAdapters.General.isExcludedPage);
-      }
-    }
-
-    const PlatformAdapters = {
-      General: new ChatGPTGeneralAdapter(),
-      StyleManager: new ChatGPTStyleManagerAdapter(),
-      ThemeManager: new ChatGPTThemeManagerAdapter(),
-      BubbleUI: new ChatGPTBubbleUIAdapter(),
-      Toast: new ChatGPTToastAdapter(),
-      AppController: new ChatGPTAppControllerAdapter(),
-      Avatar: new ChatGPTAvatarAdapter(),
-      StandingImage: new ChatGPTStandingImageAdapter(),
-      Observer: new ChatGPTObserverAdapter(),
-      SettingsPanel: new ChatGPTSettingsPanelAdapter(),
-      FixedNav: new ChatGPTFixedNavAdapter(),
-      Timestamp: new ChatGPTTimestampAdapter(),
-      UIManager: new ChatGPTUIManagerAdapter(),
-    };
-
-    return {
-      CONSTANTS,
-      SITE_STYLES,
-      PlatformAdapters,
-    };
-  }
-
-  /**
-   * Returns definitions and adapters specifically for Gemini.
-   * @returns {PlatformDefinitions} The set of constants and adapters.
-   */
-  function defineGeminiValues() {
-    // =============================================================================
-    // SECTION: Platform Constants
-    // =============================================================================
-
-    // ---- Default Settings & Theme Configuration ----
-    const CONSTANTS = {
-      ...SHARED_CONSTANTS,
-      UI_SPECS: {
-        ...SHARED_CONSTANTS.UI_SPECS,
-        HEADER_POSITION_MIN_WIDTH: 960,
-      },
-      OBSERVER_OPTIONS: {
-        childList: true,
-        subtree: true,
-      },
-      Z_INDICES: {
-        ...SHARED_CONSTANTS.Z_INDICES,
-        BUBBLE_NAVIGATION: 'auto',
-        STANDING_IMAGE: 1,
-        NAV_CONSOLE: 500,
-      },
-      ATTRIBUTES: {
-        MESSAGE_ID: 'data-message-id',
-      },
-      SELECTORS: {
-        // --- Main containers ---
-        MAIN_APP_CONTAINER: 'bard-sidenav-content',
-        CHAT_WINDOW_CONTENT: 'chat-window-content',
-        CHAT_WINDOW: 'chat-window',
-        CHAT_HISTORY_MAIN: 'div#chat-history',
-        INPUT_CONTAINER: 'input-container',
-        // Root container for message search optimization
-        MESSAGES_ROOT: 'chat-history',
-
-        // --- Message containers ---
-        CONVERSATION_UNIT: 'user-query, model-response',
-        MESSAGE_ID_HOLDER: '[data-message-id]',
-        MESSAGE_ROOT_NODE: 'user-query, model-response',
-        USER_QUERY_CONTAINER: 'user-query-content',
-
-        // --- Selectors for messages ---
-        USER_MESSAGE: 'user-query',
-        ASSISTANT_MESSAGE: 'model-response',
-
-        // --- Selectors for finding elements to tag ---
-        RAW_USER_BUBBLE: '.user-query-bubble-with-background',
-        RAW_ASSISTANT_BUBBLE: '.response-container-with-gpi',
-
-        // --- Text content ---
-        USER_TEXT_CONTENT: '.query-text',
-        ASSISTANT_TEXT_CONTENT: '.markdown',
-        ASSISTANT_ANSWER_CONTENT: 'message-content.model-response-text',
-        VISUALLY_HIDDEN_TEXT: '.cdk-visually-hidden',
-
-        // --- Input area ---
-        INPUT_AREA_BG_TARGET: 'input-area-v2',
-        INPUT_TEXT_FIELD_TARGET: 'rich-textarea .ql-editor',
-        INPUT_RESIZE_TARGET: 'input-area-v2',
-
-        // --- Input area (Button Injection) ---
-        INSERTION_ANCHOR: 'input-area-v2 .trailing-actions-wrapper',
-
-        // --- Avatar area ---
-        AVATAR_USER: 'user-query',
-        AVATAR_ASSISTANT: 'model-response',
-
-        // --- Selectors for Avatar ---
-        SIDE_AVATAR_CONTAINER: '.side-avatar-container',
-        SIDE_AVATAR_CONTAINER_CLASS: 'side-avatar-container',
-        SIDE_AVATAR_ICON: '.side-avatar-icon',
-        SIDE_AVATAR_NAME: '.side-avatar-name',
-
-        // --- Other UI Selectors ---
-        SIDEBAR_WIDTH_TARGET: 'bard-sidenav',
-        // Used for CSS max-width application
-        CHAT_CONTENT_MAX_WIDTH: '.conversation-container',
-        // Used for standing image layout calculation
-        STANDING_IMAGE_ANCHOR: '.conversation-container user-query, .conversation-container model-response, .bot-info-card-container',
-        SCROLL_CONTAINER: null,
-
-        // --- Site Specific Selectors ---
-        CONVERSATION_TITLE_WRAPPER: '[data-test-id="conversation"].selected',
-        CONVERSATION_TITLE_TEXT: '.conversation-title',
-        CHAT_HISTORY_SCROLL_CONTAINER: '[data-test-id="chat-history-container"]',
-
-        // --- BubbleFeature-specific Selectors ---
-        BUBBLE_FEATURE_MESSAGE_CONTAINERS: 'user-query, model-response',
-
-        // --- FixedNav-specific Selectors ---
-        FIXED_NAV_INPUT_AREA_TARGET: 'input-area-v2',
-        FIXED_NAV_MESSAGE_CONTAINERS: 'user-query, model-response',
-        FIXED_NAV_ROLE_USER: 'user-query',
-        FIXED_NAV_ROLE_ASSISTANT: 'model-response',
-
-        // --- Turn Completion Selector ---
-        TURN_COMPLETE_SELECTOR: 'model-response message-actions',
-
-        // --- Canvas ---
-        CANVAS_CONTAINER: 'immersive-panel',
-        CANVAS_CLOSE_BUTTON: 'button[data-test-id="close-button"]',
-
-        // --- File Panel ---
-        FILE_PANEL_CONTAINER: 'context-sidebar',
-
-        // --- Gem Selectors ---
-        GEM_SELECTED_ITEM: 'bot-list-item.bot-list-item--selected',
-        GEM_NAME: '.bot-name',
-
-        // --- List Item Selectors for Observation ---
-        CHAT_HISTORY_ITEM: '[data-test-id="conversation"]',
-        GEM_LIST_ITEM: 'bot-list-item',
-
-        // --- Gem Manager ---
-        GEM_MANAGER_CONTAINER: 'all-bots',
-
-        // --- Auto Scroll ---
-        PROGRESS_BAR: 'mat-progress-bar[role="progressbar"]',
-
-        // --- Header Integration Selectors ---
-        HEADER_RIGHT_SECTION: 'top-bar-actions .right-section',
-      },
-      URL_PATTERNS: {
-        EXCLUDED: [],
-      },
-    };
-
-    // ---- Site-specific Style Variables ----
-    const UI_PALETTE = {
-      bg: 'var(--gem-sys-color--surface-container-highest)',
-      input_bg: 'var(--gem-sys-color--surface-container-low)',
-      text_primary: 'var(--gem-sys-color--on-surface)',
-      text_secondary: 'var(--gem-sys-color--on-surface-variant)',
-      border: 'var(--gem-sys-color--outline)',
-      border_medium: 'var(--gem-sys-color--outline)',
-      border_light: 'var(--gem-sys-color--outline-low)',
-      btn_bg: 'var(--gem-sys-color--surface-container-high)',
-      btn_hover_bg: 'var(--gem-sys-color--surface-container-higher)',
-      btn_text: 'var(--gem-sys-color--on-surface-variant)',
-      btn_border: 'var(--gem-sys-color--outline)',
-      toggle_bg_off: 'var(--gem-sys-color--surface-container)',
-      toggle_bg_on: 'var(--gem-sys-color--primary)',
-      toggle_knob: 'var(--gem-sys-color--on-primary-container)',
-      danger_text: 'var(--gem-sys-color--error)',
-      accent_text: 'var(--gem-sys-color--primary)',
-      loading_spinner: '#ffca28',
-      // Shared properties
-      slider_display_text: 'var(--gem-sys-color--on-surface)',
-      label_text: 'var(--gem-sys-color--on-surface-variant)',
-      error_text: 'var(--gem-sys-color--error)',
-      // Component Specifics: Settings Button
-      settings_btn_width: '40px',
-      settings_btn_height: '40px',
-      settings_btn_color: 'var(--mat-icon-button-icon-color, var(--mat-sys-on-surface-variant))',
-      settings_btn_hover_bg: 'color-mix(in srgb, var(--mat-icon-button-state-layer-color) 8%, transparent)',
-      // Component Specifics: Theme Modal
-      delete_confirm_btn_text: 'var(--gem-sys-color--on-error-container)',
-      delete_confirm_btn_bg: 'var(--gem-sys-color--error-container)',
-      delete_confirm_btn_hover_text: 'var(--gem-sys-color--on-error-container)',
-      delete_confirm_btn_hover_bg: 'var(--gem-sys-color--error-container)',
-      // Component Specifics: Fixed Nav
-      fixed_nav_bg: 'var(--gem-sys-color--surface-container)',
-      fixed_nav_border: 'var(--gem-sys-color--outline)',
-      fixed_nav_separator_bg: 'var(--gem-sys-color--outline)',
-      fixed_nav_label_text: 'var(--text-secondary)',
-      fixed_nav_counter_bg: 'var(--gem-sys-color--surface-container-high)',
-      fixed_nav_counter_text: 'var(--gem-sys-color--on-surface-variant)',
-      fixed_nav_counter_border: 'var(--gem-sys-color--outline)',
-      fixed_nav_assistant_text: '#e57373',
-      fixed_nav_btn_accent_text: 'var(--gem-sys-color--primary)',
-      fixed_nav_btn_danger_text: 'var(--gem-sys-color--error)',
-      fixed_nav_highlight_outline: 'var(--gem-sys-color--primary)',
-      fixed_nav_highlight_radius: '12px',
-      // Component Specifics: Jump List
-      jump_list_bg: 'var(--gem-sys-color--surface-container)',
-      jump_list_border: 'var(--gem-sys-color--outline)',
-      jump_list_hover_outline: 'var(--gem-sys-color--outline)',
-      jump_list_current_outline: 'var(--gem-sys-color--primary)',
-    };
-
-    const SITE_STYLES = {
-      PALETTE: UI_PALETTE,
-      Z_INDICES: CONSTANTS.Z_INDICES,
-    };
-
-    // =================================================================================
-    // SECTION: Platform-Specific Adapter Classes
-    // Description: Implementation of Base Adapters for Gemini.
-    // =================================================================================
-
-    class GeminiGeneralAdapter extends BaseGeneralAdapter {
-      /** @override */
-      isCanvasModeActive() {
-        return !!document.querySelector(CONSTANTS.SELECTORS.CANVAS_CONTAINER);
-      }
-
-      /** @override */
-      isExcludedPage() {
-        const excludedPatterns = CONSTANTS.URL_PATTERNS.EXCLUDED;
-        const pathname = window.location.pathname;
-        return excludedPatterns.some((pattern) => pattern.test(pathname));
-      }
-
-      /** @override */
-      isFilePanelActive() {
-        return !!document.querySelector(CONSTANTS.SELECTORS.FILE_PANEL_CONTAINER);
-      }
-
-      /** @override */
-      isNewChatPage() {
-        const path = window.location.pathname;
-        // 1. /app (Standard New Chat)
-        // 2. /gems/view (Gems List)
-        // 3. /gem/[GemID] (Gem Top - no ChatID)
-        return /^\/app\/?$/.test(path) || /^\/gems\/view\/?$/.test(path) || /^\/gem\/[^/]+\/?$/.test(path);
-      }
-
-      /** @override */
-      isChatPage() {
-        const path = window.location.pathname;
-        // 1. /app/[ChatID] (Standard Chat)
-        // 2. /gem/[GemID]/[ChatID] (Gem Chat)
-        return /^\/app\/[^/]+/.test(path) || /^\/gem\/[^/]+\/[^/]+/.test(path);
-      }
-
-      /** @override */
-      getMessagesRoot() {
-        const root = document.getElementById(CONSTANTS.SELECTORS.MESSAGES_ROOT);
-        return root instanceof HTMLElement ? root : document.body;
-      }
-
-      /** @override */
-      getMessageId(element) {
-        if (!element) return null;
-        return element.getAttribute(CONSTANTS.ATTRIBUTES.MESSAGE_ID);
-      }
-
-      /** @override */
-      getMessageRole(messageElement) {
-        if (!messageElement) return null;
-        return messageElement.tagName.toLowerCase();
-      }
-
-      /** @override */
-      getChatTitle() {
-        // 1. Try to get title from selected chat history item
-        const chatTitle = document.querySelector(CONSTANTS.SELECTORS.CONVERSATION_TITLE_WRAPPER)?.querySelector(CONSTANTS.SELECTORS.CONVERSATION_TITLE_TEXT)?.textContent.trim();
-        if (chatTitle) {
-          return chatTitle;
-        }
-
-        // 2. If no chat selected, try to get title from selected Gem
-        const selectedGem = document.querySelector(CONSTANTS.SELECTORS.GEM_SELECTED_ITEM);
-        if (selectedGem) {
-          return selectedGem.querySelector(CONSTANTS.SELECTORS.GEM_NAME)?.textContent.trim() ?? null;
-        }
-
-        // Return null if no specific chat or Gem is active (e.g., initial load or "New Chat" page).
-        // This signals the ThemeManager to apply the default theme set.
-        return null;
-      }
-
-      /** @override */
-      getJumpListDisplayText(messageElement) {
-        const tagName = messageElement.tagName.toLowerCase();
-
-        if (tagName === CONSTANTS.SELECTORS.ASSISTANT_MESSAGE) {
-          // Assistant (model-response)
-          // Gemini has a specific structure: try the main answer container first.
-          const answerContainer = messageElement.querySelector(CONSTANTS.SELECTORS.ASSISTANT_ANSWER_CONTENT);
-          if (answerContainer) {
-            const textEl = answerContainer.querySelector(CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT);
-            if (textEl) return textEl.textContent.trim();
-          }
-
-          // Fallback: Try finding text content directly if container structure varies
-          const fallbackTextEl = messageElement.querySelector(CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT);
-          if (fallbackTextEl) return fallbackTextEl.textContent.trim();
-        } else if (tagName === CONSTANTS.SELECTORS.USER_MESSAGE) {
-          // User (user-query)
-          const contentEl = messageElement.querySelector(CONSTANTS.SELECTORS.USER_TEXT_CONTENT);
-          if (contentEl) {
-            const clone = contentEl.cloneNode(true);
-            // Remove visually hidden elements to prevent screen reader text from appearing in the jump list
-            const hiddenElements = clone.querySelectorAll(CONSTANTS.SELECTORS.VISUALLY_HIDDEN_TEXT);
-            hiddenElements.forEach((el) => el.remove());
-            return clone.textContent.trim();
-          }
-        }
-
-        return '';
-      }
-
-      /** @override */
-      findMessageElement(contentElement) {
-        return contentElement.closest(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
-      }
-
-      /** @override */
-      initializeSentinel(callback) {
-        // prettier-ignore
-        const combinedSelector = [
-            `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE}`,
-            `${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_IMAGE_BUBBLE}`,
-            `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE}`,
-            `${CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE}`, // Assistant images are direct children usually
-          ].join(', ');
-
-        sentinel.on(combinedSelector, callback);
-
-        return () => {
-          sentinel.off(combinedSelector, callback);
-        };
-      }
-
-      /** @override */
-      scrollTo(element) {
-        const offset = CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV;
-        const behavior = 'auto';
-
-        // Use scrollIntoView + scroll-margin-top logic
-        const originalScrollMargin = element.style.scrollMarginTop;
-        element.style.scrollMarginTop = `${offset}px`;
-
-        element.scrollIntoView({ behavior, block: 'start' });
-
-        setTimeout(() => {
-          element.style.scrollMarginTop = originalScrollMargin;
-        }, CONSTANTS.TIMING.TIMEOUTS.SCROLL_OFFSET_CLEANUP);
-      }
-    }
-
-    class GeminiStyleManagerAdapter extends BaseStyleManagerAdapter {
-      /** @override */
-      getStaticCss(cls) {
-        return `
-          ${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} {
-              transition: background-image 0.3s ease-in-out;
-          }
-          /* This rule is now conditional on a body class, which is toggled by applyChatContentMaxWidth. */
-          body.${cls.maxWidthActive} ${CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH}{
-              max-width: var(${CSS_VARS.CHAT_CONTENT_MAX_WIDTH}) !important;
-              margin-inline: auto !important;
-          }
-
-          /* Ensure the user message container inside the turn expands and aligns the bubble to the right. */
-          ${CONSTANTS.SELECTORS.CHAT_HISTORY_MAIN} ${CONSTANTS.SELECTORS.USER_MESSAGE} {
-              width: 100% !important;
-              max-width: none !important;
-              display: flex !important;
-              justify-content: flex-end !important;
-          }
-
-          /* Make content areas transparent to show the main background */
-          ${CONSTANTS.SELECTORS.CHAT_WINDOW},
-          ${CONSTANTS.SELECTORS.INPUT_CONTAINER},
-          ${CONSTANTS.SELECTORS.INPUT_AREA_BG_TARGET},
-          ${CONSTANTS.SELECTORS.GEM_MANAGER_CONTAINER},
-          ${CONSTANTS.SELECTORS.GEM_MANAGER_CONTAINER} > .container {
-              background: none !important;
-          }
-
-          /* Forcefully hide the gradient pseudo-element on the input container */
-          ${CONSTANTS.SELECTORS.INPUT_CONTAINER}::before {
-              display: none !important;
-          }
-        `;
-      }
-
-      /** @override */
-      getBubbleCss(cls) {
-        return StyleTemplates.getBubbleUiCss(cls, {
-          // Gemini: Parent is specifically the model-response element
-          collapsibleParentSelector: `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE}.${cls.collapsibleParent}`,
-          // Gemini: Collapsible button is only for assistant
-          collapsibleBtnExtraCss: `
-              .${cls.collapsibleBtn} {
-                  left: 4px;
-              }
-            `,
-          // Gemini: Content area needs overflow handling
-          collapsibleCollapsedContentExtraCss: 'overflow-y: auto;',
-        });
-      }
-    }
-
-    class GeminiThemeManagerAdapter extends BaseThemeManagerAdapter {
-      /** @override */
-      shouldDeferInitialTheme(themeManager) {
-        // This issue is specific to ChatGPT's title behavior, so Gemini never defers.
-        return false;
-      }
-
-      /** @override */
-      selectThemeForUpdate(themeManager, config, urlChanged, titleChanged) {
-        // If the URL has changed, we must invalidate the cache to allow 'urlPatterns' (and 'matchPatterns') to be re-evaluated against the new context.
-        if (urlChanged) {
-          themeManager.cachedThemeSet = null;
-        }
-
-        // Always return the evaluated theme set.
-        return themeManager.getThemeSet();
-      }
-
-      /** @override */
-      getStyleOverrides() {
-        // The default block alignment is sufficient for Gemini.
-        return {};
-      }
-    }
-
-    class GeminiBubbleUIAdapter extends BaseBubbleUIAdapter {
-      /** @override */
-      getNavPositioningParent(messageElement) {
-        const role = PlatformAdapters.General.getMessageRole(messageElement);
-
-        if (role === CONSTANTS.SELECTORS.USER_MESSAGE) {
-          // For user messages, use the specific content container as the positioning context.
-          const container = messageElement.querySelector(CONSTANTS.SELECTORS.USER_QUERY_CONTAINER);
-          return container instanceof HTMLElement ? container : null;
-        } else {
-          // For model-response, the element itself remains the correct context.
-          return messageElement;
-        }
-      }
-
-      /** @override */
-      getCollapsibleInfo(messageElement) {
-        if (messageElement.tagName.toLowerCase() !== CONSTANTS.SELECTORS.ASSISTANT_MESSAGE) {
-          return null;
-        }
-
-        const bubbleElement = messageElement.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE);
-        if (!(bubbleElement instanceof HTMLElement)) return null;
-
-        // For Gemini, the messageElement serves as both msgWrapper and positioningParent
-        return {
-          msgWrapper: messageElement,
-          bubbleElement,
-          positioningParent: messageElement,
-        };
-      }
-    }
-
-    class GeminiToastAdapter extends BaseToastAdapter {
-      /** @override */
-      getAutoScrollMessage() {
-        return 'Auto-scrolling to load history...';
-      }
-
-      /** @override */
-      getToastPositionX() {
-        // Use the input resize target (input-area-v2)
-        const inputArea = document.querySelector(CONSTANTS.SELECTORS.INPUT_RESIZE_TARGET);
-        if (inputArea instanceof HTMLElement && inputArea.offsetWidth > 0) {
-          const rect = inputArea.getBoundingClientRect();
-          return rect.left + rect.width / 2;
-        }
-        return null;
-      }
-    }
-
-    class GeminiAppControllerAdapter extends BaseAppControllerAdapter {
-      /** @override */
-      initializePlatformManagers(controller) {
-        // =================================================================================
-        // SECTION: Auto Scroll Manager
-        // Description: Manages the auto-scrolling feature to load the entire chat history.
-        // =================================================================================
-
-        /**
-         * @class AutoScrollManager
-         * @extends BaseAutoScrollManager
-         */
-        class AutoScrollManager extends BaseAutoScrollManager {
-          static CONFIG = {
-            // The minimum number of messages required to trigger the auto-scroll feature.
-            MESSAGE_THRESHOLD: 20,
-            // The maximum time (in ms) to wait for the progress bar to appear after scrolling up.
-            APPEAR_TIMEOUT_MS: 2000,
-            // The maximum time (in ms) to wait for the progress bar to disappear after it has appeared.
-            DISAPPEAR_TIMEOUT_MS: 5000,
-            // The maximum time (in ms) to wait for Canvas to close before aborting scroll.
-            CANVAS_CLOSE_TIMEOUT_MS: 1000,
-          };
-
-          /**
-           * @param {ConfigManager} configManager
-           * @param {MessageCacheManager} messageCacheManager
-           * @param {ToastManager} toastManager
-           */
-          constructor(configManager, messageCacheManager, toastManager) {
-            super(configManager, messageCacheManager);
-            this.toastManager = toastManager;
-            this.scrollContainer = null;
-            this.observerContainer = null;
-            this.toastShown = false;
-            this.isInitialScrollCheckDone = false;
-            this.boundStop = null;
-            this.PROGRESS_BAR_SELECTOR = CONSTANTS.SELECTORS.PROGRESS_BAR;
-            this.progressObserver = null;
-            this.appearTimeout = null;
-            this.disappearTimeout = null;
-          }
-
-          /** @override */
-          _onInit() {
-            super._onInit();
-            this._subscribe(EVENTS.STREAMING_START, () => this._onStreamingStart());
-            this.isInitialScrollCheckDone = false;
-          }
-
-          async start() {
-            if (this.isScrolling) return;
-
-            // Canvas (Immersive Panel) Handling
-            // If Canvas is open, it changes the DOM structure and causes freezing during scroll.
-            // We must close it before starting the scroll process.
-            const canvas = document.querySelector(CONSTANTS.SELECTORS.CANVAS_CONTAINER);
-            if (canvas) {
-              Logger.debug('AUTOSCROLL', LOG_STYLES.CYAN, 'Canvas detected. Attempting to close...');
-
-              // Scope the search strictly within the canvas container to avoid false positives
-              const closeBtn = canvas.querySelector(CONSTANTS.SELECTORS.CANVAS_CLOSE_BUTTON);
-
-              if (closeBtn instanceof HTMLElement) {
-                closeBtn.click();
-                // Notify user about the action
-                if (this.toastManager) {
-                  this.toastManager.show('Canvas closed for auto-scroll', false);
-                }
-
-                // Wait for Canvas to disappear from DOM
-                const startWait = Date.now();
-                while (document.querySelector(CONSTANTS.SELECTORS.CANVAS_CONTAINER)) {
-                  if (Date.now() - startWait > AutoScrollManager.CONFIG.CANVAS_CLOSE_TIMEOUT_MS) {
-                    Logger.warn('AUTOSCROLL', LOG_STYLES.YELLOW, 'Timed out waiting for Canvas to close. Aborting scroll.');
-                    return;
-                  }
-                  await new Promise((r) => requestAnimationFrame(r));
-                }
-              } else {
-                Logger.warn('AUTOSCROLL', LOG_STYLES.YELLOW, 'Canvas active but close button not found. Aborting scroll to prevent freeze.');
-                return;
-              }
-            }
-
-            // Set the flag immediately to prevent re-entrancy from other events.
-            this.isScrolling = true;
-
-            // Polling to find both the observer container and scroll container.
-            // Maximum wait: 3 seconds (60 attempts * 50ms)
-            let attempts = 0;
-            const maxAttempts = 60;
-            let parentContainer = null;
-            let childContainer = null;
-
-            while (attempts < maxAttempts) {
-              if (!this.isScrolling) return; // Abort if cancelled during polling
-
-              parentContainer = document.querySelector(CONSTANTS.SELECTORS.CHAT_WINDOW_CONTENT);
-              if (parentContainer instanceof HTMLElement) {
-                childContainer = parentContainer.querySelector(CONSTANTS.SELECTORS.CHAT_HISTORY_SCROLL_CONTAINER);
-                if (childContainer instanceof HTMLElement) {
-                  // Both parent and child are ready in the DOM
-                  break;
-                }
-              }
-
-              await new Promise((r) => setTimeout(r, 50));
-              attempts++;
-            }
-
-            if (!(parentContainer instanceof HTMLElement) || !(childContainer instanceof HTMLElement)) {
-              Logger.warn('AUTOSCROLL WARN', LOG_STYLES.YELLOW, 'Could not find required containers.');
-              // Reset flags to allow re-triggering
-              this.isInitialScrollCheckDone = false;
-              this.isScrolling = false;
-              return;
-            }
-
-            // --- Yield to Render Pipeline for UI Stabilization ---
-            // Wait for the framework (e.g. Angular) to finish its internal DOM manipulation
-            // (like auto-scrolling to the bottom of the new messages) before we intercept it.
-            // This prevents race conditions where our scroll up is immediately overwritten by the framework's scroll down.
-            await new Promise((r) => requestAnimationFrame(r)); // 1. Queue into render cycle
-            await new Promise((r) => setTimeout(r, 0)); // 2. Clear macro-task queue (force framework tasks to execute)
-            await new Promise((r) => requestAnimationFrame(r)); // 3. Wait for the next paint to ensure UI is stable
-
-            if (!this.isScrolling) return; // Final abort check after yielding
-
-            this.observerContainer = parentContainer;
-            this.scrollContainer = childContainer;
-
-            Logger.log('', '', 'AutoScrollManager: Starting auto-scroll with MutationObserver.');
-            this.toastShown = false;
-
-            EventBus.publish(EVENTS.SUSPEND_OBSERVERS);
-
-            // Hide the container to prevent visual flickering
-            this.scrollContainer.style.transition = 'none';
-            this.scrollContainer.style.opacity = '0';
-
-            this.boundStop = () => this.stop(false);
-            this.scrollContainer.addEventListener('wheel', this.boundStop, { passive: true, once: true });
-            this.scrollContainer.addEventListener('touchmove', this.boundStop, { passive: true, once: true });
-
-            this._startObserver();
-            this._triggerScroll();
-          }
-
-          stop(isNavigation) {
-            if (!this.isScrolling && !this.progressObserver) return; // Prevent multiple stops
-
-            Logger.log('', '', 'AutoScrollManager: Stopping auto-scroll.');
-            this.isScrolling = false;
-            this.toastShown = false;
-
-            // Restore visibility
-            if (this.scrollContainer instanceof HTMLElement) {
-              this.scrollContainer.style.opacity = '1';
-              this.scrollContainer.style.transition = '';
-            }
-
-            // Cleanup listeners and observers
-            if (this.boundStop) {
-              this.scrollContainer?.removeEventListener('wheel', this.boundStop);
-              this.scrollContainer?.removeEventListener('touchmove', this.boundStop);
-              this.boundStop = null;
-            }
-            this.progressObserver?.disconnect();
-            this.progressObserver = null;
-            clearTimeout(this.appearTimeout);
-            clearTimeout(this.disappearTimeout);
-            this.appearTimeout = null;
-            this.disappearTimeout = null;
-
-            this.scrollContainer = null;
-            this.observerContainer = null;
-
-            EventBus.publish(EVENTS.AUTO_SCROLL_COMPLETE);
-
-            // On navigation, ObserverManager handles observer resumption.
-            if (!isNavigation) {
-              EventBus.publish(EVENTS.RESUME_OBSERVERS);
-              // Ensure the theme is re-evaluated and applied after scrolling is complete and observers are resumed.
-              EventBus.publish(EVENTS.THEME_UPDATE);
-            }
-          }
-
-          // Starts the MutationObserver to watch for the progress bar.
-          _startObserver() {
-            if (this.progressObserver) this.progressObserver.disconnect();
-
-            const observerCallback = (mutations) => {
-              for (const mutation of mutations) {
-                this._handleProgressChange(mutation.addedNodes, mutation.removedNodes);
-              }
-            };
-
-            this.progressObserver = new MutationObserver(observerCallback);
-            this.progressObserver.observe(this.observerContainer, {
-              childList: true,
-              subtree: true,
-            });
-          }
-
-          /**
-           * Handles the appearance and disappearance of the progress bar.
-           * @param {NodeList} addedNodes
-           * @param {NodeList} removedNodes
-           */
-          _handleProgressChange(addedNodes, removedNodes) {
-            const progressBarAppeared = Array.from(addedNodes).some((node) => {
-              if (node instanceof Element) {
-                return node.matches(this.PROGRESS_BAR_SELECTOR) || node.querySelector(this.PROGRESS_BAR_SELECTOR);
-              }
-              return false;
-            });
-            const progressBarDisappeared = Array.from(removedNodes).some((node) => {
-              if (node instanceof Element) {
-                return node.matches(this.PROGRESS_BAR_SELECTOR) || node.querySelector(this.PROGRESS_BAR_SELECTOR);
-              }
-              return false;
-            });
-
-            if (progressBarAppeared) {
-              Logger.debug('AUTOSCROLL', LOG_STYLES.CYAN, 'Progress bar appeared.');
-              clearTimeout(this.appearTimeout); // Cancel the "end of history" timer
-              if (!this.toastShown) {
-                EventBus.publish(EVENTS.AUTO_SCROLL_START);
-                this.toastShown = true;
-              }
-              // Set a safety timeout in case loading gets stuck
-              this.disappearTimeout = setTimeout(() => {
-                Logger.warn('', '', 'AutoScrollManager: Timed out waiting for progress bar to disappear. Stopping.');
-                this.stop(false);
-              }, AutoScrollManager.CONFIG.DISAPPEAR_TIMEOUT_MS);
-            }
-
-            if (progressBarDisappeared) {
-              Logger.debug('AUTOSCROLL', LOG_STYLES.CYAN, 'Progress bar disappeared.');
-              clearTimeout(this.disappearTimeout); // Cancel the "stuck" timer
-              this._triggerScroll(); // Trigger the next scroll
-            }
-          }
-
-          // Scrolls the container to the top and sets a timeout to check if loading has started.
-          _triggerScroll() {
-            if (!this.isScrolling || !this.scrollContainer) return;
-            this.scrollContainer.scrollTop = 0;
-
-            // Set a timeout to detect the end of the history. If the progress bar
-            // doesn't appear within this time, we assume there's no more content to load.
-            this.appearTimeout = setTimeout(() => {
-              Logger.log('', '', 'AutoScrollManager: Progress bar did not appear. Assuming scroll is complete.');
-              this.stop(false);
-            }, AutoScrollManager.CONFIG.APPEAR_TIMEOUT_MS);
-          }
-
-          /** @override */
-          _onCacheUpdated() {
-            if (!this.isEnabled || this.isInitialScrollCheckDone) {
-              return;
-            }
-
-            const messageCount = this.messageCacheManager.getTotalMessages().length;
-
-            // Wait for at least one message to ensure history has started loading (First Paint logic)
-            if (messageCount === 0) return;
-
-            // Latch on first data: Mark initialization as done immediately regardless of threshold.
-            this.isInitialScrollCheckDone = true;
-
-            if (messageCount >= AutoScrollManager.CONFIG.MESSAGE_THRESHOLD) {
-              Logger.log('', '', `AutoScrollManager: ${messageCount} messages found. Triggering auto-scroll.`);
-              EventBus.publish(EVENTS.AUTO_SCROLL_REQUEST);
-            } else {
-              Logger.log('', '', `AutoScrollManager: ${messageCount} messages found (below threshold). Auto-scroll skipped.`);
-            }
-          }
-
-          /**
-           * @private
-           * @description Handles the STREAMING_START event to prevent auto-scroll from misfiring.
-           * Once the user starts interacting (which causes streaming), we consider the "initial" phase over.
-           */
-          _onStreamingStart() {
-            // If streaming starts (e.g., user sends a new message), permanently disable the
-            // initial auto-scroll check for this page load.
-            if (!this.isInitialScrollCheckDone) {
-              Logger.log('', '', 'AutoScrollManager: Streaming detected. Disabling initial auto-scroll check.');
-              this.isInitialScrollCheckDone = true;
-            }
-          }
-
-          /** @override */
-          _onNavigation() {
-            if (this.isScrolling) {
-              // Stop scroll without triggering a UI refresh, as a new page is loading.
-              this.stop(true);
-            }
-            this.isInitialScrollCheckDone = false;
-          }
-        }
-        // Inject toastManager into the constructor
-        controller.autoScrollManager = controller.manageFactory(CONSTANTS.RESOURCE_KEYS.AUTO_SCROLL_MANAGER, () => new AutoScrollManager(controller.configManager, controller.messageCacheManager, controller.toastManager));
-      }
-
-      /** @override */
-      applyPlatformSpecificUiUpdates(controller, newConfig) {
-        // Enable or disable the auto-scroll manager based on the new config.
-        if (newConfig.platforms[PLATFORM].features.load_full_history_on_chat_load.enabled) {
-          controller.autoScrollManager?.enable();
-        } else {
-          controller.autoScrollManager?.disable();
-        }
-      }
-    }
-
-    class GeminiAvatarAdapter extends BaseAvatarAdapter {
-      /** @override */
-      getCss() {
-        const extraCss = `
-          /* Gemini Only: force user message and avatar to be top-aligned */
-          ${CONSTANTS.SELECTORS.AVATAR_USER} {
-              align-items: flex-start !important;
-          }
-          ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {
-              align-self: flex-start !important;
-          }
-        `;
-        return StyleTemplates.getAvatarCss(extraCss);
-      }
-
-      /** @override */
-      measureAvatarTarget(msgElem) {
-        // The guard should only check for the existence of the avatar container itself.
-        if (msgElem.getElementsByClassName(CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER_CLASS).length > 0) {
-          // (Logic adapted: Return context to ensure processed check is maintained, but do not inject)
-          return {
-            shouldInject: false,
-            targetElement: null,
-            processedTarget: msgElem,
-            exclusionKey: msgElem,
-            originalElement: msgElem,
-          };
-        }
-
-        return {
-          shouldInject: true,
-          targetElement: msgElem,
-          processedTarget: msgElem,
-          exclusionKey: msgElem,
-          originalElement: msgElem,
-        };
-      }
-
-      /** @override */
-      injectAvatar(measurement, avatarContainer) {
-        const { shouldInject, targetElement } = measurement;
-
-        // Add the container to the message element
-        if (shouldInject && targetElement && avatarContainer) {
-          targetElement.prepend(avatarContainer);
-        }
-      }
-    }
-
-    class GeminiStandingImageAdapter extends BaseStandingImageAdapter {
-      /** @override */
-      async recalculateLayout(instance) {
-        // Handle early exits that don't require measurement.
-        const v = instance.style.vars;
-        const cls = instance.style.classes;
-
-        if (PlatformAdapters.General.isCanvasModeActive() || PlatformAdapters.General.isFilePanelActive()) {
-          const rootStyle = document.documentElement.style;
-          rootStyle.setProperty(v.assistantWidth, '0px');
-          rootStyle.setProperty(v.userWidth, '0px');
-          return;
-        }
-
-        await withLayoutCycle({
-          measure: () => {
-            // --- Read Phase ---
-            const chatArea = document.querySelector(CONSTANTS.SELECTORS.MAIN_APP_CONTAINER);
-
-            // Find the message area using priority selectors defined in STANDING_IMAGE_ANCHOR
-            const selectors = CONSTANTS.SELECTORS.STANDING_IMAGE_ANCHOR.split(',').map((s) => s.trim());
-            let messageArea = null;
-            for (const selector of selectors) {
-              messageArea = document.querySelector(selector);
-              if (messageArea) break;
-            }
-
-            if (!chatArea || !messageArea) return null; // Signal to mutate to reset styles.
-
-            const assistantImg = document.getElementById(cls.assistantImageId);
-            const userImg = document.getElementById(cls.userImageId);
-
-            return {
-              chatRect: chatArea.getBoundingClientRect(),
-              messageRect: messageArea.getBoundingClientRect(),
-              windowHeight: window.innerHeight,
-              assistantImgHeight: assistantImg ? assistantImg.offsetHeight : 0,
-              userImgHeight: userImg ? userImg.offsetHeight : 0,
-            };
-          },
-          mutate: (measured) => {
-            // --- Write Phase ---
-            if (instance.isDestroyed) return;
-            const rootStyle = document.documentElement.style;
-
-            if (!measured) {
-              rootStyle.setProperty(v.assistantWidth, '0px');
-              rootStyle.setProperty(v.userWidth, '0px');
-              return;
-            }
-
-            const { chatRect, messageRect, windowHeight, assistantImgHeight, userImgHeight } = measured;
-
-            // Set Assistant base position (Platform specific)
-            rootStyle.setProperty(v.assistantLeft, `${chatRect.left}px`);
-
-            // Calculate available widths
-            const assistantAvailableWidth = messageRect.left - chatRect.left;
-            const userAvailableWidth = chatRect.right - messageRect.right;
-
-            // Delegate common calculation
-            StandingImageLayout.apply(instance, {
-              assistantAvailableWidth,
-              userAvailableWidth,
-              assistantImgHeight,
-              userImgHeight,
-              windowHeight,
-            });
-          },
-        });
-      }
-
-      /** @override */
-      updateVisibility(instance) {
-        const isCanvasActive = PlatformAdapters.General.isCanvasModeActive();
-        const isFilePanelActive = PlatformAdapters.General.isFilePanelActive();
-        const cls = instance.style.classes;
-        const v = instance.style.vars;
-
-        [cls.userImageId, cls.assistantImageId].forEach((id) => {
-          const imgElement = document.getElementById(id);
-          if (!imgElement) return;
-
-          const isUser = id === cls.userImageId;
-          const varName = isUser ? v.userImage : v.assistantImage;
-
-          const hasImage = !!document.documentElement.style.getPropertyValue(varName);
-          imgElement.style.opacity = hasImage && !isCanvasActive && !isFilePanelActive && !instance.isAutoScrolling ? '1' : '0';
-        });
-      }
-
-      /** @override */
-      setupEventListeners(instance) {
-        // Gemini-specific: Subscribe to cacheUpdated because this platform's updateVisibility() logic depends on the message count.
-        // Use scheduleUpdate to ensure layout is also recalculated after navigation or DOM updates.
-        instance.registerPlatformListener(EVENTS.CACHE_UPDATED, instance.scheduleUpdate);
-      }
-    }
-
-    class GeminiObserverAdapter extends BaseObserverAdapter {
-      /**
-       * @private
-       * @description Starts a stateful observer to detect the appearance and disappearance of panels (Immersive/File) using a high-performance hybrid approach.
-       * @param {object} dependencies The required methods from ObserverManager.
-       * @returns {() => void} A cleanup function.
-       */
-      startPanelObserver(dependencies) {
-        // Use shared logic from ObserverManager via dependencies
-        return dependencies.startGenericPanelObserver({
-          triggerSelector: `${CONSTANTS.SELECTORS.CANVAS_CONTAINER}, ${CONSTANTS.SELECTORS.FILE_PANEL_CONTAINER}`, // Trigger (Panel itself)
-          observerType: CONSTANTS.OBSERVED_ELEMENT_TYPES.SIDE_PANEL,
-          targetResolver: (el) => el, // Target Resolver (The trigger is the panel)
-          immediateCallback: () => EventBus.publish(EVENTS.VISIBILITY_RECHECK),
-        });
-      }
-
-      /**
-       * @param {object} dependencies The dependencies passed from ObserverManager (unused in this method).
-       * @private
-       * @description Sets up a targeted observer on the sidebar for title and selection changes.
-       * @returns {() => void} A cleanup function.
-       */
-      startSidebarObserver(dependencies) {
-        let resizeObserver = null;
-        let titleObserver = null;
-        const debouncedTitleUpdate = debounce(() => EventBus.publish(EVENTS.TITLE_CHANGED), CONSTANTS.TIMING.DEBOUNCE_DELAYS.THEME_UPDATE, true);
-
-        const setupObserver = (sidebar) => {
-          resizeObserver?.disconnect();
-          titleObserver?.disconnect();
-
-          let lastWidth = -1;
-          let lastHeight = -1;
-
-          // 1. Layout Observer (ResizeObserver)
-          resizeObserver = new ResizeObserver((entries) => {
-            let layoutChanged = false;
-            for (const entry of entries) {
-              // Only fire if size actually changed
-              const { width, height } = entry.contentRect;
-              if (width !== lastWidth || height !== lastHeight) {
-                lastWidth = width;
-                lastHeight = height;
-                layoutChanged = true;
-              }
-            }
-            if (layoutChanged) {
-              EventBus.publish(EVENTS.SIDEBAR_LAYOUT_CHANGED);
-            }
-          });
-          resizeObserver.observe(sidebar);
-
-          // 2. Title/Selection Observer (MutationObserver)
-          titleObserver = new MutationObserver((mutations) => {
-            let titleChanged = false;
-
-            for (const mutation of mutations) {
-              const target = mutation.target;
-
-              // Check for class changes on list items (Selection change implies title change)
-              if (mutation.type === 'attributes' && mutation.attributeName === 'class' && target instanceof Element) {
-                if (target.matches(CONSTANTS.SELECTORS.CHAT_HISTORY_ITEM) || target.matches(CONSTANTS.SELECTORS.GEM_LIST_ITEM)) {
-                  titleChanged = true;
-                }
-              }
-              // Check for title text changes (Renaming)
-              if (mutation.type === 'characterData' && target.parentElement?.matches(CONSTANTS.SELECTORS.CONVERSATION_TITLE_TEXT)) {
-                titleChanged = true;
-              }
-            }
-
-            if (titleChanged) {
-              debouncedTitleUpdate();
-            }
-          });
-
-          titleObserver.observe(sidebar, {
-            attributes: true,
-            attributeFilter: ['class'], // Only watch class for selection state
-            characterData: true, // For title text changes
-            subtree: true, // Needed for deep text nodes and list items
-            childList: false,
-          });
-
-          // Initial triggers
-          debouncedTitleUpdate();
-          EventBus.publish(EVENTS.SIDEBAR_LAYOUT_CHANGED);
-        };
-
-        const selector = CONSTANTS.SELECTORS.SIDEBAR_WIDTH_TARGET;
-        sentinel.on(selector, setupObserver);
-
-        const existingSidebar = document.querySelector(selector);
-        if (existingSidebar) {
-          setupObserver(existingSidebar);
-        }
-
-        return () => {
-          sentinel.off(selector, setupObserver);
-          resizeObserver?.disconnect();
-          titleObserver?.disconnect();
-        };
-      }
-
-      /**
-       * @private
-       * @description Starts a stateful observer for the input area to detect resizing and DOM reconstruction (button removal).
-       * @param {object} dependencies The ObserverManager dependencies.
-       * @returns {() => void} A cleanup function.
-       */
-      startInputAreaObserver(dependencies) {
-        // Use shared logic from ObserverManager via dependencies
-        return dependencies.startGenericInputAreaObserver({
-          triggerSelector: CONSTANTS.SELECTORS.INPUT_RESIZE_TARGET,
-          resizeTargetSelector: CONSTANTS.SELECTORS.INPUT_RESIZE_TARGET,
-        });
-      }
-
-      /** @override */
-      getPlatformObserverStarters() {
-        // prettier-ignore
-        return [
-          this.startSidebarObserver,
-          this.startPanelObserver,
-          this.startInputAreaObserver,
-        ];
-      }
-
-      /** @override */
-      isTurnComplete(turnNode) {
-        // In Gemini, a single turn container can include the user message.
-        // Therefore, a turn is considered complete *only* when the assistant's
-        // action buttons are present, regardless of whether a user message exists.
-        const assistantActions = turnNode.querySelector(CONSTANTS.SELECTORS.TURN_COMPLETE_SELECTOR);
-        return !!assistantActions;
-      }
-    }
-
-    class GeminiSettingsPanelAdapter extends BaseSettingsPanelAdapter {
-      /** @override */
-      getPlatformSpecificFeatureToggles() {
-        return [{ configKey: 'features.load_full_history_on_chat_load.enabled' }];
-      }
-    }
-
-    class GeminiFixedNavAdapter extends BaseFixedNavAdapter {
-      /** @override */
-      isHeaderPositionAvailable(navConsoleWidth) {
-        // 1. Check for panels that compress the layout (Canvas or File Panel)
-        if (PlatformAdapters.General.isCanvasModeActive() || PlatformAdapters.General.isFilePanelActive()) {
-          return false;
-        }
-
-        // 2. Check available width in the main container (accounts for sidebar)
-        const container = document.querySelector(CONSTANTS.SELECTORS.MAIN_APP_CONTAINER);
-        if (container instanceof HTMLElement) {
-          return container.offsetWidth >= CONSTANTS.UI_SPECS.HEADER_POSITION_MIN_WIDTH;
-        }
-
-        // Fallback to window width if container not found
-        return window.innerWidth >= CONSTANTS.UI_SPECS.HEADER_POSITION_MIN_WIDTH;
-      }
-
-      /** @override */
-      getNavAnchorContainer() {
-        // Target the right section of the top bar actions
-        const el = document.querySelector(CONSTANTS.SELECTORS.HEADER_RIGHT_SECTION);
-        return el instanceof HTMLElement ? el : null;
-      }
-
-      /** @override */
-      handleInfiniteScroll(fixedNavManagerInstance, highlightedMessage, previousTotalMessages) {
-        const currentTotalMessages = fixedNavManagerInstance.messageCacheManager.getTotalMessages().length;
-
-        // If new messages have been loaded (scrolled up), and a message is currently highlighted.
-        if (currentTotalMessages > previousTotalMessages && highlightedMessage) {
-          // Re-calculate the indices based on the updated (larger) message cache.
-          fixedNavManagerInstance.setHighlightAndIndices(highlightedMessage);
-        }
-      }
-
-      /** @override */
-      getPlatformSpecificButtons(fixedNavManagerInstance, styleHandle) {
-        const cls = styleHandle.classes;
-        const autoscrollBtn = h(
-          `button#${cls.autoscrollBtnId}.${cls.btn}`,
-          {
-            title: 'Load full chat history',
-            dataset: { [CONSTANTS.DATA_KEYS.ORIGINAL_TITLE]: 'Load full chat history' },
-            onclick: () => EventBus.publish(EVENTS.AUTO_SCROLL_REQUEST),
-          },
-          [createIconFromDef(StyleDefinitions.ICONS.scrollToTop)]
-        );
-
-        return [autoscrollBtn];
-      }
-
-      /** @override */
-      updatePlatformSpecificButtonState(autoscrollBtn, isAutoScrolling, autoScrollManager) {
-        autoscrollBtn.disabled = isAutoScrolling;
-
-        if (isAutoScrolling) {
-          autoscrollBtn.title = 'Loading history...';
-        } else {
-          autoscrollBtn.title = DomState.get(autoscrollBtn, CONSTANTS.DATA_KEYS.ORIGINAL_TITLE);
-        }
-      }
-    }
-
-    class GeminiTimestampAdapter extends BaseTimestampAdapter {
-      // No-op adapter, inherits defaults
-    }
-
-    class GeminiUIManagerAdapter extends BaseUIManagerAdapter {
-      /** @override */
-      ensureButtonPlacement(settingsButton) {
-        ensureSettingsButtonPlacement(settingsButton, CONSTANTS.SELECTORS.INSERTION_ANCHOR, PlatformAdapters.General.isExcludedPage);
-      }
-    }
-
-    const PlatformAdapters = {
-      General: new GeminiGeneralAdapter(),
-      StyleManager: new GeminiStyleManagerAdapter(),
-      ThemeManager: new GeminiThemeManagerAdapter(),
-      BubbleUI: new GeminiBubbleUIAdapter(),
-      Toast: new GeminiToastAdapter(),
-      AppController: new GeminiAppControllerAdapter(),
-      Avatar: new GeminiAvatarAdapter(),
-      StandingImage: new GeminiStandingImageAdapter(),
-      Observer: new GeminiObserverAdapter(),
-      SettingsPanel: new GeminiSettingsPanelAdapter(),
-      FixedNav: new GeminiFixedNavAdapter(),
-      Timestamp: new GeminiTimestampAdapter(),
-      UIManager: new GeminiUIManagerAdapter(),
-    };
-
-    return {
-      CONSTANTS,
-      SITE_STYLES,
-      PlatformAdapters,
-    };
-  }
 })();
