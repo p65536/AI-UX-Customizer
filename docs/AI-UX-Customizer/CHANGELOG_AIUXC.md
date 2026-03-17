@@ -3,6 +3,13 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b543] - 2026-03-17
+- **Bug Fixes**
+  - Fixed an issue where an invalid custom icon size could cause display errors, ensuring the layout safely reverts to the default size.
+  - Resolved a potential crash related to reading configuration settings during the initialization of the auto-scroll feature.
+- **Core Changes**
+  - Improved the internal handling of image processing options to prevent unintended behaviors and enhance overall script stability.
+
 ## [1.0.0-b542] - 2026-03-17
 - **Core Changes**
   - Improved the internal scrolling logic for better reliability and consistency across both ChatGPT and Gemini.

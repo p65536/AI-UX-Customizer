@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b542
+// @version      1.0.0-b543
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -6404,7 +6404,11 @@
      * @returns {number}
      */
     getIconSize() {
-      return this.config?.platforms?.[PLATFORM]?.options?.icon_size || CONSTANTS.UI_SPECS.AVATAR.DEFAULT_SIZE;
+      const size = this.config?.platforms?.[PLATFORM]?.options?.icon_size;
+      if (typeof size === 'number' && CONSTANTS.UI_SPECS.AVATAR.SIZE_OPTIONS.includes(size)) {
+        return size;
+      }
+      return CONSTANTS.UI_SPECS.AVATAR.DEFAULT_SIZE;
     }
 
     /**
@@ -6654,9 +6658,9 @@
         return url; // Return data URIs or other values directly
       }
 
-      const width = resizeOptions?.width;
-      const height = resizeOptions?.height;
-      const signal = resizeOptions?.signal;
+      const width = resizeOptions.width;
+      const height = resizeOptions.height;
+      const signal = resizeOptions.signal;
 
       const cacheKey = width ? `${url}|w=${width},h=${height}` : url;
 
@@ -17054,7 +17058,7 @@
     }
 
     _onInit() {
-      this.isEnabled = this.configManager.get().platforms[PLATFORM].features.load_full_history_on_chat_load.enabled;
+      this.isEnabled = Boolean(this.configManager.get()?.platforms?.[PLATFORM]?.features?.load_full_history_on_chat_load?.enabled);
       this._subscribe(EVENTS.AUTO_SCROLL_REQUEST, () => this.start());
       this._subscribe(EVENTS.AUTO_SCROLL_CANCEL_REQUEST, () => this.stop(false));
       this._subscribe(EVENTS.CACHE_UPDATED, () => this._onCacheUpdated());
