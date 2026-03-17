@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b535
+// @version      1.0.0-b536
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -6857,9 +6857,12 @@
             this.totalMessages = [];
 
             // Fetch all candidates in document order and classify using the adapter
-            const allCandidates = Array.from(rootContainer.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS)).filter((el) => el instanceof HTMLElement);
+            const allCandidates = rootContainer.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
 
-            for (const msg of allCandidates) {
+            for (let i = 0; i < allCandidates.length; i++) {
+                const msg = allCandidates[i];
+                if (!(msg instanceof HTMLElement)) continue;
+
                 const role = PlatformAdapters.General.getMessageRole(msg);
 
                 if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER) {
@@ -8619,7 +8622,15 @@
          * @param {HTMLElement} turnNode
          */
         processTurn(turnNode) {
-            const allMessageElements = Array.from(turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS)).filter((el) => el instanceof HTMLElement);
+            const nodes = turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
+            /** @type {HTMLElement[]} */
+            const allMessageElements = [];
+            for (let i = 0; i < nodes.length; i++) {
+                const node = nodes[i];
+                if (node instanceof HTMLElement) {
+                    allMessageElements.push(node);
+                }
+            }
             this._processUpdateQueue(allMessageElements, CONSTANTS.RESOURCE_KEYS.BATCH_TASK_TURN);
         }
 
@@ -8883,7 +8894,7 @@
             const disabledHint = '(No message to scroll to)';
             const cls = this.styleHandle.classes;
 
-            const allMessages = [...this.messageCacheManager.getUserMessages(), ...this.messageCacheManager.getAssistantMessages()];
+            const allMessages = this.messageCacheManager.getTotalMessages();
 
             const cancelFn = runBatchUpdate(
                 allMessages,
