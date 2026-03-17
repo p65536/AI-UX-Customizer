@@ -3,6 +3,12 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b541] - 2026-03-17
+- **Bug Fixes**
+  - Fixed a minor UI styling issue where the Jump List's `z-index` was incorrectly calculated on certain platforms.
+- **Core Changes**
+  - Enhanced internal type safety and overall code quality (this is a structural improvement with no impact on runtime functionality).
+
 ## [1.0.0-b540] - 2026-03-17
 - **Core Changes**
   - Reduced the overall script file size by optimizing code formatting and indentation.

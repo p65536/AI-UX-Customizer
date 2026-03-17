@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b540
+// @version      1.0.0-b541
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -1814,7 +1814,9 @@
 
     getJumpListCss(rootId, cls) {
       const palette = SITE_STYLES.PALETTE;
-      const zIndex = SITE_STYLES.Z_INDICES.NAV_CONSOLE + 1;
+      const baseZ = SITE_STYLES.Z_INDICES.NAV_CONSOLE;
+      // Increment only if z-index is a number; use as is for strings like 'auto'
+      const zIndex = typeof baseZ === 'number' ? baseZ + 1 : baseZ;
       const root = `#${rootId}`;
       const firefoxScrollbarFix = /firefox/i.test(navigator.userAgent) ? `${root} .${cls.scrollbox} { padding-right: 12px; }` : '';
 
@@ -2909,7 +2911,7 @@
   class BaseObserverAdapter {
     /**
      * Returns functions to start platform-specific observers.
-     * @returns {Array<(dependencies: any) => () => void>} Array of starter functions.
+     * @returns {Array<(dependencies: ObserverDependencies) => () => void>} Array of starter functions.
      * @throws {Error} Must be implemented by subclasses.
      */
     getPlatformObserverStarters() {
@@ -2996,7 +2998,7 @@
      * Updates the state of platform-specific buttons.
      * @param {HTMLButtonElement} btn The button element.
      * @param {boolean} isAutoScrolling Whether auto-scroll is active.
-     * @param {any} autoScrollManager The auto-scroll manager instance.
+     * @param {IAutoScrollManager} autoScrollManager The auto-scroll manager instance.
      */
     updatePlatformSpecificButtonState(btn, isAutoScrolling, autoScrollManager) {
       // No-op by default
@@ -3177,7 +3179,7 @@
      * @param {string} level - The log level ('error', 'warn', 'info', 'log', 'debug').
      * @param {string} badgeText - The text inside the badge. If empty, no badge is shown.
      * @param {string} badgeStyle - The background-color style (from Logger.styles). If empty, uses default.
-     * @param {...any} args - The messages to log.
+     * @param {...unknown} args - The messages to log.
      */
     static _out(level, badgeText, badgeStyle, ...args) {
       if (this.levels[this.level] >= this.levels[level]) {
@@ -3212,7 +3214,7 @@
      * @param {'group'|'groupCollapsed'} method - The console method to use.
      * @param {string} badgeText
      * @param {string} badgeStyle
-     * @param {...any} args
+     * @param {...unknown} args
      */
     static _groupOut(method, badgeText, badgeStyle, ...args) {
       if (this.levels[this.level] >= this.levels.debug) {
@@ -3235,7 +3237,7 @@
     /**
      * @param {string} badgeText
      * @param {string} badgeStyle
-     * @param {...any} args
+     * @param {...unknown} args
      */
     static error(badgeText, badgeStyle, ...args) {
       this._out('error', badgeText, badgeStyle, ...args);
@@ -3244,7 +3246,7 @@
     /**
      * @param {string} badgeText
      * @param {string} badgeStyle
-     * @param {...any} args
+     * @param {...unknown} args
      */
     static warn(badgeText, badgeStyle, ...args) {
       this._out('warn', badgeText, badgeStyle, ...args);
@@ -3253,7 +3255,7 @@
     /**
      * @param {string} badgeText
      * @param {string} badgeStyle
-     * @param {...any} args
+     * @param {...unknown} args
      */
     static info(badgeText, badgeStyle, ...args) {
       this._out('info', badgeText, badgeStyle, ...args);
@@ -3262,7 +3264,7 @@
     /**
      * @param {string} badgeText
      * @param {string} badgeStyle
-     * @param {...any} args
+     * @param {...unknown} args
      */
     static log(badgeText, badgeStyle, ...args) {
       this._out('log', badgeText, badgeStyle, ...args);
@@ -3272,7 +3274,7 @@
      * Logs messages for debugging. Only active in 'debug' level.
      * @param {string} badgeText
      * @param {string} badgeStyle
-     * @param {...any} args
+     * @param {...unknown} args
      */
     static debug(badgeText, badgeStyle, ...args) {
       this._out('debug', badgeText, badgeStyle, ...args);
@@ -3302,7 +3304,7 @@
      * Starts a log group. Only active in 'debug' level.
      * @param {string} badgeText
      * @param {string} badgeStyle
-     * @param {...any} args The title for the log group.
+     * @param {...unknown} args The title for the log group.
      */
     static group(badgeText, badgeStyle, ...args) {
       this._groupOut('group', badgeText, badgeStyle, ...args);
@@ -3312,7 +3314,7 @@
      * Starts a collapsed log group. Only active in 'debug' level.
      * @param {string} badgeText
      * @param {string} badgeStyle
-     * @param {...any} args The title for the log group.
+     * @param {...unknown} args The title for the log group.
      */
     static groupCollapsed(badgeText, badgeStyle, ...args) {
       this._groupOut('groupCollapsed', badgeText, badgeStyle, ...args);
@@ -3618,7 +3620,7 @@
     /**
      * Publishes an event, calling all subscribed listeners with the provided data.
      * @param {string} event The event name.
-     * @param {...any} args The data to pass to the listeners.
+     * @param {...unknown} args The data to pass to the listeners.
      */
     publish(event, ...args) {
       if (!this.events[event]) {
@@ -3803,7 +3805,7 @@
     /**
      * Initializes the manager.
      * Prevents double initialization and supports async hooks.
-     * @param {...any} args Arguments to pass to the hook method.
+     * @param {...unknown} args Arguments to pass to the hook method.
      * @returns {Promise<void>}
      */
     async init(...args) {
@@ -3961,7 +3963,7 @@
     /**
      * Hook method for initialization logic.
      * @protected
-     * @param {...any} args
+     * @param {...unknown} args
      */
     _onInit(...args) {
       // To be implemented by subclasses
@@ -4121,7 +4123,7 @@
      * @returns {obj is AppDisposableObj}
      */
     _isDisposableObj(obj) {
-      return typeof obj === 'object' && obj !== null && 'dispose' in obj && typeof (/** @type {any} */ (obj).dispose) === 'function';
+      return typeof obj === 'object' && obj !== null && 'dispose' in obj && typeof (/** @type {{ dispose: unknown }} */ (obj).dispose) === 'function';
     }
 
     /**
@@ -4129,7 +4131,7 @@
      * @returns {obj is AppDisconnectableObj}
      */
     _isDisconnectableObj(obj) {
-      return typeof obj === 'object' && obj !== null && 'disconnect' in obj && typeof (/** @type {any} */ (obj).disconnect) === 'function';
+      return typeof obj === 'object' && obj !== null && 'disconnect' in obj && typeof (/** @type {{ disconnect: unknown }} */ (obj).disconnect) === 'function';
     }
 
     /**
@@ -4137,7 +4139,7 @@
      * @returns {obj is AppAbortableObj}
      */
     _isAbortableObj(obj) {
-      return typeof obj === 'object' && obj !== null && 'abort' in obj && typeof (/** @type {any} */ (obj).abort) === 'function';
+      return typeof obj === 'object' && obj !== null && 'abort' in obj && typeof (/** @type {{ abort: unknown }} */ (obj).abort) === 'function';
     }
   }
 
@@ -5006,7 +5008,7 @@
    * @param {Function} func
    * @param {number} delay
    * @param {boolean} useIdle
-   * @returns {((...args: any[]) => void) & { cancel: () => void }}
+   * @returns {((...args: unknown[]) => void) & { cancel: () => void }}
    */
   function debounce(func, delay, useIdle) {
     let timerId = null;
@@ -5472,7 +5474,7 @@
    * Sets a nested property on an object using a dot-notation path.
    * @param {object} obj The object to modify.
    * @param {string} path The dot-separated path to the property.
-   * @param {any} value The value to set.
+   * @param {unknown} value The value to set.
    * @returns {boolean} True if successful, false if the path was invalid or blocked.
    */
   function setPropertyByPath(obj, path, value) {
@@ -11268,7 +11270,7 @@
      * Observes store paths and triggers callback on change.
      * Automatically registers cleanup.
      * @param {string|string[]} paths - Config key(s) to observe.
-     * @param {function(any): void} callback - Called with full store state on change.
+     * @param {function(unknown): void} callback - Called with full store state on change.
      */
     observe(paths, callback) {
       const pathList = Array.isArray(paths) ? paths : [paths];
@@ -16537,7 +16539,7 @@
         throw new Error(`[Sentinel] Prefix "${prefix}" is invalid. It must contain only alphanumeric characters, hyphens, or underscores, and cannot start with a digit or a hyphen followed by a digit.`);
       }
 
-      /** @type {any} */
+      /** @type {Window & { __global_sentinel_instances__?: Record<string, Sentinel> }} */
       const globalScope = window;
       globalScope.__global_sentinel_instances__ ??= {};
       if (globalScope.__global_sentinel_instances__[prefix]) {
@@ -16589,7 +16591,7 @@
       this.rules.clear();
       this.pendingRules = [];
 
-      /** @type {any} */
+      /** @type {Window & { __global_sentinel_instances__?: Record<string, Sentinel> }} */
       const globalScope = window;
       if (globalScope.__global_sentinel_instances__) {
         delete globalScope.__global_sentinel_instances__[this.prefix];
@@ -17128,11 +17130,11 @@
    * @property {ThemeManager} themeManager
    * @property {BubbleUIManager} bubbleUIManager
    * @property {MessageLifecycleManager} messageLifecycleManager
-   * @property {FixedNavigationManager | null} fixedNavManager
+   * @property {IFixedNavigationManager | null} fixedNavManager
    * @property {MessageNumberManager} messageNumberManager
    * @property {SyncManager} syncManager
-   * @property {any} autoScrollManager
-   * @property {any} toastManager
+   * @property {IAutoScrollManager | null} autoScrollManager
+   * @property {unknown} toastManager
    */
   class AppController extends BaseManager {
     /**

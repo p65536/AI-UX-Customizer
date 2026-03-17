@@ -1,5 +1,5 @@
 // --- GM_xmlhttpRequest Types ---
-interface GMXMLHttpRequestResponse<T = any> {
+interface GMXMLHttpRequestResponse<T = unknown> {
     finalUrl: string;
     readyState: number;
     status: number;
@@ -8,10 +8,10 @@ interface GMXMLHttpRequestResponse<T = any> {
     response: T;
     responseText: string;
     responseXML: Document | null;
-    context: any;
+    context: unknown;
 }
 
-interface GMXMLHttpRequestDetails<T = any> {
+interface GMXMLHttpRequestDetails<T = unknown> {
     method?: "GET" | "POST" | "HEAD" | "PUT" | "DELETE" | "OPTIONS" | "PATCH";
     url: string;
     headers?: { [header: string]: string };
@@ -21,7 +21,7 @@ interface GMXMLHttpRequestDetails<T = any> {
     nocache?: boolean;
     revalidate?: boolean;
     timeout?: number;
-    context?: any;
+    context?: unknown;
     responseType?: "text" | "json" | "blob" | "arraybuffer" | "document" | "stream";
     overrideMimeType?: string;
     anonymous?: boolean;
@@ -40,24 +40,24 @@ interface GMXMLHttpRequestDetails<T = any> {
 
 // --- GM Functions ---
 // Note: GM_* functions (Sync)
-declare function GM_addValueChangeListener(key: string, listener: (name: string, oldValue: any, newValue: any, remote: boolean) => void): number | string;
+declare function GM_addValueChangeListener(key: string, listener: (name: string, oldValue: unknown, newValue: unknown, remote: boolean) => void): number | string;
 declare function GM_removeValueChangeListener(listenerId: number | string): void;
-declare function GM_setValue(key: string, value: any): void;
+declare function GM_setValue(key: string, value: unknown): void;
 declare function GM_getValue<T>(key: string, defaultValue?: T): T;
 declare function GM_deleteValue(key: string): void;
 declare function GM_listValues(): string[];
-declare function GM_xmlhttpRequest<T = any>(details: GMXMLHttpRequestDetails<T>): { abort: () => void };
+declare function GM_xmlhttpRequest<T = unknown>(details: GMXMLHttpRequestDetails<T>): { abort: () => void };
 declare function GM_registerMenuCommand(caption: string, onClick: (event: MouseEvent | KeyboardEvent) => void, accessKey?: string): number | string;
 declare function GM_download(details: { url: string; name?: string; onload?: () => void }): { abort: () => void };
 declare function GM_addStyle(css: string): HTMLStyleElement;
 
 // --- GM Namespace (Async) ---
 declare const GM: {
-    setValue(key: string, value: any): Promise<void>;
+    setValue(key: string, value: unknown): Promise<void>;
     getValue<T>(key: string, defaultValue?: T): Promise<T>;
     deleteValue(key: string): Promise<void>;
     listValues(): Promise<string[]>;
-    xmlHttpRequest<T = any>(details: GMXMLHttpRequestDetails<T>): { abort: () => void };
+    xmlHttpRequest<T = unknown>(details: GMXMLHttpRequestDetails<T>): { abort: () => void };
 };
 
 // --- Globals ---
@@ -465,7 +465,7 @@ declare class ThemeService {
 }
 
 declare class StyleDefinitions {
-    static ICONS: Record<string, any>;
+    static ICONS: Record<string, unknown>;
     static COMMON_CLASSES: Record<string, string>;
     static MODAL_CLASSES: Record<string, string>;
     static ROOT_IDS: Record<string, string>;
@@ -799,7 +799,7 @@ interface PlatformConstants {
 
 interface SiteStyles {
     PALETTE: Record<string, string>;
-    Z_INDICES: Record<string, any>;
+    Z_INDICES: Record<string, number | string>;
 }
 
 interface PlatformAdapters {
