@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b541
+// @version      1.0.0-b542
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -2679,12 +2679,9 @@
     /**
      * Scrolls to a target element using platform-specific logic.
      * @param {HTMLElement} element The target element.
-     * @param {object} options Scrolling options.
-     * @param {number} [options.offset] A pixel offset to apply above the target element.
-     * @param {boolean} [options.smooth] Whether to use smooth scrolling.
      * @throws {Error} Must be implemented by subclasses.
      */
-    scrollTo(element, options) {
+    scrollTo(element) {
       throw new Error('scrollTo must be implemented by the platform adapter.');
     }
   }
@@ -3964,6 +3961,7 @@
      * Hook method for initialization logic.
      * @protected
      * @param {...unknown} args
+     * @returns {void | Promise<void>}
      */
     _onInit(...args) {
       // To be implemented by subclasses
@@ -5458,16 +5456,13 @@
   }
 
   /**
-   * @description Scrolls to a target element, with an optional pixel offset.
+   * @description Scrolls to a target element.
    * Delegates the actual scrolling logic to the platform-specific adapter.
    * @param {HTMLElement} element The target element to scroll to.
-   * @param {object} options - Scrolling options.
-   * @param {number} [options.offset] - A pixel offset to apply above the target element.
-   * @param {boolean} [options.smooth] - Whether to use smooth scrolling.
    */
-  function scrollToElement(element, options) {
+  function scrollToElement(element) {
     if (!element) return;
-    PlatformAdapters.General.scrollTo(element, options);
+    PlatformAdapters.General.scrollTo(element);
   }
 
   /**
@@ -8511,7 +8506,7 @@
           const newIndex = roleInfo.index + direction;
           const targetMsg = manager.messageCacheManager.getMessageAtIndex(roleInfo.role, newIndex);
           if (targetMsg) {
-            scrollToElement(targetMsg, { offset: CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV });
+            scrollToElement(targetMsg);
             EventBus.publish(EVENTS.NAV_HIGHLIGHT_MESSAGE, targetMsg);
           }
         };
@@ -8541,7 +8536,7 @@
 
         topBtn.onclick = (e) => {
           e.stopPropagation();
-          scrollToElement(msgElem, { offset: CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV });
+          scrollToElement(msgElem);
         };
         const cls = manager.styleHandle.classes;
         return h(`div.${cls.navGroupBottom}`, [topBtn]);
@@ -9906,7 +9901,7 @@
     _scrollToMessage(element) {
       if (!element) return;
       const targetToScroll = element;
-      scrollToElement(targetToScroll, { offset: CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV });
+      scrollToElement(targetToScroll);
     }
 
     _toggleAllMessages() {
@@ -17085,7 +17080,7 @@
      * @abstract
      */
     start() {
-      // To be implemented by subclasses
+      throw new Error('start must be implemented by subclasses.');
     }
 
     /**
@@ -17093,7 +17088,7 @@
      * @param {boolean} isNavigation
      */
     stop(isNavigation) {
-      // To be implemented by subclasses
+      throw new Error('stop must be implemented by subclasses.');
     }
 
     /**
@@ -17101,7 +17096,7 @@
      * @protected
      */
     _onCacheUpdated() {
-      // To be implemented by subclasses
+      throw new Error('_onCacheUpdated must be implemented by subclasses.');
     }
 
     /**
@@ -17109,7 +17104,7 @@
      * @protected
      */
     _onNavigation() {
-      // To be implemented by subclasses
+      throw new Error('_onNavigation must be implemented by subclasses.');
     }
   }
   // =================================================================================
@@ -18343,9 +18338,9 @@
       }
 
       /** @override */
-      scrollTo(element, options) {
-        const { offset = 0, smooth = false } = options || {};
-        const behavior = smooth ? 'smooth' : 'auto';
+      scrollTo(element) {
+        const offset = CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV;
+        const behavior = 'auto';
 
         const scrollContainerSelector = CONSTANTS.SELECTORS.SCROLL_CONTAINER;
         const scrollContainer = scrollContainerSelector ? document.querySelector(scrollContainerSelector) : null;
@@ -19940,9 +19935,9 @@
       }
 
       /** @override */
-      scrollTo(element, options) {
-        const { offset = 0, smooth = false } = options || {};
-        const behavior = smooth ? 'smooth' : 'auto';
+      scrollTo(element) {
+        const offset = CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV;
+        const behavior = 'auto';
 
         // Use scrollIntoView + scroll-margin-top logic
         const originalScrollMargin = element.style.scrollMarginTop;
