@@ -3,6 +3,10 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b537] - 2026-03-17
+- **Internal Improvements**
+  - Corrected minor internal documentation inconsistencies to ensure accurate code references for developers.
+
 ## [1.0.0-b536] - 2026-03-17
 - **Performance Improvements**
   - Further optimized internal memory management and data processing, reducing browser garbage collection overhead and improving UI responsiveness during long chat sessions.
