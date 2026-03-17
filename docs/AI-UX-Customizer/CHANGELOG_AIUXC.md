@@ -3,6 +3,10 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b549] - 2026-03-17
+- **Core Changes**
+  - Hardened the internal event management system to prevent potential memory leaks during page navigations. This is a defensive structural improvement that ensures long-term performance and stability.
+
 ## [1.0.0-b548] - 2026-03-17
 - **Core Changes**
   - Resolved an internal type inference issue regarding platform detection to improve code stability and strict type-checking (`ts-check`) compatibility. This structural update does not alter the script's runtime behavior.

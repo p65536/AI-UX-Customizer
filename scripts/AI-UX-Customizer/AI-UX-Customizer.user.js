@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b548
+// @version      1.0.0-b549
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -7560,6 +7560,7 @@
       this.messageCacheManager = messageCacheManager;
       // Bound listener for navigation-related cache updates
       this.boundHandleCacheUpdateForNavigation = this._handleCacheUpdateForNavigation.bind(this);
+      this._cacheEventKey = createEventKey(this, EVENTS.CACHE_UPDATED);
 
       // Tracks the actual viewport dimensions to filter out height-only body mutations during streaming
       this.lastWindowMetrics = { width: 0, height: 0, clientWidth: 0 };
@@ -7882,10 +7883,9 @@
         this.sentinelTurnListeners.clear();
 
         // Subscribe to CACHE_UPDATED to manage the NAVIGATION_END lifecycle.
-        const cacheEventKey = createEventKey(this, EVENTS.CACHE_UPDATED);
-        EventBus.subscribe(EVENTS.CACHE_UPDATED, this.boundHandleCacheUpdateForNavigation, cacheEventKey);
+        EventBus.subscribe(EVENTS.CACHE_UPDATED, this.boundHandleCacheUpdateForNavigation, this._cacheEventKey);
         // Add unsubscribe to the page scope
-        scope.add(() => EventBus.unsubscribe(EVENTS.CACHE_UPDATED, cacheEventKey));
+        scope.add(() => EventBus.unsubscribe(EVENTS.CACHE_UPDATED, this._cacheEventKey));
 
         // Trigger an initial cache update immediately. This will start the navigation end detection.
         this.debouncedCacheUpdate();
@@ -7950,7 +7950,7 @@
         Logger.debug('CACHE', LOG_STYLES.TEAL, 'Cache update has messages. Firing NAVIGATION_END.');
         EventBus.publish(EVENTS.NAVIGATION_END);
         // Unsubscribe self, as navigation is complete.
-        EventBus.unsubscribe(EVENTS.CACHE_UPDATED, createEventKey(this, EVENTS.CACHE_UPDATED));
+        EventBus.unsubscribe(EVENTS.CACHE_UPDATED, this._cacheEventKey);
       } else {
         // --- Case B: 0 Messages Found ---
         // This could be a "true 0-message page" OR "history is still loading".
@@ -7964,7 +7964,7 @@
           Logger.debug('CACHE', LOG_STYLES.TEAL, 'Grace period ended. Assuming 0-message page. Firing NAVIGATION_END.');
           EventBus.publish(EVENTS.NAVIGATION_END);
           // Unsubscribe self, as navigation is complete.
-          EventBus.unsubscribe(EVENTS.CACHE_UPDATED, createEventKey(this, EVENTS.CACHE_UPDATED));
+          EventBus.unsubscribe(EVENTS.CACHE_UPDATED, this._cacheEventKey);
         }, CONSTANTS.TIMING.TIMEOUTS.ZERO_MESSAGE_GRACE_PERIOD);
 
         this.manageResource(CONSTANTS.RESOURCE_KEYS.ZERO_MSG_TIMER, () => clearTimeout(id));
