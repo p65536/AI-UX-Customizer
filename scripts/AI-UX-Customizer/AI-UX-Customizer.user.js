@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b551
+// @version      1.0.0-b552
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -8234,14 +8234,16 @@
   }
 
   /**
-   * Converts an SVG string to a data URL, sanitizing it by removing script tags.
+   * Converts an SVG string to a data URL.
+   * Note: This function assumes trusted input. It performs a basic strip of <script> tags
+   * but does not provide complete XSS protection against malicious SVG content.
    * @param {string | null} svg The SVG string.
    * @returns {string | null} The data URL or null if input is invalid.
    */
   function svgToDataUrl(svg) {
     if (!svg || typeof svg !== 'string') return null;
-    // Basic sanitization: remove <script> tags.
-    const sanitizedSvg = svg.replace(/<script.+?<\/script>/gs, '');
+    // Basic cleanup: remove <script> tags.
+    const sanitizedSvg = svg.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '');
     // Gemini's CSP blocks single quotes in data URLs, so they must be encoded.
     const encodedSvg = encodeURIComponent(sanitizedSvg).replaceAll("'", '%27').replaceAll('"', '%22');
     return `data:image/svg+xml,${encodedSvg}`;

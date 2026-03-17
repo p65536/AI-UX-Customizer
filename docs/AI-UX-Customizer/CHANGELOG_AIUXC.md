@@ -3,6 +3,10 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b552] - 2026-03-18
+- **Security & Improvements**
+  - Enhanced the internal cleanup process for custom SVG icons used in themes, ensuring safer parsing and better handling of imported data.
+
 ## [1.0.0-b551] - 2026-03-17
 - **Core Changes**
   - Refactored the internal CSS generation engine to use Dependency Injection. This decouples the style templates from global platform states and strictly enforces explicit data handling, further improving overall code maintainability and preventing silent rendering bugs.
