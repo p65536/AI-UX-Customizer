@@ -3,6 +3,13 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b557] - 2026-03-18
+- **Bug Fixes**
+  - Fixed an issue where the navigation console might fail to initialize and appear during page transitions or when rapidly toggling settings.
+  - Resolved a bug that caused the navigation console to become stuck in an invisible state on pages without a chat input area. The console will now safely appear at the bottom-center of the screen in these cases.
+- **Core Changes**
+  - Improved internal state management for the navigation console to enhance overall stability and prevent potential future errors.
+
 ## [1.0.0-b556] - 2026-03-18
 - **Bug Fixes**
   - **[ChatGPT]** Fixed an issue where the navigation console and custom avatars failed to display due to recent structural changes on the ChatGPT website.

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b556
+// @version      1.0.0-b557
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -3132,7 +3132,7 @@
         // concatenated as parent selectors in CSS generation (e.g., `${SELECTOR} .child { ... }`).
         // Doing so breaks the CSS scope, causing the first selector to apply globally.
         // ALWAYS use the `:is()` pseudo-class instead (e.g., ':is(A, B)').
-        
+
         // --- Main containers ---
         MAIN_APP_CONTAINER: 'div[data-scroll-root], div:has(> main#main)',
         MESSAGE_WRAPPER_FINDER: '.w-full',
@@ -12294,7 +12294,7 @@
       let indicesUpdated = false;
 
       // Check if new messages were added (e.g., from layout scan) and if we were at the end.
-      if (newTotal > oldTotal && this.state.currentIndices.total === oldTotal - 1 && !this.state.isAutoScrolling) {
+      if (newTotal > oldTotal && this.state.currentIndices[CONSTANTS.NAV_ROLES.TOTAL] === oldTotal - 1 && !this.state.isAutoScrolling) {
         // We were at the old last message, and new messages appeared.
         // Re-select the new last message. This will update indices and call _renderUI().
         this.selectLastMessage();
@@ -12309,7 +12309,7 @@
         if (!this.messageCacheManager.findMessageIndex(this.state.highlightedMessage)) {
           Logger.log('NAVIGATION', '', 'Highlighted message was removed from the DOM. Reselecting...');
           // The highlighted message was deleted. Find the best candidate to re-highlight.
-          const lastKnownIndex = this.state.currentIndices.total;
+          const lastKnownIndex = this.state.currentIndices[CONSTANTS.NAV_ROLES.TOTAL];
           // Try to select the message at the same index, or the new last message if the index is now out of bounds.
           const newIndex = Math.min(lastKnownIndex, totalMessages.length - 1);
 
@@ -12360,7 +12360,11 @@
     createContainers() {
       // Check if element exists using the rootId from the style handle
       const rootId = this.styleHandle.rootId;
-      if (document.getElementById(rootId)) return;
+      const existingConsole = document.getElementById(rootId);
+      if (existingConsole) {
+        // Remove existing console to ensure clean initialization
+        existingConsole.remove();
+      }
 
       // Use rootId for the ID attribute. The class 'unpositioned' is still needed for initial state.
       const cls = this.styleHandle.classes;
@@ -12566,20 +12570,23 @@
           // 3. Measure ONLY if needed
           if (targetMode === CONSTANTS.CONSOLE_POSITIONS.INPUT_TOP) {
             const inputForm = document.querySelector(CONSTANTS.SELECTORS.FIXED_NAV_INPUT_AREA_TARGET);
-            // Fallback: If input form not found, we can't position properly.
-            if (!inputForm) return null;
-
-            const formRect = inputForm.getBoundingClientRect();
             const consoleRect = this.navConsole.getBoundingClientRect();
             const consoleWidth = consoleRect.width;
             const windowHeight = window.innerHeight;
-
             const margin = CONSTANTS.UI_SPECS.PANEL_MARGIN;
-            const bottomPosition = windowHeight - formRect.top + margin;
-            const formCenter = formRect.left + formRect.width / 2;
 
-            result.style.left = `${formCenter - consoleWidth / 2}px`;
-            result.style.bottom = `${bottomPosition}px`;
+            if (inputForm) {
+              const formRect = inputForm.getBoundingClientRect();
+              const bottomPosition = windowHeight - formRect.top + margin;
+              const formCenter = formRect.left + formRect.width / 2;
+
+              result.style.left = `${formCenter - consoleWidth / 2}px`;
+              result.style.bottom = `${bottomPosition}px`;
+            } else {
+              // Fallback: Position at bottom center if input form is not found
+              result.style.left = `${window.innerWidth / 2 - consoleWidth / 2}px`;
+              result.style.bottom = `${margin}px`;
+            }
           }
 
           return result;
