@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b554
+// @version      1.0.0-b555
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -18731,22 +18731,28 @@
       if (!total) return { startIndex: 0, endIndex: -1 };
 
       // Use cached metrics for height, but state.scrollTop is accurate
-      const scrollTop = this.state.scrollTop;
-      const containerHeight = this.state.containerHeight;
+      const scrollTop = Math.max(0, this.state.scrollTop || 0);
+      const containerHeight = Math.max(0, this.state.containerHeight || 0);
+      const itemHeight = Math.max(1, this.itemHeight || JumpListComponent.DIMENSIONS.ITEM_HEIGHT);
       const buffer = JumpListComponent.DIMENSIONS.SCROLL_BUFFER;
 
-      const startIndex = Math.max(0, Math.floor(scrollTop / this.itemHeight) - buffer);
+      let startIndex = Math.floor(scrollTop / itemHeight) - buffer;
+      startIndex = Math.max(0, Math.min(total - 1, startIndex));
+
+      let endIndex;
 
       if (containerHeight <= 0) {
         // Initial render, container height not yet known. Render a default batch.
         const initialBatchSize = JumpListComponent.DIMENSIONS.INITIAL_BATCH_SIZE;
         // Fix off-by-one: endIndex should be valid index bound
-        const endIndex = Math.min(total - 1, initialBatchSize);
-        return { startIndex: 0, endIndex };
+        endIndex = startIndex + initialBatchSize - 1;
+      } else {
+        // Inclusive index
+        endIndex = Math.floor((scrollTop + containerHeight) / itemHeight) + buffer;
       }
 
-      // Inclusive index
-      const endIndex = Math.min(total - 1, Math.floor((scrollTop + containerHeight) / this.itemHeight) + buffer);
+      endIndex = Math.max(startIndex, Math.min(total - 1, endIndex));
+
       return { startIndex, endIndex };
     }
 
