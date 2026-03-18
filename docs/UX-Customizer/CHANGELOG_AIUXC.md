@@ -7,6 +7,10 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  GPTUX/GGGUX v2.4.2+ with QTB v3.1.2+
 
+## [2.4.3] - 2026-03-18
+- **[GPTUX] Fixes**
+  - **[ChatGPT]** Fixed an issue where the navigation console and custom avatars failed to display due to recent structural changes on the ChatGPT website.
+
 ## [2.4.2] - 2026-02-20
 - **Bug Fixes**
   - **[Sentinel]** Fixed an issue where element detection could fail after SPA page navigation or long background tab inactivity.

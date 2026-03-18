@@ -18,6 +18,7 @@ Each script is developed independently and can be installed separately.
 ## Recent Updates
 
 ### 2026-03-18
+- Updated `ChatGPT UX Customizer` (2.4.2 -> 2.4.3)
 - Updated `AI UX Customizer` (b551 -> b556)
 
 ### 2026-03-17
@@ -92,7 +93,7 @@ Click the gear icon ⚙️ in the input area to open the settings panel.
 
 | Platform | GitHub | Greasy Fork | Version | Last Updated | Changelog |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **ChatGPT** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/UX-Customizer/ChatGPT-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/543703-chatgpt-ux-customizer) | 2.4.2 | 2026-02-20 | [View](./docs/UX-Customizer/CHANGELOG_AIUXC.md) |
+| **ChatGPT** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/UX-Customizer/ChatGPT-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/543703-chatgpt-ux-customizer) | 2.4.3 | 2026-03-18 | [View](./docs/UX-Customizer/CHANGELOG_AIUXC.md) |
 | **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/UX-Customizer/Gemini-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/543704-gemini-ux-customizer) | 2.4.2 | 2026-02-20 | [View](./docs/UX-Customizer/CHANGELOG_AIUXC.md) |
 
 > **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
