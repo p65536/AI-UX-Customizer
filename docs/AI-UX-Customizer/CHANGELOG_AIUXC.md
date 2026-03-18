@@ -3,6 +3,10 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b556] - 2026-03-18
+- **Bug Fixes**
+  - **[ChatGPT]** Fixed an issue where the navigation console and custom avatars failed to display due to recent structural changes on the ChatGPT website.
+
 ## [1.0.0-b555] - 2026-03-18
 - **Bug Fixes & Improvements**
   - Improved the overall stability and reliability of the Jump List's scrolling mechanism.

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b555
+// @version      1.0.0-b556
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -3127,6 +3127,12 @@
         MESSAGE_ID: 'data-message-id',
       },
       SELECTORS: {
+        // [IMPORTANT] CSS Scoping & Dynamic Selectors:
+        // Avoid using comma-separated lists (e.g., 'A, B') for selectors that will be dynamically
+        // concatenated as parent selectors in CSS generation (e.g., `${SELECTOR} .child { ... }`).
+        // Doing so breaks the CSS scope, causing the first selector to apply globally.
+        // ALWAYS use the `:is()` pseudo-class instead (e.g., ':is(A, B)').
+        
         // --- Main containers ---
         MAIN_APP_CONTAINER: 'div[data-scroll-root], div:has(> main#main)',
         MESSAGE_WRAPPER_FINDER: '.w-full',
@@ -3134,9 +3140,9 @@
         MESSAGES_ROOT: 'main',
 
         // --- Message containers ---
-        CONVERSATION_UNIT: 'article[data-testid^="conversation-turn-"]',
+        CONVERSATION_UNIT: ':is(section[data-testid^="conversation-turn-"], article[data-testid^="conversation-turn-"])',
         MESSAGE_ID_HOLDER: '[data-message-id]',
-        MESSAGE_ROOT_NODE: 'article[data-testid^="conversation-turn-"]',
+        MESSAGE_ROOT_NODE: ':is(section[data-testid^="conversation-turn-"], article[data-testid^="conversation-turn-"])',
 
         // --- Selectors for messages ---
         USER_MESSAGE: 'div[data-message-author-role="user"]',
@@ -3163,8 +3169,8 @@
         INSERTION_ANCHOR: 'form[data-type="unified-composer"] div[class*="[grid-area:trailing]"]',
 
         // --- Avatar area ---
-        AVATAR_USER: 'article[data-turn="user"]',
-        AVATAR_ASSISTANT: 'article[data-turn="assistant"]',
+        AVATAR_USER: ':is(section[data-turn="user"], article[data-turn="user"])',
+        AVATAR_ASSISTANT: ':is(section[data-turn="assistant"], article[data-turn="assistant"])',
 
         // --- Selectors for Avatar ---
         SIDE_AVATAR_CONTAINER: '.side-avatar-container',
@@ -3176,7 +3182,7 @@
         SIDEBAR_WIDTH_TARGET: 'div[id="stage-slideover-sidebar"]',
         SIDEBAR_STATE_INDICATOR: '#stage-sidebar-tiny-bar',
         RIGHT_SIDEBAR: '[data-testid="stage-thread-flyout"], div.bg-token-sidebar-surface-primary.shrink-0:not(#stage-slideover-sidebar)',
-        CHAT_CONTENT_MAX_WIDTH: '.group\\/turn-messages, div[class*="--thread-content-max-width"].grid',
+        CHAT_CONTENT_MAX_WIDTH: ':is(.group\\/turn-messages, div[class*="--thread-content-max-width"].grid)',
         SCROLL_CONTAINER: 'div[data-scroll-root], div:has(> main#main)',
         STANDING_IMAGE_ANCHOR: '.group\\/turn-messages, div[class*="--thread-content-max-width"].grid',
         PLACEHOLDER_PREFIX: 'placeholder-request-',
