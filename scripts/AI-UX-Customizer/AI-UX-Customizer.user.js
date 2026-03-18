@@ -1,17 +1,17 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b553
+// @version      1.0.0-b554
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
 // @author       p65536
 // @match        https://chatgpt.com/*
 // @match        https://gemini.google.com/*
-// @grant        GM_setValue
-// @grant        GM_getValue
-// @grant        GM_deleteValue
-// @grant        GM_listValues
+// @grant        GM.setValue
+// @grant        GM.getValue
+// @grant        GM.deleteValue
+// @grant        GM.listValues
 // @grant        GM_addValueChangeListener
 // @grant        GM_removeValueChangeListener
 // @grant        GM_xmlhttpRequest
@@ -9058,7 +9058,7 @@
   /**
    * @class ConfigManager
    * @description Manages the application configuration, including loading, saving, validation, and sanitization.
-   * Handles interaction with the underlying storage mechanism (GM_getValue/GM_setValue) and ensures configuration integrity.
+   * Handles interaction with the underlying storage mechanism (GM.getValue/GM.setValue) and ensures configuration integrity.
    */
   class ConfigManager {
     /**
@@ -9089,7 +9089,7 @@
      */
     async load(updateState) {
       // 1. Load Manifest
-      const manifestRaw = await GM_getValue(this.ROOT_KEY);
+      const manifestRaw = await GM.getValue(this.ROOT_KEY);
       let loadedConfig = null;
 
       if (updateState) {
@@ -9120,7 +9120,7 @@
           const themePromises = manifest.themeIndex.map(async (id) => {
             try {
               const themeKey = id;
-              const themeRaw = await GM_getValue(themeKey);
+              const themeRaw = await GM.getValue(themeKey);
               if (themeRaw) {
                 if (updateState) {
                   this._themeCache.set(id, themeRaw);
@@ -9232,7 +9232,7 @@
           const themeString = JSON.stringify(theme);
 
           if (themeString !== this._themeCache.get(id)) {
-            await GM_setValue(id, themeString);
+            await GM.setValue(id, themeString);
             this._themeCache.set(id, themeString);
             hasThemeChange = true;
           }
@@ -9266,7 +9266,7 @@
         const finalManifestString = JSON.stringify(finalManifest);
 
         try {
-          await GM_setValue(this.ROOT_KEY, finalManifestString);
+          await GM.setValue(this.ROOT_KEY, finalManifestString);
           this._manifestCache = finalManifestString;
           // Update the cache check only after successful commit.
           // This ensures that if saving fails, the cache remains stale so the next attempt detects a change.
@@ -9282,7 +9282,7 @@
       // Includes optimistic locking to prevent deleting files created by other tabs during our save process.
       try {
         // Re-fetch manifest to check if another tab has updated it since our save
-        const currentManifestRaw = await GM_getValue(this.ROOT_KEY);
+        const currentManifestRaw = await GM.getValue(this.ROOT_KEY);
         let isSafeToGC = false;
 
         if (currentManifestRaw) {
@@ -9299,12 +9299,12 @@
         }
 
         if (isSafeToGC) {
-          const allKeys = await GM_listValues();
+          const allKeys = await GM.listValues();
           const validThemeKeys = new Set(validThemes.map((t) => t.metadata.id));
 
           for (const key of allKeys) {
             if (key.startsWith(this.THEME_PREFIX) && !validThemeKeys.has(key)) {
-              await GM_deleteValue(key);
+              await GM.deleteValue(key);
               this._themeCache.delete(key);
               Logger.log('Config', LOG_STYLES.TEAL, `GC: Deleted orphaned theme: ${key}`);
             }
