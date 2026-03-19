@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b559
+// @version      1.0.0-b560
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -7166,82 +7166,76 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       };
     })();
 
-    static COMMON_CLASSES = (() => {
-      const prefix = `${APPID}-common-`;
-      return {
-        ...addPrefix(prefix, {
-          // Modal Buttons
-          modalButton: 'btn',
-          primaryBtn: 'btn-primary',
-          pushRightBtn: 'btn-push-right',
-          dangerBtn: 'btn-danger',
+    static COMMON_CLASSES = {
+      ...addPrefix(`${APPID}-common-`, {
+        // Modal Buttons
+        modalButton: 'btn',
+        primaryBtn: 'btn-primary',
+        pushRightBtn: 'btn-push-right',
+        dangerBtn: 'btn-danger',
 
-          // Sliders
-          sliderSubgroupControl: 'slider-control',
-          sliderDisplay: 'slider-display',
-          sliderContainer: 'slider-container',
-          compoundSliderContainer: 'compound-slider-container',
-          sliderSubgroup: 'slider-subgroup',
+        // Sliders
+        sliderSubgroupControl: 'slider-control',
+        sliderDisplay: 'slider-display',
+        sliderContainer: 'slider-container',
+        compoundSliderContainer: 'compound-slider-container',
+        sliderSubgroup: 'slider-subgroup',
 
-          // Toggle Switch
-          toggleSwitch: 'toggle',
-          toggleSlider: 'toggle-slider',
+        // Toggle Switch
+        toggleSwitch: 'toggle',
+        toggleSlider: 'toggle-slider',
 
-          // Form Fields
-          formField: 'form-field',
-          inputWrapper: 'input-wrapper',
-          formErrorMsg: 'error-msg',
-          compoundFormFieldContainer: 'compound-form-container',
-          localFileBtn: 'local-file-btn',
-          commonInput: 'input',
+        // Form Fields
+        formField: 'form-field',
+        inputWrapper: 'input-wrapper',
+        formErrorMsg: 'error-msg',
+        compoundFormFieldContainer: 'compound-form-container',
+        localFileBtn: 'local-file-btn',
+        commonInput: 'input',
 
-          // Form Labels & Status
-          labelRow: 'label-row',
-          statusText: 'status-text',
+        // Form Labels & Status
+        labelRow: 'label-row',
+        statusText: 'status-text',
 
-          // Color Picker Related
-          colorFieldWrapper: 'color-wrapper',
-          colorSwatch: 'color-swatch',
-          colorSwatchChecker: 'color-checker',
-          colorSwatchValue: 'color-value',
-          colorPickerPopup: 'color-popup',
+        // Color Picker Related
+        colorFieldWrapper: 'color-wrapper',
+        colorSwatch: 'color-swatch',
+        colorSwatchChecker: 'color-checker',
+        colorSwatchValue: 'color-value',
+        colorPickerPopup: 'color-popup',
 
-          // Previews
-          previewContainer: 'preview-container',
-          previewBubbleWrapper: 'preview-bubble-wrapper',
-          previewBubble: 'preview-bubble',
-          previewInputArea: 'preview-input',
-          previewBackground: 'preview-bg',
-          userPreview: 'user-preview',
+        // Previews
+        previewContainer: 'preview-container',
+        previewBubbleWrapper: 'preview-bubble-wrapper',
+        previewBubble: 'preview-bubble',
+        previewInputArea: 'preview-input',
+        previewBackground: 'preview-bg',
+        userPreview: 'user-preview',
 
-          // Submenu / Panels (Shared Layouts)
-          submenuRow: 'row',
-          submenuFieldset: 'fieldset',
-          submenuSeparator: 'separator',
-          featureGroup: 'feature-group',
+        // Submenu / Panels (Shared Layouts)
+        submenuRow: 'row',
+        submenuFieldset: 'fieldset',
+        submenuSeparator: 'separator',
+        featureGroup: 'feature-group',
 
-          // Notifications & Banners
-          warningBanner: 'warning-banner',
-          conflictText: 'conflict-text',
-          conflictReloadBtnId: 'conflict-reload-btn',
-        }),
-        sliderDefault: 'is-default',
-        invalidInput: 'is-invalid',
-      };
-    })();
+        // Notifications & Banners
+        warningBanner: 'warning-banner',
+        conflictText: 'conflict-text',
+        conflictReloadBtnId: 'conflict-reload-btn',
+      }),
+      sliderDefault: 'is-default',
+      invalidInput: 'is-invalid',
+    };
 
-    static MODAL_CLASSES = (() => {
-      const prefix = `${APPID}-modal-`;
-      return addPrefix(prefix, {
-        dialog: 'dialog',
-        box: 'box',
-        header: 'header',
-        content: 'content',
-        footer: 'footer',
-        footerMessage: 'footer-message',
-        buttonGroup: 'button-group',
-      });
-    })();
+    static MODAL_CLASSES = addPrefix(`${APPID}-modal-`, {
+      dialog: 'dialog',
+      box: 'box',
+      header: 'header',
+      content: 'content',
+      footer: 'footer',
+      footerMessage: 'footer-message',
+      buttonGroup: 'button-group',
+    });
 
     static ROOT_IDS = addPrefix(`${APPID}-`, {
       SETTINGS_PANEL: 'settings-panel',
