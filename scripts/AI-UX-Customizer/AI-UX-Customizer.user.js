@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b557
+// @version      1.0.0-b558
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -851,393 +851,393 @@
       const palette = SITE_STYLES.PALETTE;
       const root = `[data-${APPID}-scope]`;
       return `
-        /* --- Common Modal Buttons --- */
-        ${root} .${cls.modalButton} {
-            background: ${palette.btn_bg};
-            border: 1px solid ${palette.btn_border};
-            border-radius: var(--radius-md, 5px);
-            color: ${palette.btn_text};
-            cursor: pointer;
-            font-size: 13px;
-            padding: 5px 16px;
-            transition: background 0.12s;
-            min-width: 80px;
-        }
-        ${root} .${cls.modalButton}:not(:disabled):hover {
-            background: ${palette.btn_hover_bg};
-            border-color: ${palette.btn_border};
-        }
-        ${root} .${cls.modalButton}:disabled {
-            background: ${palette.btn_bg};
-            cursor: not-allowed;
-            opacity: 0.5;
-        }
-        /* --- Utility Buttons --- */
-        ${root} .${cls.primaryBtn} {
-            background-color: #1a73e8;
-            color: #ffffff;
-            border: 1px solid transparent;
-        }
-        ${root} .${cls.primaryBtn}:not(:disabled):hover {
-            background-color: #1557b0;
-        }
-        ${root} .${cls.pushRightBtn} {
-            margin-left: auto;
-        }
-        /* Danger Button (Red/Warning) */
-        ${root} .${cls.dangerBtn} {
-            background-color: ${palette.delete_confirm_btn_bg};
-            color: ${palette.delete_confirm_btn_text};
-        }
-        ${root} .${cls.dangerBtn}:not(:disabled):hover {
-            background-color: ${palette.delete_confirm_btn_hover_bg};
-            color: ${palette.delete_confirm_btn_hover_text};
-        }
+/* --- Common Modal Buttons --- */
+${root} .${cls.modalButton} {
+background: ${palette.btn_bg};
+border: 1px solid ${palette.btn_border};
+border-radius: var(--radius-md, 5px);
+color: ${palette.btn_text};
+cursor: pointer;
+font-size: 13px;
+padding: 5px 16px;
+transition: background 0.12s;
+min-width: 80px;
+}
+${root} .${cls.modalButton}:not(:disabled):hover {
+background: ${palette.btn_hover_bg};
+border-color: ${palette.btn_border};
+}
+${root} .${cls.modalButton}:disabled {
+background: ${palette.btn_bg};
+cursor: not-allowed;
+opacity: 0.5;
+}
+/* --- Utility Buttons --- */
+${root} .${cls.primaryBtn} {
+background-color: #1a73e8;
+color: #ffffff;
+border: 1px solid transparent;
+}
+${root} .${cls.primaryBtn}:not(:disabled):hover {
+background-color: #1557b0;
+}
+${root} .${cls.pushRightBtn} {
+margin-left: auto;
+}
+/* Danger Button (Red/Warning) */
+${root} .${cls.dangerBtn} {
+background-color: ${palette.delete_confirm_btn_bg};
+color: ${palette.delete_confirm_btn_text};
+}
+${root} .${cls.dangerBtn}:not(:disabled):hover {
+background-color: ${palette.delete_confirm_btn_hover_bg};
+color: ${palette.delete_confirm_btn_hover_text};
+}
 
-        /* --- Common Sliders --- */
-        ${root} .${cls.sliderSubgroupControl} {
-            align-items: center;
-            display: flex;
-            gap: 6px;
-        }
-        ${root} .${cls.sliderSubgroupControl} input[type=range] {
-            flex-grow: 1;
-            min-width: 0;
-        }
-        ${root} .${cls.sliderDisplay} {
-            color: ${palette.slider_display_text};
-            font-family: monospace;
-            min-width: 7ch;
-            text-align: right;
-        }
-        ${root} .${cls.sliderSubgroupControl}.${cls.sliderDefault} .${cls.sliderDisplay} {
-            color: ${palette.label_text};
-        }
-        ${root} .${cls.sliderContainer} {
-            display: flex;
-            flex-direction: column;
-            align-items: stretch;
-            gap: 4px;
-            margin-top: 8px;
-        }
-        ${root} .${cls.sliderContainer} input[type="range"] {
-            flex-grow: 1;
-            margin: 0;
-        }
-        ${root} .${cls.sliderContainer} label {
-            margin-inline-end: 0;
-            flex-shrink: 1;
-            color: ${palette.text_secondary};
-        }
-        ${root} .${cls.compoundSliderContainer} {
-            display: flex;
-            gap: 16px;
-            margin-top: 4px;
-        }
-        ${root} .${cls.sliderSubgroup} {
-            flex: 1;
-            min-width: 0;
-        }
-        ${root} .${cls.sliderSubgroup} > label {
-            color: ${palette.text_secondary};
-            display: block;
-            font-size: 0.9em;
-            margin-bottom: 4px;
-        }
+/* --- Common Sliders --- */
+${root} .${cls.sliderSubgroupControl} {
+align-items: center;
+display: flex;
+gap: 6px;
+}
+${root} .${cls.sliderSubgroupControl} input[type=range] {
+flex-grow: 1;
+min-width: 0;
+}
+${root} .${cls.sliderDisplay} {
+color: ${palette.slider_display_text};
+font-family: monospace;
+min-width: 7ch;
+text-align: right;
+}
+${root} .${cls.sliderSubgroupControl}.${cls.sliderDefault} .${cls.sliderDisplay} {
+color: ${palette.label_text};
+}
+${root} .${cls.sliderContainer} {
+display: flex;
+flex-direction: column;
+align-items: stretch;
+gap: 4px;
+margin-top: 8px;
+}
+${root} .${cls.sliderContainer} input[type="range"] {
+flex-grow: 1;
+margin: 0;
+}
+${root} .${cls.sliderContainer} label {
+margin-inline-end: 0;
+flex-shrink: 1;
+color: ${palette.text_secondary};
+}
+${root} .${cls.compoundSliderContainer} {
+display: flex;
+gap: 16px;
+margin-top: 4px;
+}
+${root} .${cls.sliderSubgroup} {
+flex: 1;
+min-width: 0;
+}
+${root} .${cls.sliderSubgroup} > label {
+color: ${palette.text_secondary};
+display: block;
+font-size: 0.9em;
+margin-bottom: 4px;
+}
 
-        /* --- Toggle Switch --- */
-        ${root} .${cls.toggleSwitch} {
-            position: relative;
-            display: inline-block;
-            width: 40px;
-            height: 22px;
-            flex-shrink: 0;
-        }
-        ${root} .${cls.toggleSwitch} input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-        ${root} .${cls.toggleSlider} {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: ${palette.toggle_bg_off};
-            transition: .3s;
-            border-radius: 22px;
-        }
-        ${root} .${cls.toggleSlider}:before {
-            position: absolute;
-            content: "";
-            height: 16px;
-            width: 16px;
-            left: 3px;
-            top: 0;
-            bottom: 0;
-            margin: auto 0;
-            background-color: ${palette.toggle_knob};
-            transition: .3s;
-            border-radius: 50%;
-        }
-        ${root} .${cls.toggleSwitch} input:checked + .${cls.toggleSlider} {
-            background-color: ${palette.toggle_bg_on};
-        }
-        ${root} .${cls.toggleSwitch} input:checked + .${cls.toggleSlider}:before {
-            transform: translateX(18px);
-        }
+/* --- Toggle Switch --- */
+${root} .${cls.toggleSwitch} {
+position: relative;
+display: inline-block;
+width: 40px;
+height: 22px;
+flex-shrink: 0;
+}
+${root} .${cls.toggleSwitch} input {
+opacity: 0;
+width: 0;
+height: 0;
+}
+${root} .${cls.toggleSlider} {
+position: absolute;
+cursor: pointer;
+top: 0;
+left: 0;
+right: 0;
+bottom: 0;
+background-color: ${palette.toggle_bg_off};
+transition: .3s;
+border-radius: 22px;
+}
+${root} .${cls.toggleSlider}:before {
+position: absolute;
+content: "";
+height: 16px;
+width: 16px;
+left: 3px;
+top: 0;
+bottom: 0;
+margin: auto 0;
+background-color: ${palette.toggle_knob};
+transition: .3s;
+border-radius: 50%;
+}
+${root} .${cls.toggleSwitch} input:checked + .${cls.toggleSlider} {
+background-color: ${palette.toggle_bg_on};
+}
+${root} .${cls.toggleSwitch} input:checked + .${cls.toggleSlider}:before {
+transform: translateX(18px);
+}
 
-        /* --- Form Fields & Layout --- */
-        ${root} .${cls.formField} {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-        ${root} .${cls.formField} > label {
-            color: ${palette.text_secondary};
-            font-size: 0.9em;
-        }
-        ${root} .${cls.labelRow} {
-            display: flex;
-            align-items: baseline;
-            gap: 8px;
-        }
-        ${root} .${cls.labelRow} > label {
-            color: ${palette.text_secondary};
-            font-size: 0.9em;
-            margin: 0;
-        }
-        ${root} .${cls.statusText} {
-            font-size: 0.8em;
-            font-weight: 500;
-            /* No auto margin to keep it next to the label */
-        }
-        ${root} .${cls.inputWrapper} {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-        ${root} .${cls.inputWrapper} input {
-            flex-grow: 1;
-        }
-        ${root} .${cls.formErrorMsg} {
-            color: ${palette.error_text};
-            font-size: 0.8em;
-            margin-top: 2px;
-            white-space: pre-wrap;
-        }
-        ${root} .${cls.compoundFormFieldContainer} {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-        }
+/* --- Form Fields & Layout --- */
+${root} .${cls.formField} {
+display: flex;
+flex-direction: column;
+gap: 4px;
+}
+${root} .${cls.formField} > label {
+color: ${palette.text_secondary};
+font-size: 0.9em;
+}
+${root} .${cls.labelRow} {
+display: flex;
+align-items: baseline;
+gap: 8px;
+}
+${root} .${cls.labelRow} > label {
+color: ${palette.text_secondary};
+font-size: 0.9em;
+margin: 0;
+}
+${root} .${cls.statusText} {
+font-size: 0.8em;
+font-weight: 500;
+/* No auto margin to keep it next to the label */
+}
+${root} .${cls.inputWrapper} {
+display: flex;
+align-items: center;
+gap: 4px;
+}
+${root} .${cls.inputWrapper} input {
+flex-grow: 1;
+}
+${root} .${cls.formErrorMsg} {
+color: ${palette.error_text};
+font-size: 0.8em;
+margin-top: 2px;
+white-space: pre-wrap;
+}
+${root} .${cls.compoundFormFieldContainer} {
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 16px;
+}
 
-        /* Common Inputs */
-        ${root} .${cls.commonInput},
-        ${root} .${cls.formField} input[type="text"], 
-        ${root} .${cls.formField} textarea, 
-        ${root} .${cls.formField} select,
-        ${root} .${cls.submenuRow} select {
-            background: ${palette.input_bg};
-            border: 1px solid ${palette.border};
-            border-radius: 4px;
-            box-sizing: border-box;
-            color: ${palette.text_primary};
-            padding: 6px 8px;
-            width: 100%;
-        }
-        ${root} .${cls.submenuRow} select {
-            width: auto;
-            min-width: 120px;
-            max-width: 50%;
-        }
+/* Common Inputs */
+${root} .${cls.commonInput},
+${root} .${cls.formField} input[type="text"], 
+${root} .${cls.formField} textarea, 
+${root} .${cls.formField} select,
+${root} .${cls.submenuRow} select {
+background: ${palette.input_bg};
+border: 1px solid ${palette.border};
+border-radius: 4px;
+box-sizing: border-box;
+color: ${palette.text_primary};
+padding: 6px 8px;
+width: 100%;
+}
+${root} .${cls.submenuRow} select {
+width: auto;
+min-width: 120px;
+max-width: 50%;
+}
 
-        /* Disabled State for Inputs */
-        ${root} .${cls.commonInput}:disabled,
-        ${root} .${cls.formField} input[type="text"]:disabled, 
-        ${root} .${cls.formField} textarea:disabled, 
-        ${root} .${cls.formField} select:disabled,
-        ${root} .${cls.submenuRow} select:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            color: ${palette.text_secondary};
-        }
+/* Disabled State for Inputs */
+${root} .${cls.commonInput}:disabled,
+${root} .${cls.formField} input[type="text"]:disabled, 
+${root} .${cls.formField} textarea:disabled, 
+${root} .${cls.formField} select:disabled,
+${root} .${cls.submenuRow} select:disabled {
+opacity: 0.6;
+cursor: not-allowed;
+color: ${palette.text_secondary};
+}
 
-        ${root} .${cls.formField} input[type="text"].${cls.invalidInput}, 
-        ${root} .${cls.formField} textarea.${cls.invalidInput} {
-            border-color: ${palette.error_text};
-            outline: 1px solid ${palette.error_text};
-        }
-        ${root} .${cls.formField} textarea {
-            resize: vertical;
-        }
+${root} .${cls.formField} input[type="text"].${cls.invalidInput}, 
+${root} .${cls.formField} textarea.${cls.invalidInput} {
+border-color: ${palette.error_text};
+outline: 1px solid ${palette.error_text};
+}
+${root} .${cls.formField} textarea {
+resize: vertical;
+}
 
-        /* --- Local File Button --- */
-        ${root} .${cls.localFileBtn} {
-            flex-shrink: 0;
-            padding: 4px 6px;
-            height: 32px;
-            line-height: 1;
-            font-size: 16px;
-            background: ${palette.btn_bg};
-            border: 1px solid ${palette.btn_border};
-            border-radius: 4px;
-            cursor: pointer;
-            color: ${palette.btn_text};
-        }
-        ${root} .${cls.localFileBtn}:hover {
-            background: ${palette.btn_hover_bg};
-        }
+/* --- Local File Button --- */
+${root} .${cls.localFileBtn} {
+flex-shrink: 0;
+padding: 4px 6px;
+height: 32px;
+line-height: 1;
+font-size: 16px;
+background: ${palette.btn_bg};
+border: 1px solid ${palette.btn_border};
+border-radius: 4px;
+cursor: pointer;
+color: ${palette.btn_text};
+}
+${root} .${cls.localFileBtn}:hover {
+background: ${palette.btn_hover_bg};
+}
 
-        /* --- Color Picker Fields --- */
-        ${root} .${cls.colorFieldWrapper} {
-            display: flex;
-            gap: 8px;
-        }
-        ${root} .${cls.colorFieldWrapper} input[type="text"] {
-            flex-grow: 1;
-        }
-        ${root} .${cls.colorSwatch} {
-            background-color: transparent;
-            border: 1px solid ${palette.border};
-            border-radius: 4px;
-            cursor: pointer;
-            flex-shrink: 0;
-            height: 32px;
-            padding: 2px;
-            position: relative;
-            width: 32px;
-        }
-        ${root} .${cls.colorSwatchChecker}, 
-        ${root} .${cls.colorSwatchValue} {
-            border-radius: 2px;
-            height: auto;
-            inset: 2px;
-            position: absolute;
-            width: auto;
-        }
-        ${root} .${cls.colorSwatchChecker} {
-            background-image: repeating-conic-gradient(#808080 0% 25%, #c0c0c0 0% 50%);
-            background-size: 12px 12px;
-        }
-        ${root} .${cls.colorSwatchValue} {
-            transition: background-color 0.1s;
-        }
+/* --- Color Picker Fields --- */
+${root} .${cls.colorFieldWrapper} {
+display: flex;
+gap: 8px;
+}
+${root} .${cls.colorFieldWrapper} input[type="text"] {
+flex-grow: 1;
+}
+${root} .${cls.colorSwatch} {
+background-color: transparent;
+border: 1px solid ${palette.border};
+border-radius: 4px;
+cursor: pointer;
+flex-shrink: 0;
+height: 32px;
+padding: 2px;
+position: relative;
+width: 32px;
+}
+${root} .${cls.colorSwatchChecker}, 
+${root} .${cls.colorSwatchValue} {
+border-radius: 2px;
+height: auto;
+inset: 2px;
+position: absolute;
+width: auto;
+}
+${root} .${cls.colorSwatchChecker} {
+background-image: repeating-conic-gradient(#808080 0% 25%, #c0c0c0 0% 50%);
+background-size: 12px 12px;
+}
+${root} .${cls.colorSwatchValue} {
+transition: background-color 0.1s;
+}
 
-        /* --- Preview Components --- */
-        ${root} .${cls.previewContainer} {
-            margin-top: 0;
-        }
-        ${root} .${cls.previewContainer} > label {
-            color: ${palette.text_secondary};
-            display: block;
-            font-size: 0.9em;
-            margin-bottom: 4px;
-        }
-        ${root} .${cls.previewBubbleWrapper} {
-            background-image: repeating-conic-gradient(#cccccc 0% 25%, #a9a9a9 0% 50%);
-            background-size: 20px 20px;
-            border-radius: 4px;
-            box-sizing: border-box;
-            min-height: 80px;
-            overflow: hidden;
-            padding: 16px;
-            text-align: left;
-            width: 100%;
-        }
-        ${root} .${cls.previewBubbleWrapper}.${cls.userPreview} {
-            text-align: right;
-        }
-        ${root} .${cls.previewBubble} {
-            box-sizing: border-box;
-            display: inline-block;
-            text-align: left;
-            transition: all 0.1s linear;
-            word-break: break-all;
-        }
-        ${root} .${cls.previewInputArea} {
-            display: block;
-            width: 75%;
-            margin: 0 auto;
-            padding: 8px;
-            border-radius: 6px;
-            background: ${palette.input_bg};
-            color: ${palette.text_primary};
-            border: 1px solid ${palette.border};
-            transition: all 0.1s linear;
-        }
-        ${root} .${cls.previewBackground} {
-            width: 100%;
-            height: 100%;
-            border-radius: 4px;
-            transition: all 0.1s linear;
-            border: 1px solid ${palette.border};
-        }
-        ${root} .${cls.compoundFormFieldContainer} .${cls.formField} > .${cls.previewBubbleWrapper} {
-            flex-grow: 1;
-        }
+/* --- Preview Components --- */
+${root} .${cls.previewContainer} {
+margin-top: 0;
+}
+${root} .${cls.previewContainer} > label {
+color: ${palette.text_secondary};
+display: block;
+font-size: 0.9em;
+margin-bottom: 4px;
+}
+${root} .${cls.previewBubbleWrapper} {
+background-image: repeating-conic-gradient(#cccccc 0% 25%, #a9a9a9 0% 50%);
+background-size: 20px 20px;
+border-radius: 4px;
+box-sizing: border-box;
+min-height: 80px;
+overflow: hidden;
+padding: 16px;
+text-align: left;
+width: 100%;
+}
+${root} .${cls.previewBubbleWrapper}.${cls.userPreview} {
+text-align: right;
+}
+${root} .${cls.previewBubble} {
+box-sizing: border-box;
+display: inline-block;
+text-align: left;
+transition: all 0.1s linear;
+word-break: break-all;
+}
+${root} .${cls.previewInputArea} {
+display: block;
+width: 75%;
+margin: 0 auto;
+padding: 8px;
+border-radius: 6px;
+background: ${palette.input_bg};
+color: ${palette.text_primary};
+border: 1px solid ${palette.border};
+transition: all 0.1s linear;
+}
+${root} .${cls.previewBackground} {
+width: 100%;
+height: 100%;
+border-radius: 4px;
+transition: all 0.1s linear;
+border: 1px solid ${palette.border};
+}
+${root} .${cls.compoundFormFieldContainer} .${cls.formField} > .${cls.previewBubbleWrapper} {
+flex-grow: 1;
+}
 
-        /* --- Submenu / Panels --- */
-        ${root} .${cls.submenuRow} {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-            margin-top: 8px;
-        }
-        ${root} .${cls.submenuRow} .${cls.submenuRow} {
-            margin-top: 0;
-        }
-        ${root} .${cls.submenuRow} label {
-            flex-shrink: 0;
-            margin: 0;
-            padding: 0;
-            line-height: 1.5;
-        }
-        ${root} .${cls.submenuFieldset} {
-            border: 1px solid ${palette.border};
-            border-radius: 4px;
-            padding: 8px 12px 12px;
-            margin: 0 0 12px 0;
-            min-width: 0;
-        }
-        ${root} .${cls.submenuFieldset} legend {
-            padding: 0 4px;
-            font-weight: 500;
-            color: ${palette.text_secondary};
-        }
-        ${root} .${cls.submenuSeparator} {
-            border-top: 1px solid ${palette.border_light};
-            margin: 4px 0;
-        }
-        ${root} .${cls.featureGroup} {
-            padding: 6px 0;
-        }
-        ${root} .${cls.featureGroup}:not(:first-child) {
-            border-top: 1px solid ${palette.border_light};
-        }
-        ${root} .${cls.featureGroup}.${cls.submenuRow} {
-            margin-top: 0;
-        }
+/* --- Submenu / Panels --- */
+${root} .${cls.submenuRow} {
+display: flex;
+align-items: center;
+justify-content: space-between;
+gap: 8px;
+margin-top: 8px;
+}
+${root} .${cls.submenuRow} .${cls.submenuRow} {
+margin-top: 0;
+}
+${root} .${cls.submenuRow} label {
+flex-shrink: 0;
+margin: 0;
+padding: 0;
+line-height: 1.5;
+}
+${root} .${cls.submenuFieldset} {
+border: 1px solid ${palette.border};
+border-radius: 4px;
+padding: 8px 12px 12px;
+margin: 0 0 12px 0;
+min-width: 0;
+}
+${root} .${cls.submenuFieldset} legend {
+padding: 0 4px;
+font-weight: 500;
+color: ${palette.text_secondary};
+}
+${root} .${cls.submenuSeparator} {
+border-top: 1px solid ${palette.border_light};
+margin: 4px 0;
+}
+${root} .${cls.featureGroup} {
+padding: 6px 0;
+}
+${root} .${cls.featureGroup}:not(:first-child) {
+border-top: 1px solid ${palette.border_light};
+}
+${root} .${cls.featureGroup}.${cls.submenuRow} {
+margin-top: 0;
+}
 
-        /* --- Warnings & Notifications --- */
-        ${root} .${cls.warningBanner} {
-            background-color: var(--bg-danger, #ffdddd);
-            color: var(--text-on-danger, #a00);
-            padding: 8px 12px;
-            font-size: 0.85em;
-            text-align: center;
-            border-radius: 4px;
-            margin: 0 0 12px 0;
-            border: 1px solid var(--border-danger-heavy, #c00);
-            white-space: pre-wrap;
-        }
-        ${root} .${cls.conflictText} {
-            color: ${palette.error_text};
-        }
-      `;
+/* --- Warnings & Notifications --- */
+${root} .${cls.warningBanner} {
+background-color: var(--bg-danger, #ffdddd);
+color: var(--text-on-danger, #a00);
+padding: 8px 12px;
+font-size: 0.85em;
+text-align: center;
+border-radius: 4px;
+margin: 0 0 12px 0;
+border: 1px solid var(--border-danger-heavy, #c00);
+white-space: pre-wrap;
+}
+${root} .${cls.conflictText} {
+color: ${palette.error_text};
+}
+`;
     },
 
     /**
@@ -1252,63 +1252,63 @@
       const dialog = `${root}.${cls.dialog}`;
 
       return `
-        ${dialog} {
-            padding: 0;
-            border: none;
-            background: transparent;
-            max-width: 100vw;
-            max-height: 100vh;
-            overflow: visible;
-        }
-        ${dialog}::backdrop {
-            background: rgb(0 0 0 / 0.5);
-            pointer-events: auto;
-        }
-        ${dialog} .${cls.box} {
-            display: flex;
-            flex-direction: column;
-            background: ${palette.bg};
-            color: ${palette.text_primary};
-            border: 1px solid ${palette.border};
-            border-radius: 8px;
-            box-shadow: 0 4px 16px rgb(0 0 0 / 0.2);
-            max-height: 90vh;
-            width: 100%;
-        }
-        ${dialog} .${cls.header}, 
-        ${dialog} .${cls.footer} {
-            flex-shrink: 0;
-            padding: 12px 16px;
-        }
-        ${dialog} .${cls.header} {
-            font-size: 1.1em;
-            font-weight: 600;
-            border-bottom: 1px solid ${palette.border};
-        }
-        ${dialog} .${cls.content} {
-            flex-grow: 1;
-            padding: 0;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            min-height: 0;
-        }
-        ${dialog} .${cls.footer} {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 16px;
-            border-top: 1px solid ${palette.border};
-        }
-        ${dialog} .${cls.footerMessage} {
-            flex-grow: 1;
-            font-size: 0.9em;
-        }
-        ${dialog} .${cls.buttonGroup} {
-            display: flex;
-            gap: 8px;
-        }
-      `;
+${dialog} {
+padding: 0;
+border: none;
+background: transparent;
+max-width: 100vw;
+max-height: 100vh;
+overflow: visible;
+}
+${dialog}::backdrop {
+background: rgb(0 0 0 / 0.5);
+pointer-events: auto;
+}
+${dialog} .${cls.box} {
+display: flex;
+flex-direction: column;
+background: ${palette.bg};
+color: ${palette.text_primary};
+border: 1px solid ${palette.border};
+border-radius: 8px;
+box-shadow: 0 4px 16px rgb(0 0 0 / 0.2);
+max-height: 90vh;
+width: 100%;
+}
+${dialog} .${cls.header}, 
+${dialog} .${cls.footer} {
+flex-shrink: 0;
+padding: 12px 16px;
+}
+${dialog} .${cls.header} {
+font-size: 1.1em;
+font-weight: 600;
+border-bottom: 1px solid ${palette.border};
+}
+${dialog} .${cls.content} {
+flex-grow: 1;
+padding: 0;
+overflow: hidden;
+display: flex;
+flex-direction: column;
+min-height: 0;
+}
+${dialog} .${cls.footer} {
+display: flex;
+justify-content: space-between;
+align-items: center;
+gap: 16px;
+border-top: 1px solid ${palette.border};
+}
+${dialog} .${cls.footerMessage} {
+flex-grow: 1;
+font-size: 0.9em;
+}
+${dialog} .${cls.buttonGroup} {
+display: flex;
+gap: 8px;
+}
+`;
     },
 
     getSettingsPanelCss(rootId, cls) {
@@ -1318,42 +1318,42 @@
       const root = `#${rootId}`;
 
       return `
-          ${root} {
-              position: fixed;
-              width: min(340px, 95vw);
-              max-height: 85vh;
-              overflow-y: auto;
-              overscroll-behavior: contain;
-              background: ${palette.bg};
-              color: ${palette.text_primary};
-              border-radius: 0.5rem;
-              box-shadow: 0 4px 20px 0 rgb(0 0 0 / 15%);
-              padding: 12px;
-              z-index: ${zIndex};
-              border: 1px solid ${palette.border_medium};
-              font-size: 0.9em;
-          }
-          ${root} #${cls.appliedThemeName} {
-              white-space: nowrap;
-              overflow: hidden;
-              text-overflow: ellipsis;
-          }
-          ${root} .${cls.topRow} {
-              display: flex;
-              gap: 12px;
-              margin-bottom: 12px;
-          }
-          /* Target the common fieldset within the top row */
-          ${root} .${cls.topRow} .${common.submenuFieldset} {
-              flex: 1 1 0px;
-              margin-bottom: 0;
-          }
-          
-          /* Target common slider display within the panel */
-          ${root} .${common.sliderSubgroupControl}.is-default .${common.sliderDisplay} {
-              color: ${palette.text_secondary};
-          }
-      `;
+${root} {
+position: fixed;
+width: min(340px, 95vw);
+max-height: 85vh;
+overflow-y: auto;
+overscroll-behavior: contain;
+background: ${palette.bg};
+color: ${palette.text_primary};
+border-radius: 0.5rem;
+box-shadow: 0 4px 20px 0 rgb(0 0 0 / 15%);
+padding: 12px;
+z-index: ${zIndex};
+border: 1px solid ${palette.border_medium};
+font-size: 0.9em;
+}
+${root} #${cls.appliedThemeName} {
+white-space: nowrap;
+overflow: hidden;
+text-overflow: ellipsis;
+}
+${root} .${cls.topRow} {
+display: flex;
+gap: 12px;
+margin-bottom: 12px;
+}
+/* Target the common fieldset within the top row */
+${root} .${cls.topRow} .${common.submenuFieldset} {
+flex: 1 1 0px;
+margin-bottom: 0;
+}
+
+/* Target common slider display within the panel */
+${root} .${common.sliderSubgroupControl}.is-default .${common.sliderDisplay} {
+color: ${palette.text_secondary};
+}
+`;
     },
 
     getJsonModalCss(rootId, cls, prefix) {
@@ -1363,74 +1363,74 @@
       const root = `#${rootId}`;
 
       return `
-        /* Hide footer message area to allow buttons to take full width, unless conflict text is present */
-        ${root} .${modal.footerMessage}:not(.${common.conflictText}) {
-            display: none;
-        }
+/* Hide footer message area to allow buttons to take full width, unless conflict text is present */
+${root} .${modal.footerMessage}:not(.${common.conflictText}) {
+display: none;
+}
 
-        /* Explicitly show and style the conflict message when present */
-        ${root} .${modal.footerMessage}.${common.conflictText} {
-            display: flex;
-            width: 100%;
-        }
-        
-        /* Allow the button group to expand and fill the footer */
-        ${root} .${modal.buttonGroup} {
-            flex-grow: 1;
-            width: 100%;
-        }
+/* Explicitly show and style the conflict message when present */
+${root} .${modal.footerMessage}.${common.conflictText} {
+display: flex;
+width: 100%;
+}
 
-        /* Allow wrapping in footer to prevent overflow when warning message is displayed */
-        ${root} .${modal.footer} {
-            flex-wrap: wrap;
-        }
+/* Allow the button group to expand and fill the footer */
+${root} .${modal.buttonGroup} {
+flex-grow: 1;
+width: 100%;
+}
 
-        /* Editor Style */
-        ${root} .${cls.jsonEditor} {
-            width: 100%;
-            height: 200px;
-            box-sizing: border-box;
-            font-family: monospace, Consolas, "Courier New";
-            font-size: 13px;
-            line-height: 1.4;
-            white-space: pre-wrap; /* Enable wrapping */
-            overflow-y: auto;
-            overflow-x: hidden;
-            margin-bottom: 0;
-            border: 1px solid ${palette.border};
-            background: ${palette.input_bg};
-            color: ${palette.text_primary};
-            border-radius: 4px;
-            resize: none;
-            padding: 8px;
-        }
-        ${root} .${cls.jsonEditor}:focus {
-            outline: 1px solid ${palette.accent_text};
-        }
+/* Allow wrapping in footer to prevent overflow when warning message is displayed */
+${root} .${modal.footer} {
+flex-wrap: wrap;
+}
 
-        /* Status container specific style */
-        ${root} .${cls.statusContainer} {
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-top: 6px;
-            font-size: 0.85em;
-        }
-        
-        /* Mapped from UI Schema className */
-        ${root} .${prefix}-form-field {
-            width: 100%;
-        }
-        ${root} .status-msg-display {
-            flex: 1;
-            margin-right: 8px;
-        }
-        ${root} .size-info-display {
-            white-space: nowrap;
-            text-align: right;
-        }
-      `;
+/* Editor Style */
+${root} .${cls.jsonEditor} {
+width: 100%;
+height: 200px;
+box-sizing: border-box;
+font-family: monospace, Consolas, "Courier New";
+font-size: 13px;
+line-height: 1.4;
+white-space: pre-wrap; /* Enable wrapping */
+overflow-y: auto;
+overflow-x: hidden;
+margin-bottom: 0;
+border: 1px solid ${palette.border};
+background: ${palette.input_bg};
+color: ${palette.text_primary};
+border-radius: 4px;
+resize: none;
+padding: 8px;
+}
+${root} .${cls.jsonEditor}:focus {
+outline: 1px solid ${palette.accent_text};
+}
+
+/* Status container specific style */
+${root} .${cls.statusContainer} {
+width: 100%;
+display: flex;
+justify-content: space-between;
+align-items: flex-start;
+margin-top: 6px;
+font-size: 0.85em;
+}
+
+/* Mapped from UI Schema className */
+${root} .${prefix}-form-field {
+width: 100%;
+}
+${root} .status-msg-display {
+flex: 1;
+margin-right: 8px;
+}
+${root} .size-info-display {
+white-space: nowrap;
+text-align: right;
+}
+`;
     },
 
     getThemeModalCss(rootId, cls) {
@@ -1439,166 +1439,166 @@
       const root = `#${rootId}`;
 
       return `
-        /* Make the content area expand to fill the modal */
-        ${root} .${cls.content} {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-          height: 100%;
-          min-height: 0;
-          overflow: hidden;
-        }
+/* Make the content area expand to fill the modal */
+${root} .${cls.content} {
+display: flex;
+flex-direction: column;
+gap: 16px;
+height: 100%;
+min-height: 0;
+overflow: hidden;
+}
 
-        /* Header Controls Layout */
-        ${root} .${cls.headerControls} {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-          flex-shrink: 0;
-        }
-        ${root} .${cls.headerRow} {
-          display: grid;
-          grid-template-columns: auto 1fr auto;
-          gap: 8px;
-          align-items: center;
-          padding-left: 1.2rem;
-        }
-        ${root} .${cls.headerRow} > label {
-          grid-column: 1;
-          text-align: left;
-          color: ${palette.text_secondary};
-          font-size: 0.9em;
-          white-space: nowrap;
-        }
-        ${root} .${cls.headerRow} > .${cls.renameArea} {
-          grid-column: 2;
-          min-width: 180px;
-        }
-        ${root} .${cls.headerRow} > .${cls.actionArea} {
-          grid-column: 3;
-          display: grid;
-          align-items: center;
-        }
-        ${root} .${cls.actionArea} > * {
-            grid-area: 1 / 1;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
+/* Header Controls Layout */
+${root} .${cls.headerControls} {
+display: flex;
+flex-direction: column;
+gap: 12px;
+flex-shrink: 0;
+}
+${root} .${cls.headerRow} {
+display: grid;
+grid-template-columns: auto 1fr auto;
+gap: 8px;
+align-items: center;
+padding-left: 1.2rem;
+}
+${root} .${cls.headerRow} > label {
+grid-column: 1;
+text-align: left;
+color: ${palette.text_secondary};
+font-size: 0.9em;
+white-space: nowrap;
+}
+${root} .${cls.headerRow} > .${cls.renameArea} {
+grid-column: 2;
+min-width: 180px;
+}
+${root} .${cls.headerRow} > .${cls.actionArea} {
+grid-column: 3;
+display: grid;
+align-items: center;
+}
+${root} .${cls.actionArea} > * {
+grid-area: 1 / 1;
+display: flex;
+align-items: center;
+gap: 8px;
+}
 
-        /* Content Areas */
-        ${root} .${cls.generalSettings} {
-          display: grid;
-          gap: 16px;
-          grid-template-columns: 1fr;
-          transition: opacity 0.2s;
-          flex-shrink: 0;
-        }
-        ${root} .${cls.scrollableArea} {
-          flex-grow: 1;
-          overflow-y: auto;
-          overflow-x: hidden; /* Prevent horizontal scroll */
-          padding: 16px;
-          transition: opacity 0.2s;
-          min-height: 0; /* Enable scrolling */
-        }
-        ${root} .${cls.scrollableArea}:focus {
-          outline: none;
-        }
-        ${root} .${cls.grid} {
-          display: grid;
-          gap: 16px;
-          grid-template-columns: 1fr 1fr;
-        }
-        @media (max-width: 800px) {
-            ${root} .${cls.grid} {
-                grid-template-columns: 1fr !important;
-            }
-        }
+/* Content Areas */
+${root} .${cls.generalSettings} {
+display: grid;
+gap: 16px;
+grid-template-columns: 1fr;
+transition: opacity 0.2s;
+flex-shrink: 0;
+}
+${root} .${cls.scrollableArea} {
+flex-grow: 1;
+overflow-y: auto;
+overflow-x: hidden; /* Prevent horizontal scroll */
+padding: 16px;
+transition: opacity 0.2s;
+min-height: 0; /* Enable scrolling */
+}
+${root} .${cls.scrollableArea}:focus {
+outline: none;
+}
+${root} .${cls.grid} {
+display: grid;
+gap: 16px;
+grid-template-columns: 1fr 1fr;
+}
+@media (max-width: 800px) {
+${root} .${cls.grid} {
+grid-template-columns: 1fr !important;
+}
+}
 
-        /* Separator */
-        ${root} .${cls.separator} {
-          border: none;
-          border-top: 1px solid ${palette.border};
-          margin: 0;
-          flex-shrink: 0;
-        }
-        /* Reset separator margins inside fieldset to rely on gap */
-        ${root} fieldset > .${cls.separator} {
-          margin: 0;
-        }
+/* Separator */
+${root} .${cls.separator} {
+border: none;
+border-top: 1px solid ${palette.border};
+margin: 0;
+flex-shrink: 0;
+}
+/* Reset separator margins inside fieldset to rely on gap */
+${root} fieldset > .${cls.separator} {
+margin: 0;
+}
 
-        /* Spacing Overrides for Theme Editor Forms (Scoped to Theme Modal) */
-        ${root} .${cls.content} .${common.submenuFieldset} {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        /* Reset individual margins to rely on the parent gap */
-        ${root} .${cls.content} .${common.sliderContainer},
-        ${root} .${cls.content} .${common.submenuRow},
-        ${root} .${cls.content} .${common.compoundSliderContainer} {
-            margin-top: 0;
-        }
+/* Spacing Overrides for Theme Editor Forms (Scoped to Theme Modal) */
+${root} .${cls.content} .${common.submenuFieldset} {
+display: flex;
+flex-direction: column;
+gap: 8px;
+}
+/* Reset individual margins to rely on the parent gap */
+${root} .${cls.content} .${common.sliderContainer},
+${root} .${cls.content} .${common.submenuRow},
+${root} .${cls.content} .${common.compoundSliderContainer} {
+margin-top: 0;
+}
 
-        /* Disabled State */
-        ${root} .${cls.generalSettings}.is-disabled,
-        ${root} .${cls.scrollableArea}.is-disabled {
-          pointer-events: none;
-          opacity: 0.5;
-        }
+/* Disabled State */
+${root} .${cls.generalSettings}.is-disabled,
+${root} .${cls.scrollableArea}.is-disabled {
+pointer-events: none;
+opacity: 0.5;
+}
 
-        /* Move Buttons (Arrows) */
-        ${root} .${common.modalButton}.${cls.moveBtn} {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          line-height: 1;
-          min-width: 24px;
-          padding: 4px;
-          height: 24px;
-          width: 24px;
-        }
+/* Move Buttons (Arrows) */
+${root} .${common.modalButton}.${cls.moveBtn} {
+display: flex;
+align-items: center;
+justify-content: center;
+line-height: 1;
+min-width: 24px;
+padding: 4px;
+height: 24px;
+width: 24px;
+}
 
-        /* Delete Confirm Group */
-        ${root} .${cls.deleteConfirmGroup} {
-            display: none;
-        }
-        ${root} .${cls.deleteConfirmGroup}:not([hidden]) {
-          align-items: center;
-          display: flex;
-          gap: 8px;
-        }
-        ${root} .${cls.deleteConfirmLabel} {
-          color: ${palette.danger_text};
-          font-style: italic;
-          margin-right: auto;
-        }
+/* Delete Confirm Group */
+${root} .${cls.deleteConfirmGroup} {
+display: none;
+}
+${root} .${cls.deleteConfirmGroup}:not([hidden]) {
+align-items: center;
+display: flex;
+gap: 8px;
+}
+${root} .${cls.deleteConfirmLabel} {
+color: ${palette.danger_text};
+font-style: italic;
+margin-right: auto;
+}
 
-        /* Mobile Responsive Styles */
-        @media (max-width: 600px) {
-            ${root} .${cls.headerRow} {
-                grid-template-columns: 1fr;
-                gap: 12px;
-                padding-left: 0;
-            }
-            ${root} .${cls.headerRow} > label {
-                grid-column: 1;
-                text-align: left;
-            }
-            ${root} .${cls.headerRow} > .${cls.renameArea} {
-                grid-column: 1;
-                min-width: 0;
-            }
-            ${root} .${cls.headerRow} > .${cls.actionArea} {
-                grid-column: 1;
-            }
-            /* Allow button groups to wrap */
-            ${root} .${cls.actionArea} > * {
-                flex-wrap: wrap;
-            }
-        }
-      `;
+/* Mobile Responsive Styles */
+@media (max-width: 600px) {
+${root} .${cls.headerRow} {
+grid-template-columns: 1fr;
+gap: 12px;
+padding-left: 0;
+}
+${root} .${cls.headerRow} > label {
+grid-column: 1;
+text-align: left;
+}
+${root} .${cls.headerRow} > .${cls.renameArea} {
+grid-column: 1;
+min-width: 0;
+}
+${root} .${cls.headerRow} > .${cls.actionArea} {
+grid-column: 1;
+}
+/* Allow button groups to wrap */
+${root} .${cls.actionArea} > * {
+flex-wrap: wrap;
+}
+}
+`;
     },
 
     getColorPickerCss(rootId, cls) {
@@ -1607,37 +1607,37 @@
       const root = `#${rootId}`;
 
       return `
-        /* Popup Wrapper Style */
-        ${root} {
-            background-color: ${palette.bg};
-            border: 1px solid ${palette.border};
-            border-radius: 4px;
-            box-shadow: 0 4px 12px rgb(0 0 0 / 0.2);
-            padding: 16px;
-            position: fixed; /* Fixed positioning to handle scroll/overflow issues */
-            width: 280px;
-            z-index: ${zIndex};
-        }
-        ${root} .${cls.picker} { display: flex;  flex-direction: column; gap: 16px; }
-        ${root} .${cls.svPlane} { position: relative;  width: 100%; aspect-ratio: 1 / 1; cursor: crosshair; touch-action: none; border-radius: 4px; overflow: hidden; flex-shrink: 0; }
-        ${root} .${cls.svPlane}:focus { outline: 2px solid ${palette.accent_text};  }
-        ${root} .${cls.svPlane} .${cls.gradientWhite}, 
-        ${root} .${cls.svPlane} .${cls.gradientBlack} { position: absolute;  inset: 0; pointer-events: none; }
-        ${root} .${cls.svPlane} .${cls.gradientWhite} { background: linear-gradient(to right, white, transparent);  }
-        ${root} .${cls.svPlane} .${cls.gradientBlack} { background: linear-gradient(to top, black, transparent);  }
-        ${root} .${cls.svThumb} { position: absolute;  width: 20px; height: 20px; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 2px 1px rgb(0 0 0 / 0.5);  box-sizing: border-box; transform: translate(-50%, -50%); pointer-events: none; }
-        ${root} .${cls.sliderGroup} { position: relative;  cursor: pointer; height: 20px; flex-shrink: 0; }
-        ${root} .${cls.sliderGroup} .${cls.sliderTrack}, 
-        ${root} .${cls.sliderGroup} .${cls.alphaCheckerboard} { position: absolute;  top: 50%; transform: translateY(-50%); width: 100%; height: 12px; border-radius: 6px; pointer-events: none;  }
-        ${root} .${cls.sliderGroup} .${cls.alphaCheckerboard} { background-image: repeating-conic-gradient(#808080 0% 25%, #c0c0c0 0% 50%);  background-size: 12px 12px; }
-        ${root} .${cls.sliderGroup} .${cls.hueTrack} { background: linear-gradient( to right, hsl(0 100% 50%), hsl(60 100% 50%), hsl(120 100% 50%), hsl(180 100% 50%), hsl(240 100% 50%), hsl(300 100% 50%), hsl(360 100% 50%) );  }
-        ${root} .${cls.sliderGroup} input[type="range"] { -webkit-appearance: none;  appearance: none; position: relative; width: 100%; height: 100%; margin: 0; padding: 0; background-color: transparent; cursor: pointer;  }
-        ${root} .${cls.sliderGroup} input[type="range"]:focus { outline: none;  }
-        ${root} .${cls.sliderGroup} input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none;  appearance: none; width: 20px; height: 20px; border: 2px solid white; border-radius: 50%; background-color: #fff;  box-shadow: 0 0 2px 1px rgb(0 0 0 / 0.5);  }
-        ${root} .${cls.sliderGroup} input[type="range"]::-moz-range-thumb { width: 20px;  height: 20px; border: 2px solid white; border-radius: 50%; background-color: #fff; box-shadow: 0 0 2px 1px rgb(0 0 0 / 0.5);  }
-        ${root} .${cls.sliderGroup} input[type="range"]:focus::-webkit-slider-thumb { outline: 2px solid ${palette.accent_text};  outline-offset: 1px; }
-        ${root} .${cls.sliderGroup} input[type="range"]:focus::-moz-range-thumb { outline: 2px solid ${palette.accent_text};  outline-offset: 1px; }
-      `;
+/* Popup Wrapper Style */
+${root} {
+background-color: ${palette.bg};
+border: 1px solid ${palette.border};
+border-radius: 4px;
+box-shadow: 0 4px 12px rgb(0 0 0 / 0.2);
+padding: 16px;
+position: fixed; /* Fixed positioning to handle scroll/overflow issues */
+width: 280px;
+z-index: ${zIndex};
+}
+${root} .${cls.picker} { display: flex;  flex-direction: column; gap: 16px; }
+${root} .${cls.svPlane} { position: relative;  width: 100%; aspect-ratio: 1 / 1; cursor: crosshair; touch-action: none; border-radius: 4px; overflow: hidden; flex-shrink: 0; }
+${root} .${cls.svPlane}:focus { outline: 2px solid ${palette.accent_text};  }
+${root} .${cls.svPlane} .${cls.gradientWhite}, 
+${root} .${cls.svPlane} .${cls.gradientBlack} { position: absolute;  inset: 0; pointer-events: none; }
+${root} .${cls.svPlane} .${cls.gradientWhite} { background: linear-gradient(to right, white, transparent);  }
+${root} .${cls.svPlane} .${cls.gradientBlack} { background: linear-gradient(to top, black, transparent);  }
+${root} .${cls.svThumb} { position: absolute;  width: 20px; height: 20px; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 2px 1px rgb(0 0 0 / 0.5);  box-sizing: border-box; transform: translate(-50%, -50%); pointer-events: none; }
+${root} .${cls.sliderGroup} { position: relative;  cursor: pointer; height: 20px; flex-shrink: 0; }
+${root} .${cls.sliderGroup} .${cls.sliderTrack}, 
+${root} .${cls.sliderGroup} .${cls.alphaCheckerboard} { position: absolute;  top: 50%; transform: translateY(-50%); width: 100%; height: 12px; border-radius: 6px; pointer-events: none;  }
+${root} .${cls.sliderGroup} .${cls.alphaCheckerboard} { background-image: repeating-conic-gradient(#808080 0% 25%, #c0c0c0 0% 50%);  background-size: 12px 12px; }
+${root} .${cls.sliderGroup} .${cls.hueTrack} { background: linear-gradient( to right, hsl(0 100% 50%), hsl(60 100% 50%), hsl(120 100% 50%), hsl(180 100% 50%), hsl(240 100% 50%), hsl(300 100% 50%), hsl(360 100% 50%) );  }
+${root} .${cls.sliderGroup} input[type="range"] { -webkit-appearance: none;  appearance: none; position: relative; width: 100%; height: 100%; margin: 0; padding: 0; background-color: transparent; cursor: pointer;  }
+${root} .${cls.sliderGroup} input[type="range"]:focus { outline: none;  }
+${root} .${cls.sliderGroup} input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none;  appearance: none; width: 20px; height: 20px; border: 2px solid white; border-radius: 50%; background-color: #fff;  box-shadow: 0 0 2px 1px rgb(0 0 0 / 0.5);  }
+${root} .${cls.sliderGroup} input[type="range"]::-moz-range-thumb { width: 20px;  height: 20px; border: 2px solid white; border-radius: 50%; background-color: #fff; box-shadow: 0 0 2px 1px rgb(0 0 0 / 0.5);  }
+${root} .${cls.sliderGroup} input[type="range"]:focus::-webkit-slider-thumb { outline: 2px solid ${palette.accent_text};  outline-offset: 1px; }
+${root} .${cls.sliderGroup} input[type="range"]:focus::-moz-range-thumb { outline: 2px solid ${palette.accent_text};  outline-offset: 1px; }
+`;
     },
 
     getFixedNavCss(rootId, cls) {
@@ -1650,173 +1650,168 @@
       const S_ASST_BUBBLE = selectors.RAW_ASSISTANT_BUBBLE;
 
       // Highlight Selectors
-      const highlightCommon = `
-                .${cls.highlightMessage} ${S_USER_BUBBLE}, 
-                .${cls.highlightMessage} ${S_ASST_BUBBLE}, 
-                .${cls.highlightMessage} ${selectors.RAW_USER_IMAGE_BUBBLE}, 
-                .${cls.highlightTurn} ${selectors.RAW_ASSISTANT_IMAGE_BUBBLE}
-            `;
+      const highlightCommon = `.${cls.highlightMessage} ${S_USER_BUBBLE}, .${cls.highlightMessage} ${S_ASST_BUBBLE}, .${cls.highlightMessage} ${selectors.RAW_USER_IMAGE_BUBBLE}, .${cls.highlightTurn} ${selectors.RAW_ASSISTANT_IMAGE_BUBBLE}`;
       const highlightUserText = `.${cls.highlightMessage} ${S_USER_BUBBLE}`;
       const highlightAsstText = `.${cls.highlightMessage} ${S_ASST_BUBBLE}`;
 
       return `
-        /* --- Fixed Nav Container --- */
-        ${root} .${cls.isHidden} {
-            display: none;
-        }
-        ${root}.${cls.unpositioned} {
-            visibility: hidden;
-            opacity: 0;
-        }
-        ${root} {
-            position: fixed;
-            z-index: ${zIndex};
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            background-color: ${palette.fixed_nav_bg};
-            padding: 4px 8px;
-            border-radius: 8px;
-            border: 1px solid ${palette.fixed_nav_border};
-            box-shadow: 0 2px 10px rgb(0 0 0 / 0.05);
-            font-size: 0.8rem;
-            opacity: 1;
-            transform-origin: bottom;
-        }
-        /* Embedded Mode (Header Integration) */
-        ${root}.is-embedded {
-            position: static !important;
-            background-color: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
-            padding: 0 8px !important;
-            height: 100%;
-            z-index: auto;
-        }
-        ${root}.${cls.hidden} {
-            display: none;
-        }
+/* --- Fixed Nav Container --- */
+${root} .${cls.isHidden} {
+display: none;
+}
+${root}.${cls.unpositioned} {
+visibility: hidden;
+opacity: 0;
+}
+${root} {
+position: fixed;
+z-index: ${zIndex};
+display: flex;
+align-items: center;
+gap: 6px;
+background-color: ${palette.fixed_nav_bg};
+padding: 4px 8px;
+border-radius: 8px;
+border: 1px solid ${palette.fixed_nav_border};
+box-shadow: 0 2px 10px rgb(0 0 0 / 0.05);
+font-size: 0.8rem;
+opacity: 1;
+transform-origin: bottom;
+}
+/* Embedded Mode (Header Integration) */
+${root}.is-embedded {
+position: static !important;
+background-color: transparent !important;
+border: none !important;
+box-shadow: none !important;
+padding: 0 8px !important;
+height: 100%;
+z-index: auto;
+}
+${root}.${cls.hidden} {
+display: none;
+}
 
-        /* --- Fixed Nav Content --- */
-        ${root} .${cls.group} {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        ${root} .${cls.separator} {
-            width: 1px;
-            height: 20px;
-            background-color: ${palette.fixed_nav_separator_bg};
-        }
-        ${root} .${cls.roleBtn} {
-            color: ${palette.fixed_nav_label_text};
-            font-weight: 500;
-            cursor: pointer;
-            user-select: none;
-            background: transparent;
-            border: none;
-            padding: 2px;
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background-color 0.1s;
-            width: 24px;
-            height: 24px;
-        }
-        ${root} .${cls.roleBtn}:hover {
-            background-color: ${palette.btn_hover_bg};
-        }
-        ${root} .${cls.roleBtn} svg {
-            width: 20px;
-            height: 20px;
-            fill: currentColor;
-        }
-        
-        /* Role Colors */
-        ${root} .${cls.roleTotal} {
-            color: ${palette.text_secondary};
-        }
-        ${root} .${cls.roleUser} {
-            color: ${palette.accent_text};
-        }
-        ${root} .${cls.roleAssistant} {
-            color: ${palette.fixed_nav_assistant_text};
-        }
+/* --- Fixed Nav Content --- */
+${root} .${cls.group} {
+display: flex;
+align-items: center;
+gap: 6px;
+}
+${root} .${cls.separator} {
+width: 1px;
+height: 20px;
+background-color: ${palette.fixed_nav_separator_bg};
+}
+${root} .${cls.roleBtn} {
+color: ${palette.fixed_nav_label_text};
+font-weight: 500;
+cursor: pointer;
+user-select: none;
+background: transparent;
+border: none;
+padding: 2px;
+border-radius: 4px;
+display: flex;
+align-items: center;
+justify-content: center;
+transition: background-color 0.1s;
+width: 24px;
+height: 24px;
+}
+${root} .${cls.roleBtn}:hover {
+background-color: ${palette.btn_hover_bg};
+}
+${root} .${cls.roleBtn} svg {
+width: 20px;
+height: 20px;
+fill: currentColor;
+}
 
-        ${root} .${cls.counter},
-        ${root} .${cls.jumpInput} {
-            box-sizing: border-box;
-            width: 85px;
-            height: 24px;
-            margin: 0;
-            background-color: ${palette.fixed_nav_counter_bg};
-            color: ${palette.fixed_nav_counter_text};
-            padding: 1px 4px;
-            border: 1px solid ${palette.fixed_nav_counter_border};
-            border-radius: 4px;
-            text-align: center;
-            vertical-align: middle;
-            font-family: monospace;
-            font: inherit;
-            user-select: none;
-        }
-        ${root} .${cls.btn} {
-            background-color: ${palette.btn_bg};
-            color: ${palette.btn_text};
-            border: 1px solid ${palette.btn_border};
-            border-radius: 5px;
-            width: 24px;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            padding: 0;
-            transition: background-color 0.1s, color 0.1s;
-        }
-        ${root} .${cls.btn}:not(:disabled):hover {
-            background-color: ${palette.btn_hover_bg};
-        }
-        ${root} .${cls.btn} svg {
-            width: 20px;
-            height: 20px;
-            fill: currentColor;
-        }
-        ${root} #${cls.bulkCollapseBtnId} svg {
-            width: 100%;
-            height: 100%;
-        }
-        ${root} #${cls.bulkCollapseBtnId}[data-state="expanded"] .icon-expand { display: none; }
-        ${root} #${cls.bulkCollapseBtnId}[data-state="expanded"] .icon-collapse { display: block; }
-        ${root} #${cls.bulkCollapseBtnId}[data-state="collapsed"] .icon-expand { display: block; }
-        ${root} #${cls.bulkCollapseBtnId}[data-state="collapsed"] .icon-collapse { display: none; }
-        
-        ${root} .${cls.btn}.${cls.btnAccent} {
-            color: ${palette.fixed_nav_btn_accent_text};
-        }
-        ${root} .${cls.btn}.${cls.btnDanger} {
-            color: ${palette.fixed_nav_btn_danger_text};
-        }
-        ${root} #${cls.autoscrollBtnId}:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
+/* Role Colors */
+${root} .${cls.roleTotal} {
+color: ${palette.text_secondary};
+}
+${root} .${cls.roleUser} {
+color: ${palette.accent_text};
+}
+${root} .${cls.roleAssistant} {
+color: ${palette.fixed_nav_assistant_text};
+}
 
-        /* --- Highlight (Global Scope) --- */
-        /* These rules target messages outside the root container, so they cannot use #rootId */
-        ${highlightCommon} {
-            outline: 2px solid ${palette.fixed_nav_highlight_outline} !important;
-            outline-offset: -2px;
-            box-shadow: 0 0 8px ${palette.fixed_nav_highlight_outline} !important;
-        }
-        ${highlightUserText} {
-            border-radius: var(${CSS_VARS.USER_BUBBLE_RADIUS}) !important;
-        }
-        ${highlightAsstText} {
-            border-radius: var(${CSS_VARS.ASSISTANT_BUBBLE_RADIUS}) !important;
-        }
-      `;
+${root} .${cls.counter},
+${root} .${cls.jumpInput} {
+box-sizing: border-box;
+width: 85px;
+height: 24px;
+margin: 0;
+background-color: ${palette.fixed_nav_counter_bg};
+color: ${palette.fixed_nav_counter_text};
+padding: 1px 4px;
+border: 1px solid ${palette.fixed_nav_counter_border};
+border-radius: 4px;
+text-align: center;
+vertical-align: middle;
+font-family: monospace;
+font: inherit;
+user-select: none;
+}
+${root} .${cls.btn} {
+background-color: ${palette.btn_bg};
+color: ${palette.btn_text};
+border: 1px solid ${palette.btn_border};
+border-radius: 5px;
+width: 24px;
+height: 24px;
+display: flex;
+align-items: center;
+justify-content: center;
+cursor: pointer;
+padding: 0;
+transition: background-color 0.1s, color 0.1s;
+}
+${root} .${cls.btn}:not(:disabled):hover {
+background-color: ${palette.btn_hover_bg};
+}
+${root} .${cls.btn} svg {
+width: 20px;
+height: 20px;
+fill: currentColor;
+}
+${root} #${cls.bulkCollapseBtnId} svg {
+width: 100%;
+height: 100%;
+}
+${root} #${cls.bulkCollapseBtnId}[data-state="expanded"] .icon-expand { display: none; }
+${root} #${cls.bulkCollapseBtnId}[data-state="expanded"] .icon-collapse { display: block; }
+${root} #${cls.bulkCollapseBtnId}[data-state="collapsed"] .icon-expand { display: block; }
+${root} #${cls.bulkCollapseBtnId}[data-state="collapsed"] .icon-collapse { display: none; }
+
+${root} .${cls.btn}.${cls.btnAccent} {
+color: ${palette.fixed_nav_btn_accent_text};
+}
+${root} .${cls.btn}.${cls.btnDanger} {
+color: ${palette.fixed_nav_btn_danger_text};
+}
+${root} #${cls.autoscrollBtnId}:disabled {
+opacity: 0.5;
+cursor: not-allowed;
+}
+
+/* --- Highlight (Global Scope) --- */
+/* These rules target messages outside the root container, so they cannot use #rootId */
+${highlightCommon} {
+outline: 2px solid ${palette.fixed_nav_highlight_outline} !important;
+outline-offset: -2px;
+box-shadow: 0 0 8px ${palette.fixed_nav_highlight_outline} !important;
+}
+${highlightUserText} {
+border-radius: var(${CSS_VARS.USER_BUBBLE_RADIUS}) !important;
+}
+${highlightAsstText} {
+border-radius: var(${CSS_VARS.ASSISTANT_BUBBLE_RADIUS}) !important;
+}
+`;
     },
 
     getJumpListCss(rootId, cls) {
@@ -1828,155 +1823,155 @@
       const firefoxScrollbarFix = /firefox/i.test(navigator.userAgent) ? `${root} .${cls.scrollbox} { padding-right: 12px; }` : '';
 
       return `
-        /* --- Jump List Container --- */
-        ${root} {
-            position: fixed;
-            z-index: ${zIndex};
-            background: ${palette.jump_list_bg};
-            border: 1px solid ${palette.jump_list_border};
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgb(0 0 0 / 15%);
-            padding: 4px;
-            opacity: 0;
-            transform-origin: bottom;
-            transform: translateY(10px);
-            transition: opacity 0.15s ease, transform 0.15s ease;
-            visibility: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-        ${root}.${cls.expandDown} {
-            transform-origin: top;
-            transform: translateY(-10px);
-        }
-        ${root}:focus, 
-        ${root} #${cls.listId}:focus, 
-        ${root} .${cls.scrollbox}:focus {
-            outline: none;
-        }
-        ${root}.${cls.visible} {
-            opacity: 1;
-            transform: translateY(0);
-            visibility: visible;
-        }
-        ${root} .${cls.scrollbox} {
-            flex: 1 1 auto;
-            position: relative;
-        }
-        ${firefoxScrollbarFix}
+/* --- Jump List Container --- */
+${root} {
+position: fixed;
+z-index: ${zIndex};
+background: ${palette.jump_list_bg};
+border: 1px solid ${palette.jump_list_border};
+border-radius: 8px;
+box-shadow: 0 4px 12px rgb(0 0 0 / 15%);
+padding: 4px;
+opacity: 0;
+transform-origin: bottom;
+transform: translateY(10px);
+transition: opacity 0.15s ease, transform 0.15s ease;
+visibility: hidden;
+display: flex;
+flex-direction: column;
+}
+${root}.${cls.expandDown} {
+transform-origin: top;
+transform: translateY(-10px);
+}
+${root}:focus, 
+${root} #${cls.listId}:focus, 
+${root} .${cls.scrollbox}:focus {
+outline: none;
+}
+${root}.${cls.visible} {
+opacity: 1;
+transform: translateY(0);
+visibility: visible;
+}
+${root} .${cls.scrollbox} {
+flex: 1 1 auto;
+position: relative;
+}
+${firefoxScrollbarFix}
 
-        /* --- Jump List Items --- */
-        ${root} #${cls.listId} {
-            list-style: none;
-            margin: 0;
-            padding: 0;
-        }
-        ${root} .${cls.filterContainer} {
-            position: relative;
-            display: flex;
-            align-items: center;
-            border-top: 1px solid ${palette.jump_list_border};
-            margin: 4px 0 0 0;
-            flex-shrink: 0;
-        }
-        ${root} .${cls.filter} {
-            border: none;
-            background-color: transparent;
-            color: inherit;
-            padding: 8px 60px 8px 8px;
-            outline: none;
-            font-size: 0.85rem;
-            border-radius: 0 0 4px 4px;
-            width: 100%;
-            box-sizing: border-box;
-        }
-        ${root} .${cls.filter}.${cls.filterRegexValid} {
-            border-color: ${palette.jump_list_current_outline};
-        }
-        ${root} .${cls.modeLabel} {
-            position: absolute;
-            right: 8px;
-            padding: 1px 6px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            font-weight: bold;
-            pointer-events: none;
-            transition: background-color 0.2s, color 0.2s;
-            line-height: 1.5;
-        }
-        ${root} .${cls.modeLabel}.${cls.modeString} {
-            background-color: transparent;
-            color: ${palette.label_text};
-        }
-        ${root} .${cls.modeLabel}.${cls.modeRegex} {
-            background-color: #28a745;
-            color: #ffffff;
-        }
-        ${root} .${cls.modeLabel}.${cls.modeInvalid} {
-            background-color: #dc3545;
-            color: #ffffff;
-        }
-        ${root} #${cls.listId} li {
-            padding: 6px 10px;
-            cursor: pointer;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            border-radius: 4px;
-            font-size: 0.85rem;
-        }
-        ${root} #${cls.listId} li:hover, 
-        ${root} #${cls.listId} li.${cls.focused} {
-            box-shadow: inset 3px 0 0 rgb(128 128 128 / 0.8), inset 0 0 0 100px rgb(128 128 128 / 0.4);
-        }
-        ${root} #${cls.listId} li.${cls.current} {
-            box-shadow: inset 8px 0 0 ${palette.jump_list_current_outline};
-            font-weight: bold;
-        }
-        ${root} #${cls.listId} li.${cls.current}:hover, 
-        ${root} #${cls.listId} li.${cls.current}.${cls.focused} {
-            box-shadow: inset 8px 0 0 ${palette.jump_list_current_outline}, inset 0 0 0 100px rgb(128 128 128 / 0.4);
-        }
-        ${root} #${cls.listId} li.${cls.userItem} {
-            background-color: var(${CSS_VARS.USER_BUBBLE_BG}, transparent);
-            color: var(${CSS_VARS.USER_TEXT_COLOR}, inherit);
-        }
-        ${root} #${cls.listId} li.${cls.asstItem} {
-            background-color: var(${CSS_VARS.ASSISTANT_BUBBLE_BG}, transparent);
-            color: var(${CSS_VARS.ASSISTANT_TEXT_COLOR}, inherit);
-        }
+/* --- Jump List Items --- */
+${root} #${cls.listId} {
+list-style: none;
+margin: 0;
+padding: 0;
+}
+${root} .${cls.filterContainer} {
+position: relative;
+display: flex;
+align-items: center;
+border-top: 1px solid ${palette.jump_list_border};
+margin: 4px 0 0 0;
+flex-shrink: 0;
+}
+${root} .${cls.filter} {
+border: none;
+background-color: transparent;
+color: inherit;
+padding: 8px 60px 8px 8px;
+outline: none;
+font-size: 0.85rem;
+border-radius: 0 0 4px 4px;
+width: 100%;
+box-sizing: border-box;
+}
+${root} .${cls.filter}.${cls.filterRegexValid} {
+border-color: ${palette.jump_list_current_outline};
+}
+${root} .${cls.modeLabel} {
+position: absolute;
+right: 8px;
+padding: 1px 6px;
+border-radius: 4px;
+font-size: 0.75rem;
+font-weight: bold;
+pointer-events: none;
+transition: background-color 0.2s, color 0.2s;
+line-height: 1.5;
+}
+${root} .${cls.modeLabel}.${cls.modeString} {
+background-color: transparent;
+color: ${palette.label_text};
+}
+${root} .${cls.modeLabel}.${cls.modeRegex} {
+background-color: #28a745;
+color: #ffffff;
+}
+${root} .${cls.modeLabel}.${cls.modeInvalid} {
+background-color: #dc3545;
+color: #ffffff;
+}
+${root} #${cls.listId} li {
+padding: 6px 10px;
+cursor: pointer;
+white-space: nowrap;
+overflow: hidden;
+text-overflow: ellipsis;
+border-radius: 4px;
+font-size: 0.85rem;
+}
+${root} #${cls.listId} li:hover, 
+${root} #${cls.listId} li.${cls.focused} {
+box-shadow: inset 3px 0 0 rgb(128 128 128 / 0.8), inset 0 0 0 100px rgb(128 128 128 / 0.4);
+}
+${root} #${cls.listId} li.${cls.current} {
+box-shadow: inset 8px 0 0 ${palette.jump_list_current_outline};
+font-weight: bold;
+}
+${root} #${cls.listId} li.${cls.current}:hover, 
+${root} #${cls.listId} li.${cls.current}.${cls.focused} {
+box-shadow: inset 8px 0 0 ${palette.jump_list_current_outline}, inset 0 0 0 100px rgb(128 128 128 / 0.4);
+}
+${root} #${cls.listId} li.${cls.userItem} {
+background-color: var(${CSS_VARS.USER_BUBBLE_BG}, transparent);
+color: var(${CSS_VARS.USER_TEXT_COLOR}, inherit);
+}
+${root} #${cls.listId} li.${cls.asstItem} {
+background-color: var(${CSS_VARS.ASSISTANT_BUBBLE_BG}, transparent);
+color: var(${CSS_VARS.ASSISTANT_TEXT_COLOR}, inherit);
+}
 
-        /* --- Jump List Preview (Global) --- */
-        #${cls.previewId} {
-            position: fixed;
-            z-index: ${CONSTANTS.Z_INDICES.JUMP_LIST_PREVIEW};
-            background: ${palette.jump_list_bg};
-            border: 1px solid ${palette.jump_list_border};
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgb(0 0 0 / 10%);
-            padding: 8px 12px;
-            max-width: 400px;
-            max-height: 300px;
-            overflow-y: auto;
-            font-size: 0.85rem;
-            opacity: 0;
-            transition: opacity 0.15s ease-in-out;
-            white-space: pre-wrap;
-            word-break: break-word;
-            visibility: hidden;
-            user-select: text;
-            cursor: auto;
-        }
-        #${cls.previewId} strong {
-            color: ${palette.jump_list_current_outline};
-            font-weight: bold;
-            background-color: transparent;
-        }
-        #${cls.previewId}.${cls.visible} {
-            opacity: 1;
-            visibility: visible;
-        }
-      `;
+/* --- Jump List Preview (Global) --- */
+#${cls.previewId} {
+position: fixed;
+z-index: ${CONSTANTS.Z_INDICES.JUMP_LIST_PREVIEW};
+background: ${palette.jump_list_bg};
+border: 1px solid ${palette.jump_list_border};
+border-radius: 8px;
+box-shadow: 0 2px 8px rgb(0 0 0 / 10%);
+padding: 8px 12px;
+max-width: 400px;
+max-height: 300px;
+overflow-y: auto;
+font-size: 0.85rem;
+opacity: 0;
+transition: opacity 0.15s ease-in-out;
+white-space: pre-wrap;
+word-break: break-word;
+visibility: hidden;
+user-select: text;
+cursor: auto;
+}
+#${cls.previewId} strong {
+color: ${palette.jump_list_current_outline};
+font-weight: bold;
+background-color: transparent;
+}
+#${cls.previewId}.${cls.visible} {
+opacity: 1;
+visibility: visible;
+}
+`;
     },
 
     getSettingsButtonCss(rootId, cls, prefix) {
@@ -1986,158 +1981,158 @@
       const root = `#${rootId}`;
 
       return `
-        @keyframes ${animationName} {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        ${root} {
-            z-index: ${zIndex};
-            background: transparent;
-            border: none;
-            border-radius: 50%;
-            border-color: transparent;
-            position: static;
-            margin: 0 2px 0 0;
-            width: ${palette.settings_btn_width};
-            height: ${palette.settings_btn_height};
-            align-self: center;
-            color: ${palette.settings_btn_color};
-            /* Fixed base styles */
-            font-size: 16px;
-            cursor: pointer;
-            box-shadow: var(--drop-shadow-xs, 0 1px 1px #0000000d);
-            transition: background 0.12s, border-color 0.12s, box-shadow 0.12s, color 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0;
-            pointer-events: auto !important;
-        }
-        ${root}:hover {
-            background: ${palette.settings_btn_hover_bg};
-            border-color: transparent;
-        }
-        ${root}.is-loading {
-            color: ${palette.loading_spinner};
-        }
-        ${root}.is-loading svg {
-            animation: ${animationName} 1.5s linear infinite;
-        }
-      `;
+@keyframes ${animationName} {
+0% { transform: rotate(0deg); }
+100% { transform: rotate(360deg); }
+}
+${root} {
+z-index: ${zIndex};
+background: transparent;
+border: none;
+border-radius: 50%;
+border-color: transparent;
+position: static;
+margin: 0 2px 0 0;
+width: ${palette.settings_btn_width};
+height: ${palette.settings_btn_height};
+align-self: center;
+color: ${palette.settings_btn_color};
+/* Fixed base styles */
+font-size: 16px;
+cursor: pointer;
+box-shadow: var(--drop-shadow-xs, 0 1px 1px #0000000d);
+transition: background 0.12s, border-color 0.12s, box-shadow 0.12s, color 0.2s ease;
+display: flex;
+align-items: center;
+justify-content: center;
+padding: 0;
+pointer-events: auto !important;
+}
+${root}:hover {
+background: ${palette.settings_btn_hover_bg};
+border-color: transparent;
+}
+${root}.is-loading {
+color: ${palette.loading_spinner};
+}
+${root}.is-loading svg {
+animation: ${animationName} 1.5s linear infinite;
+}
+`;
     },
 
     getToastCss(rootId, cls) {
       const zIndex = SITE_STYLES.Z_INDICES.TOAST;
       const root = `#${rootId}`;
       return `
-        ${root} {
-            position: fixed;
-            top: 30%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: ${zIndex};
-            background-color: rgb(255 165 0 / 0.9);
-            color: #ffffff;
-            padding: 15px 25px;
-            border-radius: 12px;
-            border: 1px solid #ffa000;
-            box-shadow: 0 6px 20px rgb(0 0 0 / 0.2);
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            font-size: 1.1em;
-            font-weight: bold;
-            opacity: 0;
-            transition: opacity 0.4s ease, transform 0.4s ease;
-            pointer-events: none;
-            white-space: nowrap;
-        }
-        ${root}.${cls.visible} {
-            opacity: 1;
-            transform: translate(-50%, 0);
-            pointer-events: auto;
-        }
-        ${root} .${cls.cancelBtn} {
-            background: rgb(255 255 255 / 0.2);
-            color: #ffffff;
-            border: none;
-            padding: 8px 15px;
-            margin-left: 10px;
-            cursor: pointer;
-            font-weight: bold;
-            border-radius: 6px;
-            transition: background-color 0.2s ease;
-        }
-        ${root} .${cls.cancelBtn}:hover {
-            background-color: rgb(255 255 255 / 0.3);
-        }
-      `;
+${root} {
+position: fixed;
+top: 30%;
+left: 50%;
+transform: translate(-50%, -50%);
+z-index: ${zIndex};
+background-color: rgb(255 165 0 / 0.9);
+color: #ffffff;
+padding: 15px 25px;
+border-radius: 12px;
+border: 1px solid #ffa000;
+box-shadow: 0 6px 20px rgb(0 0 0 / 0.2);
+display: flex;
+align-items: center;
+gap: 15px;
+font-size: 1.1em;
+font-weight: bold;
+opacity: 0;
+transition: opacity 0.4s ease, transform 0.4s ease;
+pointer-events: none;
+white-space: nowrap;
+}
+${root}.${cls.visible} {
+opacity: 1;
+transform: translate(-50%, 0);
+pointer-events: auto;
+}
+${root} .${cls.cancelBtn} {
+background: rgb(255 255 255 / 0.2);
+color: #ffffff;
+border: none;
+padding: 8px 15px;
+margin-left: 10px;
+cursor: pointer;
+font-weight: bold;
+border-radius: 6px;
+transition: background-color 0.2s ease;
+}
+${root} .${cls.cancelBtn}:hover {
+background-color: rgb(255 255 255 / 0.3);
+}
+`;
     },
 
     getTimestampCss(cls) {
       return `
-        .${cls.container} {
-            font-size: 10px;
-            line-height: 1.2;
-            padding: 0;
-            margin: 0;                    
-            color: rgb(255 255 255 / 0.7);
-            border-radius: 4px;
-            white-space: pre;
-            display: flex;
-            position: absolute;
-            top: -20px; /* Align vertically with the 24px collapse button */
-        }
-        .${cls.container}.${cls.assistant} {
-            left: 30px; /* (button left 4px + width 24px + margin 2px) */
-        }
-        .${cls.container}.${cls.user} {
-            right: 30px; /* (button right 4px + width 24px + margin 2px) */
-        }
-        .${cls.text} {
-            background-color: rgb(0 0 0 / 0.4);
-            padding: 0px 4px;
-            border-radius: 4px;
-            pointer-events: none;
-        }
-        .${cls.hidden} {
-            display: none !important;
-        }
-      `;
+.${cls.container} {
+font-size: 10px;
+line-height: 1.2;
+padding: 0;
+margin: 0;                    
+color: rgb(255 255 255 / 0.7);
+border-radius: 4px;
+white-space: pre;
+display: flex;
+position: absolute;
+top: -20px; /* Align vertically with the 24px collapse button */
+}
+.${cls.container}.${cls.assistant} {
+left: 30px; /* (button left 4px + width 24px + margin 2px) */
+}
+.${cls.container}.${cls.user} {
+right: 30px; /* (button right 4px + width 24px + margin 2px) */
+}
+.${cls.text} {
+background-color: rgb(0 0 0 / 0.4);
+padding: 0px 4px;
+border-radius: 4px;
+pointer-events: none;
+}
+.${cls.hidden} {
+display: none !important;
+}
+`;
     },
 
     getMessageNumberCss(cls) {
       return `
-        .${cls.parent} {
-            position: relative !important;
-        }
-        .${cls.number} {
-            position: absolute;
-            font-size: 0.6rem;
-            font-weight: bold;
-            color: rgb(255 255 255 / 0.7);
-            background-color: rgb(0 0 0 / 0.4);
-            padding: 0px 4px;
-            border-radius: 4px;
-            line-height: 1.5;
-            pointer-events: none;
-            z-index: 1;
-            white-space: nowrap;
-        }
-        .${cls.number}.${cls.assistant} {
-            top: -20px;
-            right: 100%;
-            margin-right: 0px;
-        }
-        .${cls.number}.${cls.user} {
-            top: -20px;
-            left: 100%;
-            margin-left: 0px;
-        }
-        .${cls.hidden} {
-            display: none !important;
-        }
-      `;
+.${cls.parent} {
+position: relative !important;
+}
+.${cls.number} {
+position: absolute;
+font-size: 0.6rem;
+font-weight: bold;
+color: rgb(255 255 255 / 0.7);
+background-color: rgb(0 0 0 / 0.4);
+padding: 0px 4px;
+border-radius: 4px;
+line-height: 1.5;
+pointer-events: none;
+z-index: 1;
+white-space: nowrap;
+}
+.${cls.number}.${cls.assistant} {
+top: -20px;
+right: 100%;
+margin-right: 0px;
+}
+.${cls.number}.${cls.user} {
+top: -20px;
+left: 100%;
+margin-left: 0px;
+}
+.${cls.hidden} {
+display: none !important;
+}
+`;
     },
 
     getStandingImageCss(cls) {
@@ -2151,39 +2146,39 @@
       const userMask = CSS_VARS.STANDING_IMG_USER_MASK;
 
       return `
-        #${cls.userImageId},
-        #${cls.assistantImageId} {
-            position: fixed;
-            bottom: 0;
-            height: 100vh;
-            max-height: 100vh;
-            pointer-events: none;
-            z-index: ${zIndex};
-            margin: 0;
-            padding: 0;
-            opacity: 0;
-            transition: opacity 0.3s, background-image 0.3s ease-in-out;
-            background-repeat: no-repeat;
-            background-position: bottom center;
-            background-size: contain;
-        }
-        #${cls.assistantImageId} {
-            background-image: var(${assistantImage}, none);
-            left: var(${assistantLeft}, 0px);
-            width: var(${assistantWidth}, 0px);
-            max-width: var(${assistantWidth}, 0px);
-            mask-image: var(${assistantMask}, none);
-            -webkit-mask-image: var(${assistantMask}, none);
-        }
-        #${cls.userImageId} {
-            background-image: var(${userImage}, none);
-            right: 0;
-            width: var(${userWidth}, 0px);
-            max-width: var(${userWidth}, 0px);
-            mask-image: var(${userMask}, none);
-            -webkit-mask-image: var(${userMask}, none);
-        }
-      `;
+#${cls.userImageId},
+#${cls.assistantImageId} {
+position: fixed;
+bottom: 0;
+height: 100vh;
+max-height: 100vh;
+pointer-events: none;
+z-index: ${zIndex};
+margin: 0;
+padding: 0;
+opacity: 0;
+transition: opacity 0.3s, background-image 0.3s ease-in-out;
+background-repeat: no-repeat;
+background-position: bottom center;
+background-size: contain;
+}
+#${cls.assistantImageId} {
+background-image: var(${assistantImage}, none);
+left: var(${assistantLeft}, 0px);
+width: var(${assistantWidth}, 0px);
+max-width: var(${assistantWidth}, 0px);
+mask-image: var(${assistantMask}, none);
+-webkit-mask-image: var(${assistantMask}, none);
+}
+#${cls.userImageId} {
+background-image: var(${userImage}, none);
+right: 0;
+width: var(${userWidth}, 0px);
+max-width: var(${userWidth}, 0px);
+mask-image: var(${userMask}, none);
+-webkit-mask-image: var(${userMask}, none);
+}
+`;
     },
 
     getBubbleUiCss(cls, options = {}) {
@@ -2192,237 +2187,237 @@
       const selectors = CONSTANTS.SELECTORS;
 
       return `
-        /* --- Collapsible Button --- */
-        ${collapsibleParentSelector} {
-            position: relative;
-        }
-        /* Create a transparent hover area above the button */
-        ${collapsibleParentSelector}::before {
-            content: '';
-            position: absolute;
-            top: -20px;
-            height: 20px;
-            inset-inline: 0;
-        }
-        /* Add a transparent border in the normal state to prevent width changes on collapse */
-        .${cls.collapsibleContent} {
-            border: 1px solid transparent;
-            box-sizing: border-box;
-        }
-        .${cls.collapsibleBtn} {
-            position: absolute;
-            top: -20px;
-            width: 20px;
-            height: 20px;
-            padding: 2px;
-            border-radius: 4px;
-            box-sizing: border-box;
-            cursor: pointer;
-            visibility: hidden;
-            opacity: 0;
-            transition: visibility 0s linear 0.1s, opacity 0.1s ease-in-out, background-color 0.15s ease-in-out, color 0.15s ease-in-out;
-            background-color: rgb(0 0 0 / 0.4);
-            color: rgb(255 255 255 / 0.7);
-            border: 0;
-            }
-        .${cls.collapsibleBtn}.${cls.hidden} {
-            display: none;
-        }
+/* --- Collapsible Button --- */
+${collapsibleParentSelector} {
+position: relative;
+}
+/* Create a transparent hover area above the button */
+${collapsibleParentSelector}::before {
+content: '';
+position: absolute;
+top: -20px;
+height: 20px;
+inset-inline: 0;
+}
+/* Add a transparent border in the normal state to prevent width changes on collapse */
+.${cls.collapsibleContent} {
+border: 1px solid transparent;
+box-sizing: border-box;
+}
+.${cls.collapsibleBtn} {
+position: absolute;
+top: -20px;
+width: 20px;
+height: 20px;
+padding: 2px;
+border-radius: 4px;
+box-sizing: border-box;
+cursor: pointer;
+visibility: hidden;
+opacity: 0;
+transition: visibility 0s linear 0.1s, opacity 0.1s ease-in-out, background-color 0.15s ease-in-out, color 0.15s ease-in-out;
+background-color: rgb(0 0 0 / 0.4);
+color: rgb(255 255 255 / 0.7);
+border: 0;
+}
+.${cls.collapsibleBtn}.${cls.hidden} {
+display: none;
+}
 
-        /* Platform specific collapsible button positioning */
-        ${collapsibleBtnExtraCss}
-        
-        ${collapsibleParentSelector}:hover .${cls.collapsibleBtn} {
-            visibility: visible;
-            opacity: 1;
-            transition-delay: 0s;
-        }
-        
-        .${cls.collapsibleBtn}:hover {
-            background-color: rgb(0 0 0 / 0.6);
-            color: rgb(255 255 255 / 1);
-        }
-        .${cls.collapsibleBtn} svg {
-            width: 100%;
-            height: 100%;
-            transition: transform 0.2s ease-in-out;
-        }
-        
-        .${cls.collapsibleParent}.${cls.collapsed} .${cls.collapsibleContent} {
-            max-height: ${CONSTANTS.UI_SPECS.COLLAPSIBLE.HEIGHT_THRESHOLD}px;
-            overflow: hidden;
-            border: 1px dashed ${palette.text_secondary};
-            box-sizing: border-box;
-            ${collapsibleCollapsedContentExtraCss}
-        }
-        .${cls.collapsibleParent}.${cls.collapsed} .${cls.collapsibleBtn} svg {
-            transform: rotate(-180deg);
-        }
+/* Platform specific collapsible button positioning */
+${collapsibleBtnExtraCss}
 
-        /* --- Bubble Navigation --- */
-        .${cls.navContainer} {
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            width: 24px;
-            z-index: ${CONSTANTS.Z_INDICES.BUBBLE_NAVIGATION};
-        }
-        .${cls.navButtons} {
-            position: relative;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            visibility: hidden;
-            opacity: 0;
-            transition: visibility 0s linear 0.1s, opacity 0.1s ease-in-out;
-            pointer-events: auto;
-            gap: 4px;
-        }
-        .${cls.navParent}:hover .${cls.navButtons},
-        .${cls.navContainer}:hover .${cls.navButtons} {
-            visibility: visible;
-            opacity: 1;
-            transition-delay: 0s;
-        }
-        
-        /* Nav container positioning */
-        ${selectors.ASSISTANT_MESSAGE} .${cls.navContainer} {
-            left: -25px;
-        }
-        ${selectors.USER_MESSAGE} .${cls.navContainer} {
-            right: -25px;
-        }
+${collapsibleParentSelector}:hover .${cls.collapsibleBtn} {
+visibility: visible;
+opacity: 1;
+transition-delay: 0s;
+}
 
-        .${cls.navGroupTop}, .${cls.navGroupBottom} {
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            width: 100%;
-        }
-        .${cls.navGroupBottom} {
-            margin-top: auto;
-        }
-        .${cls.navGroupTop}.${cls.hidden}, .${cls.navGroupBottom}.${cls.hidden} {
-            display: none !important;
-        }
-        .${cls.navBtn} {
-            width: 20px;
-            height: 20px;
-            padding: 2px;
-            border-radius: 4px;
-            box-sizing: border-box;
-            cursor: pointer;
-            background-color: rgb(0 0 0 / 0.4);
-            color: rgb(255 255 255 / 0.7);
-            border: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.15s ease-in-out;
-            margin: 0 auto;
-        }
-        .${cls.navBtn}:not(:disabled):hover {
-            background-color: rgb(0 0 0 / 0.6);
-            color: rgb(255 255 255 / 1);
-        }
-        .${cls.navBtn}:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-        .${cls.navBtn} svg {
-            width: 100%;
-            height: 100%;
-        }
-      `;
+.${cls.collapsibleBtn}:hover {
+background-color: rgb(0 0 0 / 0.6);
+color: rgb(255 255 255 / 1);
+}
+.${cls.collapsibleBtn} svg {
+width: 100%;
+height: 100%;
+transition: transform 0.2s ease-in-out;
+}
+
+.${cls.collapsibleParent}.${cls.collapsed} .${cls.collapsibleContent} {
+max-height: ${CONSTANTS.UI_SPECS.COLLAPSIBLE.HEIGHT_THRESHOLD}px;
+overflow: hidden;
+border: 1px dashed ${palette.text_secondary};
+box-sizing: border-box;
+${collapsibleCollapsedContentExtraCss}
+}
+.${cls.collapsibleParent}.${cls.collapsed} .${cls.collapsibleBtn} svg {
+transform: rotate(-180deg);
+}
+
+/* --- Bubble Navigation --- */
+.${cls.navContainer} {
+position: absolute;
+top: 0;
+bottom: 0;
+width: 24px;
+z-index: ${CONSTANTS.Z_INDICES.BUBBLE_NAVIGATION};
+}
+.${cls.navButtons} {
+position: relative;
+height: 100%;
+display: flex;
+flex-direction: column;
+align-items: center;
+visibility: hidden;
+opacity: 0;
+transition: visibility 0s linear 0.1s, opacity 0.1s ease-in-out;
+pointer-events: auto;
+gap: 4px;
+}
+.${cls.navParent}:hover .${cls.navButtons},
+.${cls.navContainer}:hover .${cls.navButtons} {
+visibility: visible;
+opacity: 1;
+transition-delay: 0s;
+}
+
+/* Nav container positioning */
+${selectors.ASSISTANT_MESSAGE} .${cls.navContainer} {
+left: -25px;
+}
+${selectors.USER_MESSAGE} .${cls.navContainer} {
+right: -25px;
+}
+
+.${cls.navGroupTop}, .${cls.navGroupBottom} {
+position: relative;
+display: flex;
+flex-direction: column;
+gap: 4px;
+width: 100%;
+}
+.${cls.navGroupBottom} {
+margin-top: auto;
+}
+.${cls.navGroupTop}.${cls.hidden}, .${cls.navGroupBottom}.${cls.hidden} {
+display: none !important;
+}
+.${cls.navBtn} {
+width: 20px;
+height: 20px;
+padding: 2px;
+border-radius: 4px;
+box-sizing: border-box;
+cursor: pointer;
+background-color: rgb(0 0 0 / 0.4);
+color: rgb(255 255 255 / 0.7);
+border: 0;
+display: flex;
+align-items: center;
+justify-content: center;
+transition: all 0.15s ease-in-out;
+margin: 0 auto;
+}
+.${cls.navBtn}:not(:disabled):hover {
+background-color: rgb(0 0 0 / 0.6);
+color: rgb(255 255 255 / 1);
+}
+.${cls.navBtn}:disabled {
+opacity: 0.4;
+cursor: not-allowed;
+}
+.${cls.navBtn} svg {
+width: 100%;
+height: 100%;
+}
+`;
     },
 
     getAvatarCss(extraCss) {
       const selectors = CONSTANTS.SELECTORS;
       return `
-        /* Common Avatar CSS */
-        ${selectors.AVATAR_USER},
-        ${selectors.AVATAR_ASSISTANT} {
-            position: relative !important;
-            overflow: visible !important;
-            min-height: calc(var(${CSS_VARS.ICON_SIZE}) + 3em);
-        }
+/* Common Avatar CSS */
+${selectors.AVATAR_USER},
+${selectors.AVATAR_ASSISTANT} {
+position: relative !important;
+overflow: visible !important;
+min-height: calc(var(${CSS_VARS.ICON_SIZE}) + 3em);
+}
 
-        ${selectors.SIDE_AVATAR_CONTAINER} {
-            position: absolute;
-            top: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: var(${CSS_VARS.ICON_SIZE});
-            pointer-events: none;
-            white-space: normal;
-            word-break: break-word;
-        }
+${selectors.SIDE_AVATAR_CONTAINER} {
+position: absolute;
+top: 0;
+display: flex;
+flex-direction: column;
+align-items: center;
+width: var(${CSS_VARS.ICON_SIZE});
+pointer-events: none;
+white-space: normal;
+word-break: break-word;
+}
 
-        ${selectors.SIDE_AVATAR_ICON} {
-            width: var(${CSS_VARS.ICON_SIZE});
-            height: var(${CSS_VARS.ICON_SIZE});
-            border-radius: 50%;
-            display: block;
-            box-shadow: 0 0 6px rgb(0 0 0 / 0.2);
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            transition: background-image 0.3s ease-in-out;
-        }
+${selectors.SIDE_AVATAR_ICON} {
+width: var(${CSS_VARS.ICON_SIZE});
+height: var(${CSS_VARS.ICON_SIZE});
+border-radius: 50%;
+display: block;
+box-shadow: 0 0 6px rgb(0 0 0 / 0.2);
+background-size: cover;
+background-position: center;
+background-repeat: no-repeat;
+transition: background-image 0.3s ease-in-out;
+}
 
-        ${selectors.SIDE_AVATAR_NAME} {
-            font-size: 0.75rem;
-            text-align: center;
-            margin-top: 4px;
-            width: 100%;
-            background-color: rgb(0 0 0 / 0.2);
-            padding: 2px 6px;
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
+${selectors.SIDE_AVATAR_NAME} {
+font-size: 0.75rem;
+text-align: center;
+margin-top: 4px;
+width: 100%;
+background-color: rgb(0 0 0 / 0.2);
+padding: 2px 6px;
+border-radius: 4px;
+box-sizing: border-box;
+}
 
-        /* User avatar (Right) */
-        ${selectors.AVATAR_USER} ${selectors.SIDE_AVATAR_CONTAINER} {
-            left: 100%;
-            margin-left: var(${CSS_VARS.ICON_MARGIN});
-        }
-        /* Assistant avatar (Left) */
-        ${selectors.AVATAR_ASSISTANT} ${selectors.SIDE_AVATAR_CONTAINER} {
-            right: 100%;
-            margin-right: var(${CSS_VARS.ICON_MARGIN});
-        }
+/* User avatar (Right) */
+${selectors.AVATAR_USER} ${selectors.SIDE_AVATAR_CONTAINER} {
+left: 100%;
+margin-left: var(${CSS_VARS.ICON_MARGIN});
+}
+/* Assistant avatar (Left) */
+${selectors.AVATAR_ASSISTANT} ${selectors.SIDE_AVATAR_CONTAINER} {
+right: 100%;
+margin-right: var(${CSS_VARS.ICON_MARGIN});
+}
 
-        /* Theme Variables Mapping */
-        ${selectors.AVATAR_USER} ${selectors.SIDE_AVATAR_ICON} {
-            background-image: var(${CSS_VARS.USER_ICON});
-            display: var(${CSS_VARS.USER_ICON_DISPLAY}, none);
-        }
-        ${selectors.AVATAR_USER} ${selectors.SIDE_AVATAR_NAME} {
-            color: var(${CSS_VARS.USER_TEXT_COLOR});
-            display: var(${CSS_VARS.USER_NAME_DISPLAY}, none);
-        }
-        ${selectors.AVATAR_USER} ${selectors.SIDE_AVATAR_NAME}::after {
-            content: var(${CSS_VARS.USER_NAME});
-        }
+/* Theme Variables Mapping */
+${selectors.AVATAR_USER} ${selectors.SIDE_AVATAR_ICON} {
+background-image: var(${CSS_VARS.USER_ICON});
+display: var(${CSS_VARS.USER_ICON_DISPLAY}, none);
+}
+${selectors.AVATAR_USER} ${selectors.SIDE_AVATAR_NAME} {
+color: var(${CSS_VARS.USER_TEXT_COLOR});
+display: var(${CSS_VARS.USER_NAME_DISPLAY}, none);
+}
+${selectors.AVATAR_USER} ${selectors.SIDE_AVATAR_NAME}::after {
+content: var(${CSS_VARS.USER_NAME});
+}
 
-        ${selectors.AVATAR_ASSISTANT} ${selectors.SIDE_AVATAR_ICON} {
-            background-image: var(${CSS_VARS.ASSISTANT_ICON});
-            display: var(${CSS_VARS.ASSISTANT_ICON_DISPLAY}, none);
-        }
-        ${selectors.AVATAR_ASSISTANT} ${selectors.SIDE_AVATAR_NAME} {
-            color: var(${CSS_VARS.ASSISTANT_TEXT_COLOR});
-            display: var(${CSS_VARS.ASSISTANT_NAME_DISPLAY}, none);
-        }
-        ${selectors.AVATAR_ASSISTANT} ${selectors.SIDE_AVATAR_NAME}::after {
-            content: var(${CSS_VARS.ASSISTANT_NAME});
-        }
+${selectors.AVATAR_ASSISTANT} ${selectors.SIDE_AVATAR_ICON} {
+background-image: var(${CSS_VARS.ASSISTANT_ICON});
+display: var(${CSS_VARS.ASSISTANT_ICON_DISPLAY}, none);
+}
+${selectors.AVATAR_ASSISTANT} ${selectors.SIDE_AVATAR_NAME} {
+color: var(${CSS_VARS.ASSISTANT_TEXT_COLOR});
+display: var(${CSS_VARS.ASSISTANT_NAME_DISPLAY}, none);
+}
+${selectors.AVATAR_ASSISTANT} ${selectors.SIDE_AVATAR_NAME}::after {
+content: var(${CSS_VARS.ASSISTANT_NAME});
+}
 
-        /* Platform Specific Overrides */
-        ${extraCss}
-      `;
+/* Platform Specific Overrides */
+${extraCss}
+`;
     },
 
     getThemeBaseCss(cls, activeVars, styleOverrides) {
@@ -2446,83 +2441,76 @@
 
       // Generate CSS with conditional properties
       return `
-        /* --- Window Background --- */
-        ${selectors.MAIN_APP_CONTAINER} {
-            ${prop('background-color', CSS_VARS.WINDOW_BG_COLOR)}
-            ${prop('background-image', CSS_VARS.WINDOW_BG_IMAGE)}
-            ${prop('background-size', CSS_VARS.WINDOW_BG_SIZE)}
-            ${prop('background-position', CSS_VARS.WINDOW_BG_POS)}
-            ${prop('background-repeat', CSS_VARS.WINDOW_BG_REPEAT)}
-            ${activeVars && activeVars.has(CSS_VARS.WINDOW_BG_IMAGE) ? `background-attachment: fixed !important;` : ''}
-        }
+/* --- Window Background --- */
+${selectors.MAIN_APP_CONTAINER} {
+${prop('background-color', CSS_VARS.WINDOW_BG_COLOR)}
+${prop('background-image', CSS_VARS.WINDOW_BG_IMAGE)}
+${prop('background-size', CSS_VARS.WINDOW_BG_SIZE)}
+${prop('background-position', CSS_VARS.WINDOW_BG_POS)}
+${prop('background-repeat', CSS_VARS.WINDOW_BG_REPEAT)}
+${activeVars && activeVars.has(CSS_VARS.WINDOW_BG_IMAGE) ? `background-attachment: fixed !important;` : ''}
+}
 
-        /* --- Input Area --- */
-        ${selectors.INPUT_AREA_BG_TARGET} {
-            ${prop('background-color', CSS_VARS.INPUT_BG)}
-        }
-        ${selectors.INPUT_TEXT_FIELD_TARGET} {
-            /* Variable --input-field-bg is set to 'transparent' via transformer when bg color is active */
-            ${prop('background-color', CSS_VARS.INPUT_FIELD_BG)} 
-            ${prop('color', CSS_VARS.INPUT_COLOR)}
-            ${prop('font-family', CSS_VARS.USER_FONT)}
-        }
+/* --- Input Area --- */
+${selectors.INPUT_AREA_BG_TARGET} {
+${prop('background-color', CSS_VARS.INPUT_BG)}
+}
+${selectors.INPUT_TEXT_FIELD_TARGET} {
+/* Variable --input-field-bg is set to 'transparent' via transformer when bg color is active */
+${prop('background-color', CSS_VARS.INPUT_FIELD_BG)} 
+${prop('color', CSS_VARS.INPUT_COLOR)}
+${prop('font-family', CSS_VARS.USER_FONT)}
+}
 
-        /* --- Assistant Bubble & Text --- */
-        ${S_ASST_MSG} ${S_ASST_BUBBLE} {
-            ${activeVars && !activeVars.has(CSS_VARS.ASSISTANT_BUBBLE_BG) ? `background-color: ${SITE_STYLES.PALETTE.bg} !important;` : prop('background-color', CSS_VARS.ASSISTANT_BUBBLE_BG)}
-            ${prop('padding', CSS_VARS.ASSISTANT_BUBBLE_PADDING)}
-            ${prop('border-radius', CSS_VARS.ASSISTANT_BUBBLE_RADIUS)}
-            ${prop('max-width', CSS_VARS.ASSISTANT_BUBBLE_MAXWIDTH)}
-            ${styleOverrides.assistant || ''}
-        }
-        ${S_ASST_MSG} ${selectors.ASSISTANT_TEXT_CONTENT} {
-            ${prop('color', CSS_VARS.ASSISTANT_TEXT_COLOR)}
-            ${prop('font-family', CSS_VARS.ASSISTANT_FONT)}
-        }
-        /* Assistant Child Elements Text Color */
-        ${assistantTextSelectors} {
-            ${prop('color', CSS_VARS.ASSISTANT_TEXT_COLOR)}
-        }
+/* --- Assistant Bubble & Text --- */
+${S_ASST_MSG} ${S_ASST_BUBBLE} {
+${activeVars && !activeVars.has(CSS_VARS.ASSISTANT_BUBBLE_BG) ? `background-color: ${SITE_STYLES.PALETTE.bg} !important;` : prop('background-color', CSS_VARS.ASSISTANT_BUBBLE_BG)}
+${prop('padding', CSS_VARS.ASSISTANT_BUBBLE_PADDING)}
+${prop('border-radius', CSS_VARS.ASSISTANT_BUBBLE_RADIUS)}
+${prop('max-width', CSS_VARS.ASSISTANT_BUBBLE_MAXWIDTH)}
+${styleOverrides.assistant || ''}
+}
+${S_ASST_MSG} ${selectors.ASSISTANT_TEXT_CONTENT} {
+${prop('color', CSS_VARS.ASSISTANT_TEXT_COLOR)}
+${prop('font-family', CSS_VARS.ASSISTANT_FONT)}
+}
+/* Assistant Child Elements Text Color */
+${assistantTextSelectors} {
+${prop('color', CSS_VARS.ASSISTANT_TEXT_COLOR)}
+}
 
-        /* --- Assistant Rich Content Styling (Tone-on-Tone) --- */
-        /* Table: Header 10% opacity, Cell 5% opacity, Border 20% opacity */
-        ${S_ASST_MSG} ${selectors.ASSISTANT_TEXT_CONTENT} table,
-        ${S_ASST_MSG} ${selectors.ASSISTANT_TEXT_CONTENT} th,
-        ${S_ASST_MSG} ${selectors.ASSISTANT_TEXT_CONTENT} td {
-            ${activeVars && activeVars.has(CSS_VARS.ASSISTANT_TEXT_COLOR) ? `border-color: color-mix(in srgb, var(${CSS_VARS.ASSISTANT_TEXT_COLOR}), transparent 80%) !important;` : ''}
-        }
-        ${S_ASST_MSG} ${selectors.ASSISTANT_TEXT_CONTENT} th {
-            ${activeVars && activeVars.has(CSS_VARS.ASSISTANT_TEXT_COLOR) ? `background-color: color-mix(in srgb, var(${CSS_VARS.ASSISTANT_TEXT_COLOR}), transparent 90%) !important;` : ''}
-        }
-        ${S_ASST_MSG} ${selectors.ASSISTANT_TEXT_CONTENT} td {
-            ${activeVars && activeVars.has(CSS_VARS.ASSISTANT_TEXT_COLOR) ? `background-color: color-mix(in srgb, var(${CSS_VARS.ASSISTANT_TEXT_COLOR}), transparent 95%) !important;` : ''}
-        }
+/* --- Assistant Rich Content Styling (Tone-on-Tone) --- */
+/* Table: Header 10% opacity, Cell 5% opacity, Border 20% opacity */
+${S_ASST_MSG} ${selectors.ASSISTANT_TEXT_CONTENT} table,
+${S_ASST_MSG} ${selectors.ASSISTANT_TEXT_CONTENT} th,
+${S_ASST_MSG} ${selectors.ASSISTANT_TEXT_CONTENT} td {
+${activeVars && activeVars.has(CSS_VARS.ASSISTANT_TEXT_COLOR) ? `border-color: color-mix(in srgb, var(${CSS_VARS.ASSISTANT_TEXT_COLOR}), transparent 80%) !important;` : ''}
+}
+${S_ASST_MSG} ${selectors.ASSISTANT_TEXT_CONTENT} th {
+${activeVars && activeVars.has(CSS_VARS.ASSISTANT_TEXT_COLOR) ? `background-color: color-mix(in srgb, var(${CSS_VARS.ASSISTANT_TEXT_COLOR}), transparent 90%) !important;` : ''}
+}
+${S_ASST_MSG} ${selectors.ASSISTANT_TEXT_CONTENT} td {
+${activeVars && activeVars.has(CSS_VARS.ASSISTANT_TEXT_COLOR) ? `background-color: color-mix(in srgb, var(${CSS_VARS.ASSISTANT_TEXT_COLOR}), transparent 95%) !important;` : ''}
+}
 
-        /* Blockquote: Background 5% opacity, Border 30% opacity */
-        ${S_ASST_MSG} ${selectors.ASSISTANT_TEXT_CONTENT} blockquote {
-            ${
-              activeVars && activeVars.has(CSS_VARS.ASSISTANT_TEXT_COLOR)
-                ? `
-                background-color: color-mix(in srgb, var(${CSS_VARS.ASSISTANT_TEXT_COLOR}), transparent 95%) !important;
-                border-left-color: color-mix(in srgb, var(${CSS_VARS.ASSISTANT_TEXT_COLOR}), transparent 70%) !important;
-            `
-                : ''
-            }
-        }
+/* Blockquote: Background 5% opacity, Border 30% opacity */
+${S_ASST_MSG} ${selectors.ASSISTANT_TEXT_CONTENT} blockquote {
+${activeVars && activeVars.has(CSS_VARS.ASSISTANT_TEXT_COLOR) ? `background-color: color-mix(in srgb, var(${CSS_VARS.ASSISTANT_TEXT_COLOR}), transparent 95%) !important; border-left-color: color-mix(in srgb, var(${CSS_VARS.ASSISTANT_TEXT_COLOR}), transparent 70%) !important;` : ''}
+}
 
-        /* --- User Bubble & Text --- */
-        ${S_USER_MSG} ${S_USER_BUBBLE} {
-            ${prop('background-color', CSS_VARS.USER_BUBBLE_BG)}
-            ${prop('padding', CSS_VARS.USER_BUBBLE_PADDING)}
-            ${prop('border-radius', CSS_VARS.USER_BUBBLE_RADIUS)}
-            ${prop('max-width', CSS_VARS.USER_BUBBLE_MAXWIDTH)}
-            ${styleOverrides.user || ''}
-        }
-        ${S_USER_MSG} ${selectors.USER_TEXT_CONTENT} {
-            ${prop('color', CSS_VARS.USER_TEXT_COLOR)}
-            ${prop('font-family', CSS_VARS.USER_FONT)}
-        }
-      `;
+/* --- User Bubble & Text --- */
+${S_USER_MSG} ${S_USER_BUBBLE} {
+${prop('background-color', CSS_VARS.USER_BUBBLE_BG)}
+${prop('padding', CSS_VARS.USER_BUBBLE_PADDING)}
+${prop('border-radius', CSS_VARS.USER_BUBBLE_RADIUS)}
+${prop('max-width', CSS_VARS.USER_BUBBLE_MAXWIDTH)}
+${styleOverrides.user || ''}
+}
+${S_USER_MSG} ${selectors.USER_TEXT_CONTENT} {
+${prop('color', CSS_VARS.USER_TEXT_COLOR)}
+${prop('font-family', CSS_VARS.USER_FONT)}
+}
+`;
     },
   };
 
@@ -3585,65 +3573,65 @@
       /** @override */
       getStaticCss(cls) {
         return `
-          :root {
-              ${CSS_VARS.MESSAGE_MARGIN_TOP}: 24px;
-          }
-          ${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} {
-              transition: background-image 0.3s ease-in-out;
-          }
-          /* Add margin between messages to prevent overlap */
-          ${CONSTANTS.SELECTORS.USER_MESSAGE},
-          ${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} {
-              margin-top: var(${CSS_VARS.MESSAGE_MARGIN_TOP});
-          }
-          ${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE},
-          ${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE} {
-              box-sizing: border-box;
-          }
-          /* (2025/12/17 updated) Hide borders, shadows, and backgrounds on the header */
-          #page-header {
-              background: none !important;
-              border: none !important;
-              box-shadow: none !important;
-              outline: none !important;
-          }
-          /* Remove pseudo-elements that might create borders or shadows */
-          #page-header::after,
-          #page-header::before {
-              display: none !important;
-          }
-          /* Remove standalone border elements */
-          div[data-edge="true"] {
-              display: none !important;
-          }
-          ${CONSTANTS.SELECTORS.BUTTON_SHARE_CHAT} {
-              background: transparent;
-          }
-          ${CONSTANTS.SELECTORS.BUTTON_SHARE_CHAT}:hover {
-              background-color: var(--interactive-bg-secondary-hover);
-          }
-          /* (2025/07/01) ChatGPT UI change fix: Remove bottom gradient that conflicts with theme backgrounds. */
-          .content-fade::after {
-              background: none !important;
-          }
-          /* (2025/12/06) Project page top fade fix: Remove top gradient and mask only for project headers. */
-          main ${CONSTANTS.SELECTORS.CONTENT_FADE_TOP}.${CONSTANTS.SELECTORS.PROJECT_PAGE_CLASS},
-          main ${CONSTANTS.SELECTORS.CONTENT_FADE_TOP}.${CONSTANTS.SELECTORS.PROJECT_PAGE_CLASS}::before,
-          main ${CONSTANTS.SELECTORS.CONTENT_FADE_TOP}.${CONSTANTS.SELECTORS.PROJECT_PAGE_CLASS}::after {
-              background: none !important;
-              mask-image: none !important;
-              -webkit-mask-image: none !important;
-          }
-          /* This rule is now conditional on a body class and scoped to the scroll container to avoid affecting other elements. */
-          body.${cls.maxWidthActive} main ${CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH} {
-              max-width: var(${CSS_VARS.CHAT_CONTENT_MAX_WIDTH}) !important;
-          }
-          
-          /* Hide default scroll-to-bottom button */
-          ${CONSTANTS.SELECTORS.SCROLL_TO_BOTTOM_BUTTON} {
-              display: none !important;
-          }
-      `;
+:root {
+${CSS_VARS.MESSAGE_MARGIN_TOP}: 24px;
+}
+${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} {
+transition: background-image 0.3s ease-in-out;
+}
+/* Add margin between messages to prevent overlap */
+${CONSTANTS.SELECTORS.USER_MESSAGE},
+${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} {
+margin-top: var(${CSS_VARS.MESSAGE_MARGIN_TOP});
+}
+${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE},
+${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE} {
+box-sizing: border-box;
+}
+/* (2025/12/17 updated) Hide borders, shadows, and backgrounds on the header */
+#page-header {
+background: none !important;
+border: none !important;
+box-shadow: none !important;
+outline: none !important;
+}
+/* Remove pseudo-elements that might create borders or shadows */
+#page-header::after,
+#page-header::before {
+display: none !important;
+}
+/* Remove standalone border elements */
+div[data-edge="true"] {
+display: none !important;
+}
+${CONSTANTS.SELECTORS.BUTTON_SHARE_CHAT} {
+background: transparent;
+}
+${CONSTANTS.SELECTORS.BUTTON_SHARE_CHAT}:hover {
+background-color: var(--interactive-bg-secondary-hover);
+}
+/* (2025/07/01) ChatGPT UI change fix: Remove bottom gradient that conflicts with theme backgrounds. */
+.content-fade::after {
+background: none !important;
+}
+/* (2025/12/06) Project page top fade fix: Remove top gradient and mask only for project headers. */
+main ${CONSTANTS.SELECTORS.CONTENT_FADE_TOP}.${CONSTANTS.SELECTORS.PROJECT_PAGE_CLASS},
+main ${CONSTANTS.SELECTORS.CONTENT_FADE_TOP}.${CONSTANTS.SELECTORS.PROJECT_PAGE_CLASS}::before,
+main ${CONSTANTS.SELECTORS.CONTENT_FADE_TOP}.${CONSTANTS.SELECTORS.PROJECT_PAGE_CLASS}::after {
+background: none !important;
+mask-image: none !important;
+-webkit-mask-image: none !important;
+}
+/* This rule is now conditional on a body class and scoped to the scroll container to avoid affecting other elements. */
+body.${cls.maxWidthActive} main ${CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH} {
+max-width: var(${CSS_VARS.CHAT_CONTENT_MAX_WIDTH}) !important;
+}
+
+/* Hide default scroll-to-bottom button */
+${CONSTANTS.SELECTORS.SCROLL_TO_BOTTOM_BUTTON} {
+display: none !important;
+}
+`;
       }
 
       /** @override */
@@ -3653,13 +3641,9 @@
           collapsibleParentSelector: `.${cls.collapsibleParent}`,
           // ChatGPT: Button positioning depends on role attribute
           collapsibleBtnExtraCss: `
-              ${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} .${cls.collapsibleBtn} {
-                  left: 4px;
-              }
-              ${CONSTANTS.SELECTORS.USER_MESSAGE} .${cls.collapsibleBtn} {
-                  right: 4px;
-              }
-          `,
+${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} .${cls.collapsibleBtn} {left: 4px;}
+${CONSTANTS.SELECTORS.USER_MESSAGE} .${cls.collapsibleBtn} {right: 4px;}
+`,
           // ChatGPT: No extra CSS needed (native reflow works)
           collapsibleCollapsedContentExtraCss: ``,
         });
@@ -4007,11 +3991,9 @@
       /** @override */
       getCss() {
         const extraCss = `
-                    /* Set the message ID holder as the positioning anchor for Timestamps */
-                    ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER} {
-                        position: relative !important;
-                    }
-                `;
+/* Set the message ID holder as the positioning anchor for Timestamps */
+${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER} {position: relative !important;}
+`;
         return StyleTemplates.getAvatarCss(extraCss);
       }
 
@@ -5177,37 +5159,37 @@
       /** @override */
       getStaticCss(cls) {
         return `
-          ${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} {
-              transition: background-image 0.3s ease-in-out;
-          }
-          /* This rule is now conditional on a body class, which is toggled by applyChatContentMaxWidth. */
-          body.${cls.maxWidthActive} ${CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH}{
-              max-width: var(${CSS_VARS.CHAT_CONTENT_MAX_WIDTH}) !important;
-              margin-inline: auto !important;
-          }
+${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} {
+transition: background-image 0.3s ease-in-out;
+}
+/* This rule is now conditional on a body class, which is toggled by applyChatContentMaxWidth. */
+body.${cls.maxWidthActive} ${CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH}{
+max-width: var(${CSS_VARS.CHAT_CONTENT_MAX_WIDTH}) !important;
+margin-inline: auto !important;
+}
 
-          /* Ensure the user message container inside the turn expands and aligns the bubble to the right. */
-          ${CONSTANTS.SELECTORS.CHAT_HISTORY_MAIN} ${CONSTANTS.SELECTORS.USER_MESSAGE} {
-              width: 100% !important;
-              max-width: none !important;
-              display: flex !important;
-              justify-content: flex-end !important;
-          }
+/* Ensure the user message container inside the turn expands and aligns the bubble to the right. */
+${CONSTANTS.SELECTORS.CHAT_HISTORY_MAIN} ${CONSTANTS.SELECTORS.USER_MESSAGE} {
+width: 100% !important;
+max-width: none !important;
+display: flex !important;
+justify-content: flex-end !important;
+}
 
-          /* Make content areas transparent to show the main background */
-          ${CONSTANTS.SELECTORS.CHAT_WINDOW},
-          ${CONSTANTS.SELECTORS.INPUT_CONTAINER},
-          ${CONSTANTS.SELECTORS.INPUT_AREA_BG_TARGET},
-          ${CONSTANTS.SELECTORS.GEM_MANAGER_CONTAINER},
-          ${CONSTANTS.SELECTORS.GEM_MANAGER_CONTAINER} > .container {
-              background: none !important;
-          }
+/* Make content areas transparent to show the main background */
+${CONSTANTS.SELECTORS.CHAT_WINDOW},
+${CONSTANTS.SELECTORS.INPUT_CONTAINER},
+${CONSTANTS.SELECTORS.INPUT_AREA_BG_TARGET},
+${CONSTANTS.SELECTORS.GEM_MANAGER_CONTAINER},
+${CONSTANTS.SELECTORS.GEM_MANAGER_CONTAINER} > .container {
+background: none !important;
+}
 
-          /* Forcefully hide the gradient pseudo-element on the input container */
-          ${CONSTANTS.SELECTORS.INPUT_CONTAINER}::before {
-              display: none !important;
-          }
-        `;
+/* Forcefully hide the gradient pseudo-element on the input container */
+${CONSTANTS.SELECTORS.INPUT_CONTAINER}::before {
+display: none !important;
+}
+`;
       }
 
       /** @override */
@@ -5216,11 +5198,7 @@
           // Gemini: Parent is specifically the model-response element
           collapsibleParentSelector: `${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE}.${cls.collapsibleParent}`,
           // Gemini: Collapsible button is only for assistant
-          collapsibleBtnExtraCss: `
-              .${cls.collapsibleBtn} {
-                  left: 4px;
-              }
-            `,
+          collapsibleBtnExtraCss: `.${cls.collapsibleBtn} {left: 4px;}`,
           // Gemini: Content area needs overflow handling
           collapsibleCollapsedContentExtraCss: 'overflow-y: auto;',
         });
@@ -5625,14 +5603,10 @@
       /** @override */
       getCss() {
         const extraCss = `
-          /* Gemini Only: force user message and avatar to be top-aligned */
-          ${CONSTANTS.SELECTORS.AVATAR_USER} {
-              align-items: flex-start !important;
-          }
-          ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {
-              align-self: flex-start !important;
-          }
-        `;
+/* Gemini Only: force user message and avatar to be top-aligned */
+${CONSTANTS.SELECTORS.AVATAR_USER} {align-items: flex-start !important;}
+${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;}
+`;
         return StyleTemplates.getAvatarCss(extraCss);
       }
 
@@ -19624,8 +19598,7 @@
             this.sheet = styleNode.sheet;
             // Insert the shared keyframes rule at index 0.
             try {
-              const keyframes = `@keyframes ${this.animationName} { from { outline: 1px solid transparent;
-                            } to { outline: 0px solid transparent; } }`;
+              const keyframes = `@keyframes ${this.animationName} { from { outline: 1px solid transparent;} to { outline: 0px solid transparent; } }`;
               this.sheet.insertRule(keyframes, 0);
             } catch (e) {
               Logger.error('SENTINEL', LOG_STYLES.RED, 'Failed to insert keyframes rule:', e);
