@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b561
+// @version      1.0.0-b562
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -466,56 +466,60 @@
   };
 
   /** @type {AppEvents} */
-  const EVENTS = {
-    // Theme & Style
-    TITLE_CHANGED: `${APPID}:titleChanged`,
-    THEME_UPDATE: `${APPID}:themeUpdate`,
-    THEME_APPLIED: `${APPID}:themeApplied`,
-    WIDTH_PREVIEW: `${APPID}:widthPreview`,
+  const EVENTS = /** @type {AppEvents} */ (
+    /** @type {unknown} */ (
+      addPrefix(`${APPID}:`, {
+        // Theme & Style
+        TITLE_CHANGED: 'TITLE_CHANGED',
+        THEME_UPDATE: 'THEME_UPDATE',
+        THEME_APPLIED: 'THEME_APPLIED',
+        WIDTH_PREVIEW: 'WIDTH_PREVIEW',
 
-    // UI & Layout
-    CHAT_CONTENT_WIDTH_UPDATED: `${APPID}:chatContentWidthUpdated`,
-    WINDOW_RESIZED: `${APPID}:windowResized`,
-    SIDEBAR_LAYOUT_CHANGED: `${APPID}:sidebarLayoutChanged`,
-    VISIBILITY_RECHECK: `${APPID}:visibilityRecheck`,
-    UI_REPOSITION: `${APPID}:uiReposition`,
-    INPUT_AREA_RESIZED: `${APPID}:inputAreaResized`,
+        // UI & Layout
+        CHAT_CONTENT_WIDTH_UPDATED: 'CHAT_CONTENT_WIDTH_UPDATED',
+        WINDOW_RESIZED: 'WINDOW_RESIZED',
+        SIDEBAR_LAYOUT_CHANGED: 'SIDEBAR_LAYOUT_CHANGED',
+        VISIBILITY_RECHECK: 'VISIBILITY_RECHECK',
+        UI_REPOSITION: 'UI_REPOSITION',
+        INPUT_AREA_RESIZED: 'INPUT_AREA_RESIZED',
 
-    // Navigation & Cache
-    NAVIGATION_START: `${APPID}:navigationStart`,
-    NAVIGATION_END: `${APPID}:navigationEnd`,
-    NAVIGATION: `${APPID}:navigation`,
-    CACHE_UPDATE_REQUEST: `${APPID}:cacheUpdateRequest`,
-    CACHE_UPDATED: `${APPID}:cacheUpdated`,
-    NAV_HIGHLIGHT_MESSAGE: `${APPID}:nav:highlightMessage`,
+        // Navigation & Cache
+        NAVIGATION_START: 'NAVIGATION_START',
+        NAVIGATION_END: 'NAVIGATION_END',
+        NAVIGATION: 'NAVIGATION',
+        CACHE_UPDATE_REQUEST: 'CACHE_UPDATE_REQUEST',
+        CACHE_UPDATED: 'CACHE_UPDATED',
+        NAV_HIGHLIGHT_MESSAGE: 'NAV_HIGHLIGHT_MESSAGE',
 
-    // Message Lifecycle
-    RAW_MESSAGE_ADDED: `${APPID}:rawMessageAdded`,
-    AVATAR_INJECT: `${APPID}:avatarInject`,
-    MESSAGE_COMPLETE: `${APPID}:messageComplete`,
-    TURN_COMPLETE: `${APPID}:turnComplete`,
-    STREAMING_START: `${APPID}:streamingStart`,
-    STREAMING_END: `${APPID}:streamingEnd`,
-    DEFERRED_LAYOUT_UPDATE: `${APPID}:deferredLayoutUpdate`,
-    TIMESTAMPS_LOADED: `${APPID}:timestampsLoaded`,
-    TIMESTAMP_ADDED: `${APPID}:timestampAdded`,
+        // Message Lifecycle
+        RAW_MESSAGE_ADDED: 'RAW_MESSAGE_ADDED',
+        AVATAR_INJECT: 'AVATAR_INJECT',
+        MESSAGE_COMPLETE: 'MESSAGE_COMPLETE',
+        TURN_COMPLETE: 'TURN_COMPLETE',
+        STREAMING_START: 'STREAMING_START',
+        STREAMING_END: 'STREAMING_END',
+        DEFERRED_LAYOUT_UPDATE: 'DEFERRED_LAYOUT_UPDATE',
+        TIMESTAMPS_LOADED: 'TIMESTAMPS_LOADED',
+        TIMESTAMP_ADDED: 'TIMESTAMP_ADDED',
 
-    // System & Config
-    REMOTE_CONFIG_CHANGED: `${APPID}:remoteConfigChanged`,
-    SUSPEND_OBSERVERS: `${APPID}:suspendObservers`,
-    RESUME_OBSERVERS: `${APPID}:resumeObservers`,
-    CONFIG_SIZE_EXCEEDED: `${APPID}:configSizeExceeded`,
-    CONFIG_WARNING_UPDATE: `${APPID}:configWarningUpdate`,
-    CONFIG_SAVE_SUCCESS: `${APPID}:configSaveSuccess`,
-    CONFIG_UPDATED: `${APPID}:configUpdated`,
+        // System & Config
+        REMOTE_CONFIG_CHANGED: 'REMOTE_CONFIG_CHANGED',
+        SUSPEND_OBSERVERS: 'SUSPEND_OBSERVERS',
+        RESUME_OBSERVERS: 'RESUME_OBSERVERS',
+        CONFIG_SIZE_EXCEEDED: 'CONFIG_SIZE_EXCEEDED',
+        CONFIG_WARNING_UPDATE: 'CONFIG_WARNING_UPDATE',
+        CONFIG_SAVE_SUCCESS: 'CONFIG_SAVE_SUCCESS',
+        CONFIG_UPDATED: 'CONFIG_UPDATED',
 
-    // Platform Specific
-    INTEGRITY_SCAN_MESSAGES_FOUND: `${APPID}:integrityScanMessagesFound`,
-    AUTO_SCROLL_REQUEST: `${APPID}:autoScrollRequest`,
-    AUTO_SCROLL_CANCEL_REQUEST: `${APPID}:autoScrollCancelRequest`,
-    AUTO_SCROLL_START: `${APPID}:autoScrollStart`,
-    AUTO_SCROLL_COMPLETE: `${APPID}:autoScrollComplete`,
-  };
+        // Platform Specific
+        INTEGRITY_SCAN_MESSAGES_FOUND: 'INTEGRITY_SCAN_MESSAGES_FOUND',
+        AUTO_SCROLL_REQUEST: 'AUTO_SCROLL_REQUEST',
+        AUTO_SCROLL_CANCEL_REQUEST: 'AUTO_SCROLL_CANCEL_REQUEST',
+        AUTO_SCROLL_START: 'AUTO_SCROLL_START',
+        AUTO_SCROLL_COMPLETE: 'AUTO_SCROLL_COMPLETE',
+      })
+    )
+  );
 
   /**
    * @constant CONFIG_SCHEMA

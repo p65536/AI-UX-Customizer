@@ -165,201 +165,201 @@ interface AppEvents {
     /**
      * @description Fired when the chat title changes, signaling a potential theme change.
      */
-    TITLE_CHANGED: 'aiuxc:titleChanged';
+    TITLE_CHANGED: 'aiuxc:TITLE_CHANGED';
     /**
      * @description Requests a re-evaluation and application of the current theme.
      */
-    THEME_UPDATE: 'aiuxc:themeUpdate';
+    THEME_UPDATE: 'aiuxc:THEME_UPDATE';
     /**
      * @description Fired after all theme styles, including asynchronous images, have been fully applied.
      */
-    THEME_APPLIED: 'aiuxc:themeApplied';
+    THEME_APPLIED: 'aiuxc:THEME_APPLIED';
     /**
      * @description Fired when a width-related slider in the settings panel is changed, to preview the new width.
      */
-    WIDTH_PREVIEW: 'aiuxc:widthPreview';
+    WIDTH_PREVIEW: 'aiuxc:WIDTH_PREVIEW';
 
     // UI & Layout
     /**
      * @description Fired by ThemeManager after it has applied a new chat content width.
      */
-    CHAT_CONTENT_WIDTH_UPDATED: 'aiuxc:chatContentWidthUpdated';
+    CHAT_CONTENT_WIDTH_UPDATED: 'aiuxc:CHAT_CONTENT_WIDTH_UPDATED';
     /**
      * @description Fired when the main window is resized.
      */
-    WINDOW_RESIZED: 'aiuxc:windowResized';
+    WINDOW_RESIZED: 'aiuxc:WINDOW_RESIZED';
     /**
      * @description Fired when the sidebar's layout (width or visibility) changes.
      */
-    SIDEBAR_LAYOUT_CHANGED: 'aiuxc:sidebarLayoutChanged';
+    SIDEBAR_LAYOUT_CHANGED: 'aiuxc:SIDEBAR_LAYOUT_CHANGED';
     /**
      * @description Requests a re-check of visibility-dependent UI elements (e.g., standing images when a panel appears).
      */
-    VISIBILITY_RECHECK: 'aiuxc:visibilityRecheck';
+    VISIBILITY_RECHECK: 'aiuxc:VISIBILITY_RECHECK';
     /**
      * @description Requests a check to ensure UI elements are correctly placed within their target containers.
      */
-    UI_REPOSITION: 'aiuxc:uiReposition';
+    UI_REPOSITION: 'aiuxc:UI_REPOSITION';
     /**
      * @description Fired when the chat input area is resized.
      */
-    INPUT_AREA_RESIZED: 'aiuxc:inputAreaResized';
+    INPUT_AREA_RESIZED: 'aiuxc:INPUT_AREA_RESIZED';
 
     // Navigation & Cache
     /**
      * @description Fired when a page navigation is about to start.
      */
-    NAVIGATION_START: 'aiuxc:navigationStart';
+    NAVIGATION_START: 'aiuxc:NAVIGATION_START';
     /**
      * @description Fired after a page navigation has completed and the UI is stable.
      */
-    NAVIGATION_END: 'aiuxc:navigationEnd';
+    NAVIGATION_END: 'aiuxc:NAVIGATION_END';
     /**
      * @description Fired when a page navigation (URL change) is detected. Used to reset manager states.
      */
-    NAVIGATION: 'aiuxc:navigation';
+    NAVIGATION: 'aiuxc:NAVIGATION';
     /**
      * @description Fired to request an update of the message cache, typically after a DOM mutation.
      */
-    CACHE_UPDATE_REQUEST: 'aiuxc:cacheUpdateRequest';
+    CACHE_UPDATE_REQUEST: 'aiuxc:CACHE_UPDATE_REQUEST';
     /**
      * @description Fired after the MessageCacheManager has finished rebuilding its cache.
      */
-    CACHE_UPDATED: 'aiuxc:cacheUpdated';
+    CACHE_UPDATED: 'aiuxc:CACHE_UPDATED';
     /**
      * @description Requests that a specific message element be highlighted by the navigation system.
      */
-    NAV_HIGHLIGHT_MESSAGE: 'aiuxc:nav:highlightMessage';
+    NAV_HIGHLIGHT_MESSAGE: 'aiuxc:NAV_HIGHLIGHT_MESSAGE';
 
     // Message Lifecycle
     /**
      * @description Fired by Sentinel when a new message bubble's core content is added to the DOM.
      */
-    RAW_MESSAGE_ADDED: 'aiuxc:rawMessageAdded';
+    RAW_MESSAGE_ADDED: 'aiuxc:RAW_MESSAGE_ADDED';
     /**
      * @description Fired to request the injection of an avatar into a specific message element.
      */
-    AVATAR_INJECT: 'aiuxc:avatarInject';
+    AVATAR_INJECT: 'aiuxc:AVATAR_INJECT';
     /**
      * @description Fired when a message container has been identified and is ready for further processing, such as the injection of UI addons (e.g., navigation buttons).
      */
-    MESSAGE_COMPLETE: 'aiuxc:messageComplete';
+    MESSAGE_COMPLETE: 'aiuxc:MESSAGE_COMPLETE';
     /**
      * @description Fired when an entire conversation turn (user query and assistant response) is complete, including streaming.
      */
-    TURN_COMPLETE: 'aiuxc:turnComplete';
+    TURN_COMPLETE: 'aiuxc:TURN_COMPLETE';
     /**
      * @description Fired when an assistant response starts streaming.
      */
-    STREAMING_START: 'aiuxc:streamingStart';
+    STREAMING_START: 'aiuxc:STREAMING_START';
     /**
      * @description Fired when an assistant response finishes streaming.
      */
-    STREAMING_END: 'aiuxc:streamingEnd';
+    STREAMING_END: 'aiuxc:STREAMING_END';
     /**
      * @description Fired after streaming ends to trigger deferred layout updates.
      */
-    DEFERRED_LAYOUT_UPDATE: 'aiuxc:deferredLayoutUpdate';
+    DEFERRED_LAYOUT_UPDATE: 'aiuxc:DEFERRED_LAYOUT_UPDATE';
     /**
      * @description (ChatGPT-only) Fired when historical timestamps are loaded from the API.
      */
-    TIMESTAMPS_LOADED: 'aiuxc:timestampsLoaded';
+    TIMESTAMPS_LOADED: 'aiuxc:TIMESTAMPS_LOADED';
     /**
      * @description Fired when a new timestamp for a realtime message is recorded.
      */
-    TIMESTAMP_ADDED: 'aiuxc:timestampAdded';
+    TIMESTAMP_ADDED: 'aiuxc:TIMESTAMP_ADDED';
 
     // System & Config
     /**
      * @description Fired when a remote configuration change is detected from another tab/window.
      */
-    REMOTE_CONFIG_CHANGED: 'aiuxc:remoteConfigChanged';
+    REMOTE_CONFIG_CHANGED: 'aiuxc:REMOTE_CONFIG_CHANGED';
     /**
      * @description Requests the temporary suspension of all major DOM observers (MutationObserver, Sentinel).
      */
-    SUSPEND_OBSERVERS: 'aiuxc:suspendObservers';
+    SUSPEND_OBSERVERS: 'aiuxc:SUSPEND_OBSERVERS';
     /**
      * @description Requests the resumption of suspended observers.
      */
-    RESUME_OBSERVERS: 'aiuxc:resumeObservers';
+    RESUME_OBSERVERS: 'aiuxc:RESUME_OBSERVERS';
     /**
      * @description Fired when the configuration size exceeds the storage limit.
      */
-    CONFIG_SIZE_EXCEEDED: 'aiuxc:configSizeExceeded';
+    CONFIG_SIZE_EXCEEDED: 'aiuxc:CONFIG_SIZE_EXCEEDED';
     /**
      * @description Fired to update the display state of a configuration-related warning.
      */
-    CONFIG_WARNING_UPDATE: 'aiuxc:configWarningUpdate';
+    CONFIG_WARNING_UPDATE: 'aiuxc:CONFIG_WARNING_UPDATE';
     /**
      * @description Fired when the configuration is successfully saved.
      */
-    CONFIG_SAVE_SUCCESS: 'aiuxc:configSaveSuccess';
+    CONFIG_SAVE_SUCCESS: 'aiuxc:CONFIG_SAVE_SUCCESS';
     /**
      * @description Fired when the configuration has been updated, signaling UI components to refresh.
      */
-    CONFIG_UPDATED: 'aiuxc:configUpdated';
+    CONFIG_UPDATED: 'aiuxc:CONFIG_UPDATED';
 
     // Platform Specific
     /**
      * @description (ChatGPT-only) Fired by the polling scanner when it detects new messages.
      */
-    INTEGRITY_SCAN_MESSAGES_FOUND: 'aiuxc:integrityScanMessagesFound';
+    INTEGRITY_SCAN_MESSAGES_FOUND: 'aiuxc:INTEGRITY_SCAN_MESSAGES_FOUND';
     /**
      * @description (Gemini-only) Requests the start of the auto-scroll process to load full chat history.
      */
-    AUTO_SCROLL_REQUEST: 'aiuxc:autoScrollRequest';
+    AUTO_SCROLL_REQUEST: 'aiuxc:AUTO_SCROLL_REQUEST';
     /**
      * @description (Gemini-only) Requests the cancellation of an in-progress auto-scroll.
      */
-    AUTO_SCROLL_CANCEL_REQUEST: 'aiuxc:autoScrollCancelRequest';
+    AUTO_SCROLL_CANCEL_REQUEST: 'aiuxc:AUTO_SCROLL_CANCEL_REQUEST';
     /**
      * @description (Gemini-only) Fired when the auto-scroll process has actively started (i.e., progress bar detected).
      */
-    AUTO_SCROLL_START: 'aiuxc:autoScrollStart';
+    AUTO_SCROLL_START: 'aiuxc:AUTO_SCROLL_START';
     /**
      * @description (Gemini-only) Fired when the auto-scroll process has completed or been cancelled.
      */
-    AUTO_SCROLL_COMPLETE: 'aiuxc:autoScrollComplete';
+    AUTO_SCROLL_COMPLETE: 'aiuxc:AUTO_SCROLL_COMPLETE';
 }
 
 interface AppEventMap {
-    'aiuxc:titleChanged': null;
-    'aiuxc:themeUpdate': null;
-    'aiuxc:themeApplied': { theme: ThemeSet; config: AppConfig };
-    'aiuxc:widthPreview': string | null;
-    'aiuxc:chatContentWidthUpdated': null;
-    'aiuxc:windowResized': null;
-    'aiuxc:sidebarLayoutChanged': null;
-    'aiuxc:visibilityRecheck': null;
-    'aiuxc:uiReposition': null;
-    'aiuxc:inputAreaResized': null;
-    'aiuxc:navigationStart': null;
-    'aiuxc:navigationEnd': null;
-    'aiuxc:navigation': null;
-    'aiuxc:cacheUpdateRequest': null;
-    'aiuxc:cacheUpdated': null;
-    'aiuxc:nav:highlightMessage': HTMLElement;
-    'aiuxc:rawMessageAdded': HTMLElement;
-    'aiuxc:avatarInject': HTMLElement;
-    'aiuxc:messageComplete': HTMLElement;
-    'aiuxc:turnComplete': HTMLElement;
-    'aiuxc:streamingStart': null;
-    'aiuxc:streamingEnd': null;
-    'aiuxc:deferredLayoutUpdate': null;
-    'aiuxc:timestampsLoaded': { chatId: string; timestamps: Map<string, Date> };
-    'aiuxc:timestampAdded': { messageId: string; timestamp: Date };
-    'aiuxc:remoteConfigChanged': null;
-    'aiuxc:suspendObservers': null;
-    'aiuxc:resumeObservers': null;
-    'aiuxc:configSizeExceeded': { message: string };
-    'aiuxc:configWarningUpdate': { show: boolean; message: string };
-    'aiuxc:configSaveSuccess': null;
-    'aiuxc:configUpdated': AppConfig;
-    'aiuxc:integrityScanMessagesFound': null;
-    'aiuxc:autoScrollRequest': null;
-    'aiuxc:autoScrollCancelRequest': null;
-    'aiuxc:autoScrollStart': null;
-    'aiuxc:autoScrollComplete': null;
+    'aiuxc:TITLE_CHANGED': null;
+    'aiuxc:THEME_UPDATE': null;
+    'aiuxc:THEME_APPLIED': { theme: ThemeSet; config: AppConfig };
+    'aiuxc:WIDTH_PREVIEW': string | null;
+    'aiuxc:CHAT_CONTENT_WIDTH_UPDATED': null;
+    'aiuxc:WINDOW_RESIZED': null;
+    'aiuxc:SIDEBAR_LAYOUT_CHANGED': null;
+    'aiuxc:VISIBILITY_RECHECK': null;
+    'aiuxc:UI_REPOSITION': null;
+    'aiuxc:INPUT_AREA_RESIZED': null;
+    'aiuxc:NAVIGATION_START': null;
+    'aiuxc:NAVIGATION_END': null;
+    'aiuxc:NAVIGATION': null;
+    'aiuxc:CACHE_UPDATE_REQUEST': null;
+    'aiuxc:CACHE_UPDATED': null;
+    'aiuxc:NAV_HIGHLIGHT_MESSAGE': HTMLElement;
+    'aiuxc:RAW_MESSAGE_ADDED': HTMLElement;
+    'aiuxc:AVATAR_INJECT': HTMLElement;
+    'aiuxc:MESSAGE_COMPLETE': HTMLElement;
+    'aiuxc:TURN_COMPLETE': HTMLElement;
+    'aiuxc:STREAMING_START': null;
+    'aiuxc:STREAMING_END': null;
+    'aiuxc:DEFERRED_LAYOUT_UPDATE': null;
+    'aiuxc:TIMESTAMPS_LOADED': { chatId: string; timestamps: Map<string, Date> };
+    'aiuxc:TIMESTAMP_ADDED': { messageId: string; timestamp: Date };
+    'aiuxc:REMOTE_CONFIG_CHANGED': null;
+    'aiuxc:SUSPEND_OBSERVERS': null;
+    'aiuxc:RESUME_OBSERVERS': null;
+    'aiuxc:CONFIG_SIZE_EXCEEDED': { message: string };
+    'aiuxc:CONFIG_WARNING_UPDATE': { show: boolean; message: string };
+    'aiuxc:CONFIG_SAVE_SUCCESS': null;
+    'aiuxc:CONFIG_UPDATED': AppConfig;
+    'aiuxc:INTEGRITY_SCAN_MESSAGES_FOUND': null;
+    'aiuxc:AUTO_SCROLL_REQUEST': null;
+    'aiuxc:AUTO_SCROLL_CANCEL_REQUEST': null;
+    'aiuxc:AUTO_SCROLL_START': null;
+    'aiuxc:AUTO_SCROLL_COMPLETE': null;
 }
 
 interface IEventBus {
