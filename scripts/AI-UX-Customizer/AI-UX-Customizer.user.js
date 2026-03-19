@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b558
+// @version      1.0.0-b559
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -85,61 +85,70 @@
   }
 
   /**
+   * Helper function to add a prefix to all string values in an object.
+   * @template {Record<string, string>} T
+   * @param {string} prefix
+   * @param {T} obj
+   * @returns {T}
+   */
+  const addPrefix = (prefix, obj) => /** @type {T} */ (Object.fromEntries(Object.entries(obj).map(([key, value]) => [key, `${prefix}${value}`])));
+
+  /**
    * @constant CSS_VARS
    * @description Centralized definition of all CSS variables used in the application.
    * Keys are derived dynamically using APPID to prevent collisions.
    */
-  const CSS_VARS = {
+  const CSS_VARS = addPrefix(`--${APPID}-`, {
     // Actor: User
-    USER_NAME: `--${APPID}-user-name`,
-    USER_NAME_DISPLAY: `--${APPID}-user-name-display`,
-    USER_ICON: `--${APPID}-user-icon`,
-    USER_ICON_DISPLAY: `--${APPID}-user-icon-display`,
-    USER_STANDING_IMAGE: `--${APPID}-user-standing-image`,
-    USER_TEXT_COLOR: `--${APPID}-user-text-color`,
-    USER_FONT: `--${APPID}-user-font`,
-    USER_BUBBLE_BG: `--${APPID}-user-bubble-bg`,
-    USER_BUBBLE_PADDING: `--${APPID}-user-bubble-padding`,
-    USER_BUBBLE_RADIUS: `--${APPID}-user-bubble-radius`,
-    USER_BUBBLE_MAXWIDTH: `--${APPID}-user-bubble-maxwidth`,
+    USER_NAME: 'user-name',
+    USER_NAME_DISPLAY: 'user-name-display',
+    USER_ICON: 'user-icon',
+    USER_ICON_DISPLAY: 'user-icon-display',
+    USER_STANDING_IMAGE: 'user-standing-image',
+    USER_TEXT_COLOR: 'user-text-color',
+    USER_FONT: 'user-font',
+    USER_BUBBLE_BG: 'user-bubble-bg',
+    USER_BUBBLE_PADDING: 'user-bubble-padding',
+    USER_BUBBLE_RADIUS: 'user-bubble-radius',
+    USER_BUBBLE_MAXWIDTH: 'user-bubble-maxwidth',
 
     // Actor: Assistant
-    ASSISTANT_NAME: `--${APPID}-assistant-name`,
-    ASSISTANT_NAME_DISPLAY: `--${APPID}-assistant-name-display`,
-    ASSISTANT_ICON: `--${APPID}-assistant-icon`,
-    ASSISTANT_ICON_DISPLAY: `--${APPID}-assistant-icon-display`,
-    ASSISTANT_STANDING_IMAGE: `--${APPID}-assistant-standing-image`,
-    ASSISTANT_TEXT_COLOR: `--${APPID}-assistant-text-color`,
-    ASSISTANT_FONT: `--${APPID}-assistant-font`,
-    ASSISTANT_BUBBLE_BG: `--${APPID}-assistant-bubble-bg`,
-    ASSISTANT_BUBBLE_PADDING: `--${APPID}-assistant-bubble-padding`,
-    ASSISTANT_BUBBLE_RADIUS: `--${APPID}-assistant-bubble-radius`,
-    ASSISTANT_BUBBLE_MAXWIDTH: `--${APPID}-assistant-bubble-maxwidth`,
+    ASSISTANT_NAME: 'assistant-name',
+    ASSISTANT_NAME_DISPLAY: 'assistant-name-display',
+    ASSISTANT_ICON: 'assistant-icon',
+    ASSISTANT_ICON_DISPLAY: 'assistant-icon-display',
+    ASSISTANT_STANDING_IMAGE: 'assistant-standing-image',
+    ASSISTANT_TEXT_COLOR: 'assistant-text-color',
+    ASSISTANT_FONT: 'assistant-font',
+    ASSISTANT_BUBBLE_BG: 'assistant-bubble-bg',
+    ASSISTANT_BUBBLE_PADDING: 'assistant-bubble-padding',
+    ASSISTANT_BUBBLE_RADIUS: 'assistant-bubble-radius',
+    ASSISTANT_BUBBLE_MAXWIDTH: 'assistant-bubble-maxwidth',
 
     // Window & Input
-    WINDOW_BG_COLOR: `--${APPID}-window-bg-color`,
-    WINDOW_BG_IMAGE: `--${APPID}-window-bg-image`,
-    WINDOW_BG_SIZE: `--${APPID}-window-bg-size`,
-    WINDOW_BG_POS: `--${APPID}-window-bg-pos`,
-    WINDOW_BG_REPEAT: `--${APPID}-window-bg-repeat`,
-    INPUT_BG: `--${APPID}-input-bg`,
-    INPUT_FIELD_BG: `--${APPID}-input-field-bg`,
-    INPUT_COLOR: `--${APPID}-input-color`,
+    WINDOW_BG_COLOR: 'window-bg-color',
+    WINDOW_BG_IMAGE: 'window-bg-image',
+    WINDOW_BG_SIZE: 'window-bg-size',
+    WINDOW_BG_POS: 'window-bg-pos',
+    WINDOW_BG_REPEAT: 'window-bg-repeat',
+    INPUT_BG: 'input-bg',
+    INPUT_FIELD_BG: 'input-field-bg',
+    INPUT_COLOR: 'input-color',
 
     // Layout & Global Styles
-    CHAT_CONTENT_MAX_WIDTH: `--${APPID}-chat-content-max-width`,
-    MESSAGE_MARGIN_TOP: `--${APPID}-message-margin-top`,
-    ICON_SIZE: `--${APPID}-icon-size`,
-    ICON_MARGIN: `--${APPID}-icon-margin`,
+    CHAT_CONTENT_MAX_WIDTH: 'chat-content-max-width',
+    MESSAGE_MARGIN_TOP: 'message-margin-top',
+    ICON_SIZE: 'icon-size',
+    ICON_MARGIN: 'icon-margin',
 
     // Standing Image Layout
-    STANDING_IMG_USER_WIDTH: `--${APPID}-standing-image-user-width`,
-    STANDING_IMG_ASST_WIDTH: `--${APPID}-standing-image-assistant-width`,
-    STANDING_IMG_ASST_LEFT: `--${APPID}-standing-image-assistant-left`,
-    STANDING_IMG_USER_MASK: `--${APPID}-standing-image-user-mask`,
-    STANDING_IMG_ASST_MASK: `--${APPID}-standing-image-assistant-mask`,
-    RIGHT_SIDEBAR_WIDTH: `--${APPID}-right-sidebar-width`,
-  };
+    STANDING_IMG_USER_WIDTH: 'standing-image-user-width',
+    STANDING_IMG_ASST_WIDTH: 'standing-image-assistant-width',
+    STANDING_IMG_ASST_LEFT: 'standing-image-assistant-left',
+    STANDING_IMG_USER_MASK: 'standing-image-user-mask',
+    STANDING_IMG_ASST_MASK: 'standing-image-assistant-mask',
+    RIGHT_SIDEBAR_WIDTH: 'right-sidebar-width',
+  });
 
   /**
    * @constant SHARED_CONSTANTS
@@ -7158,90 +7167,92 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     })();
 
     static COMMON_CLASSES = (() => {
-      const prefix = `${APPID}-common`;
+      const prefix = `${APPID}-common-`;
       return {
-        // Modal Buttons
-        modalButton: `${prefix}-btn`,
-        primaryBtn: `${prefix}-btn-primary`,
-        pushRightBtn: `${prefix}-btn-push-right`,
-        dangerBtn: `${prefix}-btn-danger`,
+        ...addPrefix(prefix, {
+          // Modal Buttons
+          modalButton: 'btn',
+          primaryBtn: 'btn-primary',
+          pushRightBtn: 'btn-push-right',
+          dangerBtn: 'btn-danger',
 
-        // Sliders
-        sliderSubgroupControl: `${prefix}-slider-control`,
-        sliderDisplay: `${prefix}-slider-display`,
+          // Sliders
+          sliderSubgroupControl: 'slider-control',
+          sliderDisplay: 'slider-display',
+          sliderContainer: 'slider-container',
+          compoundSliderContainer: 'compound-slider-container',
+          sliderSubgroup: 'slider-subgroup',
+
+          // Toggle Switch
+          toggleSwitch: 'toggle',
+          toggleSlider: 'toggle-slider',
+
+          // Form Fields
+          formField: 'form-field',
+          inputWrapper: 'input-wrapper',
+          formErrorMsg: 'error-msg',
+          compoundFormFieldContainer: 'compound-form-container',
+          localFileBtn: 'local-file-btn',
+          commonInput: 'input',
+
+          // Form Labels & Status
+          labelRow: 'label-row',
+          statusText: 'status-text',
+
+          // Color Picker Related
+          colorFieldWrapper: 'color-wrapper',
+          colorSwatch: 'color-swatch',
+          colorSwatchChecker: 'color-checker',
+          colorSwatchValue: 'color-value',
+          colorPickerPopup: 'color-popup',
+
+          // Previews
+          previewContainer: 'preview-container',
+          previewBubbleWrapper: 'preview-bubble-wrapper',
+          previewBubble: 'preview-bubble',
+          previewInputArea: 'preview-input',
+          previewBackground: 'preview-bg',
+          userPreview: 'user-preview',
+
+          // Submenu / Panels (Shared Layouts)
+          submenuRow: 'row',
+          submenuFieldset: 'fieldset',
+          submenuSeparator: 'separator',
+          featureGroup: 'feature-group',
+
+          // Notifications & Banners
+          warningBanner: 'warning-banner',
+          conflictText: 'conflict-text',
+          conflictReloadBtnId: 'conflict-reload-btn',
+        }),
         sliderDefault: 'is-default',
-        sliderContainer: `${prefix}-slider-container`,
-        compoundSliderContainer: `${prefix}-compound-slider-container`,
-        sliderSubgroup: `${prefix}-slider-subgroup`,
-
-        // Toggle Switch
-        toggleSwitch: `${prefix}-toggle`,
-        toggleSlider: `${prefix}-toggle-slider`,
-
-        // Form Fields
-        formField: `${prefix}-form-field`,
-        inputWrapper: `${prefix}-input-wrapper`,
-        formErrorMsg: `${prefix}-error-msg`,
-        compoundFormFieldContainer: `${prefix}-compound-form-container`,
-        localFileBtn: `${prefix}-local-file-btn`,
         invalidInput: 'is-invalid',
-        commonInput: `${prefix}-input`,
-
-        // Form Labels & Status
-        labelRow: `${prefix}-label-row`,
-        statusText: `${prefix}-status-text`,
-
-        // Color Picker Related
-        colorFieldWrapper: `${prefix}-color-wrapper`,
-        colorSwatch: `${prefix}-color-swatch`,
-        colorSwatchChecker: `${prefix}-color-checker`,
-        colorSwatchValue: `${prefix}-color-value`,
-        colorPickerPopup: `${prefix}-color-popup`,
-
-        // Previews
-        previewContainer: `${prefix}-preview-container`,
-        previewBubbleWrapper: `${prefix}-preview-bubble-wrapper`,
-        previewBubble: `${prefix}-preview-bubble`,
-        previewInputArea: `${prefix}-preview-input`,
-        previewBackground: `${prefix}-preview-bg`,
-        userPreview: `${prefix}-user-preview`,
-
-        // Submenu / Panels (Shared Layouts)
-        submenuRow: `${prefix}-row`,
-        submenuFieldset: `${prefix}-fieldset`,
-        submenuSeparator: `${prefix}-separator`,
-        featureGroup: `${prefix}-feature-group`,
-
-        // Notifications & Banners
-        warningBanner: `${prefix}-warning-banner`,
-        conflictText: `${prefix}-conflict-text`,
-        conflictReloadBtnId: `${prefix}-conflict-reload-btn`,
       };
     })();
 
     static MODAL_CLASSES = (() => {
-      const prefix = `${APPID}-modal`;
-      return {
-        dialog: `${prefix}-dialog`,
-        box: `${prefix}-box`,
-        header: `${prefix}-header`,
-        content: `${prefix}-content`,
-        footer: `${prefix}-footer`,
-        footerMessage: `${prefix}-footer-message`,
-        buttonGroup: `${prefix}-button-group`,
-      };
+      const prefix = `${APPID}-modal-`;
+      return addPrefix(prefix, {
+        dialog: 'dialog',
+        box: 'box',
+        header: 'header',
+        content: 'content',
+        footer: 'footer',
+        footerMessage: 'footer-message',
+        buttonGroup: 'button-group',
+      });
     })();
 
-    static ROOT_IDS = {
-      SETTINGS_PANEL: `${APPID}-settings-panel`,
-      THEME_MODAL: `${APPID}-theme-modal`,
-      JSON_MODAL: `${APPID}-json-modal`,
-      FIXED_NAV: `${APPID}-fixed-nav-console`,
-      JUMP_LIST: `${APPID}-jump-list-container`,
-      TOAST: `${APPID}-toast-container`,
-      COLOR_PICKER: `${APPID}-color-picker-popup`,
-      SETTINGS_BUTTON: `${APPID}-settings-button`,
-    };
+    static ROOT_IDS = addPrefix(`${APPID}-`, {
+      SETTINGS_PANEL: 'settings-panel',
+      THEME_MODAL: 'theme-modal',
+      JSON_MODAL: 'json-modal',
+      FIXED_NAV: 'fixed-nav-console',
+      JUMP_LIST: 'jump-list-container',
+      TOAST: 'toast-container',
+      COLOR_PICKER: 'color-picker-popup',
+      SETTINGS_BUTTON: 'settings-button',
+    });
 
     static getCommonStyle() {
       const key = 'common-style';
@@ -7257,11 +7268,11 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
     static getStaticBase() {
       const key = 'static-base';
-      const prefix = `${APPID}-${key}`;
+      const prefix = `${APPID}-${key}-`;
 
-      const classes = {
-        maxWidthActive: `${prefix}-max-width-active`,
-      };
+      const classes = addPrefix(prefix, {
+        maxWidthActive: 'max-width-active',
+      });
 
       const vars = {
         chatContentMaxWidth: CSS_VARS.CHAT_CONTENT_MAX_WIDTH,
@@ -7304,10 +7315,12 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
       const classes = {
         panel: rootId,
-        appliedThemeName: `${prefix}-theme-name`,
+        ...addPrefix(`${prefix}-`, {
+          appliedThemeName: 'theme-name',
 
-        // Layout Helpers
-        topRow: `${prefix}-top-row`,
+          // Layout Helpers
+          topRow: 'top-row',
+        }),
       };
 
       const generator = () => StyleTemplates.getSettingsPanelCss(rootId, classes);
@@ -7318,20 +7331,22 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     static getJsonModal() {
       const key = 'json-modal';
       const rootId = StyleDefinitions.ROOT_IDS.JSON_MODAL;
-      const prefix = `${APPID}-${key}`;
       const modalId = StyleDefinitions.MODAL_CLASSES.dialog;
+      const prefix = `${APPID}-${key}`;
 
       const classes = {
         dialogId: modalId,
-        // Layout & Components
-        jsonEditor: `${prefix}-editor`,
-        statusContainer: `${prefix}-status-container`,
+        ...addPrefix(`${prefix}-`, {
+          // Layout & Components
+          jsonEditor: 'editor',
+          statusContainer: 'status-container',
 
-        // Button IDs - Managed by StyleManager
-        exportBtn: `${prefix}-export-btn`,
-        importBtn: `${prefix}-import-btn`,
-        cancelBtn: `${prefix}-cancel-btn`,
-        saveBtn: `${prefix}-save-btn`,
+          // Button IDs - Managed by StyleManager
+          exportBtn: 'export-btn',
+          importBtn: 'import-btn',
+          cancelBtn: 'cancel-btn',
+          saveBtn: 'save-btn',
+        }),
       };
 
       const generator = () => StyleTemplates.getJsonModalCss(rootId, classes, prefix);
@@ -7342,55 +7357,55 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     static getThemeModal() {
       const key = 'theme-modal';
       const rootId = StyleDefinitions.ROOT_IDS.THEME_MODAL;
-      const prefix = `${APPID}-${key}`;
+      const prefix = `${APPID}-${key}-`;
 
-      const classes = {
-        dialogId: `${prefix}-dialog`,
+      const classes = addPrefix(prefix, {
+        dialogId: 'dialog',
         // Layout Containers
-        headerControls: `${prefix}-header-controls`,
-        headerRow: `${prefix}-header-row`,
-        renameArea: `${prefix}-rename-area`,
-        actionArea: `${prefix}-action-area`,
+        headerControls: 'header-controls',
+        headerRow: 'header-row',
+        renameArea: 'rename-area',
+        actionArea: 'action-area',
 
         // Content Areas
-        content: `${prefix}-content`,
-        generalSettings: `${prefix}-general-settings`,
-        scrollableArea: `${prefix}-scrollable-area`,
-        grid: `${prefix}-grid`,
+        content: 'content',
+        generalSettings: 'general-settings',
+        scrollableArea: 'scrollable-area',
+        grid: 'grid',
 
         // Components
-        separator: `${prefix}-separator`,
-        moveBtn: `${prefix}-move-btn`,
+        separator: 'separator',
+        moveBtn: 'move-btn',
 
         // Delete Confirm Group
-        deleteConfirmGroup: `${prefix}-delete-confirm-group`,
-        deleteConfirmLabel: `${prefix}-delete-confirm-label`,
+        deleteConfirmGroup: 'delete-confirm-group',
+        deleteConfirmLabel: 'delete-confirm-label',
 
         // Input wrappers
-        renameInput: `${prefix}-rename-input`,
-        themeSelect: `${prefix}-select`,
+        renameInput: 'rename-input',
+        themeSelect: 'select',
 
         // Action Buttons IDs
-        renameBtn: `${prefix}-rename-btn`,
-        upBtn: `${prefix}-up-btn`,
-        downBtn: `${prefix}-down-btn`,
-        newBtn: `${prefix}-new-btn`,
-        copyBtn: `${prefix}-copy-btn`,
-        deleteBtn: `${prefix}-delete-btn`,
-        renameOkBtn: `${prefix}-rename-ok-btn`,
-        renameCancelBtn: `${prefix}-rename-cancel-btn`,
-        deleteConfirmBtn: `${prefix}-delete-confirm-btn`,
-        deleteCancelBtn: `${prefix}-delete-cancel-btn`,
+        renameBtn: 'rename-btn',
+        upBtn: 'up-btn',
+        downBtn: 'down-btn',
+        newBtn: 'new-btn',
+        copyBtn: 'copy-btn',
+        deleteBtn: 'delete-btn',
+        renameOkBtn: 'rename-ok-btn',
+        renameCancelBtn: 'rename-cancel-btn',
+        deleteConfirmBtn: 'delete-confirm-btn',
+        deleteCancelBtn: 'delete-cancel-btn',
 
         // Modal Footer Buttons IDs
-        saveBtn: `${prefix}-save-btn`,
-        applyBtn: `${prefix}-apply-btn`,
-        cancelBtn: `${prefix}-cancel-btn`,
+        saveBtn: 'save-btn',
+        applyBtn: 'apply-btn',
+        cancelBtn: 'cancel-btn',
 
         // Container IDs
-        mainActionsId: `${prefix}-actions-main`,
-        renameActionsId: `${prefix}-actions-rename`,
-      };
+        mainActionsId: 'actions-main',
+        renameActionsId: 'actions-rename',
+      });
 
       const generator = () => StyleTemplates.getThemeModalCss(rootId, classes);
 
@@ -7400,21 +7415,21 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     static getColorPicker() {
       const key = 'color-picker';
       const rootId = StyleDefinitions.ROOT_IDS.COLOR_PICKER;
-      const prefix = `${APPID}-${key}`;
+      const prefix = `${APPID}-${key}-`;
 
-      const classes = {
-        picker: `${prefix}-container`,
-        svPlane: `${prefix}-sv-plane`,
-        svThumb: `${prefix}-sv-thumb`,
-        sliderGroup: `${prefix}-slider-group`,
-        sliderTrack: `${prefix}-slider-track`,
-        hueTrack: `${prefix}-hue-track`,
-        alphaCheckerboard: `${prefix}-alpha-checkerboard`,
-        gradientWhite: `${prefix}-gradient-white`,
-        gradientBlack: `${prefix}-gradient-black`,
+      const classes = addPrefix(prefix, {
+        picker: 'container',
+        svPlane: 'sv-plane',
+        svThumb: 'sv-thumb',
+        sliderGroup: 'slider-group',
+        sliderTrack: 'slider-track',
+        hueTrack: 'hue-track',
+        alphaCheckerboard: 'alpha-checkerboard',
+        gradientWhite: 'gradient-white',
+        gradientBlack: 'gradient-black',
         // Helper class for the popup wrapper to handle positioning context
-        colorPickerPopup: `${prefix}-popup`,
-      };
+        colorPickerPopup: 'popup',
+      });
 
       const generator = () => StyleTemplates.getColorPickerCss(rootId, classes);
 
@@ -7424,12 +7439,14 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     static getToast() {
       const key = 'toast';
       const rootId = StyleDefinitions.ROOT_IDS.TOAST;
-      const prefix = `${APPID}-${key}`;
+      const prefix = `${APPID}-${key}-`;
 
       const classes = {
         container: rootId,
         visible: 'is-visible',
-        cancelBtn: `${prefix}-cancel-btn`,
+        ...addPrefix(prefix, {
+          cancelBtn: 'cancel-btn',
+        }),
       };
 
       const generator = () => StyleTemplates.getToastCss(rootId, classes);
@@ -7440,39 +7457,40 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     static getFixedNav() {
       const key = 'fixed-nav';
       const rootId = StyleDefinitions.ROOT_IDS.FIXED_NAV;
-      const prefix = `${APPID}-${key}`;
+      const prefix = `${APPID}-${key}-`;
 
       // 1. Define the class map (Source of Truth)
       const classes = {
         // IDs
         consoleId: rootId,
-        bulkCollapseBtnId: `${prefix}-bulk-collapse-btn`,
-        autoscrollBtnId: `${prefix}-autoscroll-btn`,
-
-        // Classes
-        console: `${prefix}-console`,
-        unpositioned: `${prefix}-unpositioned`,
-        hidden: `${prefix}-hidden`,
-        group: `${prefix}-group`,
-        separator: `${prefix}-separator`,
-        counter: `${prefix}-counter`,
-        counterCurrent: `${prefix}-counter-current`,
-        counterTotal: `${prefix}-counter-total`,
-        btn: `${prefix}-btn`,
-        btnAccent: `${prefix}-btn-accent`,
-        btnDanger: `${prefix}-btn-danger`,
-        roleBtn: `${prefix}-role-btn`,
-        jumpInput: `${prefix}-jump-input`,
-        highlightMessage: `${prefix}-highlight-message`,
-        highlightTurn: `${prefix}-highlight-turn`,
-
-        // Role Colors
-        roleTotal: `${prefix}-role-total`,
-        roleUser: `${prefix}-role-user`,
-        roleAssistant: `${prefix}-role-assistant`,
-
         // Helpers
         isHidden: 'is-hidden',
+        ...addPrefix(prefix, {
+          bulkCollapseBtnId: 'bulk-collapse-btn',
+          autoscrollBtnId: 'autoscroll-btn',
+
+          // Classes
+          console: 'console',
+          unpositioned: 'unpositioned',
+          hidden: 'hidden',
+          group: 'group',
+          separator: 'separator',
+          counter: 'counter',
+          counterCurrent: 'counter-current',
+          counterTotal: 'counter-total',
+          btn: 'btn',
+          btnAccent: 'btn-accent',
+          btnDanger: 'btn-danger',
+          roleBtn: 'role-btn',
+          jumpInput: 'jump-input',
+          highlightMessage: 'highlight-message',
+          highlightTurn: 'highlight-turn',
+
+          // Role Colors
+          roleTotal: 'role-total',
+          roleUser: 'role-user',
+          roleAssistant: 'role-assistant',
+        }),
       };
 
       // 2. CSS Generator using the class map
@@ -7484,20 +7502,12 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     static getJumpList() {
       const key = 'jump-list';
       const rootId = StyleDefinitions.ROOT_IDS.JUMP_LIST;
-      const prefix = `${APPID}-${key}`;
+      const prefix = `${APPID}-${key}-`;
 
       const classes = {
         // IDs
         containerId: rootId,
-        listId: `${prefix}-list`,
-        previewId: `${prefix}-preview`,
-
-        // Classes
-        scrollbox: `${prefix}-scrollbox`,
-        filterContainer: `${prefix}-filter-container`,
-        filter: `${prefix}-filter`,
         filterRegexValid: 'is-regex-valid',
-        modeLabel: `${prefix}-mode-label`,
         modeString: 'is-string',
         modeRegex: 'is-regex',
         modeInvalid: 'is-regex-invalid',
@@ -7507,6 +7517,16 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         asstItem: 'assistant-item',
         visible: 'is-visible',
         expandDown: 'expand-down',
+        ...addPrefix(prefix, {
+          listId: 'list',
+          previewId: 'preview',
+
+          // Classes
+          scrollbox: 'scrollbox',
+          filterContainer: 'filter-container',
+          filter: 'filter',
+          modeLabel: 'mode-label',
+        }),
       };
 
       const generator = () => StyleTemplates.getJumpListCss(rootId, classes);
@@ -7516,14 +7536,14 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
     static getTimestamp() {
       const key = 'timestamp';
-      const prefix = `${APPID}-${key}`;
-      const classes = {
-        container: `${prefix}-container`,
-        assistant: `${prefix}-assistant`,
-        user: `${prefix}-user`,
-        text: `${prefix}-text`,
-        hidden: `${prefix}-hidden`,
-      };
+      const prefix = `${APPID}-${key}-`;
+      const classes = addPrefix(prefix, {
+        container: 'container',
+        assistant: 'assistant',
+        user: 'user',
+        text: 'text',
+        hidden: 'hidden',
+      });
 
       const cssGenerator = (cls) => StyleTemplates.getTimestampCss(cls);
       return { key, rootId: null, classes, vars: {}, generator: cssGenerator };
@@ -7531,14 +7551,14 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
     static getMessageNumber() {
       const key = 'message-number';
-      const prefix = `${APPID}-${key}`;
-      const classes = {
-        parent: `${prefix}-parent`,
-        number: `${prefix}-text`,
-        assistant: `${prefix}-assistant`,
-        user: `${prefix}-user`,
-        hidden: `${prefix}-hidden`,
-      };
+      const prefix = `${APPID}-${key}-`;
+      const classes = addPrefix(prefix, {
+        parent: 'parent',
+        number: 'text',
+        assistant: 'assistant',
+        user: 'user',
+        hidden: 'hidden',
+      });
 
       const cssGenerator = (cls) => StyleTemplates.getMessageNumberCss(cls);
       return { key, rootId: null, classes, vars: {}, generator: cssGenerator };
@@ -7546,12 +7566,12 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
     static getStandingImage() {
       const key = 'standing-image';
-      const prefix = `${APPID}-${key}`;
+      const prefix = `${APPID}-${key}-`;
 
-      const classes = {
-        userImageId: `${prefix}-user`,
-        assistantImageId: `${prefix}-assistant`,
-      };
+      const classes = addPrefix(prefix, {
+        userImageId: 'user',
+        assistantImageId: 'assistant',
+      });
 
       const vars = {
         userImage: CSS_VARS.USER_STANDING_IMAGE,
@@ -7572,30 +7592,30 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
     static getBubbleUI() {
       const key = 'bubble-ui';
-      const prefix = `${APPID}-${key}`;
+      const prefix = `${APPID}-${key}-`;
 
-      const classes = {
+      const classes = addPrefix(prefix, {
         // Collapsible
-        collapsibleParent: `${prefix}-collapsible`,
-        collapsibleContent: `${prefix}-content`,
-        collapsibleBtn: `${prefix}-toggle-btn`,
+        collapsibleParent: 'collapsible',
+        collapsibleContent: 'content',
+        collapsibleBtn: 'toggle-btn',
 
         // Navigation
-        navContainer: `${prefix}-nav-container`,
-        navButtons: `${prefix}-nav-buttons`,
-        navGroupTop: `${prefix}-nav-group-top`,
-        navGroupBottom: `${prefix}-nav-group-bottom`,
-        navBtn: `${prefix}-nav-btn`,
-        navPrev: `${prefix}-nav-prev`,
-        navNext: `${prefix}-nav-next`,
-        navTop: `${prefix}-nav-top`,
+        navContainer: 'nav-container',
+        navButtons: 'nav-buttons',
+        navGroupTop: 'nav-group-top',
+        navGroupBottom: 'nav-group-bottom',
+        navBtn: 'nav-btn',
+        navPrev: 'nav-prev',
+        navNext: 'nav-next',
+        navTop: 'nav-top',
 
         // States
-        hidden: `${prefix}-hidden`,
-        collapsed: `${prefix}-collapsed`,
-        navParent: `${prefix}-nav-parent`,
-        imageOnlyAnchor: `${prefix}-image-only-anchor`,
-      };
+        hidden: 'hidden',
+        collapsed: 'collapsed',
+        navParent: 'nav-parent',
+        imageOnlyAnchor: 'image-only-anchor',
+      });
 
       const cssGenerator = (cls) => PlatformAdapters.StyleManager.getBubbleCss(cls);
 

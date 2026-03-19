@@ -3,6 +3,10 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b559] - 2026-03-19
+- **Core Changes**
+  - Refactored internal CSS class and variable definitions to improve codebase maintainability and slightly reduce the overall script size.
+
 ## [1.0.0-b558] - 2026-03-19
 - **Core Changes**
   - Optimized internal stylesheets to reduce the overall script file size by approximately 16KB, improving load times and resource efficiency.
