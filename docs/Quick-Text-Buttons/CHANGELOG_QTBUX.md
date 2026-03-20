@@ -3,6 +3,18 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **UX Customizer (AIUXC/GPTUX/GGGUX)**, strict version matching is required:
 -  QTB v3.1.2+ with AIUXC v1.0.0-b489+ / GPTUX v2.4.2+ / GGGUX v2.4.2+
 
+## [3.1.4] - 2026-03-20
+- **Core Changes**
+  - Ported critical stability and lifecycle improvements for the core element detection engine (`Sentinel`) from the AIUXC project.
+  - Fixed an issue where duplicate CSS rules could accumulate during rapid DOM updates, preventing potential performance degradation (CSSOM bloat).
+  - Enhanced resource cleanup (teardown processes) to prevent memory leaks during page navigation. Added robust error isolation to ensure the observation loop continues running even if individual callbacks fail.
+  - Modernized internal object property checks within the configuration resolution logic for consistency and improved code readability.
+  - Modernized underlying DOM manipulation and data access methods to improve overall script efficiency and long-term maintainability.
+  - Modernized internal object property checks within the logging utility for improved reliability and cleaner code execution.
+  - Tightened internal type definitions to ensure stricter code validation and prevent potential edge-case errors.
+  - Optimized the performance of configuration size validation, reducing memory usage and improving responsiveness when typing in the JSON Settings editor.
+  - Optimized the internal UI rendering logic to provide smoother interactions when opening menus and updating text lists.
+
 ## [3.1.3] - 2026-03-20
 - **Bug Fixes**
   - **[ChatGPT]** Fixed an issue where inserting multiline text would lose its line breaks. Text formatting is now accurately preserved when pasted into the input field.

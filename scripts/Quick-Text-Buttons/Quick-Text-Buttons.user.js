@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Quick-Text-Buttons
 // @namespace    https://github.com/p65536
-// @version      3.1.3
+// @version      3.1.4
 // @license      MIT
 // @description  Adds customizable text buttons to paste frequently used prompts into ChatGPT/Gemini inputs.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/qtb.svg
@@ -81,7 +81,7 @@
      * @param {string} level The new log level. Must be one of 'error', 'warn', 'info', 'log', 'debug'.
      */
     static setLevel(level) {
-      if (Object.prototype.hasOwnProperty.call(this.levels, level)) {
+      if (Object.hasOwn(this.levels, level)) {
         this.level = level;
       } else {
         // Use default style (empty string) for the badge
@@ -95,7 +95,7 @@
      * @param {string} level - The log level ('error', 'warn', 'info', 'log', 'debug').
      * @param {string} badgeText - The text inside the badge. If empty, no badge is shown.
      * @param {string} badgeStyle - The background-color style (from Logger.styles). If empty, uses default.
-     * @param {...any} args - The messages to log.
+     * @param {...unknown} args - The messages to log.
      */
     static _out(level, badgeText, badgeStyle, ...args) {
       if (this.levels[this.level] >= this.levels[level]) {
@@ -130,7 +130,7 @@
      * @param {'group'|'groupCollapsed'} method - The console method to use.
      * @param {string} badgeText
      * @param {string} badgeStyle
-     * @param {...any} args
+     * @param {...unknown} args
      */
     static _groupOut(method, badgeText, badgeStyle, ...args) {
       if (this.levels[this.level] >= this.levels.debug) {
@@ -153,7 +153,7 @@
     /**
      * @param {string} badgeText
      * @param {string} badgeStyle
-     * @param {...any} args
+     * @param {...unknown} args
      */
     static error(badgeText, badgeStyle, ...args) {
       this._out('error', badgeText, badgeStyle, ...args);
@@ -162,7 +162,7 @@
     /**
      * @param {string} badgeText
      * @param {string} badgeStyle
-     * @param {...any} args
+     * @param {...unknown} args
      */
     static warn(badgeText, badgeStyle, ...args) {
       this._out('warn', badgeText, badgeStyle, ...args);
@@ -171,7 +171,7 @@
     /**
      * @param {string} badgeText
      * @param {string} badgeStyle
-     * @param {...any} args
+     * @param {...unknown} args
      */
     static info(badgeText, badgeStyle, ...args) {
       this._out('info', badgeText, badgeStyle, ...args);
@@ -180,7 +180,7 @@
     /**
      * @param {string} badgeText
      * @param {string} badgeStyle
-     * @param {...any} args
+     * @param {...unknown} args
      */
     static log(badgeText, badgeStyle, ...args) {
       this._out('log', badgeText, badgeStyle, ...args);
@@ -190,7 +190,7 @@
      * Logs messages for debugging. Only active in 'debug' level.
      * @param {string} badgeText
      * @param {string} badgeStyle
-     * @param {...any} args
+     * @param {...unknown} args
      */
     static debug(badgeText, badgeStyle, ...args) {
       this._out('debug', badgeText, badgeStyle, ...args);
@@ -220,7 +220,7 @@
      * Starts a log group. Only active in 'debug' level.
      * @param {string} badgeText
      * @param {string} badgeStyle
-     * @param {...any} args The title for the log group.
+     * @param {...unknown} args The title for the log group.
      */
     static group(badgeText, badgeStyle, ...args) {
       this._groupOut('group', badgeText, badgeStyle, ...args);
@@ -230,7 +230,7 @@
      * Starts a collapsed log group. Only active in 'debug' level.
      * @param {string} badgeText
      * @param {string} badgeStyle
-     * @param {...any} args The title for the log group.
+     * @param {...unknown} args The title for the log group.
      */
     static groupCollapsed(badgeText, badgeStyle, ...args) {
       this._groupOut('groupCollapsed', badgeText, badgeStyle, ...args);
@@ -635,145 +635,145 @@
       const v = StyleDefinitions.VARS;
 
       const cssGenerator = (classes) => `
-                /* Buttons */
-                .${classes.modalButton} {
-                    background: var(${v.BTN_BG});
-                    border: 1px solid var(${v.BTN_BORDER});
-                    border-radius: var(--radius-md, 5px);
-                    color: var(${v.BTN_TEXT});
-                    cursor: pointer;
-                    font-size: 13px;
-                    padding: 5px 16px;
-                    transition: background 0.12s, color 0.12s, opacity 0.12s;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    white-space: nowrap;
-                    min-width: 80px;
-                }
-                .${classes.modalButton}:hover {
-                    background: var(${v.BTN_HOVER_BG}) !important;
-                    border-color: var(${v.BTN_BORDER});
-                }
-                .${classes.modalButton}:disabled {
-                    background: var(${v.BTN_BG}) !important;
-                    cursor: not-allowed;
-                    opacity: 0.5;
-                }
-                .${classes.primaryBtn} {
-                    background-color: #1a73e8 !important;
-                    color: #ffffff !important;
-                    border: 1px solid transparent !important;
-                }
-                .${classes.primaryBtn}:hover {
-                    background-color: #1557b0 !important;
-                }
-                .${classes.pushRightBtn} {
-                    margin-left: auto !important;
-                }
+/* Buttons */
+.${classes.modalButton} {
+background: var(${v.BTN_BG});
+border: 1px solid var(${v.BTN_BORDER});
+border-radius: var(--radius-md, 5px);
+color: var(${v.BTN_TEXT});
+cursor: pointer;
+font-size: 13px;
+padding: 5px 16px;
+transition: background 0.12s, color 0.12s, opacity 0.12s;
+display: flex;
+align-items: center;
+justify-content: center;
+white-space: nowrap;
+min-width: 80px;
+}
+.${classes.modalButton}:hover {
+background: var(${v.BTN_HOVER_BG}) !important;
+border-color: var(${v.BTN_BORDER});
+}
+.${classes.modalButton}:disabled {
+background: var(${v.BTN_BG}) !important;
+cursor: not-allowed;
+opacity: 0.5;
+}
+.${classes.primaryBtn} {
+background-color: #1a73e8 !important;
+color: #ffffff !important;
+border: 1px solid transparent !important;
+}
+.${classes.primaryBtn}:hover {
+background-color: #1557b0 !important;
+}
+.${classes.pushRightBtn} {
+margin-left: auto !important;
+}
 
-                /* Fieldset & Layout */
-                .${classes.submenuFieldset} {
-                    border: 1px solid var(${v.BORDER_DEFAULT});
-                    border-radius: 4px;
-                    padding: 8px 12px 12px;
-                    margin: 0 0 12px 0;
-                    min-width: 0;
-                }
-                .${classes.submenuFieldset} legend {
-                    padding: 0 4px;
-                    font-weight: 500;
-                    color: var(${v.TEXT_SECONDARY});
-                }
-                .${classes.submenuRow} {
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    gap: 8px;
-                    margin-top: 8px;
-                }
-                .${classes.submenuRow} label {
-                    white-space: nowrap;
-                    flex-shrink: 0;
-                }
-                .${classes.submenuRow} select {
-                    width: 50%;
-                }
-                .${classes.submenuSeparator} {
-                    border-top: 1px solid var(${v.BORDER_LIGHT});
-                    margin: 12px 0;
-                }
-                .${classes.settingsNote} {
-                    font-size: 0.85em;
-                    color: var(${v.TEXT_SECONDARY});
-                    text-align: left;
-                    margin-top: 8px;
-                    padding: 0 4px;
-                }
+/* Fieldset & Layout */
+.${classes.submenuFieldset} {
+border: 1px solid var(${v.BORDER_DEFAULT});
+border-radius: 4px;
+padding: 8px 12px 12px;
+margin: 0 0 12px 0;
+min-width: 0;
+}
+.${classes.submenuFieldset} legend {
+padding: 0 4px;
+font-weight: 500;
+color: var(${v.TEXT_SECONDARY});
+}
+.${classes.submenuRow} {
+display: flex;
+align-items: center;
+justify-content: space-between;
+gap: 8px;
+margin-top: 8px;
+}
+.${classes.submenuRow} label {
+white-space: nowrap;
+flex-shrink: 0;
+}
+.${classes.submenuRow} select {
+width: 50%;
+}
+.${classes.submenuSeparator} {
+border-top: 1px solid var(${v.BORDER_LIGHT});
+margin: 12px 0;
+}
+.${classes.settingsNote} {
+font-size: 0.85em;
+color: var(${v.TEXT_SECONDARY});
+text-align: left;
+margin-top: 8px;
+padding: 0 4px;
+}
 
-                /* Notification Banner */
-                .${classes.warningBanner} {
-                    background-color: var(--bg-danger, #ffe6e6);
-                    color: var(${v.TEXT_DANGER});
-                    padding: 8px 12px;
-                    margin-bottom: 12px;
-                    border: 1px solid var(--border-danger, #ffcdd2);
-                    border-radius: 4px;
-                    font-size: 0.9em;
-                    line-height: 1.4;
-                    white-space: pre-wrap;
-                }
+/* Notification Banner */
+.${classes.warningBanner} {
+background-color: var(--bg-danger, #ffe6e6);
+color: var(${v.TEXT_DANGER});
+padding: 8px 12px;
+margin-bottom: 12px;
+border: 1px solid var(--border-danger, #ffcdd2);
+border-radius: 4px;
+font-size: 0.9em;
+line-height: 1.4;
+white-space: pre-wrap;
+}
 
-                /* Form Inputs */
-                .${classes.selectInput} {
-                    width: 100%;
-                    box-sizing: border-box;
-                    background: var(${v.INPUT_BG});
-                    border: 1px solid var(${v.BORDER_DEFAULT});
-                    color: var(${v.TEXT_PRIMARY});
-                    border-radius: 4px;
-                    padding: 4px 6px;
-                }
+/* Form Inputs */
+.${classes.selectInput} {
+width: 100%;
+box-sizing: border-box;
+background: var(${v.INPUT_BG});
+border: 1px solid var(${v.BORDER_DEFAULT});
+color: var(${v.TEXT_PRIMARY});
+border-radius: 4px;
+padding: 4px 6px;
+}
 
-                /* Toggle Switch */
-                .${classes.toggleSwitch} {
-                    position: relative;
-                    display: inline-block;
-                    width: 40px;
-                    height: 22px;
-                    flex-shrink: 0;
-                }
-                .${classes.toggleSwitch} input {
-                    opacity: 0;
-                    width: 0;
-                    height: 0;
-                }
-                .${classes.toggleSlider} {
-                    position: absolute;
-                    cursor: pointer;
-                    top: 0; left: 0; right: 0; bottom: 0;
-                    background-color: var(${v.TOGGLE_BG_OFF});
-                    transition: .3s;
-                    border-radius: 22px;
-                }
-                .${classes.toggleSlider}:before {
-                    position: absolute;
-                    content: "";
-                    height: 16px;
-                    width: 16px;
-                    left: 3px;
-                    bottom: 3px;
-                    background-color: var(${v.TOGGLE_KNOB});
-                    transition: .3s;
-                    border-radius: 50%;
-                }
-                .${classes.toggleSwitch} input:checked + .${classes.toggleSlider} {
-                    background-color: var(${v.TOGGLE_BG_ON});
-                }
-                .${classes.toggleSwitch} input:checked + .${classes.toggleSlider}:before {
-                    transform: translateX(18px);
-                }
-            `;
+/* Toggle Switch */
+.${classes.toggleSwitch} {
+position: relative;
+display: inline-block;
+width: 40px;
+height: 22px;
+flex-shrink: 0;
+}
+.${classes.toggleSwitch} input {
+opacity: 0;
+width: 0;
+height: 0;
+}
+.${classes.toggleSlider} {
+position: absolute;
+cursor: pointer;
+top: 0; left: 0; right: 0; bottom: 0;
+background-color: var(${v.TOGGLE_BG_OFF});
+transition: .3s;
+border-radius: 22px;
+}
+.${classes.toggleSlider}:before {
+position: absolute;
+content: "";
+height: 16px;
+width: 16px;
+left: 3px;
+bottom: 3px;
+background-color: var(${v.TOGGLE_KNOB});
+transition: .3s;
+border-radius: 50%;
+}
+.${classes.toggleSwitch} input:checked + .${classes.toggleSlider} {
+background-color: var(${v.TOGGLE_BG_ON});
+}
+.${classes.toggleSwitch} input:checked + .${classes.toggleSlider}:before {
+transform: translateX(18px);
+}
+`;
       return { key, classes: cls, vars: {}, generator: cssGenerator };
     }
 
@@ -784,67 +784,67 @@
       const v = StyleDefinitions.VARS;
 
       const cssGenerator = (classes) => `
-                dialog.${classes.dialog} {
-                    padding: 0;
-                    border: none;
-                    background: transparent;
-                    max-width: 100vw;
-                    max-height: 100vh;
-                    overflow: visible;
-                }
-                dialog.${classes.dialog}::backdrop {
-                    background: rgb(0 0 0 / 0.5);
-                    pointer-events: auto;
-                }
-                .${classes.box} {
-                    display: flex;
-                    flex-direction: column;
-                    background: var(${v.MODAL_BG});
-                    color: var(${v.TEXT_PRIMARY});
-                    border: 1px solid var(${v.BORDER_DEFAULT});
-                    border-radius: 8px;
-                    box-shadow: 0 4px 16px rgb(0 0 0 / 0.2);
-                }
-                .${classes.header}, .${classes.footer} {
-                    flex-shrink: 0;
-                    padding: 12px 16px;
-                }
-                .${classes.header} {
-                    font-size: 1.1em;
-                    font-weight: 600;
-                    border-bottom: 1px solid var(${v.BORDER_DEFAULT});
-                }
-                .${classes.content} {
-                    flex-grow: 1;
-                    padding: 16px;
-                    overflow-y: auto;
-                }
-                .${classes.footer} {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    gap: 16px;
-                    border-top: 1px solid var(${v.BORDER_DEFAULT});
-                }
-                .${classes.footerMessage} {
-                    flex-grow: 1;
-                    font-size: 0.9em;
-                }
-                .${classes.buttonGroup} {
-                    display: flex;
-                    gap: 8px;
-                }
+dialog.${classes.dialog} {
+padding: 0;
+border: none;
+background: transparent;
+max-width: 100vw;
+max-height: 100vh;
+overflow: visible;
+}
+dialog.${classes.dialog}::backdrop {
+background: rgb(0 0 0 / 0.5);
+pointer-events: auto;
+}
+.${classes.box} {
+display: flex;
+flex-direction: column;
+background: var(${v.MODAL_BG});
+color: var(${v.TEXT_PRIMARY});
+border: 1px solid var(${v.BORDER_DEFAULT});
+border-radius: 8px;
+box-shadow: 0 4px 16px rgb(0 0 0 / 0.2);
+}
+.${classes.header}, .${classes.footer} {
+flex-shrink: 0;
+padding: 12px 16px;
+}
+.${classes.header} {
+font-size: 1.1em;
+font-weight: 600;
+border-bottom: 1px solid var(${v.BORDER_DEFAULT});
+}
+.${classes.content} {
+flex-grow: 1;
+padding: 16px;
+overflow-y: auto;
+}
+.${classes.footer} {
+display: flex;
+justify-content: space-between;
+align-items: center;
+gap: 16px;
+border-top: 1px solid var(${v.BORDER_DEFAULT});
+}
+.${classes.footerMessage} {
+flex-grow: 1;
+font-size: 0.9em;
+}
+.${classes.buttonGroup} {
+display: flex;
+gap: 8px;
+}
 
-                /* Conflict Notification */
-                .${classes.footerMessage}.${common.conflictText} {
-                    color: var(${v.TEXT_DANGER});
-                    display: flex;
-                    align-items: center;
-                }
-                .${classes.footerMessage} #${common.conflictReloadBtnId} {
-                    border-color: var(${v.TEXT_DANGER});
-                }
-            `;
+/* Conflict Notification */
+.${classes.footerMessage}.${common.conflictText} {
+color: var(${v.TEXT_DANGER});
+display: flex;
+align-items: center;
+}
+.${classes.footerMessage} #${common.conflictReloadBtnId} {
+border-color: var(${v.TEXT_DANGER});
+}
+`;
       return { key, classes: cls, vars: {}, generator: cssGenerator };
     }
 
@@ -855,28 +855,28 @@
       const v = StyleDefinitions.VARS;
 
       const cssGenerator = (classes) => `
-                #${classes.panel} {
-                    position: fixed;
-                    width: min(340px, 95vw);
-                    max-height: 85vh;
-                    overflow-y: auto;
-                    overscroll-behavior: contain;
-                    background: var(${v.PANEL_BG});
-                    color: var(${v.TEXT_PRIMARY});
-                    border-radius: 0.5rem;
-                    box-shadow: 0 4px 20px 0 rgb(0 0 0 / 15%);
-                    padding: 12px;
-                    z-index: ${CONSTANTS.Z_INDICES.SETTINGS_PANEL};
-                    border: 1px solid var(${v.BORDER_MEDIUM});
-                    font-size: 0.9em;
-                }
-                .${classes.topRow} {
-                    display: flex; gap: 12px;
-                }
-                .${classes.topRow} .${common.submenuFieldset} {
-                    flex: 1 1 0px;
-                }
-            `;
+#${classes.panel} {
+position: fixed;
+width: min(340px, 95vw);
+max-height: 85vh;
+overflow-y: auto;
+overscroll-behavior: contain;
+background: var(${v.PANEL_BG});
+color: var(${v.TEXT_PRIMARY});
+border-radius: 0.5rem;
+box-shadow: 0 4px 20px 0 rgb(0 0 0 / 15%);
+padding: 12px;
+z-index: ${CONSTANTS.Z_INDICES.SETTINGS_PANEL};
+border: 1px solid var(${v.BORDER_MEDIUM});
+font-size: 0.9em;
+}
+.${classes.topRow} {
+display: flex; gap: 12px;
+}
+.${classes.topRow} .${common.submenuFieldset} {
+flex: 1 1 0px;
+}
+`;
       return { key, classes: cls, vars: {}, generator: cssGenerator };
     }
 
@@ -899,139 +899,139 @@
       const v = StyleDefinitions.VARS;
 
       const cssGenerator = (cls) => `
-                #${cls.list} {
-                    position: fixed;
-                    z-index: ${CONSTANTS.Z_INDICES.TEXT_LIST};
-                    display: none;
-                    width: min(500px, 95vw);
-                    padding: 4px 8px;
-                    border-radius: var(--radius-md, 4px);
-                    background: var(${v.LIST_BG});
-                    color: var(${v.TEXT_PRIMARY});
-                    border: 1px solid var(${v.BORDER_MEDIUM});
-                    box-shadow: var(${v.LIST_SHADOW});
-                    display: flex;
-                    flex-direction: column;
-                    box-sizing: border-box;
-                }
-                .${cls.profileBar} {
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    margin: 4px 0;
-                    padding: 4px 0;
-                    border-top: 1px solid var(${v.BORDER_DEFAULT});
-                    border-bottom: 1px solid var(${v.BORDER_DEFAULT});
-                    flex: 0 0 auto;
-                    gap: 8px;
-                }
-                .${cls.profileName} {
-                    flex-grow: 1;
-                    text-align: center;
-                    font-weight: bold;
-                    font-size: 0.95em;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                    white-space: nowrap;
-                    padding: 0 8px;
-                    color: var(${v.TEXT_PRIMARY});
-                    cursor: pointer;
-                    border-radius: 4px;
-                    transition: background 0.2s;
-                }
-                .${cls.profileName}:hover {
-                    background: var(${v.OPTION_HOVER_BG});
-                }
-                .${cls.navBtn} {
-                    background: transparent;
-                    border: none;
-                    color: var(${v.TEXT_PRIMARY});
-                    cursor: pointer;
-                    padding: 2px;
-                    border-radius: 4px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    min-width: 24px;
-                    height: 24px;
-                    opacity: 0.7;
-                    transition: opacity 0.2s, background 0.2s;
-                }
-                .${cls.navBtn}:hover {
-                    opacity: 1;
-                    background: var(${v.OPTION_HOVER_BG});
-                }
-                .${cls.rotateLeft} { transform: rotate(-90deg); }
-                .${cls.rotateRight} { transform: rotate(90deg); }
-                
-                .${cls.tabs} {
-                    display: flex;
-                    margin: 4px 0;
-                    flex: 0 0 auto;
-                }
-                .${cls.separator} {
-                    height: 1px;
-                    margin: 4px 0;
-                    background: var(${v.BORDER_DEFAULT});
-                    flex: 0 0 auto;
-                }
-                .${cls.tab} {
-                    flex: 1 1 0;
-                    min-width: 0;
-                    max-width: 90px;
-                    margin-right: 4px;
-                    padding: 4px 0;
-                    border-radius: var(--radius-md, 4px);
-                    font-size: 12px;
-                    text-align: center;
-                    background: var(${v.TAB_BG});
-                    color: var(${v.TAB_TEXT});
-                    border: 1px solid var(${v.TAB_BORDER});
-                    cursor: pointer;
-                    transition: background 0.15s;
-                }
-                .${cls.tab}.active {
-                    background: var(${v.TAB_ACTIVE_BG});
-                    border-color: var(${v.TAB_ACTIVE_BORDER});
-                    outline: 2px solid var(${v.TAB_ACTIVE_OUTLINE});
-                }
-                .${cls.tab}:hover {
-                    background: var(${v.TAB_HOVER_BG});
-                }
-                
-                .${cls.options} {
-                    flex: 1 1 auto;
-                    overflow-y: auto;
-                    min-height: 0;
-                    overscroll-behavior: contain;
-                }
-                .${cls.option} {
-                    display: -webkit-box;
-                    -webkit-line-clamp: 3;
-                    -webkit-box-orient: vertical;
-                    overflow: hidden;
-                    width: 100%;
-                    margin: 4px 0;
-                    padding: 4px;
-                    font-size: 13px;
-                    text-align: left;
-                    border-radius: var(--radius-md, 5px);
-                    background: var(${v.OPTION_BG});
-                    color: var(${v.OPTION_TEXT});
-                    border: 1px solid var(${v.OPTION_BORDER});
-                    cursor: pointer;
-                }
-                .${cls.option}:hover, .${cls.option}:focus {
-                    background: var(${v.OPTION_HOVER_BG}) !important;
-                    border-color: var(${v.OPTION_HOVER_BORDER}) !important;
-                    outline: 2px solid var(${v.OPTION_HOVER_OUTLINE});
-                }
-                .${cls.option}.active {
-                    background: var(${v.TAB_ACTIVE_BG});
-                    border-color: var(${v.TAB_ACTIVE_BORDER});
-                    font-weight: bold;
-                }
-            `;
+#${cls.list} {
+position: fixed;
+z-index: ${CONSTANTS.Z_INDICES.TEXT_LIST};
+display: none;
+width: min(500px, 95vw);
+padding: 4px 8px;
+border-radius: var(--radius-md, 4px);
+background: var(${v.LIST_BG});
+color: var(${v.TEXT_PRIMARY});
+border: 1px solid var(${v.BORDER_MEDIUM});
+box-shadow: var(${v.LIST_SHADOW});
+display: flex;
+flex-direction: column;
+box-sizing: border-box;
+}
+.${cls.profileBar} {
+display: flex;
+align-items: center;
+justify-content: space-between;
+margin: 4px 0;
+padding: 4px 0;
+border-top: 1px solid var(${v.BORDER_DEFAULT});
+border-bottom: 1px solid var(${v.BORDER_DEFAULT});
+flex: 0 0 auto;
+gap: 8px;
+}
+.${cls.profileName} {
+flex-grow: 1;
+text-align: center;
+font-weight: bold;
+font-size: 0.95em;
+overflow: hidden;
+text-overflow: ellipsis;
+white-space: nowrap;
+padding: 0 8px;
+color: var(${v.TEXT_PRIMARY});
+cursor: pointer;
+border-radius: 4px;
+transition: background 0.2s;
+}
+.${cls.profileName}:hover {
+background: var(${v.OPTION_HOVER_BG});
+}
+.${cls.navBtn} {
+background: transparent;
+border: none;
+color: var(${v.TEXT_PRIMARY});
+cursor: pointer;
+padding: 2px;
+border-radius: 4px;
+display: flex;
+align-items: center;
+justify-content: center;
+min-width: 24px;
+height: 24px;
+opacity: 0.7;
+transition: opacity 0.2s, background 0.2s;
+}
+.${cls.navBtn}:hover {
+opacity: 1;
+background: var(${v.OPTION_HOVER_BG});
+}
+.${cls.rotateLeft} { transform: rotate(-90deg); }
+.${cls.rotateRight} { transform: rotate(90deg); }
+
+.${cls.tabs} {
+display: flex;
+margin: 4px 0;
+flex: 0 0 auto;
+}
+.${cls.separator} {
+height: 1px;
+margin: 4px 0;
+background: var(${v.BORDER_DEFAULT});
+flex: 0 0 auto;
+}
+.${cls.tab} {
+flex: 1 1 0;
+min-width: 0;
+max-width: 90px;
+margin-right: 4px;
+padding: 4px 0;
+border-radius: var(--radius-md, 4px);
+font-size: 12px;
+text-align: center;
+background: var(${v.TAB_BG});
+color: var(${v.TAB_TEXT});
+border: 1px solid var(${v.TAB_BORDER});
+cursor: pointer;
+transition: background 0.15s;
+}
+.${cls.tab}.active {
+background: var(${v.TAB_ACTIVE_BG});
+border-color: var(${v.TAB_ACTIVE_BORDER});
+outline: 2px solid var(${v.TAB_ACTIVE_OUTLINE});
+}
+.${cls.tab}:hover {
+background: var(${v.TAB_HOVER_BG});
+}
+
+.${cls.options} {
+flex: 1 1 auto;
+overflow-y: auto;
+min-height: 0;
+overscroll-behavior: contain;
+}
+.${cls.option} {
+display: -webkit-box;
+-webkit-line-clamp: 3;
+-webkit-box-orient: vertical;
+overflow: hidden;
+width: 100%;
+margin: 4px 0;
+padding: 4px;
+font-size: 13px;
+text-align: left;
+border-radius: var(--radius-md, 5px);
+background: var(${v.OPTION_BG});
+color: var(${v.OPTION_TEXT});
+border: 1px solid var(${v.OPTION_BORDER});
+cursor: pointer;
+}
+.${cls.option}:hover, .${cls.option}:focus {
+background: var(${v.OPTION_HOVER_BG}) !important;
+border-color: var(${v.OPTION_HOVER_BORDER}) !important;
+outline: 2px solid var(${v.OPTION_HOVER_OUTLINE});
+}
+.${cls.option}.active {
+background: var(${v.TAB_ACTIVE_BG});
+border-color: var(${v.TAB_ACTIVE_BORDER});
+font-weight: bold;
+}
+`;
       return { key, classes, vars: {}, generator: cssGenerator };
     }
 
@@ -1045,45 +1045,45 @@
       const v = StyleDefinitions.VARS;
 
       const cssGenerator = (cls) => `
-                #${cls.buttonId} {
-                    /* Dynamic Layout via Vars */
-                    position: var(${v.INSERT_BTN_POSITION}) !important;
-                    left: var(${v.INSERT_BTN_LEFT});
-                    bottom: var(${v.INSERT_BTN_BOTTOM});
-                    width: var(${v.INSERT_BTN_SIZE});
-                    height: var(${v.INSERT_BTN_SIZE});
-                    margin: 0 !important;
-                    
-                    /* Visuals */
-                    display: flex;
-                    background: transparent;
-                    border: none;
-                    border-radius: 50%;
-                    color: var(${v.INSERT_BTN_COLOR});
-                    
-                    /* Base */
-                    font-size: 16px;
-                    cursor: pointer;
-                    box-shadow: var(--drop-shadow-xs, 0 1px 1px #0000000d);
-                    transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
-                    align-items: center;
-                    justify-content: center;
-                    padding: 0;
-                    pointer-events: auto !important;
-                }
-                #${cls.buttonId}:hover {
-                    background: var(${v.INSERT_BTN_HOVER_BG});
-                }
-                
-                /* Anchor Styling */
-                .${cls.anchorStyled} {
-                    position: relative;
-                    display: flex;
-                    align-items: center;
-                    gap: var(${v.ANCHOR_GAP});
-                    padding-left: var(${v.ANCHOR_PADDING_LEFT}) !important;
-                }
-            `;
+#${cls.buttonId} {
+/* Dynamic Layout via Vars */
+position: var(${v.INSERT_BTN_POSITION}) !important;
+left: var(${v.INSERT_BTN_LEFT});
+bottom: var(${v.INSERT_BTN_BOTTOM});
+width: var(${v.INSERT_BTN_SIZE});
+height: var(${v.INSERT_BTN_SIZE});
+margin: 0 !important;
+
+/* Visuals */
+display: flex;
+background: transparent;
+border: none;
+border-radius: 50%;
+color: var(${v.INSERT_BTN_COLOR});
+
+/* Base */
+font-size: 16px;
+cursor: pointer;
+box-shadow: var(--drop-shadow-xs, 0 1px 1px #0000000d);
+transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
+align-items: center;
+justify-content: center;
+padding: 0;
+pointer-events: auto !important;
+}
+#${cls.buttonId}:hover {
+background: var(${v.INSERT_BTN_HOVER_BG});
+}
+
+/* Anchor Styling */
+.${cls.anchorStyled} {
+position: relative;
+display: flex;
+align-items: center;
+gap: var(${v.ANCHOR_GAP});
+padding-left: var(${v.ANCHOR_PADDING_LEFT}) !important;
+}
+`;
       return { key, classes, vars: {}, generator: cssGenerator };
     }
 
@@ -1119,204 +1119,204 @@
       const common = StyleDefinitions.COMMON_CLASSES;
 
       const cssGenerator = (cls) => `
-                /* Header Layout */
-                .${cls.headerControls} {
-                  display: flex;
-                  flex-direction: column;
-                  gap: 12px;
-                }
-                .${cls.headerRow} {
-                  display: grid;
-                  /* Label | Flexible Input | Action Buttons */
-                  grid-template-columns: 5.5rem 1fr auto;
-                  gap: 8px;
-                  align-items: center;
-                }
-                @media (max-width: 800px) {
-                    .${cls.headerRow} {
-                        grid-template-columns: 1fr;
-                        gap: 8px;
-                    }
-                    .${cls.headerRow} > label {
-                        text-align: left;
-                    }
-                    .${cls.headerRow} > .${cls.renameArea} {
-                        grid-column: 1;
-                    }
-                    .${cls.headerRow} > .${cls.actionArea} {
-                        grid-column: 1;
-                    }
-                }
-                .${cls.headerRow}.is-disabled {
-                  opacity: 0.5;
-                  pointer-events: none;
-                }
-                .${cls.headerRow} > label {
-                  grid-column: 1;
-                  text-align: right;
-                  color: var(${v.TEXT_SECONDARY});
-                  font-size: 0.9em;
-                }
-                .${cls.headerRow} > .${cls.renameArea} {
-                  grid-column: 2;
-                  min-width: 180px;
-                }
-                .${cls.headerRow} > .${cls.actionArea} {
-                  grid-column: 3;
-                  display: grid;
-                  grid-template-columns: 1fr;
-                  align-items: center;
-                }
-                .${cls.actionArea} > * {
-                    grid-area: 1 / 1;
-                    width: 100%;
-                    display: flex;
-                    align-items: center;
-                }
-                .${cls.mainActions},
-                .${cls.renameActions} {
-                    justify-content: flex-start;
-                    gap: 8px;
-                    flex-wrap: nowrap;
-                }
-                .${cls.deleteConfirmGroup} {
-                  justify-content: space-between;
-                  gap: 8px;
-                }
-                
-                /* Delete Confirmation Styles */
-                .${cls.deleteConfirmLabel} {
-                  color: var(${v.TEXT_DANGER});
-                  font-style: italic;
-                  white-space: nowrap;
-                }
-                .${cls.deleteConfirmBtnYes} {
-                  background-color: var(${v.DELETE_BTN_BG}) !important;
-                  color: var(${v.DELETE_BTN_TEXT}) !important;
-                }
-                .${cls.deleteConfirmBtnYes}:hover {
-                  background-color: var(${v.DELETE_BTN_HOVER_BG}) !important;
-                  color: var(${v.DELETE_BTN_HOVER_TEXT}) !important;
-                  filter: brightness(0.85);
-                }
+/* Header Layout */
+.${cls.headerControls} {
+display: flex;
+flex-direction: column;
+gap: 12px;
+}
+.${cls.headerRow} {
+display: grid;
+/* Label | Flexible Input | Action Buttons */
+grid-template-columns: 5.5rem 1fr auto;
+gap: 8px;
+align-items: center;
+}
+@media (max-width: 800px) {
+.${cls.headerRow} {
+grid-template-columns: 1fr;
+gap: 8px;
+}
+.${cls.headerRow} > label {
+text-align: left;
+}
+.${cls.headerRow} > .${cls.renameArea} {
+grid-column: 1;
+}
+.${cls.headerRow} > .${cls.actionArea} {
+grid-column: 1;
+}
+}
+.${cls.headerRow}.is-disabled {
+opacity: 0.5;
+pointer-events: none;
+}
+.${cls.headerRow} > label {
+grid-column: 1;
+text-align: right;
+color: var(${v.TEXT_SECONDARY});
+font-size: 0.9em;
+}
+.${cls.headerRow} > .${cls.renameArea} {
+grid-column: 2;
+min-width: 180px;
+}
+.${cls.headerRow} > .${cls.actionArea} {
+grid-column: 3;
+display: grid;
+grid-template-columns: 1fr;
+align-items: center;
+}
+.${cls.actionArea} > * {
+grid-area: 1 / 1;
+width: 100%;
+display: flex;
+align-items: center;
+}
+.${cls.mainActions},
+.${cls.renameActions} {
+justify-content: flex-start;
+gap: 8px;
+flex-wrap: nowrap;
+}
+.${cls.deleteConfirmGroup} {
+justify-content: space-between;
+gap: 8px;
+}
 
-                /* Content Layout */
-                .${cls.modalContent} {
-                  display: flex;
-                  flex-direction: column;
-                  gap: 12px;
-                  height: 60vh;
-                  min-height: 200px;
-                  overflow: hidden;
-                }
-                .${cls.scrollableArea} {
-                  flex-grow: 1;
-                  overflow-y: auto;
-                  padding: 4px 8px 4px 4px;
-                  display: flex;
-                  flex-direction: column;
-                  gap: 12px;
-                  border: 1px solid var(${v.BORDER_DEFAULT});
-                  border-radius: 4px;
-                  background: var(${v.INPUT_BG});
-                  transition: opacity 0.2s;
-                }
-                .${cls.scrollableArea}.is-disabled {
-                  pointer-events: none;
-                  opacity: 0.5;
-                }
+/* Delete Confirmation Styles */
+.${cls.deleteConfirmLabel} {
+color: var(${v.TEXT_DANGER});
+font-style: italic;
+white-space: nowrap;
+}
+.${cls.deleteConfirmBtnYes} {
+background-color: var(${v.DELETE_BTN_BG}) !important;
+color: var(${v.DELETE_BTN_TEXT}) !important;
+}
+.${cls.deleteConfirmBtnYes}:hover {
+background-color: var(${v.DELETE_BTN_HOVER_BG}) !important;
+color: var(${v.DELETE_BTN_HOVER_TEXT}) !important;
+filter: brightness(0.85);
+}
 
-                /* Text Item (Drag & Drop) */
-                .${cls.textItem} {
-                  display: flex;
-                  align-items: flex-start;
-                  gap: 8px;
-                  padding: 4px;
-                  border-radius: 4px;
-                  border-top: 2px solid transparent;
-                  border-bottom: 2px solid transparent;
-                  transition: background-color 0.2s, border-color 0.1s;
-                }
-                .${cls.textItem}.dragging {
-                  opacity: 0.4;
-                  background-color: rgb(255 255 255 / 0.1);
-                }
-                .${cls.textItem}.drag-over-top {
-                  border-top: 2px solid var(${v.DND_INDICATOR});
-                }
-                .${cls.textItem}.drag-over-bottom {
-                  border-bottom: 2px solid var(${v.DND_INDICATOR});
-                }
-                .${cls.dragHandle} {
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  width: 24px;
-                  flex-shrink: 0;
-                  align-self: center;
-                  cursor: grab;
-                  color: var(${v.TEXT_SECONDARY});
-                  opacity: 0.6;
-                }
-                .${cls.dragHandle}:hover {
-                  opacity: 1;
-                }
-                .${cls.dragHandle}:active {
-                  cursor: grabbing;
-                }
-                .${cls.textItem} textarea {
-                  flex-grow: 1;
-                  resize: none;
-                  min-height: 80px;
-                  max-height: 250px;
-                  overflow-y: auto;
-                  font-family: monospace;
-                }
-                .${cls.textItem}.dragging textarea {
-                  pointer-events: none;
-                }
-                
-                /* Item Controls */
-                .${cls.itemControls} {
-                  display: flex;
-                  flex-direction: column;
-                  gap: 4px;
-                }
-                .${common.modalButton}.${cls.moveBtn} {
-                  line-height: 1;
-                  min-width: 24px;
-                  padding: 4px;
-                  height: 24px;
-                  width: 24px;
-                }
-                .${common.modalButton}.${cls.deleteBtn} {
-                  line-height: 1;
-                  min-width: 24px;
-                  padding: 4px;
-                  height: 24px;
-                  width: 24px;
-                  font-size: 16px;
-                  color: var(${v.TEXT_DANGER});
-                }
-                
-                /* Validation & Common Overrides within this modal */
-                .is-invalid {
-                  border-color: var(${v.TEXT_DANGER}) !important;
-                }
+/* Content Layout */
+.${cls.modalContent} {
+display: flex;
+flex-direction: column;
+gap: 12px;
+height: 60vh;
+min-height: 200px;
+overflow: hidden;
+}
+.${cls.scrollableArea} {
+flex-grow: 1;
+overflow-y: auto;
+padding: 4px 8px 4px 4px;
+display: flex;
+flex-direction: column;
+gap: 12px;
+border: 1px solid var(${v.BORDER_DEFAULT});
+border-radius: 4px;
+background: var(${v.INPUT_BG});
+transition: opacity 0.2s;
+}
+.${cls.scrollableArea}.is-disabled {
+pointer-events: none;
+opacity: 0.5;
+}
 
-                /* Generic Input Styles for this Modal */
-                .${StyleDefinitions.MODAL_CLASSES.box} input,
-                .${StyleDefinitions.MODAL_CLASSES.box} select,
-                .${StyleDefinitions.MODAL_CLASSES.box} textarea {
-                    width: 100%;
-                    box-sizing: border-box;
-                    background: var(${v.INPUT_BG});
-                    color: var(${v.TEXT_PRIMARY});
-                    border: 1px solid var(${v.BORDER_DEFAULT});
-                    border-radius: 4px;
-                    padding: 4px 6px;
-                }
-            `;
+/* Text Item (Drag & Drop) */
+.${cls.textItem} {
+display: flex;
+align-items: flex-start;
+gap: 8px;
+padding: 4px;
+border-radius: 4px;
+border-top: 2px solid transparent;
+border-bottom: 2px solid transparent;
+transition: background-color 0.2s, border-color 0.1s;
+}
+.${cls.textItem}.dragging {
+opacity: 0.4;
+background-color: rgb(255 255 255 / 0.1);
+}
+.${cls.textItem}.drag-over-top {
+border-top: 2px solid var(${v.DND_INDICATOR});
+}
+.${cls.textItem}.drag-over-bottom {
+border-bottom: 2px solid var(${v.DND_INDICATOR});
+}
+.${cls.dragHandle} {
+display: flex;
+align-items: center;
+justify-content: center;
+width: 24px;
+flex-shrink: 0;
+align-self: center;
+cursor: grab;
+color: var(${v.TEXT_SECONDARY});
+opacity: 0.6;
+}
+.${cls.dragHandle}:hover {
+opacity: 1;
+}
+.${cls.dragHandle}:active {
+cursor: grabbing;
+}
+.${cls.textItem} textarea {
+flex-grow: 1;
+resize: none;
+min-height: 80px;
+max-height: 250px;
+overflow-y: auto;
+font-family: monospace;
+}
+.${cls.textItem}.dragging textarea {
+pointer-events: none;
+}
+
+/* Item Controls */
+.${cls.itemControls} {
+display: flex;
+flex-direction: column;
+gap: 4px;
+}
+.${common.modalButton}.${cls.moveBtn} {
+line-height: 1;
+min-width: 24px;
+padding: 4px;
+height: 24px;
+width: 24px;
+}
+.${common.modalButton}.${cls.deleteBtn} {
+line-height: 1;
+min-width: 24px;
+padding: 4px;
+height: 24px;
+width: 24px;
+font-size: 16px;
+color: var(${v.TEXT_DANGER});
+}
+
+/* Validation & Common Overrides within this modal */
+.is-invalid {
+border-color: var(${v.TEXT_DANGER}) !important;
+}
+
+/* Generic Input Styles for this Modal */
+.${StyleDefinitions.MODAL_CLASSES.box} input,
+.${StyleDefinitions.MODAL_CLASSES.box} select,
+.${StyleDefinitions.MODAL_CLASSES.box} textarea {
+width: 100%;
+box-sizing: border-box;
+background: var(${v.INPUT_BG});
+color: var(${v.TEXT_PRIMARY});
+border: 1px solid var(${v.BORDER_DEFAULT});
+border-radius: 4px;
+padding: 4px 6px;
+}
+`;
       return { key, classes, vars: {}, generator: cssGenerator };
     }
 
@@ -1337,80 +1337,80 @@
       const modalClasses = StyleDefinitions.MODAL_CLASSES;
 
       const cssGenerator = (cls) => `
-                /* Footer Layout Adjustments - Scoped to JSON Modal */
-                /* Hide footer message only when it does NOT have the conflict warning class */
-                .${cls.modalRoot} .${modalClasses.footerMessage}:not(.${common.conflictText}) {
-                    display: none !important;
-                }
-                
-                /* Allow wrapping in footer to prevent overflow when warning message is displayed */
-                .${cls.modalRoot} .${modalClasses.footer} {
-                    flex-wrap: wrap;
-                }
+/* Footer Layout Adjustments - Scoped to JSON Modal */
+/* Hide footer message only when it does NOT have the conflict warning class */
+.${cls.modalRoot} .${modalClasses.footerMessage}:not(.${common.conflictText}) {
+display: none !important;
+}
 
-                .${cls.modalRoot} .${modalClasses.buttonGroup} {
-                    width: 100%;
-                }
+/* Allow wrapping in footer to prevent overflow when warning message is displayed */
+.${cls.modalRoot} .${modalClasses.footer} {
+flex-wrap: wrap;
+}
 
-                /* Utility classes override for this modal context */
-                .${common.modalButton}.${common.pushRightBtn} {
-                    margin-left: auto !important;
-                }
-                .${common.primaryBtn} {
-                    background-color: #1a73e8 !important;
-                    color: #ffffff !important;
-                    border: 1px solid transparent !important;
-                }
-                .${common.primaryBtn}:hover {
-                    background-color: #1557b0 !important;
-                }
+.${cls.modalRoot} .${modalClasses.buttonGroup} {
+width: 100%;
+}
 
-                .${cls.content} {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 6px;
-                    min-width: 0;
-                    width: 100%;
-                }
-                .${cls.modalRoot} .${cls.editor} {
-                    width: 100% !important;
-                    height: 200px;
-                    min-width: 0 !important;
-                    max-width: 100%;
-                    resize: none;
-                    box-sizing: border-box !important;
-                    margin: 0 !important;
-                    font-family: monospace;
-                    font-size: 13px;
-                    border: 1px solid var(${v.BORDER_DEFAULT});
-                    background: var(${v.INPUT_BG});
-                    color: var(${v.TEXT_PRIMARY});
-                    padding: 6px;
-                    border-radius: 4px;
-                }
-                .${cls.statusRow} {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: flex-start;
-                    gap: 8px;
-                }
-                .${cls.msg} {
-                    color: var(${v.TEXT_DANGER});
-                    font-size: 0.9em;
-                    flex: 1;
-                    min-height: 1.2em;
-                    word-break: break-word;
-                }
-                .${cls.sizeInfo} {
-                    color: var(${v.TEXT_SECONDARY});
-                    font-size: 0.85em;
-                    white-space: normal;
-                    word-break: break-all;
-                    text-align: right;
-                    margin-top: 2px;
-                    flex-shrink: 0;
-                }
-            `;
+/* Utility classes override for this modal context */
+.${common.modalButton}.${common.pushRightBtn} {
+margin-left: auto !important;
+}
+.${common.primaryBtn} {
+background-color: #1a73e8 !important;
+color: #ffffff !important;
+border: 1px solid transparent !important;
+}
+.${common.primaryBtn}:hover {
+background-color: #1557b0 !important;
+}
+
+.${cls.content} {
+display: flex;
+flex-direction: column;
+gap: 6px;
+min-width: 0;
+width: 100%;
+}
+.${cls.modalRoot} .${cls.editor} {
+width: 100% !important;
+height: 200px;
+min-width: 0 !important;
+max-width: 100%;
+resize: none;
+box-sizing: border-box !important;
+margin: 0 !important;
+font-family: monospace;
+font-size: 13px;
+border: 1px solid var(${v.BORDER_DEFAULT});
+background: var(${v.INPUT_BG});
+color: var(${v.TEXT_PRIMARY});
+padding: 6px;
+border-radius: 4px;
+}
+.${cls.statusRow} {
+display: flex;
+justify-content: space-between;
+align-items: flex-start;
+gap: 8px;
+}
+.${cls.msg} {
+color: var(${v.TEXT_DANGER});
+font-size: 0.9em;
+flex: 1;
+min-height: 1.2em;
+word-break: break-word;
+}
+.${cls.sizeInfo} {
+color: var(${v.TEXT_SECONDARY});
+font-size: 0.85em;
+white-space: normal;
+word-break: break-all;
+text-align: right;
+margin-top: 2px;
+flex-shrink: 0;
+}
+`;
       return { key, classes, vars: {}, generator: cssGenerator };
     }
 
@@ -1427,49 +1427,49 @@
       const v = StyleDefinitions.VARS;
 
       const cssGenerator = (cls) => `
-                .${cls.grid} {
-                    display: grid;
-                    grid-template-columns: max-content 1fr;
-                    gap: 8px 16px;
-                    align-items: baseline;
-                    padding: 4px;
-                }
-                .${cls.sectionHeader} {
-                    grid-column: 1 / -1;
-                    font-weight: bold;
-                    color: var(${v.TEXT_SECONDARY});
-                    border-bottom: 1px solid var(${v.BORDER_LIGHT});
-                    margin-top: 12px;
-                    margin-bottom: 4px;
-                    padding-bottom: 2px;
-                    font-size: 0.9em;
-                }
-                .${cls.sectionHeader}:first-child {
-                    margin-top: 0;
-                }
-                .${cls.keyGroup} {
-                    text-align: right;
-                    white-space: nowrap;
-                }
-                .${cls.key} {
-                    display: inline-block;
-                    padding: 2px 6px;
-                    font-family: monospace;
-                    font-size: 0.9em;
-                    line-height: 1.2;
-                    color: var(${v.TEXT_PRIMARY});
-                    background-color: var(${v.BTN_BG});
-                    border: 1px solid var(${v.BORDER_DEFAULT});
-                    border-radius: 4px;
-                    box-shadow: 0 1px 1px rgb(0 0 0 / 0.1);
-                    min-width: 1.2em;
-                    text-align: center;
-                }
-                .${cls.desc} {
-                    color: var(${v.TEXT_PRIMARY});
-                    font-size: 0.95em;
-                }
-            `;
+.${cls.grid} {
+display: grid;
+grid-template-columns: max-content 1fr;
+gap: 8px 16px;
+align-items: baseline;
+padding: 4px;
+}
+.${cls.sectionHeader} {
+grid-column: 1 / -1;
+font-weight: bold;
+color: var(${v.TEXT_SECONDARY});
+border-bottom: 1px solid var(${v.BORDER_LIGHT});
+margin-top: 12px;
+margin-bottom: 4px;
+padding-bottom: 2px;
+font-size: 0.9em;
+}
+.${cls.sectionHeader}:first-child {
+margin-top: 0;
+}
+.${cls.keyGroup} {
+text-align: right;
+white-space: nowrap;
+}
+.${cls.key} {
+display: inline-block;
+padding: 2px 6px;
+font-family: monospace;
+font-size: 0.9em;
+line-height: 1.2;
+color: var(${v.TEXT_PRIMARY});
+background-color: var(${v.BTN_BG});
+border: 1px solid var(${v.BORDER_DEFAULT});
+border-radius: 4px;
+box-shadow: 0 1px 1px rgb(0 0 0 / 0.1);
+min-width: 1.2em;
+text-align: center;
+}
+.${cls.desc} {
+color: var(${v.TEXT_PRIMARY});
+font-size: 0.95em;
+}
+`;
       return { key, classes, vars: {}, generator: cssGenerator };
     }
   }
@@ -1584,67 +1584,50 @@
     },
   };
 
-  // prettier-ignore
   const DEFAULT_CONFIG = {
-        options: {
-            enable_shortcut: true,
-            insert_before_newline: false,
-            insert_after_newline: false,
-            insertion_position: 'cursor', // 'start', 'cursor', 'end'
-            trigger_mode: 'click', // 'click', 'hover'
-            activeProfileName: 'Default',
-        },
-        developer: {
-            logger_level: 'log', // 'error', 'warn', 'info', 'log', 'debug'
-        },
-        texts: [
-            {
-                name: 'Default',
-                categories: [
-                    {
-                        name: 'Structured',
-                        items: [
-                            'Explain this step by step.',
-                            'Summarize this using bullet points.',
-                            'Provide the answer in a table format.'
-                        ],
-                    },
-                    {
-                        name: 'Refine',
-                        items: [
-                            'Can you clarify this point with a concrete example?',
-                            'Rephrase this in a more concise and technical manner.',
-                            'List the assumptions you are making in this explanation.'
-                        ],
-                    },
-                    {
-                        name: 'Coding',
-                        items: [
-                            'Show a minimal reproducible example.',
-                            'Explain this from a performance and maintainability perspective.',
-                            'Point out potential edge cases or pitfalls.'
-                        ],
-                    },
-                    {
-                        name: 'Twist',
-                        items: [
-                            'Explain this as if you were teaching a beginner.',
-                            'Explain this to an expert in one paragraph.',
-                            'Give an alternative perspective or unconventional approach.'
-                        ],
-                    },
-                    {
-                        name: 'Image-gen',
-                        items: [
-                            'Based on all of our previous conversations, generate an image of me as you imagine. Make it super-realistic. Please feel free to fill in any missing information with your own imagination. Do not ask follow-up questions; generate the image immediately.',
-                            'Based on all of our previous conversations, generate an image of my ideal partner (opposite sex) as you imagine. Make it super-realistic. Please feel free to fill in any missing information with your own imagination. Do not ask follow-up questions; generate the image immediately.',
-                            'Based on all of our previous conversations, generate an image of a person who is the exact opposite of my ideal partner. Make it super-realistic. Please feel free to fill in any missing information with your own imagination. Do not ask follow-up questions; generate the image immediately.',
-                        ],
-                    },
-                ],
-            },
+    options: {
+      enable_shortcut: true,
+      insert_before_newline: false,
+      insert_after_newline: false,
+      insertion_position: 'cursor', // 'start', 'cursor', 'end'
+      trigger_mode: 'click', // 'click', 'hover'
+      activeProfileName: 'Default',
+    },
+    developer: {
+      logger_level: 'log', // 'error', 'warn', 'info', 'log', 'debug'
+    },
+    texts: [
+      {
+        name: 'Default',
+        categories: [
+          {
+            name: 'Structured',
+            items: ['Explain this step by step.', 'Summarize this using bullet points.', 'Provide the answer in a table format.'],
+          },
+          {
+            name: 'Refine',
+            items: ['Can you clarify this point with a concrete example?', 'Rephrase this in a more concise and technical manner.', 'List the assumptions you are making in this explanation.'],
+          },
+          {
+            name: 'Coding',
+            items: ['Show a minimal reproducible example.', 'Explain this from a performance and maintainability perspective.', 'Point out potential edge cases or pitfalls.'],
+          },
+          {
+            name: 'Twist',
+            items: ['Explain this as if you were teaching a beginner.', 'Explain this to an expert in one paragraph.', 'Give an alternative perspective or unconventional approach.'],
+          },
+          {
+            name: 'Image-gen',
+            items: [
+              'Based on all of our previous conversations, generate an image of me as you imagine. Make it super-realistic. Please feel free to fill in any missing information with your own imagination. Do not ask follow-up questions; generate the image immediately.',
+              'Based on all of our previous conversations, generate an image of my ideal partner (opposite sex) as you imagine. Make it super-realistic. Please feel free to fill in any missing information with your own imagination. Do not ask follow-up questions; generate the image immediately.',
+              'Based on all of our previous conversations, generate an image of a person who is the exact opposite of my ideal partner. Make it super-realistic. Please feel free to fill in any missing information with your own imagination. Do not ask follow-up questions; generate the image immediately.',
+            ],
+          },
         ],
-    };
+      },
+    ],
+  };
 
   // =================================================================================
   // SECTION: Platform-Specific Adapter
@@ -1938,12 +1921,9 @@
        * Returns an array of platform-specific observer initialization functions.
        * @returns {Function[]} An array of functions to be called by ObserverManager.
        */
-      // prettier-ignore
       getInitializers() {
-                return [
-                    this.triggerInitialPlacement,
-                ];
-            },
+        return [this.triggerInitialPlacement];
+      },
 
       /**
        * @private
@@ -2098,9 +2078,9 @@
     _logAggregation: {},
     // prettier-ignore
     _aggregatedEvents: new Set([
-            EVENTS.UI_REPOSITION,
-            EVENTS.NAVIGATION,
-        ]),
+      EVENTS.UI_REPOSITION,
+      EVENTS.NAVIGATION,
+    ]),
     _aggregationDelay: 500, // ms
 
     /**
@@ -2401,28 +2381,25 @@
    * @returns {object} The mutated target object.
    */
   function resolveConfig(target, source) {
-    for (const key in source) {
+    for (const [key, sourceVal] of Object.entries(source)) {
       // Security: Prevent prototype pollution
       if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
         continue;
       }
 
-      if (Object.prototype.hasOwnProperty.call(source, key)) {
-        // Strict check: Ignore keys that do not exist in the target (default config).
-        if (!Object.prototype.hasOwnProperty.call(target, key)) {
-          continue;
-        }
+      // Strict check: Ignore keys that do not exist in the target (default config).
+      if (!Object.hasOwn(target, key)) {
+        continue;
+      }
 
-        const sourceVal = source[key];
-        const targetVal = target[key];
+      const targetVal = target[key];
 
-        if (isObject(sourceVal) && isObject(targetVal)) {
-          // If both are objects, recurse
-          resolveConfig(targetVal, sourceVal);
-        } else if (typeof sourceVal !== 'undefined') {
-          // Otherwise, overwrite or set the value from the source
-          target[key] = sourceVal;
-        }
+      if (isObject(sourceVal) && isObject(targetVal)) {
+        // If both are objects, recurse
+        resolveConfig(targetVal, sourceVal);
+      } else if (typeof sourceVal !== 'undefined') {
+        // Otherwise, overwrite or set the value from the source
+        target[key] = sourceVal;
       }
     }
     return target;
@@ -2524,7 +2501,7 @@
 
     if (id) el.id = id.slice(1);
     if (classList) {
-      const classes = classList.replace(/\./g, ' ').trim();
+      const classes = classList.replaceAll('.', ' ').trim();
       if (classes) {
         el.classList.add(...classes.split(/\s+/));
       }
@@ -2650,12 +2627,12 @@
    * Sets a nested property on an object using a dot-notation path.
    * @param {object} obj The object to modify.
    * @param {string} path The dot-separated path to the property.
-   * @param {any} value The value to set.
+   * @param {unknown} value The value to set.
    * @returns {boolean} True if successful, false if the path was invalid or blocked.
    */
   function setPropertyByPath(obj, path, value) {
     if (!obj || typeof obj !== 'object') {
-      Logger.warn('OBJ GUARD', LOG_STYLES.YELLOW, `setPropertyByPath: Target object is invalid (type: ${typeof obj}).`);
+      Logger.warn('', '', `setPropertyByPath: Target object is invalid (type: ${typeof obj}).`);
       return false;
     }
     if (!path) return false;
@@ -2666,20 +2643,20 @@
       const key = keys[i];
 
       if (!key) {
-        Logger.warn('OBJ GUARD', LOG_STYLES.YELLOW, `setPropertyByPath: Invalid empty key in path "${path}".`);
+        Logger.warn('', '', `setPropertyByPath: Invalid empty key in path "${path}".`);
         return false;
       }
 
       // Security: Prevent prototype pollution
       if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
-        Logger.warn('OBJ GUARD', LOG_STYLES.YELLOW, `setPropertyByPath: Blocked forbidden key "${key}" in path "${path}".`);
+        Logger.warn('', '', `setPropertyByPath: Blocked forbidden key "${key}" in path "${path}".`);
         return false;
       }
 
       // If the property exists, validate that it is an object (and not null) to allow nesting.
       if (current[key] !== undefined && current[key] !== null) {
         if (typeof current[key] !== 'object') {
-          Logger.warn('OBJ GUARD', LOG_STYLES.YELLOW, `setPropertyByPath: Cannot set property "${keys[i + 1]}" on non-object value at "${keys.slice(0, i + 1).join('.')}" in path "${path}".`);
+          Logger.warn('', '', `setPropertyByPath: Cannot set property "${keys[i + 1]}" on non-object value at "${keys.slice(0, i + 1).join('.')}" in path "${path}".`);
           return false;
         }
       } else {
@@ -2691,16 +2668,16 @@
       current = current[key];
     }
 
-    const lastKey = keys[keys.length - 1];
+    const lastKey = keys.at(-1);
 
     if (!lastKey) {
-      Logger.warn('OBJ GUARD', LOG_STYLES.YELLOW, `setPropertyByPath: Invalid empty key at end of path "${path}".`);
+      Logger.warn('', '', `setPropertyByPath: Invalid empty key at end of path "${path}".`);
       return false;
     }
 
     // Security: Prevent prototype pollution on the last key
     if (lastKey === '__proto__' || lastKey === 'constructor' || lastKey === 'prototype') {
-      Logger.warn('OBJ GUARD', LOG_STYLES.YELLOW, `setPropertyByPath: Blocked forbidden key "${lastKey}" in path "${path}".`);
+      Logger.warn('', '', `setPropertyByPath: Blocked forbidden key "${lastKey}" in path "${path}".`);
       return false;
     }
 
@@ -3703,7 +3680,7 @@
      */
     validateConfigSize(configObj) {
       const jsonString = JSON.stringify(configObj);
-      const configSize = new Blob([jsonString]).size;
+      const configSize = new TextEncoder().encode(jsonString).length;
 
       if (configSize > CONSTANTS.CONFIG_SIZE_LIMIT_BYTES) {
         const sizeInMB = (configSize / 1024 / 1024).toFixed(2);
@@ -3881,13 +3858,11 @@
     }
 
     setContent(element) {
-      this.dom.content.textContent = '';
-      this.dom.content.appendChild(element);
+      this.dom.content.replaceChildren(element);
     }
 
     setHeader(element) {
-      this.dom.headerContent.textContent = '';
-      this.dom.headerContent.appendChild(element);
+      this.dom.headerContent.replaceChildren(element);
     }
 
     getContentContainer() {
@@ -4139,7 +4114,7 @@
       this._uiSubscriptions = [];
 
       if (this.formContainer) {
-        this.formContainer.textContent = '';
+        this.formContainer.replaceChildren();
         this._renderContent();
       }
 
@@ -4214,10 +4189,8 @@
         // Use JSON.stringify to prevent collision issues with special characters (e.g. pipe '|') in names
         const newSignature = JSON.stringify(profiles.map((p) => p.name));
         if (profileSelect.dataset.signature !== newSignature) {
-          profileSelect.textContent = '';
-          profiles.forEach((p) => {
-            profileSelect.appendChild(ui.create('option', { value: p.name }, p.name));
-          });
+          const options = profiles.map((p) => ui.create('option', { value: p.name }, p.name));
+          profileSelect.replaceChildren(...options);
           profileSelect.dataset.signature = newSignature;
         }
 
@@ -4686,8 +4659,8 @@
             const signature = keys.join('|');
             if (select.dataset.signature !== signature) {
               const currentScroll = select.scrollTop; // Save scroll position
-              select.textContent = '';
-              keys.forEach((key, index) => select.appendChild(ui.create('option', { value: key }, [`${index + 1}. ${key}`])));
+              const options = keys.map((key, index) => ui.create('option', { value: key }, [`${index + 1}. ${key}`]));
+              select.replaceChildren(...options);
               select.dataset.signature = signature;
               select.scrollTop = currentScroll; // Restore scroll position
             }
@@ -5870,10 +5843,10 @@
         // Try to parse and minify to get the actual storage size
         const obj = JSON.parse(text);
         const minified = JSON.stringify(obj);
-        sizeInBytes = new Blob([minified]).size;
+        sizeInBytes = new TextEncoder().encode(minified).length;
       } catch {
         // Fallback to raw text size if parsing fails
-        sizeInBytes = new Blob([text]).size;
+        sizeInBytes = new TextEncoder().encode(text).length;
         isRaw = true;
       }
 
@@ -6512,7 +6485,6 @@
       this.components.textList.toggleTabs(false);
 
       const { optionsContainer } = this.components.textList.elements;
-      optionsContainer.textContent = '';
 
       // Array-based access
       const profiles = this.config.texts || [];
@@ -6521,9 +6493,9 @@
       // Retrieve class names from StyleDefinitions
       const cls = StyleDefinitions.getTextList().classes;
 
-      profiles.forEach((profile) => {
+      const buttons = profiles.map((profile) => {
         const profileName = profile.name;
-        const btn = h('button', {
+        return h('button', {
           className: `${cls.option}` + (profileName === activeProfileName ? ' active' : ''),
           textContent: profileName,
           title: 'Switch to this profile',
@@ -6538,8 +6510,8 @@
             }
           },
         });
-        optionsContainer.appendChild(btn);
       });
+      optionsContainer.replaceChildren(...buttons);
 
       optionsContainer.scrollTop = 0;
     }
@@ -6577,8 +6549,6 @@
       this.components.textList.toggleTabs(true);
 
       const { tabsContainer, optionsContainer } = this.components.textList.elements;
-      tabsContainer.textContent = '';
-      optionsContainer.textContent = '';
 
       const activeProfileName = this.sessionActiveProfile;
       const profiles = this.config.texts || [];
@@ -6595,9 +6565,9 @@
       const cls = StyleDefinitions.getTextList().classes;
       const categories = activeProfile.categories || [];
 
-      categories.forEach((cat) => {
+      const tabs = categories.map((cat) => {
         const catName = cat.name;
-        const tab = h('button', {
+        return h('button', {
           className: `${cls.tab}` + (catName === this.activeCategory ? ' active' : ''),
           textContent: catName,
           // Prevent focus loss when clicking tabs
@@ -6614,15 +6584,15 @@
             }
           },
         });
-        tabsContainer.appendChild(tab);
       });
+      tabsContainer.replaceChildren(...tabs);
 
       // Find active category object
       const activeCategoryObj = categories.find((c) => c.name === this.activeCategory);
       const items = activeCategoryObj ? activeCategoryObj.items : [];
 
-      items.forEach((txt) => {
-        const btn = h('button', {
+      const buttons = items.map((txt) => {
+        return h('button', {
           className: `${cls.option}`,
           textContent: txt,
           title: txt,
@@ -6635,8 +6605,8 @@
             this._hideTextList();
           },
         });
-        optionsContainer.appendChild(btn);
       });
+      optionsContainer.replaceChildren(...buttons);
     }
 
     async _switchCategory(direction) {
@@ -7130,9 +7100,8 @@
             }, 100);
           },
         });
-        messageArea.textContent = '';
         messageArea.classList.add(cls.conflictText);
-        messageArea.append(messageText, reloadBtn);
+        messageArea.replaceChildren(messageText, reloadBtn);
       }
     }
 
@@ -7140,7 +7109,7 @@
       if (!modalComponent?.modal) return;
       const messageArea = modalComponent.modal.dom.footerMessage;
       if (messageArea) {
-        messageArea.textContent = '';
+        messageArea.replaceChildren();
         messageArea.classList.remove(StyleDefinitions.COMMON_CLASSES.conflictText);
       }
     }
@@ -7328,12 +7297,17 @@
         throw new Error(`[Sentinel] Prefix "${prefix}" is invalid. It must contain only alphanumeric characters, hyphens, or underscores, and cannot start with a digit or a hyphen followed by a digit.`);
       }
 
-      /** @type {any} */
+      /** @type {Window & { __global_sentinel_instances__?: Record<string, Sentinel> }} */
       const globalScope = window;
-      globalScope.__global_sentinel_instances__ = globalScope.__global_sentinel_instances__ || {};
+      globalScope.__global_sentinel_instances__ ??= {};
       if (globalScope.__global_sentinel_instances__[prefix]) {
         return globalScope.__global_sentinel_instances__[prefix];
       }
+
+      this.prefix = prefix;
+      this.isDestroyed = false;
+      this.isSuspended = false;
+      this._initObserver = null;
 
       // Use a unique, prefixed animation name shared by all scripts in a project.
       this.animationName = `${prefix}-global-sentinel-animation`;
@@ -7346,10 +7320,40 @@
       /** @type {WeakMap<CSSRule, string>} */
       this.ruleSelectors = new WeakMap(); // Tracks selector strings associated with CSSRule objects
 
+      this._boundHandleAnimationStart = this._handleAnimationStart.bind(this);
+
       this._injectStyleElement();
-      document.addEventListener('animationstart', this._handleAnimationStart.bind(this), true);
+      document.addEventListener('animationstart', this._boundHandleAnimationStart, true);
 
       globalScope.__global_sentinel_instances__[prefix] = this;
+    }
+
+    destroy() {
+      if (this.isDestroyed) return;
+      this.isDestroyed = true;
+
+      document.removeEventListener('animationstart', this._boundHandleAnimationStart, true);
+
+      if (this._initObserver) {
+        this._initObserver.disconnect();
+        this._initObserver = null;
+      }
+
+      if (this.styleElement) {
+        this.styleElement.remove();
+        this.styleElement = null;
+      }
+
+      this.sheet = null;
+      this.listeners.clear();
+      this.rules.clear();
+      this.pendingRules = [];
+
+      /** @type {Window & { __global_sentinel_instances__?: Record<string, Sentinel> }} */
+      const globalScope = window;
+      if (globalScope.__global_sentinel_instances__) {
+        delete globalScope.__global_sentinel_instances__[this.prefix];
+      }
     }
 
     _injectStyleElement() {
@@ -7357,9 +7361,12 @@
       this.styleElement = document.getElementById(this.styleId);
 
       if (this.styleElement instanceof HTMLStyleElement) {
+        this.styleElement.disabled = this.isSuspended;
+
         /** @type {HTMLStyleElement} */
         const styleNode = this.styleElement;
         const pollExisting = () => {
+          if (this.isDestroyed) return;
           if (styleNode.sheet) {
             this.sheet = styleNode.sheet;
             this._flushPendingRules();
@@ -7405,11 +7412,16 @@
         this.styleElement.nonce = nonce;
       }
 
+      if (this.styleElement instanceof HTMLStyleElement) {
+        this.styleElement.disabled = this.isSuspended;
+      }
+
       // Try to inject immediately.
       // If the document is not yet ready (e.g. extremely early document-start), wait for the root element.
       const target = document.head || document.documentElement;
 
       const initSheet = () => {
+        if (this.isDestroyed) return;
         if (this.styleElement instanceof HTMLStyleElement) {
           /** @type {HTMLStyleElement} */
           const styleNode = this.styleElement;
@@ -7417,8 +7429,7 @@
             this.sheet = styleNode.sheet;
             // Insert the shared keyframes rule at index 0.
             try {
-              const keyframes = `@keyframes ${this.animationName} { from { outline: 1px solid transparent;
-                            } to { outline: 0px solid transparent; } }`;
+              const keyframes = `@keyframes ${this.animationName} { from { outline: 1px solid transparent;} to { outline: 0px solid transparent; } }`;
               this.sheet.insertRule(keyframes, 0);
             } catch (e) {
               Logger.error('SENTINEL', LOG_STYLES.RED, 'Failed to insert keyframes rule:', e);
@@ -7435,16 +7446,18 @@
         target.appendChild(this.styleElement);
         initSheet();
       } else {
-        const observer = new MutationObserver(() => {
+        this._initObserver = new MutationObserver(() => {
+          if (this.isDestroyed) return;
           const retryTarget = document.head || document.documentElement;
           if (retryTarget) {
-            observer.disconnect();
+            this._initObserver.disconnect();
+            this._initObserver = null;
 
             retryTarget.appendChild(this.styleElement);
             initSheet();
           }
         });
-        observer.observe(document, { childList: true });
+        this._initObserver.observe(document, { childList: true });
       }
     }
 
@@ -7457,13 +7470,21 @@
         if (target) {
           target.appendChild(this.styleElement);
           if (this.styleElement instanceof HTMLStyleElement && this.styleElement.sheet) {
+            this.styleElement.disabled = this.isSuspended;
             this.sheet = this.styleElement.sheet;
+
             try {
+              while (this.sheet.cssRules.length > 0) {
+                this.sheet.deleteRule(0);
+              }
               const keyframes = `@keyframes ${this.animationName} { from { outline: 1px solid transparent; } to { outline: 0px solid transparent; } }`;
               this.sheet.insertRule(keyframes, 0);
             } catch (e) {
-              Logger.error('SENTINEL', LOG_STYLES.RED, 'Failed to restore keyframes rule:', e);
+              Logger.error('SENTINEL', LOG_STYLES.RED, 'Failed to clear or restore base rules:', e);
             }
+
+            this.pendingRules = [];
+
             this.rules.forEach((selector) => {
               this._insertRule(selector);
             });
@@ -7503,6 +7524,8 @@
     }
 
     _handleAnimationStart(event) {
+      if (this.isDestroyed) return;
+
       // Check if the animation is the one we're listening for.
       if (event.animationName !== this.animationName) return;
 
@@ -7515,7 +7538,13 @@
       for (const [selector, callbacks] of this.listeners.entries()) {
         if (target.matches(selector)) {
           // Use a copy of the callbacks Set in case a callback removes itself.
-          [...callbacks].forEach((cb) => cb(target));
+          [...callbacks].forEach((cb) => {
+            try {
+              cb(target);
+            } catch (e) {
+              Logger.error('SENTINEL', LOG_STYLES.RED, `Listener error for selector "${selector}":`, e);
+            }
+          });
         }
       }
     }
@@ -7525,6 +7554,7 @@
      * @param {(element: Element) => void} callback
      */
     on(selector, callback) {
+      if (this.isDestroyed) return;
       this._ensureStyleGuard();
 
       // Add callback to listeners
@@ -7550,6 +7580,7 @@
      * @param {(element: Element) => void} callback
      */
     off(selector, callback) {
+      if (this.isDestroyed) return;
       const callbacks = this.listeners.get(selector);
       if (!callbacks) return;
 
@@ -7585,6 +7616,8 @@
     }
 
     suspend() {
+      if (this.isDestroyed) return;
+      this.isSuspended = true;
       if (this.styleElement instanceof HTMLStyleElement) {
         this.styleElement.disabled = true;
       }
@@ -7592,6 +7625,8 @@
     }
 
     resume() {
+      if (this.isDestroyed) return;
+      this.isSuspended = false;
       if (this.styleElement instanceof HTMLStyleElement) {
         this.styleElement.disabled = false;
       }
