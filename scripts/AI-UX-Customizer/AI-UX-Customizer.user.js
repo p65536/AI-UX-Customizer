@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b563
+// @version      1.0.0-b564
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -147,7 +147,6 @@
     STANDING_IMG_ASST_LEFT: 'standing-image-assistant-left',
     STANDING_IMG_USER_MASK: 'standing-image-user-mask',
     STANDING_IMG_ASST_MASK: 'standing-image-assistant-mask',
-    RIGHT_SIDEBAR_WIDTH: 'right-sidebar-width',
   });
 
   /**
@@ -4120,9 +4119,6 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
               chatRect = new DOMRect(left, 0, effectiveWidth, 0);
             }
 
-            // Apply right sidebar width for positioning
-            rootStyle.setProperty(v.rightSidebarWidth, '0px');
-
             // Set Assistant base position (Platform specific)
             rootStyle.setProperty(v.assistantLeft, sidebarWidth + 'px');
 
@@ -7533,8 +7529,6 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         assistantLeft: CSS_VARS.STANDING_IMG_ASST_LEFT,
         userMask: CSS_VARS.STANDING_IMG_USER_MASK,
         assistantMask: CSS_VARS.STANDING_IMG_ASST_MASK,
-        // Specific for ChatGPT layout calculation
-        rightSidebarWidth: CSS_VARS.RIGHT_SIDEBAR_WIDTH,
       };
 
       const cssGenerator = (cls) => StyleTemplates.getStandingImageCss(cls);
@@ -20067,9 +20061,6 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       this.toastManager = null;
       /** @type {(() => void) | null} */
       this.sentinelCleanup = null;
-      this.isConfigSizeExceeded = false;
-      this.hasLoadError = false;
-      this.configWarningMessage = '';
       this.isNavigating = true;
 
       /** @type {BaseManager[]} */
@@ -20086,8 +20077,6 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       // Check for load errors and display warning
       if (this.configManager.loadErrors.length > 0) {
         const message = `Warning: Some settings failed to load.\n${this.configManager.loadErrors.join('\n')}\nSaving now may result in data loss. Please check console logs.`;
-        this.hasLoadError = true;
-        this.configWarningMessage = message;
         EventBus.publish(EVENTS.CONFIG_WARNING_UPDATE, { show: true, message });
       }
 
@@ -20222,14 +20211,9 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         PerfMonitor.reset();
       });
       this._subscribe(EVENTS.CONFIG_SIZE_EXCEEDED, ({ message }) => {
-        this.isConfigSizeExceeded = true;
-        this.configWarningMessage = message;
         EventBus.publish(EVENTS.CONFIG_WARNING_UPDATE, { show: true, message });
       });
       this._subscribe(EVENTS.CONFIG_SAVE_SUCCESS, () => {
-        this.isConfigSizeExceeded = false;
-        this.hasLoadError = false;
-        this.configWarningMessage = '';
         EventBus.publish(EVENTS.CONFIG_WARNING_UPDATE, { show: false, message: '' });
       });
       this._subscribe(EVENTS.MESSAGE_COMPLETE, (messageElement) => {

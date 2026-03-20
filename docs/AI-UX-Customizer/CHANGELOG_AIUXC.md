@@ -3,6 +3,10 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0-b564] - 2026-03-20
+- **Core Changes**
+  - Performed a codebase cleanup to remove unused variables and dead logic. This internal maintenance improves code readability and maintainability in preparation for the stable v1.0.0 release.
+
 ## [1.0.0-b563] - 2026-03-20
 - **Bug Fixes**
   - Fixed a potential memory leak in the theme editor that could occur when opening and closing the settings modal repeatedly.
