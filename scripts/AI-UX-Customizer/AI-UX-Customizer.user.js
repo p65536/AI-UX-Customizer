@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.0-b564
+// @version      1.0.0-b565
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -7093,30 +7093,30 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       /**
        * Helper to generate a standardized SVG icon definition.
        * @param {string} d - The path data string (d attribute).
-       * @param {object} [options] - Optional settings object.
+       * @param {object} options - Settings object. Must be explicitly provided.
        * @param {object} [options.props] - Attributes for the <svg> element (e.g., className). Merged with COMMON_PROPS.
        * @param {object} [options.pathProps] - Attributes for the inner <path> element (e.g., transform).
        */
-      const def = (d, options = {}) => ({
+      const def = (d, options) => ({
         tag: 'svg',
-        props: { ...COMMON_PROPS, ...options.props },
-        children: [{ tag: 'path', props: { d, ...options.pathProps } }],
+        props: { ...COMMON_PROPS, ...(options.props || {}) },
+        children: [{ tag: 'path', props: { d, ...(options.pathProps || {}) } }],
       });
 
       // prettier-ignore
       return {
-        folder: def('M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z'),
-        arrowUp: def('M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z'),
-        arrowDown: def('M480-344 240-584l56-56 184 184 184-184 56 56-240 240Z'),
-        scrollToTop: def('M440-160v-480L280-480l-56-56 256-256 256 256-56 56-160-160v480h-80Zm-200-640v-80h400v80H240Z'),
-        scrollToFirst: def('m280-280 200-200 200 200-56 56-144-144-144 144-56-56Zm-40-360v-80h480v80H240Z'),
-        scrollToLast: def('M240-200v-80h480v80H240Zm240-160L280-560l56-56 144 144 144-144 56 56-200 200Z'),
+        folder: def('M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80h640v-400H447l-80-80H160v480Zm0 0v-480 480Z', {}),
+        arrowUp: def('M480-528 296-344l-56-56 240-240 240 240-56 56-184-184Z', {}),
+        arrowDown: def('M480-344 240-584l56-56 184 184 184-184 56 56-240 240Z', {}),
+        scrollToTop: def('M440-160v-480L280-480l-56-56 256-256 256 256-56 56-160-160v480h-80Zm-200-640v-80h400v80H240Z', {}),
+        scrollToFirst: def('m280-280 200-200 200 200-56 56-144-144-144 144-56-56Zm-40-360v-80h480v80H240Z', {}),
+        scrollToLast: def('M240-200v-80h480v80H240Zm240-160L280-560l56-56 144 144 144-144 56 56-200 200Z', {}),
         bulkCollapse: def('M440-440v240h-80v-160H200v-80h240Zm160-320v160h160v80H520v-240h80Z', { props: { className: 'icon-collapse' } }),
         bulkExpand: def('M200-200v-240h80v160h160v80H200Zm480-320v-160H520v-80h240v240h-80Z', { props: { className: 'icon-expand' } }),
-        list: def('M120-240v-80h720v80H120Zm0-200v-80h720v80H120Zm0-200v-80h720v80H120Z'),
-        chatLeft: def('M240-400h320v-80H240v80Zm0-120h480v-80H240v80Zm0-120h480v-80H240v80ZM80-80v-720q0-33 23.5-56.5T160-880h640q33 0 56.5 23.5T880-800v480q0 33-23.5 56.5T800-240H240L80-80Zm126-240h594v-480H160v525l46-45Zm-46 0v-480 480Z'),
+        list: def('M120-240v-80h720v80H120Zm0-200v-80h720v80H120Zm0-200v-80h720v80H120Z', {}),
+        chatLeft: def('M240-400h320v-80H240v80Zm0-120h480v-80H240v80Zm0-120h480v-80H240v80ZM80-80v-720q0-33 23.5-56.5T160-880h640q33 0 56.5 23.5T880-800v480q0 33-23.5 56.5T800-240H240L80-80Zm126-240h594v-480H160v525l46-45Zm-46 0v-480 480Z', {}),
         chatRight: def('M240-400h320v-80H240v80Zm0-120h480v-80H240v80Zm0-120h480v-80H240v80ZM80-80v-720q0-33 23.5-56.5T160-880h640q33 0 56.5 23.5T880-800v480q0 33-23.5 56.5T800-240H240L80-80Zm126-240h594v-480H160v525l46-45Zm-46 0v-480 480Z', { pathProps: { transform: 'translate(960, 0) scale(-1, 1)' } }),
-        settings: def('M480-80q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 32.5-156t88-127Q256-817 330-848.5T488-880q80 0 151 27.5t124.5 76q53.5 48.5 85 115T880-518q0 115-70 176.5T640-280h-74q-9 0-12.5 5t-3.5 11q0 12 15 34.5t15 51.5q0 50-27.5 74T480-80Zm0-400Zm-220 40q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm120-160q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm200 0q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm120 160q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17ZM480-160q9 0 14.5-5t5.5-13q0-14-15-33t-15-57q0-42 29-67t71-25h70q66 0 113-38.5T800-518q0-121-92.5-201.5T488-800q-136 0-232 93t-96 227q0 133 93.5 226.5T480-160Z'),
+        settings: def('M480-80q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 32.5-156t88-127Q256-817 330-848.5T488-880q80 0 151 27.5t124.5 76q53.5 48.5 85 115T880-518q0 115-70 176.5T640-280h-74q-9 0-12.5 5t-3.5 11q0 12 15 34.5t15 51.5q0 50-27.5 74T480-80Zm0-400Zm-220 40q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm120-160q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm200 0q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm120 160q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17ZM480-160q9 0 14.5-5t5.5-13q0-14-15-33t-15-57q0-42 29-67t71-25h70q66 0 113-38.5T800-518q0-121-92.5-201.5T488-800q-136 0-232 93t-96 227q0 133 93.5 226.5T480-160Z', {}),
       };
     })();
 
@@ -8447,8 +8447,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
    * @param {number} batchSize - The number of items to process per frame.
    * @param {(item: T, index: number) => R | null | undefined} measureFn - Function to read from the DOM. Returns data for mutation, or null/undefined to skip.
    * @param {(data: R) => void} mutateFn - Function to write to the DOM.
-   * @param {() => void} [onFinish] - Callback executed ONLY when all batches are successfully processed.
-   * @param {() => void} [onAbort] - Callback executed ONLY when processing is cancelled before completion.
+   * @param {(() => void) | null} onFinish - Callback executed ONLY when all batches are successfully processed.
+   * @param {(() => void) | null} onAbort - Callback executed ONLY when processing is cancelled before completion.
    * @returns {() => void} A cancel function to abort the processing.
    */
   function runBatchUpdate(items, batchSize, measureFn, mutateFn, onFinish, onAbort) {
@@ -8606,10 +8606,10 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     /**
      * @param {HTMLElement} element
      * @param {string} key
-     * @param {number} [defaultValue=0]
+     * @param {number} defaultValue
      * @returns {number}
      */
-    static getInt(element, key, defaultValue = 0) {
+    static getInt(element, key, defaultValue) {
       const val = parseInt(element.dataset[key], 10);
       return isNaN(val) ? defaultValue : val;
     }
@@ -11169,7 +11169,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         // On Finish
         () => {
           this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
-        }
+        },
+        null
       );
 
       this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, cancelFn);
@@ -11537,7 +11538,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         () => {
           this.manageResource(resourceKey, null);
           if (onComplete) onComplete();
-        }
+        },
+        null
       );
 
       this.manageResource(resourceKey, cancelFn);
@@ -11803,7 +11805,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
             nextBtn.title = isLast ? `${originalTitle} ${disabledHint}` : originalTitle;
           }
         },
-        () => this.manageResource(CONSTANTS.RESOURCE_KEYS.BUTTON_STATE_TASK, null)
+        () => this.manageResource(CONSTANTS.RESOURCE_KEYS.BUTTON_STATE_TASK, null),
+        null
       );
 
       this.manageResource(CONSTANTS.RESOURCE_KEYS.BUTTON_STATE_TASK, cancelFn);
@@ -13666,7 +13669,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
             container.classList.toggle(cls.hidden, !m.timestampText);
           }
         },
-        () => this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK_SINGLE, null)
+        () => this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK_SINGLE, null),
+        null
       );
       this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK_SINGLE, cancel);
     }
@@ -13785,7 +13789,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         // On Finish
         () => {
           this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
-        }
+        },
+        null
       );
 
       this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, cancelFn);
@@ -13930,7 +13935,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         // On Finish
         () => {
           this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
-        }
+        },
+        null
       );
 
       this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, cancelFn);
@@ -13949,7 +13955,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
    * @description Base class for a UI component with lifecycle management.
    */
   class UIComponentBase extends BaseManager {
-    constructor(callbacks = {}) {
+    constructor(callbacks) {
       super();
       this.callbacks = callbacks;
       this.element = null;
@@ -14139,11 +14145,11 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     /**
      * Creates a DOM element wrapper using the global h() function.
      * @param {string} tag
-     * @param {object} [props]
-     * @param {Array<Node|string>} [children]
+     * @param {object} props
+     * @param {Array<Node|string> | Node | string} children
      * @returns {HTMLElement | SVGElement}
      */
-    create(tag, props = {}, children = []) {
+    create(tag, props, children) {
       return h(tag, props, children);
     }
 
@@ -14300,10 +14306,10 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
     // --- Components ---
 
-    text(key, label, options = {}) {
+    text(key, label, options) {
       const cls = this.styles;
-      const input = this.create('input', { type: 'text' });
-      const errorSpan = this.create('div', { className: cls.formErrorMsg });
+      const input = this.create('input', { type: 'text' }, []);
+      const errorSpan = this.create('div', { className: cls.formErrorMsg }, []);
 
       const children = [input];
 
@@ -14363,10 +14369,10 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       return container;
     }
 
-    textarea(key, label, options = {}) {
+    textarea(key, label, options) {
       const cls = this.styles;
-      const input = this.create('textarea', { rows: options.rows || 3 });
-      const errorSpan = this.create('div', { className: cls.formErrorMsg });
+      const input = this.create('textarea', { rows: options.rows || 3 }, []);
+      const errorSpan = this.create('div', { className: cls.formErrorMsg }, []);
 
       const container = this.create('div', { className: cls.formField }, [this.create('label', { title: options.tooltip }, label), input, errorSpan]);
 
@@ -14379,16 +14385,16 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       return container;
     }
 
-    toggle(key, label, options = {}) {
+    toggle(key, label, options) {
       const cls = this.styles;
-      const input = this.create('input', { type: 'checkbox' });
+      const input = this.create('input', { type: 'checkbox' }, []);
 
       const container = this.create('div', { className: cls.submenuRow }, [
         this.create('label', { title: options.title }, label), // Label on left
         this.create('label', { className: cls.toggleSwitch, title: options.title }, [
           // Switch on right
           input,
-          this.create('span', { className: cls.toggleSlider }),
+          this.create('span', { className: cls.toggleSlider }, []),
         ]),
       ]);
 
@@ -14400,12 +14406,12 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       return container;
     }
 
-    range(key, label, min, max, options = {}) {
+    range(key, label, min, max, options) {
       const cls = this.styles;
       const step = options.step || 1;
 
-      const input = this.create('input', { type: 'range', min, max, step });
-      const display = this.create('span', { className: cls.sliderDisplay });
+      const input = this.create('input', { type: 'range', min, max, step }, []);
+      const display = this.create('span', { className: cls.sliderDisplay }, []);
 
       const controlGroup = this.create('div', { className: cls.sliderSubgroupControl }, [input, display]);
       const containerClass = options.containerClass ? cls[options.containerClass] : cls.sliderContainer;
@@ -14437,7 +14443,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       return container;
     }
 
-    select(key, label, options = {}) {
+    select(key, label, options) {
       const cls = this.styles;
       const selectOptions = (options.options || []).map((opt) => {
         let value, text;
@@ -14470,12 +14476,12 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       return container;
     }
 
-    color(key, label, options = {}) {
+    color(key, label, options) {
       const cls = this.styles;
-      const input = this.create('input', { type: 'text', autocomplete: 'off' });
+      const input = this.create('input', { type: 'text', autocomplete: 'off' }, []);
 
-      const swatchValue = this.create('span', { className: cls.colorSwatchValue });
-      const swatch = this.create('button', { className: cls.colorSwatch, type: 'button', title: 'Open color picker' }, [this.create('span', { className: cls.colorSwatchChecker }), swatchValue]);
+      const swatchValue = this.create('span', { className: cls.colorSwatchValue }, []);
+      const swatch = this.create('button', { className: cls.colorSwatch, type: 'button', title: 'Open color picker' }, [this.create('span', { className: cls.colorSwatchChecker }, []), swatchValue]);
 
       // Picker logic encapsulation
       let activePicker = null;
@@ -14501,7 +14507,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
           }
 
           // Create popup
-          const popupRoot = this.create('div');
+          const popupRoot = this.create('div', {}, []);
           // Apply the pickerRootId from context to ensure styles are scoped correctly
           const popupWrapper = this.create(
             'div',
@@ -14579,7 +14585,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       const container = this.create('div', { className: cls.formField }, [
         this.create('div', { className: cls.labelRow }, [
           this.create('label', { title: options.tooltip }, label),
-          this.create('span', { className: cls.statusText }), // Error container placeholder
+          this.create('span', { className: cls.statusText }, []), // Error container placeholder
         ]),
         this.create('div', { className: cls.colorFieldWrapper }, [input, swatch]),
       ]);
@@ -14611,7 +14617,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       return container;
     }
 
-    button(id, text, onClick, options = {}) {
+    button(id, text, onClick, options) {
       const cls = this.styles;
       const className = options.className ? `${cls.modalButton} ${options.className}` : cls.modalButton;
       const btn = this.create(
@@ -14636,7 +14642,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
     // --- Layouts ---
 
-    group(label, children, options = {}) {
+    group(label, children, options) {
       const cls = this.styles;
       const container = this.create('fieldset', { className: cls.submenuFieldset }, [this.create('legend', {}, label), ...children]);
       if (container instanceof HTMLElement) {
@@ -14645,7 +14651,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       return container;
     }
 
-    row(children, options = {}) {
+    row(children, options) {
       const cls = this.styles;
       let className = cls.submenuRow;
       if (options.className && cls[options.className]) {
@@ -14660,15 +14666,15 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       return container;
     }
 
-    separator(options = {}) {
-      const container = this.create('div', { className: this.styles.submenuSeparator });
+    separator(options) {
+      const container = this.create('div', { className: this.styles.submenuSeparator }, []);
       if (container instanceof HTMLElement) {
         this._setupDynamicState(container, options);
       }
       return container;
     }
 
-    label(text, options = {}) {
+    label(text, options) {
       const container = this.create('label', { title: options.title }, text);
       if (container instanceof HTMLElement) {
         this._setupDynamicState(container, options);
@@ -14676,7 +14682,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       return container;
     }
 
-    container(children, options = {}) {
+    container(children, options) {
       let className = '';
       if (options.className && this.styles[options.className]) {
         className = this.styles[options.className];
@@ -15358,27 +15364,17 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
     /**
      * @param {object} options
-     * @param {string} [options.title]
-     * @param {string} [options.width]
-     * @param {string} options.id
-     * @param {number|string} [options.zIndex]
-     * @param {boolean} [options.closeOnBackdropClick]
-     * @param {Array<{text: string, id: string, className?: string, title?: string, onClick: ModalButtonOnClick}>} [options.buttons]
-     * @param {function(Event): void} [options.onCancel]
-     * @param {function(): void} [options.onDestroy]
+     * @param {string} options.title
+     * @param {string} options.width
+     * @param {string | null} options.id
+     * @param {number | string | undefined} options.zIndex
+     * @param {boolean} options.closeOnBackdropClick
+     * @param {Array<{text: string, id: string, className?: string, title?: string, onClick: ModalButtonOnClick}>} options.buttons
+     * @param {function(Event): void | null} options.onCancel
+     * @param {function(): void | null} options.onDestroy
      */
     constructor(options) {
-      this.options = {
-        title: '',
-        width: CustomModal.DEFAULTS.WIDTH,
-        id: null,
-        zIndex: undefined,
-        closeOnBackdropClick: true,
-        buttons: [],
-        onCancel: null,
-        onDestroy: null,
-        ...options,
-      };
+      this.options = options;
       // Style loading is handled by the parent component (ThemeModal/JsonModal) via Mix-in.
       // CustomModal directly uses the static class definitions.
       this.element = null;
@@ -15850,13 +15846,13 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       const warningBanner = this._createSystemWarning(ui);
 
       // --- 2. Applied Theme Section ---
-      const themeSection = ui.group('Applied Theme', [ui.button(`${prefix}-theme-name`, 'Loading...', null, { fullWidth: true, title: 'Click to edit this theme' })]);
+      const themeSection = ui.group('Applied Theme', [ui.button(`${prefix}-theme-name`, 'Loading...', null, { fullWidth: true, title: 'Click to edit this theme' })], {});
 
       // --- 3. Submenu Section ---
       const submenuSection = ui.row(
         [
-          ui.group('Themes', [ui.button(`${prefix}-edit-themes-btn`, 'Edit Themes...', null, { fullWidth: true, title: 'Open the theme editor to create and modify themes.' })]),
-          ui.group('JSON', [ui.button(`${prefix}-json-btn`, 'JSON...', null, { fullWidth: true, title: 'Opens the advanced settings modal to directly edit, import, or export the entire configuration in JSON format.' })]),
+          ui.group('Themes', [ui.button(`${prefix}-edit-themes-btn`, 'Edit Themes...', null, { fullWidth: true, title: 'Open the theme editor to create and modify themes.' })], {}),
+          ui.group('JSON', [ui.button(`${prefix}-json-btn`, 'JSON...', null, { fullWidth: true, title: 'Opens the advanced settings modal to directly edit, import, or export the entire configuration in JSON format.' })], {}),
         ],
         { className: 'topRow' }
       );
@@ -15907,14 +15903,17 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
             },
           }),
           ui.separator({ className: 'submenuSeparator' }),
-          ui.row([
-            ui.label(avatarSpaceSchema.ui.label, {
-              title: avatarSpaceSchema.ui.title,
-            }),
-            ui.toggle(avatarSpaceKey, '', {
-              title: avatarSpaceSchema.ui.title,
-            }),
-          ]),
+          ui.row(
+            [
+              ui.label(avatarSpaceSchema.ui.label, {
+                title: avatarSpaceSchema.ui.title,
+              }),
+              ui.toggle(avatarSpaceKey, '', {
+                title: avatarSpaceSchema.ui.title,
+              }),
+            ],
+            {}
+          ),
         ],
         sizeCheck
       );
@@ -15995,7 +15994,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       const showKey = CONSTANTS.STORE_KEYS.WARNING_SHOW_PATH;
       const cls = StyleDefinitions.COMMON_CLASSES;
 
-      const container = ui.create('div', { className: cls.warningBanner });
+      const container = ui.create('div', { className: cls.warningBanner }, []);
 
       // Bind content and visibility manually via observe
       ui.observe([warningKey, showKey], (state) => {
@@ -16269,6 +16268,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
             { text: 'Cancel', id: cls.cancelBtn, className: `${btnClass} ${pushRightBtnClass}`, title: 'Close without saving.', onClick: () => this.close() },
             { text: 'Save', id: cls.saveBtn, className: `${btnClass} ${primaryBtnClass}`, title: 'Apply changes and close.', onClick: () => this._handleSave() },
           ],
+          onCancel: null,
           onDestroy: () => {
             // When the modal is closed (by user or code), ensure all temporary resources are disposed via the manager.
             this.manageResource(JsonModalComponent.RESOURCE_KEYS.MODAL, null);
@@ -16324,10 +16324,14 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       const container = document.createDocumentFragment();
 
       // 1. JSON Editor
-      const textarea = ui.create('textarea', {
-        className: cls.jsonEditor,
-        spellcheck: false,
-      });
+      const textarea = ui.create(
+        'textarea',
+        {
+          className: cls.jsonEditor,
+          spellcheck: false,
+        },
+        []
+      );
 
       // Manual binding for code editor
       ui.observe('jsonString', (state) => {
@@ -16345,8 +16349,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       container.appendChild(editorField);
 
       // 2. Status Bar
-      const statusMsg = ui.create('div', { className: 'status-msg-display' });
-      const sizeInfo = ui.create('div', { className: 'size-info-display' });
+      const statusMsg = ui.create('div', { className: 'status-msg-display' }, []);
+      const sizeInfo = ui.create('div', { className: 'size-info-display' }, []);
 
       ui.observe(['status', 'sizeInfo'], (state) => {
         const status = state.status || {};
@@ -17271,52 +17275,60 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       const radS = getSchema('bubbleBorderRadius');
       const maxWS = getSchema('bubbleMaxWidth');
 
-      return ui.group(title, [
-        ui.text(`${prefix}.name`, nameS.ui.label, { tooltip: nameS.ui.tooltip }),
-        ui.text(`${prefix}.icon`, iconS.ui.label, { tooltip: iconS.ui.tooltip, fieldType: iconS.def?.imageType || 'icon' }),
-        ui.text(`${prefix}.standingImageUrl`, imgS.ui.label, { tooltip: imgS.ui.tooltip, fieldType: imgS.def?.imageType || 'image' }),
+      return ui.group(
+        title,
+        [
+          ui.text(`${prefix}.name`, nameS.ui.label, { tooltip: nameS.ui.tooltip }),
+          ui.text(`${prefix}.icon`, iconS.ui.label, { tooltip: iconS.ui.tooltip, fieldType: iconS.def?.imageType || 'icon' }),
+          ui.text(`${prefix}.standingImageUrl`, imgS.ui.label, { tooltip: imgS.ui.tooltip, fieldType: imgS.def?.imageType || 'image' }),
 
-        ui.group('Bubble Settings', [
-          ui.color(`${prefix}.bubbleBackgroundColor`, bgS.ui.label, { tooltip: bgS.ui.tooltip }),
-          ui.color(`${prefix}.textColor`, textS.ui.label, { tooltip: textS.ui.tooltip }),
-          ui.text(`${prefix}.font`, fontS.ui.label, { tooltip: fontS.ui.tooltip }),
-
-          // Compound container for Padding & Radius
-          ui.container(
+          ui.group(
+            'Bubble Settings',
             [
-              ui.range(`${prefix}.bubblePadding`, padS.ui.label, paddingProps.min, paddingProps.max, {
-                step: paddingProps.step,
-                tooltip: padS.ui.tooltip,
-                containerClass: 'sliderSubgroup',
-                transformValue: paddingProps.transformValue,
-                toInputValue: paddingProps.toInputValue,
-                valueLabelFormatter: (val) => (val === null ? 'Auto' : `${val}${padS.def.unit}`),
+              ui.color(`${prefix}.bubbleBackgroundColor`, bgS.ui.label, { tooltip: bgS.ui.tooltip }),
+              ui.color(`${prefix}.textColor`, textS.ui.label, { tooltip: textS.ui.tooltip }),
+              ui.text(`${prefix}.font`, fontS.ui.label, { tooltip: fontS.ui.tooltip }),
+
+              // Compound container for Padding & Radius
+              ui.container(
+                [
+                  ui.range(`${prefix}.bubblePadding`, padS.ui.label, paddingProps.min, paddingProps.max, {
+                    step: paddingProps.step,
+                    tooltip: padS.ui.tooltip,
+                    containerClass: 'sliderSubgroup',
+                    transformValue: paddingProps.transformValue,
+                    toInputValue: paddingProps.toInputValue,
+                    valueLabelFormatter: (val) => (val === null ? 'Auto' : `${val}${padS.def.unit}`),
+                  }),
+                  ui.range(`${prefix}.bubbleBorderRadius`, radS.ui.label, radiusProps.min, radiusProps.max, {
+                    step: radiusProps.step,
+                    tooltip: radS.ui.tooltip,
+                    containerClass: 'sliderSubgroup',
+                    transformValue: radiusProps.transformValue,
+                    toInputValue: radiusProps.toInputValue,
+                    valueLabelFormatter: (val) => (val === null ? 'Auto' : `${val}${radS.def.unit}`),
+                  }),
+                ],
+                { className: 'compoundSliderContainer' }
+              ),
+
+              ui.range(`${prefix}.bubbleMaxWidth`, maxWS.ui.label, widthProps.min, widthProps.max, {
+                step: widthProps.step,
+                tooltip: maxWS.ui.tooltip,
+                containerClass: 'sliderContainer',
+                transformValue: widthProps.transformValue,
+                toInputValue: widthProps.toInputValue,
+                valueLabelFormatter: (val) => (val === null ? 'Auto' : `${val}${maxWS.def.unit}`),
               }),
-              ui.range(`${prefix}.bubbleBorderRadius`, radS.ui.label, radiusProps.min, radiusProps.max, {
-                step: radiusProps.step,
-                tooltip: radS.ui.tooltip,
-                containerClass: 'sliderSubgroup',
-                transformValue: radiusProps.transformValue,
-                toInputValue: radiusProps.toInputValue,
-                valueLabelFormatter: (val) => (val === null ? 'Auto' : `${val}${radS.def.unit}`),
-              }),
+
+              ui.separator({ className: 'separator' }),
+              this._renderPreview(ui, actor),
             ],
-            { className: 'compoundSliderContainer' }
+            {}
           ),
-
-          ui.range(`${prefix}.bubbleMaxWidth`, maxWS.ui.label, widthProps.min, widthProps.max, {
-            step: widthProps.step,
-            tooltip: maxWS.ui.tooltip,
-            containerClass: 'sliderContainer',
-            transformValue: widthProps.transformValue,
-            toInputValue: widthProps.toInputValue,
-            valueLabelFormatter: (val) => (val === null ? 'Auto' : `${val}${maxWS.def.unit}`),
-          }),
-
-          ui.separator({ className: 'separator' }),
-          this._renderPreview(ui, actor),
-        ]),
-      ]);
+        ],
+        {}
+      );
     }
 
     _renderWindowGroup(ui) {
@@ -17335,38 +17347,42 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       const repeatKey = 'window.backgroundRepeat';
       const repeatSchema = this._getSchemaDef(repeatKey);
 
-      return ui.group('Background', [
-        ui.color(bgKey, bgSchema.ui.label, { tooltip: bgSchema.ui.tooltip }),
-        ui.text(imgKey, imgSchema.ui.label, { tooltip: imgSchema.ui.tooltip, fieldType: imgSchema.def?.imageType }),
+      return ui.group(
+        'Background',
+        [
+          ui.color(bgKey, bgSchema.ui.label, { tooltip: bgSchema.ui.tooltip }),
+          ui.text(imgKey, imgSchema.ui.label, { tooltip: imgSchema.ui.tooltip, fieldType: imgSchema.def?.imageType }),
 
-        ui.container(
-          [
-            ui.select(sizeKey, sizeSchema.ui.label, {
-              options: sizeSchema.def.options,
-              tooltip: sizeSchema.ui.tooltip,
-              showLabel: true,
-            }),
-            ui.select(posKey, posSchema.ui.label, {
-              options: posSchema.def.options,
-              tooltip: posSchema.ui.tooltip,
-              showLabel: true,
-            }),
-          ],
-          { className: 'compoundFormFieldContainer' }
-        ),
+          ui.container(
+            [
+              ui.select(sizeKey, sizeSchema.ui.label, {
+                options: sizeSchema.def.options,
+                tooltip: sizeSchema.ui.tooltip,
+                showLabel: true,
+              }),
+              ui.select(posKey, posSchema.ui.label, {
+                options: posSchema.def.options,
+                tooltip: posSchema.ui.tooltip,
+                showLabel: true,
+              }),
+            ],
+            { className: 'compoundFormFieldContainer' }
+          ),
 
-        ui.container(
-          [
-            ui.select(repeatKey, repeatSchema.ui.label, {
-              options: repeatSchema.def.options,
-              tooltip: repeatSchema.ui.tooltip,
-              showLabel: true,
-            }),
-            this._renderPreviewBackground(ui),
-          ],
-          { className: 'compoundFormFieldContainer' }
-        ),
-      ]);
+          ui.container(
+            [
+              ui.select(repeatKey, repeatSchema.ui.label, {
+                options: repeatSchema.def.options,
+                tooltip: repeatSchema.ui.tooltip,
+                showLabel: true,
+              }),
+              this._renderPreviewBackground(ui),
+            ],
+            { className: 'compoundFormFieldContainer' }
+          ),
+        ],
+        {}
+      );
     }
 
     _renderInputGroup(ui) {
@@ -17376,12 +17392,11 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       const textKey = 'inputArea.textColor';
       const textSchema = this._getSchemaDef(textKey);
 
-      return ui.group('Input area', [
-        ui.color(bgKey, bgSchema.ui.label, { tooltip: bgSchema.ui.tooltip }),
-        ui.color(textKey, textSchema.ui.label, { tooltip: textSchema.ui.tooltip }),
-        ui.separator({ className: 'separator' }),
-        this._renderPreviewInput(ui),
-      ]);
+      return ui.group(
+        'Input area',
+        [ui.color(bgKey, bgSchema.ui.label, { tooltip: bgSchema.ui.tooltip }), ui.color(textKey, textSchema.ui.label, { tooltip: textSchema.ui.tooltip }), ui.separator({ className: 'separator' }), this._renderPreviewInput(ui)],
+        {}
+      );
     }
 
     _renderPreview(ui, actor) {
@@ -17405,7 +17420,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       const cls = ui.context.styles;
       return ui.create('div', { className: cls.formField }, [
         ui.create('label', {}, 'BG Preview:'),
-        ui.create('div', { className: cls.previewBubbleWrapper, style: { padding: '0', minHeight: '0' } }, [ui.create('div', { className: cls.previewBackground, dataset: { [CONSTANTS.DATA_KEYS.PREVIEW_FOR]: 'window' } })]),
+        ui.create('div', { className: cls.previewBubbleWrapper, style: { padding: '0', minHeight: '0' } }, [ui.create('div', { className: cls.previewBackground, dataset: { [CONSTANTS.DATA_KEYS.PREVIEW_FOR]: 'window' } }, [])]),
       ]);
     }
 
@@ -18973,7 +18988,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       const listItem = target.closest('li');
       if (!listItem) return;
 
-      const originalIndex = DomState.getInt(listItem, CONSTANTS.DATA_KEYS.MESSAGE_INDEX);
+      const originalIndex = DomState.getInt(listItem, CONSTANTS.DATA_KEYS.MESSAGE_INDEX, NaN);
       if (!isNaN(originalIndex) && this.messages[originalIndex]) {
         this.callbacks.onSelect?.(this.messages[originalIndex]);
       }
