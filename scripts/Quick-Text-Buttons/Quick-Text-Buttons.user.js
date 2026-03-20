@@ -1,15 +1,15 @@
 // ==UserScript==
 // @name         Quick-Text-Buttons
 // @namespace    https://github.com/p65536
-// @version      3.1.4
+// @version      3.1.5
 // @license      MIT
 // @description  Adds customizable text buttons to paste frequently used prompts into ChatGPT/Gemini inputs.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/qtb.svg
 // @author       p65536
 // @match        https://chatgpt.com/*
 // @match        https://gemini.google.com/*
-// @grant        GM_getValue
-// @grant        GM_setValue
+// @grant        GM.getValue
+// @grant        GM.setValue
 // @grant        GM_addValueChangeListener
 // @grant        GM_removeValueChangeListener
 // @run-at       document-idle
@@ -3621,7 +3621,7 @@ font-size: 0.95em;
      * Loads the configuration from storage, delegates processing to ConfigProcessor.
      */
     async load() {
-      const raw = await GM_getValue(this.CONFIG_KEY);
+      const raw = await GM.getValue(this.CONFIG_KEY);
       let userConfig = null;
       if (raw) {
         try {
@@ -3650,13 +3650,13 @@ font-size: 0.95em;
 
       const jsonString = JSON.stringify(completeConfig);
       this.config = completeConfig;
-      await GM_setValue(this.CONFIG_KEY, jsonString);
+      await GM.setValue(this.CONFIG_KEY, jsonString);
       EventBus.publish(EVENTS.CONFIG_SAVE_SUCCESS);
     }
 
     /**
      * Decodes a raw string from storage into a user configuration object.
-     * @param {string | null} rawValue The raw string from GM_getValue.
+     * @param {string | null} rawValue The raw string from GM.getValue.
      * @returns {Promise<object | null>} The parsed user configuration object, or null if parsing fails.
      */
     async decode(rawValue) {

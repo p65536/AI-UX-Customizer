@@ -3,6 +3,10 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **UX Customizer (AIUXC/GPTUX/GGGUX)**, strict version matching is required:
 -  QTB v3.1.2+ with AIUXC v1.0.0-b489+ / GPTUX v2.4.2+ / GGGUX v2.4.2+
 
+## [3.1.5] - 2026-03-20
+- **Core Changes**
+  - Updated internal data storage mechanisms to use modern asynchronous APIs (`GM.getValue` / `GM.setValue`), ensuring more stable and reliable saving and loading of your settings.
+
 ## [3.1.4] - 2026-03-20
 - **Core Changes**
   - Ported critical stability and lifecycle improvements for the core element detection engine (`Sentinel`) from the AIUXC project.
