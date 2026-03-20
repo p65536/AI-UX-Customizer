@@ -3,6 +3,12 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **UX Customizer (AIUXC/GPTUX/GGGUX)**, strict version matching is required:
 -  QTB v3.1.2+ with AIUXC v1.0.0-b489+ / GPTUX v2.4.2+ / GGGUX v2.4.2+
 
+## [3.1.3] - 2026-03-20
+- **Bug Fixes**
+  - **[ChatGPT]** Fixed an issue where inserting multiline text would lose its line breaks. Text formatting is now accurately preserved when pasted into the input field.
+- **Improvements**
+  - Upgraded the underlying text insertion logic to ensure robust compatibility and reliable behavior across different AI platforms (ChatGPT and Gemini).
+
 ## [3.1.2] - 2026-02-20
 - **Bug Fixes**
   - **[Sentinel]** Fixed an issue where element detection could fail after SPA page navigation or long background tab inactivity.
