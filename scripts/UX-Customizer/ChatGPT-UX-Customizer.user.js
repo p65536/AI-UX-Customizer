@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         ChatGPT-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      2.4.3
+// @version      2.5.0
 // @license      MIT
-// @description  Fully customize the chat UI. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
+// @description  [DEPRECATED] This script is no longer maintained. Please use "AI UX Customizer" instead.
 // @icon         https://chatgpt.com/favicon.ico
 // @author       p65536
 // @match        https://chatgpt.com/*
@@ -13218,48 +13218,48 @@
       const style = h('style', {
         id: styleId,
         textContent: `
-                                .${APPID}-toast-container {
-                                    position: fixed; /* Changed to fixed for viewport relative positioning */
-                                    top: 30%; /* Position from the top */
-                                    left: 50%; /* Center horizontally */
-                                    transform: translate(-50%, -50%); /* Adjust for exact centering */
-                                    z-index: 10002; /* Higher z-index */
-                                    background-color: ${warnStyles.bg};
-                                    color: ${warnStyles.text};
-                                    padding: 15px 25px; /* Slightly more padding */
-                                    border-radius: 12px; /* More rounded corners */
-                                    border: 1px solid ${warnStyles.border};
-                                    box-shadow: 0 6px 20px rgb(0 0 0 / 0.2); /* Stronger shadow */
-                                    display: flex;
-                                    align-items: center;
-                                    gap: 15px; /* Increased gap */
-                                    font-size: 1.1em; /* Larger font */
-                                    font-weight: bold; /* Bold text */
-                                    opacity: 0;
-                                    transition: opacity 0.4s ease, transform 0.4s ease; /* Smoother transition */
-                                    pointer-events: none;
-                                    white-space: nowrap; /* Prevent text wrapping */
-                                }
-                                .${APPID}-toast-container.is-visible {
-                                    opacity: 1;
-                                    transform: translate(-50%, 0); /* Move into view from adjusted vertical position */
-                                    pointer-events: auto;
-                                }
-                                .${APPID}-toast-cancel-btn {
-                                    background: ${warnStyles.cancel_btn_bg};
-                                    color: ${warnStyles.cancel_btn_text};
-                                    border: none;
-                                    padding: 8px 15px; /* Larger button padding */
-                                    margin-left: 10px; /* Adjusted margin */
-                                    cursor: pointer;
-                                    font-weight: bold;
-                                    border-radius: 6px; /* Rounded button */
-                                    transition: background-color 0.2s ease;
-                                }
-                                .${APPID}-toast-cancel-btn:hover {
-                                    background-color: rgb(255 255 255 / 0.3); /* Lighter hover background */
-                                }
-                            `,
+.${APPID}-toast-container {
+position: fixed; /* Changed to fixed for viewport relative positioning */
+top: 30%; /* Position from the top */
+left: 50%; /* Center horizontally */
+transform: translate(-50%, -50%); /* Adjust for exact centering */
+z-index: 10002; /* Higher z-index */
+background-color: ${warnStyles.bg};
+color: ${warnStyles.text};
+padding: 15px 25px; /* Slightly more padding */
+border-radius: 12px; /* More rounded corners */
+border: 1px solid ${warnStyles.border};
+box-shadow: 0 6px 20px rgb(0 0 0 / 0.2); /* Stronger shadow */
+display: flex;
+align-items: center;
+gap: 15px; /* Increased gap */
+font-size: 1.1em; /* Larger font */
+font-weight: bold; /* Bold text */
+opacity: 0;
+transition: opacity 0.4s ease, transform 0.4s ease; /* Smoother transition */
+pointer-events: none;
+white-space: nowrap; /* Prevent text wrapping */
+}
+.${APPID}-toast-container.is-visible {
+opacity: 1;
+transform: translate(-50%, 0); /* Move into view from adjusted vertical position */
+pointer-events: auto;
+}
+.${APPID}-toast-cancel-btn {
+background: ${warnStyles.cancel_btn_bg};
+color: ${warnStyles.cancel_btn_text};
+border: none;
+padding: 8px 15px; /* Larger button padding */
+margin-left: 10px; /* Adjusted margin */
+cursor: pointer;
+font-weight: bold;
+border-radius: 6px; /* Rounded button */
+transition: background-color 0.2s ease;
+}
+.${APPID}-toast-cancel-btn:hover {
+background-color: rgb(255 255 255 / 0.3); /* Lighter hover background */
+}
+`,
       });
       document.head.appendChild(style);
     }
@@ -13308,6 +13308,110 @@
       }, 300);
 
       this.toastElement = null;
+    }
+  }
+
+  class MigrationNoticeManager {
+    constructor() {
+      this.DIALOG_ID = `${OWNERID}-${APPID}-migration-dialog`;
+      this.STORAGE_KEY = `${APPID}_migration_notice_last_shown`;
+      this.SHOW_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
+    }
+
+    async init() {
+      const lastShown = await GM_getValue(this.STORAGE_KEY, 0);
+      const now = Date.now();
+
+      if (now - lastShown > this.SHOW_INTERVAL) {
+        this._showDialog();
+        await GM_setValue(this.STORAGE_KEY, now);
+      }
+    }
+
+    _showDialog() {
+      if (document.getElementById(this.DIALOG_ID)) return;
+
+      const dialog = h(
+        `dialog#${this.DIALOG_ID}`,
+        {
+          style: {
+            top: '10%',
+            left: '0',
+            right: '0',
+            margin: '0 auto',
+            padding: '24px',
+            border: 'none',
+            borderRadius: '12px',
+            maxWidth: '500px',
+            width: '90%',
+            background: 'white',
+            color: '#1f1f1f',
+            boxShadow: '0 10px 30px rgb(0 0 0 / 0.3)',
+            fontFamily: 'sans-serif',
+            fontSize: '14px',
+            lineHeight: '1.6',
+            zIndex: '99999',
+            position: 'fixed',
+          },
+        },
+        [
+          h('h2', { style: { marginTop: '0', fontSize: '20px', color: '#d93025', display: 'flex', alignItems: 'center', gap: '8px' } }, [h('span', '⚠️'), ' Notice: Userscript Update']),
+          h('p', { style: { marginBottom: '16px', fontSize: '15px' } }, ['The Userscript ', h('strong', APPNAME), ' has been discontinued.']),
+          h('div', { style: { background: '#f1f3f4', padding: '16px', borderRadius: '8px', marginBottom: '20px' } }, [
+            h('p', { style: { margin: '0' } }, [
+              'This script is no longer maintained. It has been merged into the new unified script:',
+              h('br'),
+              h(
+                'a',
+                { href: 'https://greasyfork.org/en/scripts/570496-ai-ux-customizer', target: '_blank', style: { fontSize: '1.1em', fontWeight: 'bold', color: '#1a73e8', textDecoration: 'none', display: 'block', marginTop: '4px' } },
+                'AI UX Customizer (AIUXC)'
+              ),
+            ]),
+          ]),
+          h('h3', { style: { fontSize: '15px', margin: '0 0 8px 0', color: '#d93025' } }, '⚠️ Action Required:'),
+          h('ol', { style: { margin: '0 0 20px 0', paddingLeft: '24px' } }, [
+            h('li', { style: { marginBottom: '4px' } }, [h('strong', 'Close'), ' this dialog.']),
+            h('li', { style: { marginBottom: '4px' } }, ['Open the settings panel and ', h('strong', 'Export'), ' your configuration.']),
+            h('li', { style: { marginBottom: '4px' } }, [h('strong', 'Disable'), ' this script in your userscript manager.']),
+            h('li', 'Install the new script and migrate your data.'),
+          ]),
+          h('div', { style: { borderTop: '1px solid #eee', paddingTop: '16px', marginBottom: '24px' } }, [
+            h('p', { style: { margin: '0 0 8px 0', fontWeight: 'bold', color: '#444' } }, '🔗 Migration Guide:'),
+            h('ul', { style: { margin: '0', paddingLeft: '24px' } }, [h('li', [h('a', { href: 'https://github.com/p65536/AI-UX-Customizer', target: '_blank', style: { color: '#1a73e8', textDecoration: 'none' } }, 'View on GitHub')])]),
+          ]),
+          h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } }, [
+            h('span', { style: { color: '#666', fontSize: '12px' } }, 'This dialog appears once a day.'),
+            h('button', {
+              textContent: 'Close',
+              style: {
+                padding: '10px 20px',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                background: '#1a73e8',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                transition: 'background 0.2s',
+              },
+              onmouseover: (e) => (e.target.style.background = '#1557b0'),
+              onmouseout: (e) => (e.target.style.background = '#1a73e8'),
+              onclick: () => {
+                const el = document.getElementById(this.DIALOG_ID);
+                if (el instanceof HTMLDialogElement) {
+                  el.close();
+                  el.remove();
+                }
+              },
+            }),
+          ]),
+        ]
+      );
+
+      if (!(dialog instanceof HTMLDialogElement)) return;
+
+      document.body.appendChild(dialog);
+      dialog.showModal();
     }
   }
 
@@ -13392,6 +13496,14 @@
       // The setLevel method itself handles invalid values gracefully.
       Logger.setLevel(this.configManager.get().developer.logger_level);
       Logger.log(`Logger level is set to '${Logger.level}'.`);
+
+      // Check for migration notice
+      try {
+        const migrationNotice = new MigrationNoticeManager();
+        await migrationNotice.init();
+      } catch (e) {
+        Logger.badge('NOTICE ERROR', LOG_STYLES.RED, 'error', 'Failed to show migration notice:', e);
+      }
 
       const config = this.configManager.get();
       config.themeSets = this._ensureUniqueThemeIds(config.themeSets);

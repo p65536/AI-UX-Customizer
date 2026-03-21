@@ -3,6 +3,10 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.0] - 2026-03-21
+- **Release:** Initial stable release (Transitioned from public beta).
+- **Change:** Removed `@updateURL` and `@downloadURL` from the GitHub script metadata. This change allows users to choose their preferred update method: manual updates via GitHub, or automatic updates via Greasy Fork.
+
 ## [1.0.0-b565] - 2026-03-20
 - **Core Changes**
   - Refactored internal UI components and utility functions to enforce strict data handling, eliminating potential edge cases and bugs caused by implicit default values.

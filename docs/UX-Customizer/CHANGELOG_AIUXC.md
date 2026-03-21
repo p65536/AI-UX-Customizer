@@ -7,6 +7,14 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  GPTUX/GGGUX v2.4.2+ with QTB v3.1.2+
 
+## [2.5.0] - 2026-03-21
+- **DEPRECATED**
+  - The legacy standalone scripts GPTUX/GGGUX are now **Deprecated**.
+  - Please migrate to AI UX Customizer (AIUXC) for future updates.
+    - GitHub: `https://github.com/p65536/AI-UX-Customizer`
+    - Greasy Fork: `https://greasyfork.org/en/scripts/570496-ai-ux-customizer`
+    - Migration Guide: `https://github.com/p65536/AI-UX-Customizer/blob/main/docs/AI-UX-Customizer/MIGRATION.md`
+
 ## [2.4.3] - 2026-03-18
 - **[GPTUX] Fixes**
   - **[ChatGPT]** Fixed an issue where the navigation console and custom avatars failed to display due to recent structural changes on the ChatGPT website.

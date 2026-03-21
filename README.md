@@ -10,115 +10,60 @@
 
 ## About This Project
 
-**`AI UX Customizer`** is a project that provides a suite of userscripts to enhance the user experience of various AI chat services.  
-Each script is developed independently and can be installed separately.
+**`AI UX Customizer`** is a project that provides a suite of userscripts to enhance the user experience of various AI chat services.
+It integrates powerful theme and navigation features into a single codebase, allowing you to share settings across platforms.
+
+> [!NOTE]
+> **Project Status Update (2026-03-21)**
+> * **AI UX Customizer (AIUXC)** is now the **Official Stable Release**.
+> * The legacy standalone scripts (`ChatGPT-UX-Customizer` & `Gemini-UX-Customizer`) are now **Deprecated**.
+> * Please migrate to AIUXC for future updates. [**Read the Migration Guide**](./docs/AI-UX-Customizer/MIGRATION.md)
 
 ---
 
 ## Recent Updates
 
+### 2026-03-21
+- Updated `AI UX Customizer` (b655 -> 1.0.0 stable)
+
 ### 2026-03-20
 - Updated `Quick Text Buttons` (3.1.2 -> 3.1.5)
 - Updated `AI UX Customizer` (b559 -> b565)
-
-### 2026-03-19
-- Updated `AI UX Customizer` (b557 -> b559)
-
-### 2026-03-18
-- Updated `AI UX Customizer` (b551 -> b557)
-- Updated `ChatGPT UX Customizer` (2.4.2 -> 2.4.3)
-
-### 2026-03-17
-- Updated `AI UX Customizer` (b533 -> b551)
-
-### 2026-03-14
-- Updated `AI UX Customizer` (b530 -> b533)
-
-### 2026-02-20
-- Updated `AI UX Customizer` (b488 -> b492)
-- Updated `Quick Text Buttons` (3.1.1 -> 3.1.2)
-- Updated `ChatGPT UX Customizer` (2.4.1 -> 2.4.2)
-- Updated `Gemini UX Customizer` (2.4.1 -> 2.4.2)
-
-### 2026-02-11
-- Updated `AI UX Customizer` (b477 -> b480)
-- Updated `Quick Text Buttons` (3.1.0 -> 3.1.1)
-- Updated `ChatGPT UX Customizer` (2.3.5 -> 2.4.1)
-- Updated `Gemini UX Customizer` (2.4.0 -> 2.4.1)
-
-### 2026-01-02
-- 🧪 **Beta Release:** **AI UX Customizer (AIUXC)** has been released as a public beta!
-  - This unified script combines ChatGPT and Gemini customization into one.
-  - I actively invite you to try it out and share your feedback or bug reports on [GitHub Issues](https://github.com/p65536/AI-UX-Customizer/issues).
-  - *Note: The existing standalone scripts (GPTUX/GGGUX) will remain supported until the official release of AIUXC.*
-
-### 2025-12-22
-- 📢 **Announcement:** Published the plan to unify `ChatGPT UX Customizer` and `Gemini UX Customizer` into a single script: **AI UX Customizer (AIUXC)**.
 
 ---
 
 ## Scripts in This Project
 
-### 1. (Beta) AI UX Customizer
+### 1. AI UX Customizer (AIUXC)
 
-**The new unified script for both ChatGPT and Gemini.** It integrates powerful theme and navigation features into a single codebase, allowing you to share settings across platforms.
+A userscript that adds powerful **theming**, **UI customization**, and **advanced navigation** features to AI chat UIs.
 
-> **Status:** **Public Beta**  
-> This script can be installed alongside the existing scripts.  
+> [!IMPORTANT]
+> **Migration Notice for Old Script Users**  
+> If you are currently using the standalone `ChatGPT UX Customizer (GPTUX)` or `Gemini UX Customizer (GGGUX)`, you must disable or delete them to prevent conflicts. Your current settings can be safely transferred to this new unified version.
 > 
-> ⚠️ **Important:** To prevent conflicts, please **disable** `ChatGPT-UX-Customizer` and `Gemini-UX-Customizer` in your userscript manager (e.g., Tampermonkey) when using AIUXC.
-> 
-> **[How to Migrate from Old Scripts](./docs/AI-UX-Customizer/MIGRATION.md)**
+> **[Please read the Migration Guide before installing](./docs/AI-UX-Customizer/MIGRATION.md)**
 
 | Platform | GitHub | Greasy Fork | Version | Last Updated | Changelog |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **ChatGPT** & **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/AI-UX-Customizer/AI-UX-Customizer.user.js) | (N/A in beta) | 1.0.0-b565 | 2026-03-20 | [View](./docs/AI-UX-Customizer/CHANGELOG_AIUXC.md) |
-
-> **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
-> -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
+| **ChatGPT** & **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/AI-UX-Customizer/AI-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/570496-ai-ux-customizer) | 1.0.0 | 2026-03-21 | [View](./docs/AI-UX-Customizer/CHANGELOG_AIUXC.md) |
 
 **[View Detailed Features & Manual for AI UX Customizer](./docs/AI-UX-Customizer/README.md)**
 
----
+![AI UX Customizer Showcase Image](./docs/AI-UX-Customizer/images/ux-customizer_showcase.webp)
+![Advanced Navigation](./docs/AI-UX-Customizer/images/navigation.webp)
 
-### 2. ChatGPT UX Customizer / Gemini UX Customizer
-
-The standalone versions for each platform. These are currently the recommended stable releases for general use.
-
-> ⚠️ **End of Support Notice:**  
-> Maintenance for these standalone versions will cease once **AI UX Customizer** is officially released.
-
-A script that adds powerful theme and navigation features. For each chat, you can flexibly customize speaker names, icons, text colors, bubble styles, backgrounds, and standing images.
-
-Click the gear icon ⚙️ in the input area to open the settings panel.
-
-| Platform | GitHub | Greasy Fork | Version | Last Updated | Changelog |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **ChatGPT** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/UX-Customizer/ChatGPT-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/543703-chatgpt-ux-customizer) | 2.4.3 | 2026-03-18 | [View](./docs/UX-Customizer/CHANGELOG_AIUXC.md) |
-| **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/UX-Customizer/Gemini-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/543704-gemini-ux-customizer) | 2.4.2 | 2026-02-20 | [View](./docs/UX-Customizer/CHANGELOG_AIUXC.md) |
-
-> **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
-> -  GPTUX/GGGUX v2.4.2+ with QTB v3.1.2+
-
-**[View Detailed Features & Manual for UX Customizer](./docs/UX-Customizer/README.md)**
-
-![UX Customizer Showcase Image](./docs/UX-Customizer/images/ux-customizer_showcase.webp)
-![Advanced Navigation](./docs/UX-Customizer/images/navigation.webp)
-
-**Note:** The pencil icon in the input area belongs to [**Quick Text Buttons (QTB)**](https://github.com/p65536/AI-UX-Customizer/blob/main/docs/Quick-Text-Buttons/README.md), a separate userscript. It allows you to insert predefined text or prompts with a single click. Using QTB alongside UX Customizer provides a highly efficient chat experience.
+**Note:** The pencil icon in the input area belongs to [**Quick Text Buttons (QTB)**](https://github.com/p65536/AI-UX-Customizer/blob/main/docs/Quick-Text-Buttons/README.md), a separate userscript. It allows you to insert predefined text or prompts with a single click. Using QTB alongside AIUXC provides a highly efficient chat experience.
 
 ---
 
-### 3. Quick Text Buttons
+### 2. Quick Text Buttons (QTB)
 
 Adds customizable text buttons to paste frequently used prompts into ChatGPT/Gemini inputs. Efficiently manage your snippets and templates by category and profile.
 
 | Platform | GitHub | Greasy Fork | Version | Last Updated | Changelog |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **ChatGPT** & **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/Quick-Text-Buttons/Quick-Text-Buttons.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/544699-quick-text-buttons) | 3.1.5 | 2026-03-20 | [View](./docs/Quick-Text-Buttons/CHANGELOG_QTBUX.md) |
-
-> **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **UX Customizer (AIUXC/GPTUX/GGGUX)**, strict version matching is required:
-> -  QTB v3.1.2+ with AIUXC v1.0.0-b489+ / GPTUX v2.4.2+ / GGGUX v2.4.2+
 
 **[View Detailed Features & Manual for Quick Text Buttons](./docs/Quick-Text-Buttons/README.md)**
 
