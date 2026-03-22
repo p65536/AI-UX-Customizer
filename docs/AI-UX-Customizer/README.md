@@ -31,7 +31,7 @@ It also includes convenient UI enhancements such as **message collapsing**, **a 
 
 - **Advanced Navigation & Readability**
   - **[ChatGPT only] Message Timestamps**: Displays the creation time for each message. It fetches historical timestamps from the API and records new ones in real-time.  
-    > (This is not available for Gemini as it's technically difficult to retrieve timestamps.)
+    > (This feature is not available for Gemini to ensure strict compliance with Google's Terms of Service regarding internal API usage.)
   - **Integrated Navigation Console**: A compact UI with message counters and quick navigation buttons. It can be positioned **floating above the input field** or **embedded in the header**.
   - **Message Jump List with Search**: Instantly jump to any message in the conversation from a list. You can filter messages by plain text or regular expressions.
   - **Per-Message Navigation**: Adds buttons to each message to jump to the next/previous message by the same speaker (user/assistant) or scroll to the top of the current message.
