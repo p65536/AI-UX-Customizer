@@ -3,6 +3,12 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.1] - 2026-04-15
+- **Maintenance & Stability**
+  - Resolved widespread strict-mode type-checking errors triggered by recent VSCode updates.
+  - Adjusted the project workspace configuration (`jsconfig.json`) to restore stable and intended JavaScript validation behavior.
+  - Improved internal code typing by adding missing JSDoc annotations to core functions, ensuring proper context resolution and eliminating editor warnings.
+
 ## [1.0.0] - 2026-03-21
 - **Release:** Initial stable release (Transitioned from public beta).
 - **Change:** Removed `@updateURL` and `@downloadURL` from the GitHub script metadata. This change allows users to choose their preferred update method: manual updates via GitHub, or automatic updates via Greasy Fork.
