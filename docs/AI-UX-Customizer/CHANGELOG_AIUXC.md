@@ -3,6 +3,10 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.2] - 2026-04-15
+- **Bug Fixes**
+  - **[ChatGPT]** Fixed an issue where navigating to a message via the console or jump list caused the screen to instantly snap back to its previous position. This was due to a recent change in ChatGPT's site specifications.
+
 ## [1.0.1] - 2026-04-15
 - **Maintenance & Stability**
   - Resolved widespread strict-mode type-checking errors triggered by recent VSCode updates.

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.1
+// @version      1.0.2
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -3511,7 +3511,7 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
         const scrollContainerSelector = CONSTANTS.SELECTORS.SCROLL_CONTAINER;
         const scrollContainer = scrollContainerSelector ? document.querySelector(scrollContainerSelector) : null;
 
-        if (scrollContainer) {
+        if (scrollContainer instanceof HTMLElement) {
           let scrollTargetElement = element;
 
           // Determine the bubble element based on role to use as the scroll target
@@ -3525,6 +3525,17 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
           }
 
           const targetScrollTop = scrollContainer.scrollTop + scrollTargetElement.getBoundingClientRect().top - scrollContainer.getBoundingClientRect().top - offset;
+
+          // Dispatch a synthetic wheel event to trick ChatGPT's internal state into
+          // releasing its scroll lock. This prevents the site's React Scroll Restoration
+          // from snapping the view back to the previous position.
+          const wheelEvent = new WheelEvent('wheel', {
+            bubbles: true,
+            cancelable: true,
+            deltaY: 1,
+          });
+          scrollContainer.dispatchEvent(wheelEvent);
+
           scrollContainer.scrollTo({
             top: targetScrollTop,
             behavior,
