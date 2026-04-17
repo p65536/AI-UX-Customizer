@@ -3,6 +3,10 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.0.5] - 2024-04-17
+- **Maintenance & Stability**
+  - Added internal architectural documentation to core utilities (`debounce` and `NavigationMonitor`). This ensures that critical logic for capturing execution context and safe Monkey Patching remains intact and prevents unintended breakage during future refactoring.
+
 ## [1.0.4] - 2026-04-16
 - **Bug Fixes**
   - **[ChatGPT]** Fixed an issue where the native "Scroll to Bottom" button would sometimes reappear over the UI due to ongoing changes in ChatGPT's site specifications. The script now uses a much more resilient method to detect and hide this redundant button, ensuring it stays hidden even if the site's underlying code structure changes again.

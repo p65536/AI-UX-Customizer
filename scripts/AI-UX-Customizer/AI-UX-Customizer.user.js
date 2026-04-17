@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.0.4
+// @version      1.0.5
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -7904,6 +7904,9 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       }
     };
 
+    // [DO NOT REFACTOR] Must remain a standard function, not an arrow function.
+    // This ensures the dynamic `this` context from the caller is correctly captured
+    // and propagated to the target function via `func.apply(this, args)`.
     /** @this {any} */
     const debounced = function (...args) {
       cancel();
@@ -9445,6 +9448,9 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         const orig = history[m];
         this.originalHistoryMethods[m] = orig;
 
+        // [DO NOT REFACTOR] `wrapper` must remain a standard function to safely capture
+        // the execution-time `this` (which could be a Proxy object).
+        // `const instance = this;` is intentionally used to access the class scope safely.
         /** @this {History} */
         const wrapper = function (...args) {
           const result = orig.apply(this, args);
