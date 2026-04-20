@@ -19,9 +19,27 @@ It integrates powerful theme and navigation features into a single codebase, all
 > * The legacy standalone scripts (`ChatGPT-UX-Customizer` & `Gemini-UX-Customizer`) are now **Deprecated**.
 > * Please migrate to AIUXC for future updates. [**Read the Migration Guide**](./docs/AI-UX-Customizer/MIGRATION.md)
 
+> [!WARNING]
+> **Known Issue: ChatGPT on Vivaldi (and potentially other Chromium browsers)**
+> I have confirmed a critical issue currently affecting **ChatGPT** when using **Vivaldi**. Since Vivaldi is built on Chromium, it is highly likely that other Chromium-based browsers (such as Google Chrome, Microsoft Edge, and Brave) are experiencing the same problem, though I have only verified this on Vivaldi so far.
+> 
+> **Observed Symptoms:**
+> - The navigation console shows incorrect or fluctuating message counts depending on your scroll position.
+> - Jump List and navigation buttons do not function as expected.
+> - Erratic scrolling behavior (e.g., the page forcefully scrolls to the bottom when trying to scroll up).
+> 
+> **Suspected Cause:**
+> This appears to be caused by a recent update to ChatGPT's web interface. It seems they have introduced a form of virtual scrolling where off-screen messages are dynamically unmounted from the DOM to save memory. If true, this breaks the script's current message caching mechanism, which expects all messages to remain in the DOM once loaded.
+> 
+> **Current Status & Workaround:**
+> I am actively looking into how to address this complex structural change. In the meantime, I have confirmed that **Firefox is currently not affected**, and the script continues to function normally there.
+
 ---
 
 ## Recent Updates
+
+### 2026-04-20
+- Added a known issue notice regarding ChatGPT navigation and scrolling on Chromium-based browsers.
 
 ### 2026-04-17
 - Updated `AI UX Customizer` (1.0.4 -> 1.0.5)
