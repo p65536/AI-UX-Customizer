@@ -20,8 +20,8 @@ It integrates powerful theme and navigation features into a single codebase, all
 > * Please migrate to AIUXC for future updates. [**Read the Migration Guide**](./docs/AI-UX-Customizer/MIGRATION.md)
 
 > [!WARNING]
-> **Known Issue: ChatGPT on Vivaldi (and potentially other Chromium browsers)**
-> I have confirmed a critical issue currently affecting **ChatGPT** when using **Vivaldi**. Since Vivaldi is built on Chromium, it is highly likely that other Chromium-based browsers (such as Google Chrome, Microsoft Edge, and Brave) are experiencing the same problem, though I have only verified this on Vivaldi so far.
+> **Known Issue: ChatGPT Navigation and Scrolling Issues**
+> I have confirmed a critical issue currently affecting **ChatGPT**. Initially observed on Vivaldi (Chromium), it is now manifesting across multiple browsers.
 > 
 > **Observed Symptoms:**
 > - The navigation console shows incorrect or fluctuating message counts depending on your scroll position.
@@ -29,14 +29,17 @@ It integrates powerful theme and navigation features into a single codebase, all
 > - Erratic scrolling behavior (e.g., the page forcefully scrolls to the bottom when trying to scroll up).
 > 
 > **Suspected Cause:**
-> This appears to be caused by a recent update to ChatGPT's web interface. It seems they have introduced a form of virtual scrolling where off-screen messages are dynamically unmounted from the DOM to save memory. If true, this breaks the script's current message caching mechanism, which expects all messages to remain in the DOM once loaded.
+> This appears to be caused by a recent update to ChatGPT's web interface. It seems they have introduced virtual scrolling where off-screen messages are dynamically unmounted from the DOM. This breaks the script's current message caching mechanism, which expects all messages to remain in the DOM.
 > 
-> **Current Status & Workaround:**
-> I am actively looking into how to address this complex structural change. In the meantime, I have confirmed that **Firefox is currently not affected**, and the script continues to function normally there.
+> **Update (2026-04-21):**
+> I have confirmed that **Firefox is now also affected** by this site update. The issue is no longer limited to Chromium-based browsers. I am continuing to investigate a fundamental fix for the caching system.
 
 ---
 
 ## Recent Updates
+
+### 2026-04-21
+- Update on Known Issue: Confirmed that Firefox is also affected by the ChatGPT navigation/scrolling bug.
 
 ### 2026-04-20
 - Added a known issue notice regarding ChatGPT navigation and scrolling on Chromium-based browsers.
