@@ -19,27 +19,27 @@ It integrates powerful theme and navigation features into a single codebase, all
 > * The legacy standalone scripts (`ChatGPT-UX-Customizer` & `Gemini-UX-Customizer`) are now **Deprecated**.
 > * Please migrate to AIUXC for future updates. [**Read the Migration Guide**](./docs/AI-UX-Customizer/MIGRATION.md)
 
-> [!WARNING]
-> **Known Issue: ChatGPT Navigation and Scrolling Issues**
-> I have confirmed a critical issue currently affecting **ChatGPT**. Initially observed on Vivaldi (Chromium), it is now manifesting across multiple browsers.
+> [!NOTE]
+> **Resolved: ChatGPT Navigation and Scrolling Issues (v1.1.0)**
 > 
-> **Observed Symptoms:**
-> - The navigation console shows incorrect or fluctuating message counts depending on your scroll position.
-> - Jump List and navigation buttons do not function as expected.
-> - Erratic scrolling behavior (e.g., the page forcefully scrolls to the bottom when trying to scroll up).
+> **Issue (Observed 2026-04-20 to 2026-04-21):**
+> A critical issue was affecting ChatGPT across all browsers, causing incorrect message counts in the navigation console, broken Jump Lists, and erratic scrolling behavior.
 > 
-> **Suspected Cause:**
-> This appears to be caused by a recent update to ChatGPT's web interface. It seems they have introduced virtual scrolling where off-screen messages are dynamically unmounted from the DOM. This breaks the script's current message caching mechanism, which expects all messages to remain in the DOM.
+> **Cause:**
+> This was caused by a recent update to ChatGPT's web interface that introduced "virtual scrolling," where off-screen messages are dynamically unmounted from the DOM to save memory. This broke the script's previous message caching mechanism.
 > 
-> **Update (2026-04-21):**
-> I have confirmed that **Firefox is now also affected** by this site update. The issue is no longer limited to Chromium-based browsers. I am continuing to investigate a fundamental fix for the caching system.
+> **Resolution (2026-04-21):**
+> This issue has been addressed in version **1.1.0**. I have implemented an interim fix using "Turn-based Caching" and a "Self-Healing UI." Custom elements (avatars, timestamps, buttons) now automatically detect when they have been unmounted and instantly restore themselves when scrolled back into view. 
+> 
+> *Future Plans:* Please note that this is currently a temporary workaround relying on complex DOM tracking. I plan to transition to a more robust, API-based approach in the future to ensure long-term stability.
 
 ---
 
 ## Recent Updates
 
 ### 2026-04-21
-- Update on Known Issue: Confirmed that Firefox is also affected by the ChatGPT navigation/scrolling bug.
+- Updated `AI UX Customizer` (1.0.5 -> 1.1.0)
+- **Update on Known Issue**: Updated the README to announce the resolution of the ChatGPT navigation and scrolling issues via the v1.1.0 interim fix.
 
 ### 2026-04-20
 - Added a known issue notice regarding ChatGPT navigation and scrolling on Chromium-based browsers.
@@ -76,7 +76,7 @@ A userscript that adds powerful **theming**, **UI customization**, and **advance
 
 | Platform | GitHub | Greasy Fork | Version | Last Updated | Changelog |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **ChatGPT** & **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/AI-UX-Customizer/AI-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/570496-ai-ux-customizer) | 1.0.5 | 2026-04-17 | [View](./docs/AI-UX-Customizer/CHANGELOG_AIUXC.md) |
+| **ChatGPT** & **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/AI-UX-Customizer/AI-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/570496-ai-ux-customizer) | 1.1.0 | 2026-04-21 | [View](./docs/AI-UX-Customizer/CHANGELOG_AIUXC.md) |
 
 **[View Detailed Features & Manual for AI UX Customizer](./docs/AI-UX-Customizer/README.md)**
 

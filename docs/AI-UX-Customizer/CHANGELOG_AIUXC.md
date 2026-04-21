@@ -3,6 +3,15 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.1.0] - 2026-04-21
+- **Bug Fixes & Compatibility**
+  - **[ChatGPT]** Fixed a major issue where custom UI elements (such as avatars, timestamps, and navigation buttons) would disappear when scrolling through long conversations. This update adapts the extension to ChatGPT's new virtual scrolling mechanism.
+- **Improvements**
+  - **[ChatGPT]** Improved the Jump List behavior for long chats. Messages that are temporarily unloaded by ChatGPT will now display a "(Not loaded - Scroll to view)" placeholder instead of a blank line.
+- **Core Changes**
+  - Rebuilt the internal caching system to track stable container elements instead of inner message content.
+  - Implemented a "self-healing" UI architecture. Custom elements now automatically detect when they have been unmounted by the browser and instantly restore themselves when scrolled back into view.
+
 ## [1.0.5] - 2024-04-17
 - **Maintenance & Stability**
   - Added internal architectural documentation to core utilities (`debounce` and `NavigationMonitor`). This ensures that critical logic for capturing execution context and safe Monkey Patching remains intact and prevents unintended breakage during future refactoring.
