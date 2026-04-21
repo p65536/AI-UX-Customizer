@@ -3,6 +3,10 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.1.1] - 2026-04-22
+- **Bug Fixes**
+  - **[ChatGPT]** Fixed an issue where the collapsible button and auto-collapse functionality were not appearing on user messages.
+
 ## [1.1.0] - 2026-04-21
 - **Bug Fixes & Compatibility**
   - **[ChatGPT]** Fixed a major issue where custom UI elements (such as avatars, timestamps, and navigation buttons) would disappear when scrolling through long conversations. This update adapts the extension to ChatGPT's new virtual scrolling mechanism.
