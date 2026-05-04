@@ -43,7 +43,6 @@ It also includes convenient UI enhancements such as **message collapsing**, **a 
   - **Responsive Settings UI**: The Settings Panel and Theme Editor automatically adjust their size and layout to fit smaller screens.
   - **Export/Import Settings**: Easily back up and share your complete configuration as a JSON file.
   - **[Gemini only] Auto-Load Full Chat History**: Automatically loads the entire chat history when opening a conversation, eliminating the need to manually scroll up.
-  - **[ChatGPT only] Layout Scan (Firefox Only)**: Automatically performs a layout scan on chat load to mitigate scroll position jumps caused by late-loading messages or images.
   - **Sample Settings Included**: Get started quickly with pre-built examples.
 
 ---
@@ -104,7 +103,7 @@ The Navigation Console functionality changes when you hold the **[Shift]** key.
 #### Platform-Specific Functions (Left Button in Shift Mode)
 
 - **ChatGPT**:
-  - **[Firefox only] Layout Scan**: Runs a layout scan to fix scroll position jumps caused by late-loading images. Use this if scrolling feels unstable.
+  - None (Currently no platform-specific functions are assigned.)
 - **Gemini**:
   - **Load Full History**: Triggers an auto-scroll sequence to load the entire chat history. Useful for searching or exporting long conversations.
 

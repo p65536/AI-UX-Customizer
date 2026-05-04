@@ -20,48 +20,29 @@ It integrates powerful theme and navigation features into a single codebase, all
 > * Please migrate to AIUXC for future updates. [**Read the Migration Guide**](./docs/AI-UX-Customizer/MIGRATION.md)
 
 > [!NOTE]
-> **Resolved: ChatGPT Navigation and Scrolling Issues (v1.1.0)**
+> **Resolved: ChatGPT Navigation and Scrolling Stability**
 > 
-> **Issue (Observed 2026-04-20 to 2026-04-21):**
-> A critical issue was affecting ChatGPT across all browsers, causing incorrect message counts in the navigation console, broken Jump Lists, and erratic scrolling behavior.
+> **Issue (April 2026):**
+> A previous site update to ChatGPT introduced "virtual scrolling" (dynamically unmounting off-screen messages), which temporarily caused incorrect message counts and erratic scrolling behavior.
 > 
-> **Cause:**
-> This was caused by a recent update to ChatGPT's web interface that introduced "virtual scrolling," where off-screen messages are dynamically unmounted from the DOM to save memory. This broke the script's previous message caching mechanism.
+> **Current Status:**
+> This has been resolved. I have implemented a fundamental **API-based tracking logic** (previously mentioned in future plans) to ensure reliable message management regardless of the DOM state. 
 > 
-> **Resolution (2026-04-21):**
-> This issue has been addressed in version **1.1.0**. I have implemented an interim fix using "Turn-based Caching" and a "Self-Healing UI." Custom elements (avatars, timestamps, buttons) now automatically detect when they have been unmounted and instantly restore themselves when scrolled back into view. 
-> 
-> *Future Plans:* Please note that this is currently a temporary workaround relying on complex DOM tracking. I plan to transition to a more robust, API-based approach in the future to ensure long-term stability.
+> Furthermore, ChatGPT has since reverted the "virtual scrolling" behavior, and the site has returned to its previous specification. Combined with the new API-based architecture, message navigation and UI stability are now fully restored and significantly more robust than before.
 
 ---
 
 ## Recent Updates
+
+### 2026-05-04
+- Updated `AI UX Customizer` (1.1.1 -> 1.2.0)
 
 ### 2026-04-22
 - Updated `AI UX Customizer` (1.1.0 -> 1.1.1)
 
 ### 2026-04-21
 - Updated `AI UX Customizer` (1.0.5 -> 1.1.0)
-- **Update on Known Issue**: Updated the README to announce the resolution of the ChatGPT navigation and scrolling issues via the v1.1.0 interim fix.
-
-### 2026-04-20
-- Added a known issue notice regarding ChatGPT navigation and scrolling on Chromium-based browsers.
-
-### 2026-04-17
-- Updated `AI UX Customizer` (1.0.4 -> 1.0.5)
-
-### 2026-04-16
-- Updated `AI UX Customizer` (1.0.3 -> 1.0.4)
-
-### 2026-04-15
-- Updated `AI UX Customizer` (1.0.0 -> 1.0.3)
-
-### 2026-03-21
-- Updated `AI UX Customizer` (b565 -> 1.0.0 stable)
-
-### 2026-03-20
-- Updated `Quick Text Buttons` (3.1.2 -> 3.1.5)
-- Updated `AI UX Customizer` (b559 -> b565)
+- **Update on Known Issue**: Updated the README to announce the resolution of the ChatGPT navigation and scrolling issues via the v1.1.0 interim fix. *(Note: This issue was resolved in v1.2.0)*
 
 ---
 
@@ -79,7 +60,7 @@ A userscript that adds powerful **theming**, **UI customization**, and **advance
 
 | Platform | GitHub | Greasy Fork | Version | Last Updated | Changelog |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **ChatGPT** & **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/AI-UX-Customizer/AI-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/570496-ai-ux-customizer) | 1.1.1 | 2026-04-22 | [View](./docs/AI-UX-Customizer/CHANGELOG_AIUXC.md) |
+| **ChatGPT** & **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/AI-UX-Customizer/AI-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/570496-ai-ux-customizer) | 1.2.0 | 2026-05-04 | [View](./docs/AI-UX-Customizer/CHANGELOG_AIUXC.md) |
 
 **[View Detailed Features & Manual for AI UX Customizer](./docs/AI-UX-Customizer/README.md)**
 

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.1.1
+// @version      1.2.0
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -168,7 +168,7 @@
     RETRY: {
       SCROLL_OFFSET_FOR_NAV: 40,
       AVATAR_INJECTION_LIMIT: 5,
-      SCROLL_CORRECTION_MAX_MS: 200,
+      SCROLL_CORRECTION_MAX_MS: 300,
       SCROLL_CORRECTION_STABLE_FRAMES: 3,
     },
     IMAGE_PROCESSING: {
@@ -290,7 +290,6 @@
       WARNING_SHOW_PATH: '_system.warning.show',
       ERRORS_PATH: '_system.errors',
       SIZE_EXCEEDED_PATH: '_system.isSizeExceeded',
-      LOCAL_TIMESTAMP_ENABLED: `${APPID}_timestamp_enabled`,
     },
     RESOURCE_KEYS: {
       // UI Components
@@ -314,6 +313,7 @@
       BUBBLE_UI_MANAGER: 'bubbleUIManager',
       MESSAGE_LIFECYCLE_MANAGER: 'messageLifecycleManager',
       TOAST_MANAGER: 'toastManager',
+      API_MESSAGE_MANAGER: 'apiMessageManager',
       TIMESTAMP_MANAGER: 'timestampManager',
       FIXED_NAV_MANAGER: 'fixedNavManager',
       MESSAGE_NUMBER_MANAGER: 'messageNumberManager',
@@ -325,7 +325,6 @@
 
       // Task Resources
       BATCH_TASK: 'batchTask',
-      BATCH_TASK_SINGLE: 'batchTaskSingle',
       BATCH_TASK_TURN: 'batchTaskTurn',
       ZERO_MSG_TIMER: 'zeroMsgTimer',
       BUTTON_STATE_TASK: 'buttonStateTask',
@@ -498,8 +497,8 @@
         STREAMING_START: 'STREAMING_START',
         STREAMING_END: 'STREAMING_END',
         DEFERRED_LAYOUT_UPDATE: 'DEFERRED_LAYOUT_UPDATE',
-        TIMESTAMPS_LOADED: 'TIMESTAMPS_LOADED',
-        TIMESTAMP_ADDED: 'TIMESTAMP_ADDED',
+        API_MESSAGES_LOADED: 'API_MESSAGES_LOADED',
+        API_MESSAGE_ADDED: 'API_MESSAGE_ADDED',
 
         // System & Config
         REMOTE_CONFIG_CHANGED: 'REMOTE_CONFIG_CHANGED',
@@ -2600,6 +2599,23 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
     }
 
     /**
+     * Extracts an array of MessageNode objects representing the current chat history.
+     * @returns {MessageNode[]}
+     */
+    extractMessageNodes() {
+      return [];
+    }
+
+    /**
+     * Creates a standardized MessageNode from a raw message DOM element.
+     * @param {HTMLElement} element The message element.
+     * @returns {MessageNode | null} The created node, or null if invalid.
+     */
+    createMessageNode(element) {
+      return null;
+    }
+
+    /**
      * Ensures that a content element (like an image) is wrapped in a proper message container.
      * Used for platforms where images might be direct children of the turn container.
      * @param {HTMLElement} element The content element.
@@ -2643,6 +2659,17 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
      */
     scrollTo(element) {
       throw new Error('scrollTo must be implemented by the platform adapter.');
+    }
+
+    /**
+     * Checks if a new message node can be safely appended to the cache based on platform-specific ordering rules.
+     * @param {MessageNode} newNode The new message node to append.
+     * @param {MessageNode} lastNode The currently last message node in the cache.
+     * @returns {boolean} True if the order is valid (append), false if invalid (force rebuild).
+     * @throws {Error} Must be implemented by subclasses.
+     */
+    isAppendOrderValid(newNode, lastNode) {
+      throw new Error('isAppendOrderValid must be implemented by the platform adapter.');
     }
   }
 
@@ -2925,7 +2952,7 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
     /**
      * Handles logic for infinite scroll state updates.
      * @param {FixedNavigationManager} manager The manager instance.
-     * @param {HTMLElement | null} highlightedMessage The currently highlighted message.
+     * @param {MessageNode | null} highlightedMessage The currently highlighted message node.
      * @param {number} previousTotalMessages Previous count of messages.
      */
     handleInfiniteScroll(manager, highlightedMessage, previousTotalMessages) {
@@ -2934,10 +2961,10 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
 
     /**
      * Applies additional highlighting to the message or turn.
-     * @param {HTMLElement} messageElement The message element.
+     * @param {MessageNode} messageNode The message node.
      * @param {StyleHandle} styleHandle The style handle.
      */
-    applyAdditionalHighlight(messageElement, styleHandle) {
+    applyAdditionalHighlight(messageNode, styleHandle) {
       // No-op by default
     }
 
@@ -2960,29 +2987,37 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
     updatePlatformSpecificButtonState(btn, isAutoScrolling, autoScrollManager) {
       // No-op by default
     }
+
+    /**
+     * Gets the tooltip text for the shift action on the fixed nav console.
+     * @returns {string} The shift action text.
+     */
+    getShiftActionText() {
+      return '';
+    }
   }
 
   /**
-   * @class BaseTimestampAdapter
-   * @description Manages timestamp fetching and processing.
+   * @class BaseApiMessageAdapter
+   * @description Manages API message fetching and processing.
    */
-  class BaseTimestampAdapter {
+  class BaseApiMessageAdapter {
     constructor() {
-      /** @type {Map<string, Date>} */
+      /** @type {Map<string, MessageNode>} */
       this.cache = new Map();
       this.MAX_CACHE_SIZE = 10000;
       this.isInitialized = false;
     }
 
     /**
-     * Initializes timestamp interception logic.
+     * Initializes API interception logic.
      */
     init() {
       // No-op by default
     }
 
     /**
-     * Cleans up timestamp interception logic.
+     * Cleans up API interception logic.
      * Does NOT clear the data cache to allow persistence across navigation.
      */
     cleanup() {
@@ -2990,42 +3025,40 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
     }
 
     /**
-     * Checks if the platform has timestamp logic implemented.
-     * @returns {boolean} True if supported, default is false.
-     */
-    hasTimestampLogic() {
-      return false;
-    }
-
-    /**
-     * Adds a timestamp to the persistent cache with LRU logic.
+     * Adds message data to the persistent cache with LRU logic.
      * @param {string} id
-     * @param {Date} date
+     * @param {MessageNode} node
      */
-    addTimestamp(id, date) {
+    addMessageData(id, node) {
       if (this.cache.size >= this.MAX_CACHE_SIZE) {
         const oldestKey = this.cache.keys().next().value;
         this.cache.delete(oldestKey);
       }
-      this.cache.set(id, date);
+      this.cache.set(id, node);
     }
 
     /**
-     * Retrieves a timestamp from the persistent cache.
+     * Retrieves message data from the persistent cache.
      * @param {string} id
-     * @returns {Date | undefined}
+     * @returns {MessageNode | undefined}
      */
-    getTimestamp(id) {
+    getMessageData(id) {
       return this.cache.get(id);
     }
 
     /**
-     * Synchronously checks if the timestamp feature is enabled.
-     * @param {object} defaultConfig
-     * @returns {boolean}
+     * Retrieves all message data from the persistent cache.
+     * @returns {MessageNode[]}
      */
-    isTimestampEnabledSync(defaultConfig) {
-      return false;
+    getAllMessageData() {
+      return Array.from(this.cache.values());
+    }
+
+    /**
+     * Clears all cached message data.
+     */
+    clearCache() {
+      this.cache.clear();
     }
   }
 
@@ -3061,6 +3094,10 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
     // ---- Default Settings & Theme Configuration ----
     const CONSTANTS = {
       ...SHARED_CONSTANTS,
+      CAPABILITIES: {
+        TIMESTAMP: true,
+        API_MESSAGE: true,
+      },
       UI_SPECS: {
         ...SHARED_CONSTANTS.UI_SPECS,
         HEADER_POSITION_MIN_WIDTH: 960,
@@ -3079,6 +3116,7 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
         MESSAGE_ROLE: 'data-message-author-role',
         TURN_ROLE: 'data-turn',
         MESSAGE_ID: 'data-message-id',
+        TURN_ID: 'data-turn-id',
       },
       SELECTORS: {
         // [IMPORTANT] CSS Scoping & Dynamic Selectors:
@@ -3095,7 +3133,7 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
 
         // --- Message containers ---
         CONVERSATION_UNIT: ':is(section[data-testid^="conversation-turn-"], article[data-testid^="conversation-turn-"])',
-        MESSAGE_ID_HOLDER: '[data-message-id]',
+        MESSAGE_ID_HOLDER: '[data-message-id], [id^="image-"]',
         MESSAGE_ROOT_NODE: ':is(section[data-testid^="conversation-turn-"], article[data-testid^="conversation-turn-"])',
 
         // --- Selectors for messages ---
@@ -3105,7 +3143,6 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
         // --- Selectors for finding elements to tag ---
         RAW_USER_BUBBLE: 'div.user-message-bubble-color',
         RAW_ASSISTANT_BUBBLE: 'div:has(> .markdown)',
-        RAW_ASSISTANT_BUBBLE_FINDER: '.markdown',
         ASSISTANT_MESSAGE_CONTENT: 'div.markdown.prose',
         RAW_USER_IMAGE_BUBBLE: 'div.overflow-hidden:has(img)',
         RAW_ASSISTANT_IMAGE_BUBBLE: 'div.group\\/imagegen-image',
@@ -3152,7 +3189,7 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
         HEADER_FALLBACK_SECTION: '#page-header > div:last-child',
 
         // --- BubbleFeature-specific Selectors ---
-        BUBBLE_FEATURE_MESSAGE_CONTAINERS: ':is(section[data-testid^="conversation-turn-"], article[data-testid^="conversation-turn-"])',
+        BUBBLE_FEATURE_MESSAGE_CONTAINERS: 'div[data-message-author-role]',
 
         // --- FixedNav-specific Selectors ---
         FIXED_NAV_INPUT_AREA_TARGET: 'form[data-type="unified-composer"]',
@@ -3185,7 +3222,7 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
       },
       URL_PATTERNS: {
         EXCLUDED: [/^\/library/, /^\/codex/, /^\/gpts/, /^\/images/, /^\/apps/],
-        CONVERSATION_ENDPOINT: '/backend-api/conversation',
+        CONVERSATION_ENDPOINTS: ['/backend-api/conversation', '/backend-api/shared_conversation'],
       },
       STRINGS: {
         PAGE_TITLE_PREFIX: 'ChatGPT - ',
@@ -3256,6 +3293,16 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
     // =================================================================================
 
     class ChatGPTGeneralAdapter extends BaseGeneralAdapter {
+      constructor() {
+        super();
+        /** @type {{ path: string | null, title: string | null }} */
+        this._sidebarTitleCache = { path: null, title: null };
+        /** @type {Map<string, Map<string, string[]>>} */
+        this.chatTurnCaches = new Map();
+        /** @type {symbol | null} */
+        this._activeScrollId = null;
+      }
+
       /** @override */
       isCanvasModeActive() {
         return !!document.querySelector(CONSTANTS.SELECTORS.CANVAS_CONTAINER);
@@ -3277,8 +3324,9 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
 
       /** @override */
       isChatPage() {
-        // Any URL containing '/c/' is a conversation page
-        return window.location.pathname.includes('/c/');
+        // Any URL containing '/c/' or '/share/' is a conversation page
+        const path = window.location.pathname;
+        return path.includes('/c/') || path.includes('/share/');
       }
 
       /** @override */
@@ -3289,21 +3337,19 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
 
       /** @override */
       getMessageId(element) {
-        if (!element) return null;
-        let id = element.getAttribute(CONSTANTS.ATTRIBUTES.MESSAGE_ID);
-        // Fallback: If the element itself doesn't have an ID (e.g. outer shell), search inside it.
-        if (!id) {
-          const holder = element.querySelector(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
-          if (holder) {
-            id = holder.getAttribute(CONSTANTS.ATTRIBUTES.MESSAGE_ID);
-          }
+        const msgId = element.getAttribute(CONSTANTS.ATTRIBUTES.MESSAGE_ID);
+        if (msgId) return msgId;
+
+        // Fallback for DALL-E images which use id="image-<uuid>"
+        const idAttr = element.getAttribute('id');
+        if (idAttr && idAttr.startsWith('image-')) {
+          return idAttr.substring(6); // Remove 'image-' prefix
         }
-        return id;
+        return null;
       }
 
       /** @override */
       getMessageRole(messageElement) {
-        if (!messageElement) return null;
         const role = messageElement.getAttribute(CONSTANTS.ATTRIBUTES.MESSAGE_ROLE);
         if (role) {
           return role;
@@ -3317,8 +3363,6 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
        * @returns {string | null}
        */
       _getSidebarTitle() {
-        // Initialize cache if it doesn't exist
-        this._sidebarTitleCache = this._sidebarTitleCache || { path: null, title: null };
         const currentPath = window.location.pathname;
 
         const activeLink = document.querySelector(CONSTANTS.SELECTORS.SIDEBAR_ACTIVE_LINK);
@@ -3375,23 +3419,22 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
       /** @override */
       getJumpListDisplayText(messageElement) {
         const role = this.getMessageRole(messageElement);
+        let text = '';
 
         // 1. Check for text content first.
         if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER) {
           const contentEl = messageElement.querySelector(CONSTANTS.SELECTORS.USER_TEXT_CONTENT);
-          if (contentEl) return contentEl.textContent.trim();
+          if (contentEl) text = contentEl.textContent.trim();
         } else {
           const contentEl = messageElement.querySelector(CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT);
-          if (contentEl) return contentEl.textContent.trim();
+          if (contentEl) text = contentEl.textContent.trim();
         }
 
-        // 2. If no text, check for an image within the message container.
-        if (messageElement.querySelector(CONSTANTS.SELECTORS.RAW_USER_IMAGE_BUBBLE) || messageElement.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE)) {
-          return '(Image)';
-        }
+        // 2. Check for an image within the message container.
+        const hasImage = !!(messageElement.querySelector(CONSTANTS.SELECTORS.RAW_USER_IMAGE_BUBBLE) || messageElement.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE));
 
-        // 3. Virtual Scroll Fallback: Content is unmounted
-        return '(Not loaded - Scroll to view)';
+        // 3. Combine and return.
+        return hasImage ? `(image) ${text}`.trim() : text;
       }
 
       /** @override */
@@ -3420,12 +3463,326 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
           return false;
         }
 
-        // Keep all other messages (When caching by outer shell, empty content is valid due to virtual scrolling)
-        return true;
+        const role = this.getMessageRole(messageElement);
+        if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT) {
+          // Check if the message has any visible content, either text or an image generated by our script.
+          const hasText = messageElement.querySelector(CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT)?.textContent?.trim();
+          const hasImage = messageElement.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE);
+
+          // If it has neither text nor an image inside it, check the turn context.
+          if (!hasText && !hasImage) {
+            const turnContainer = messageElement.closest(CONSTANTS.SELECTORS.CONVERSATION_UNIT);
+            // If the turn contains an image elsewhere, this empty message is likely a ghost artifact. Filter it out.
+            if (turnContainer && turnContainer.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE)) {
+              return false; // Exclude this ghost message
+            }
+          }
+        }
+        return true; // Keep all other messages
+      }
+
+      /** @override */
+      extractMessageNodes() {
+        // --- ChatGPT Architecture Note ---
+        // 1. Turn Management (DOM as Source of Truth):
+        //    Turn containers are always present in the DOM (even if their inner messages are virtualized out of view).
+        //    Therefore, we iterate through the DOM turn containers to establish the definitive structure and order.
+        // 2. Intra-Turn Messages (API Data Priority):
+        //    For messages (text, images) within a turn, we prioritize data from the API cache to ensure completeness.
+        //    We fallback to extracting data directly from the DOM only when API data is unavailable (e.g., newly generated messages).
+
+        /** @type {MessageNode[]} */
+        const nodes = [];
+
+        // Get current chat ID from URL
+        const match = window.location.pathname.match(/\/(?:c|share)\/([a-zA-Z0-9-]+)/i);
+        const currentChatId = match ? match[1] : null;
+
+        // Initialize state for the current chat
+        if (!this.chatTurnCaches.has(currentChatId)) {
+          this.chatTurnCaches.set(currentChatId, new Map());
+        }
+        const activeTurnMessageIds = this.chatTurnCaches.get(currentChatId);
+
+        // Get cached messages from API (as fallback pool)
+        const apiNodesMap = new Map();
+        const apiAdapter = PlatformAdapters.ApiMessage;
+        if (apiAdapter.isInitialized && typeof apiAdapter.getAllMessageData === 'function') {
+          const allData = apiAdapter.getAllMessageData();
+          for (const node of allData) {
+            // Only consider nodes for the current chat or unbound nodes
+            if (node.chatId === currentChatId || node.chatId === null) {
+              apiNodesMap.set(node.id, node);
+            }
+          }
+        }
+
+        // Build topological order map for safe sorting of unmounted nodes
+        const orderMap = new Map();
+        if (apiAdapter.isInitialized && apiAdapter.chatLeafMap && apiAdapter.parentMap) {
+          const leafId = apiAdapter.chatLeafMap.get(currentChatId);
+          let currId = leafId;
+          const path = [];
+          while (currId) {
+            path.unshift(currId);
+            currId = apiAdapter.parentMap.get(currId);
+          }
+          for (let k = 0; k < path.length; k++) {
+            orderMap.set(path[k], k);
+          }
+        }
+
+        const rootContainer = this.getMessagesRoot();
+        if (!rootContainer) return nodes;
+
+        // Iterate through all turn containers in DOM order (Source of Truth)
+        const turnContainers = rootContainer.querySelectorAll(CONSTANTS.SELECTORS.CONVERSATION_UNIT);
+        let sequentialTimestamp = Math.floor(Date.now() / 1000);
+
+        // Synchronize the active branch state with current DOM IDs
+        const activeIdsFromDom = [];
+        for (let i = 0; i < turnContainers.length; i++) {
+          const turnContainer = turnContainers[i];
+          if (!(turnContainer instanceof HTMLElement)) continue;
+
+          const turnId = turnContainer.getAttribute(CONSTANTS.ATTRIBUTES.TURN_ID);
+
+          const messageElements = turnContainer.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
+
+          if (messageElements.length > 0) {
+            // MOUNTED: Extract from DOM and update cache
+            const currentTurnIds = [];
+            for (let j = 0; j < messageElements.length; j++) {
+              const msgEl = messageElements[j];
+              if (msgEl instanceof HTMLElement && this.filterMessage(msgEl)) {
+                let holder = msgEl.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
+                if (!holder) holder = msgEl.querySelector(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
+                const msgId = holder ? this.getMessageId(holder) : null;
+                if (msgId) {
+                  currentTurnIds.push(msgId);
+                  activeIdsFromDom.push(msgId);
+                }
+              }
+            }
+            if (turnId && currentTurnIds.length > 0) {
+              activeTurnMessageIds.set(turnId, currentTurnIds);
+            } else if (turnId && currentTurnIds.length === 0) {
+              // Fallback: Turn container exists, but DOM extraction failed (e.g., due to delayed image rendering).
+              // Identify and supplement active nodes belonging to this turn from the API cache.
+              const fallbackIds = [];
+              for (const [id, node] of apiNodesMap.entries()) {
+                const isActive = apiAdapter.isInitialized && typeof apiAdapter.isActiveNode === 'function' ? apiAdapter.isActiveNode(currentChatId, id) : true;
+                if (node.turnId === turnId && isActive) {
+                  // Exclude empty nodes (placeholders) just after generation starts to prevent index shifting.
+                  if (!(node.type === 'text' && node.text === '')) {
+                    fallbackIds.push(id);
+                  }
+                }
+              }
+              if (fallbackIds.length > 0) {
+                // Ensure correct order using topological sort.
+                fallbackIds.sort((a, b) => (orderMap.get(a) ?? Infinity) - (orderMap.get(b) ?? Infinity));
+                activeIdsFromDom.push(...fallbackIds);
+                activeTurnMessageIds.set(turnId, fallbackIds); // Repair cache
+              }
+            }
+          } else if (turnId) {
+            // UNMOUNTED: Supplement with cached IDs to maintain branch integrity for virtual scrolling
+            const cachedIds = activeTurnMessageIds.get(turnId);
+            if (cachedIds) {
+              cachedIds.forEach((id) => {
+                activeIdsFromDom.push(id);
+              });
+            }
+          }
+        }
+
+        if (apiAdapter.isInitialized && typeof apiAdapter.updateActiveBranch === 'function') {
+          apiAdapter.updateActiveBranch(currentChatId, activeIdsFromDom);
+        }
+
+        const isActiveNode = (id) => {
+          if (apiAdapter.isInitialized && typeof apiAdapter.isActiveNode === 'function') {
+            return apiAdapter.isActiveNode(currentChatId, id);
+          }
+          return true; // Fallback if adapter is missing
+        };
+
+        for (let i = 0; i < turnContainers.length; i++) {
+          const turnContainer = turnContainers[i];
+          if (!(turnContainer instanceof HTMLElement)) continue;
+
+          const turnId = turnContainer.getAttribute(CONSTANTS.ATTRIBUTES.TURN_ID);
+          if (!turnId) continue;
+
+          const messageElements = turnContainer.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
+          let extractedFromDom = false;
+
+          if (messageElements.length > 0) {
+            // MOUNTED: Extract from DOM and record active IDs
+            const activeIdsForTurn = [];
+            const tempNodes = [];
+
+            for (let j = 0; j < messageElements.length; j++) {
+              const msgEl = messageElements[j];
+              if (msgEl instanceof HTMLElement && this.filterMessage(msgEl)) {
+                let holder = msgEl.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
+                if (!holder) holder = msgEl.querySelector(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
+                const msgId = holder ? this.getMessageId(holder) : null;
+
+                if (msgId) {
+                  activeIdsForTurn.push(msgId);
+
+                  const cachedNode = apiNodesMap.get(msgId);
+                  let node = null;
+
+                  // Merge API cache and DOM to prevent data loss (e.g., timestamps) while maintaining DOM references.
+                  // Inherit from cache if it exists, otherwise extract from DOM and generate sequential timestamp.
+                  if (cachedNode) {
+                    // Use cached data for past messages to prevent DOM delayed rendering issues, just update DOM references
+                    node = {
+                      ...cachedNode,
+                      element: msgEl,
+                      turnElement: turnContainer,
+                    };
+                  } else {
+                    // Extract from DOM for new or streaming messages
+                    node = this.createMessageNode(msgEl);
+                    if (node) {
+                      node.turnId = turnId;
+                      node.turnElement = turnContainer;
+
+                      // Generate sequential timestamp since API cache is not available
+                      node.timestamp = sequentialTimestamp++;
+
+                      // Update API Cache with fresh DOM node
+                      if (apiAdapter.isInitialized && typeof apiAdapter.addMessageData === 'function') {
+                        apiAdapter.addMessageData(msgId, node);
+                      }
+                    }
+                  }
+
+                  if (node) {
+                    tempNodes.push(node);
+                  }
+                }
+              }
+            }
+
+            if (activeIdsForTurn.length > 0) {
+              extractedFromDom = true;
+              activeTurnMessageIds.set(turnId, activeIdsForTurn);
+              nodes.push(...tempNodes);
+            }
+          }
+
+          if (!extractedFromDom) {
+            // UNMOUNTED or DELAYED: Restore from API Cache
+            const activeIds = activeTurnMessageIds.get(turnId);
+
+            // Check if the cached activeIds are still valid for the current active branch
+            let isCachedIdsValid = false;
+            if (activeIds && activeIds.length > 0) {
+              isCachedIdsValid = activeIds.every((msgId) => isActiveNode(msgId));
+            }
+
+            if (isCachedIdsValid) {
+              // Restore only the previously mounted active IDs
+              for (const msgId of activeIds) {
+                const cachedNode = apiNodesMap.get(msgId);
+                if (cachedNode) {
+                  // Create a fresh node object without stale DOM references
+                  const restoredNode = { ...cachedNode, element: null, turnElement: turnContainer };
+                  nodes.push(restoredNode);
+                }
+              }
+            } else {
+              // Fallback: Restore all active branch nodes for this turn (handles tree switching or initial load)
+              const restoredNodes = [];
+              for (const cachedNode of apiNodesMap.values()) {
+                if (cachedNode.turnId === turnId && isActiveNode(cachedNode.id)) {
+                  const restoredNode = { ...cachedNode, element: null, turnElement: turnContainer };
+                  restoredNodes.push(restoredNode);
+                }
+              }
+
+              // Sort using absolute tree topological order instead of timestamps
+              restoredNodes.sort((a, b) => {
+                const idxA = orderMap.has(a.id) ? orderMap.get(a.id) : Infinity;
+                const idxB = orderMap.has(b.id) ? orderMap.get(b.id) : Infinity;
+                return idxA - idxB;
+              });
+
+              nodes.push(...restoredNodes);
+
+              // Update cache to reflect the new active branch for this unmounted turn
+              activeTurnMessageIds.set(
+                turnId,
+                restoredNodes.map((n) => n.id)
+              );
+            }
+          }
+        }
+
+        return nodes;
+      }
+
+      /** @override */
+      createMessageNode(messageElement) {
+        let messageIdHolder = messageElement.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
+        if (!messageIdHolder) messageIdHolder = messageElement.querySelector(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
+        if (!messageIdHolder) return null;
+        const messageId = this.getMessageId(messageIdHolder);
+        if (!messageId) return null;
+
+        const rawRole = this.getMessageRole(messageElement);
+        let role;
+        if (rawRole === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER) {
+          role = CONSTANTS.INTERNAL_ROLES.USER;
+        } else if (rawRole === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT) {
+          role = CONSTANTS.INTERNAL_ROLES.ASSISTANT;
+        } else {
+          return null; // Ignore invalid roles
+        }
+
+        let hasImage = false;
+        if (CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE && messageElement.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE)) {
+          hasImage = true;
+        }
+        if (CONSTANTS.SELECTORS.RAW_USER_IMAGE_BUBBLE && messageElement.querySelector(CONSTANTS.SELECTORS.RAW_USER_IMAGE_BUBBLE)) {
+          hasImage = true;
+        }
+
+        const type = /** @type {'image'|'text'} */ (hasImage ? 'image' : 'text');
+        const text = this.getJumpListDisplayText(messageElement);
+
+        // Extract current chat ID for fallback nodes
+        const match = window.location.pathname.match(/\/(?:c|share)\/([a-zA-Z0-9-]+)/i);
+        const currentChatId = match ? match[1] : null;
+
+        const rawTurnElement = messageElement.closest(CONSTANTS.SELECTORS.CONVERSATION_UNIT);
+        const turnElement = rawTurnElement instanceof HTMLElement ? rawTurnElement : null;
+
+        return {
+          id: messageId,
+          chatId: currentChatId,
+          turnId: '',
+          role: /** @type {'user'|'assistant'} */ (role),
+          type: type,
+          text: text,
+          timestamp: Math.floor(Date.now() / 1000), // UNIX timestamp
+          element: messageElement,
+          turnElement: turnElement,
+        };
       }
 
       /** @override */
       ensureMessageContainerForImage(imageContentElement) {
+        // We only do this for the specific image selector.
+        if (!imageContentElement.matches(CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE)) {
+          return null;
+        }
+
         // If already inside a message container, do nothing and return it.
         const existingContainer = imageContentElement.closest(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
         if (existingContainer instanceof HTMLElement) {
@@ -3507,16 +3864,13 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
 
         if (!(scrollContainer instanceof HTMLElement)) return;
 
-        let scrollTargetElement = element;
-        // Determine the bubble element based on role to use as the scroll target
-        const role = this.getMessageRole(element);
-        if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER) {
-          const bubble = element.querySelector(CONSTANTS.SELECTORS.RAW_USER_BUBBLE);
-          if (bubble) scrollTargetElement = bubble;
-        } else if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT) {
-          const content = element.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE_FINDER);
-          if (content && content.parentElement) scrollTargetElement = content.parentElement;
-        }
+        // Target the provided container directly to ensure the entire message
+        // (including attached images) is scrolled into view.
+        const scrollTargetElement = element;
+
+        // Setup flag and ID for exclusive scroll control to prevent jittering
+        const myScrollId = Symbol();
+        this._activeScrollId = myScrollId;
 
         // Dispatch a synthetic wheel event to trick ChatGPT's internal state into releasing its scroll lock.
         // This prevents the site's React Scroll Restoration from snapping the view back to the previous position.
@@ -3537,6 +3891,9 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
         let stableFrames = 0;
 
         const adjustScroll = () => {
+          // Exclusive control: stop current loop if a new scrollTo is called
+          if (this._activeScrollId !== myScrollId) return;
+
           const now = performance.now();
           if (now - startTime > MAX_DURATION_MS) return; // Stop if timeout reached
 
@@ -3556,7 +3913,7 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
             stableFrames++;
           }
 
-          // Stop monitoring if position is stable for 3 consecutive frames
+          // Stop monitoring if position is stable for target consecutive frames
           if (stableFrames >= CONSTANTS.RETRY.SCROLL_CORRECTION_STABLE_FRAMES) return;
 
           // Check again on the next render frame
@@ -3565,6 +3922,21 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
 
         // Start the correction loop
         requestAnimationFrame(adjustScroll);
+      }
+
+      /** @override */
+      isAppendOrderValid(newNode, lastNode) {
+        // Safety check: If elements are not mounted in the DOM (unstable state), do not allow partial append.
+        // Force a full rebuild to ensure an accurate state.
+        if (!newNode.element || !lastNode.element) {
+          return false;
+        }
+
+        // Determine validity based on physical DOM position.
+        // Allow append only if the new element is strictly 'following' the last element.
+        // This prevents temporary count spikes during initial load or regeneration where elements mount irregularly.
+        const position = lastNode.element.compareDocumentPosition(newNode.element);
+        return !!(position & Node.DOCUMENT_POSITION_FOLLOWING);
       }
     }
 
@@ -3747,7 +4119,7 @@ ${CONSTANTS.SELECTORS.USER_MESSAGE} .${cls.collapsibleBtn} {right: 4px;}
         const msgWrapper = messageElement.closest(CONSTANTS.SELECTORS.MESSAGE_WRAPPER_FINDER);
         if (!(msgWrapper instanceof HTMLElement)) return null;
 
-        const role = PlatformAdapters.General.getMessageRole(messageElement);
+        const role = messageElement.getAttribute(CONSTANTS.ATTRIBUTES.MESSAGE_ROLE);
         let bubbleElement = null;
 
         if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER) {
@@ -3787,203 +4159,7 @@ ${CONSTANTS.SELECTORS.USER_MESSAGE} .${cls.collapsibleBtn} {right: 4px;}
     }
 
     class ChatGPTAppControllerAdapter extends BaseAppControllerAdapter {
-      /** @override */
-      initializePlatformManagers(controller) {
-        // =================================================================================
-        // SECTION: Auto Scroll Manager
-        // Description: Manages the "layout scan" (simulated PageUp scroll)
-        //              to force layout calculation and prevent scroll anchoring issues.
-        // =================================================================================
-
-        /**
-         * @class AutoScrollManager
-         * @extends BaseAutoScrollManager
-         */
-        class AutoScrollManager extends BaseAutoScrollManager {
-          static CONFIG = {
-            // The minimum number of messages required to trigger the auto-scroll feature.
-            MESSAGE_THRESHOLD: 5, // Lower threshold for ChatGPT as it's for layout scanning
-            // Delay between simulated PageUp scrolls (in ms)
-            SCAN_INTERVAL_MS: 30,
-            // Multiplier for scroll step to speed up scanning
-            SCAN_STEP_MULTIPLIER: 5,
-          };
-
-          /**
-           * @param {ConfigManager} configManager
-           * @param {MessageCacheManager} messageCacheManager
-           * @param {MessageLifecycleManager} messageLifecycleManager
-           */
-          constructor(configManager, messageCacheManager, messageLifecycleManager) {
-            super(configManager, messageCacheManager);
-            this.messageLifecycleManager = messageLifecycleManager;
-            this.scrollContainer = null;
-            this.isInitialScrollCheckDone = false;
-            this.scanLoopId = null; // Use for setTimeout loop
-            this.boundStop = null;
-            this.isLayoutScanComplete = false;
-          }
-
-          /** @override */
-          _onInit() {
-            super._onInit();
-            this.isLayoutScanComplete = false;
-          }
-
-          async start() {
-            if (!isFirefox()) return;
-            if (this.isScrolling || this.isLayoutScanComplete) return;
-
-            // Set the flag immediately to prevent re-entrancy from other events (e.g. button mashing).
-            this.isScrolling = true;
-            Logger.log('', '', 'AutoScrollManager: Starting layout scan (Unthrottled rAF).');
-
-            const scrollContainerEl = document.querySelector(CONSTANTS.SELECTORS.SCROLL_CONTAINER);
-            if (!(scrollContainerEl instanceof HTMLElement)) {
-              Logger.warn('AUTOSCROLL WARN', LOG_STYLES.YELLOW, 'Could not find scroll container.');
-              this.isScrolling = false;
-              return;
-            }
-            this.scrollContainer = scrollContainerEl;
-
-            EventBus.publish(EVENTS.AUTO_SCROLL_START);
-            EventBus.publish(EVENTS.SUSPEND_OBSERVERS);
-
-            // Hide the container to prevent visual flickering
-            this.scrollContainer.style.transition = 'none';
-            this.scrollContainer.style.opacity = '0';
-
-            this.boundStop = () => this.stop(false);
-            this.scrollContainer.addEventListener('wheel', this.boundStop, { passive: true, once: true });
-            this.scrollContainer.addEventListener('touchmove', this.boundStop, { passive: true, once: true });
-
-            const originalScrollTop = this.scrollContainer.scrollTop;
-
-            // Force scroll to the bottom to ensure the scan starts from the end.
-            this.scrollContainer.scrollTop = this.scrollContainer.scrollHeight;
-
-            const scanPageUp = () => {
-              if (!this.isScrolling || !this.scrollContainer) return; // Stop if cancelled
-
-              const currentTop = this.scrollContainer.scrollTop;
-              if (currentTop <= 0) {
-                // Reached the top, restore and stop
-                this.scrollContainer.scrollTop = originalScrollTop; // Restore original position
-                this.isLayoutScanComplete = true; // Set completion flag
-                this.stop(false);
-                return;
-              }
-
-              // Scroll up by multiple pages to speed up the scan
-              const stepSize = this.scrollContainer.clientHeight * AutoScrollManager.CONFIG.SCAN_STEP_MULTIPLIER;
-              this.scrollContainer.scrollTop = Math.max(0, currentTop - stepSize);
-
-              // Continue loop via requestAnimationFrame
-              this.scanLoopId = requestAnimationFrame(scanPageUp);
-            };
-
-            // Start the loop
-            // Add a minimal delay to ensure scrollTop change is registered before scan starts
-            this.scanLoopId = requestAnimationFrame(scanPageUp);
-          }
-
-          stop(isNavigation) {
-            if (!this.isScrolling && !this.scanLoopId) return; // Prevent multiple stops
-
-            Logger.log('', '', 'AutoScrollManager: Stopping layout scan.');
-            this.isScrolling = false;
-
-            if (this.scanLoopId) {
-              cancelAnimationFrame(this.scanLoopId);
-              this.scanLoopId = null;
-            }
-
-            // Restore visibility
-            if (this.scrollContainer) {
-              this.scrollContainer.style.opacity = '1';
-              this.scrollContainer.style.transition = '';
-            }
-            this.scrollContainer = null;
-
-            // Cleanup listeners
-            if (this.boundStop) {
-              this.scrollContainer?.removeEventListener('wheel', this.boundStop);
-              this.scrollContainer?.removeEventListener('touchmove', this.boundStop);
-              this.boundStop = null;
-            }
-
-            EventBus.publish(EVENTS.AUTO_SCROLL_COMPLETE);
-
-            // On navigation, ObserverManager handles observer resumption.
-            // All other post-scan logic (DOM rescan, cache update) is now handled by the listener that *requested* the scan.
-            if (!isNavigation) {
-              EventBus.publish(EVENTS.RESUME_OBSERVERS);
-            }
-          }
-
-          /**
-           * @private
-           * @description Defines the logic to run *after* a scan completes.
-           */
-          _onScanComplete() {
-            // Run the manual scan to create any missing message wrappers
-            if (this.messageLifecycleManager) {
-              this.messageLifecycleManager.scanForUnprocessedMessages();
-            }
-            // Immediately request a cache update to reflect the scan
-            EventBus.publish(EVENTS.CACHE_UPDATE_REQUEST);
-          }
-
-          /** @override */
-          _onCacheUpdated() {
-            if (!isFirefox()) return;
-            if (!this.isEnabled || this.isInitialScrollCheckDone || this.isScrolling) {
-              return;
-            }
-
-            const messageCount = this.messageCacheManager.getTotalMessages().length;
-
-            // Wait for at least one message to ensure history has started loading (First Paint logic)
-            if (messageCount === 0) return;
-
-            // Latch on first data: Mark initialization as done immediately regardless of threshold.
-            // This prevents subsequent message additions (e.g. user sending a message) from triggering a delayed scan.
-            this.isInitialScrollCheckDone = true;
-
-            if (messageCount >= AutoScrollManager.CONFIG.MESSAGE_THRESHOLD) {
-              Logger.log('', '', `AutoScrollManager: ${messageCount} messages found. Triggering layout scan.`);
-
-              // Register the post-scan logic to run *once* on completion
-              this._subscribeOnce(EVENTS.AUTO_SCROLL_COMPLETE, () => this._onScanComplete());
-              // Start the scan
-              EventBus.publish(EVENTS.AUTO_SCROLL_REQUEST);
-            } else {
-              Logger.log('', '', `AutoScrollManager: ${messageCount} messages found (below threshold). Layout scan skipped.`);
-            }
-          }
-
-          /** @override */
-          _onNavigation() {
-            if (this.isScrolling) {
-              // Stop scroll without triggering a UI refresh, as a new page is loading.
-              this.stop(true);
-            }
-            this.isInitialScrollCheckDone = false;
-            this.isLayoutScanComplete = false;
-          }
-        }
-        controller.autoScrollManager = controller.manageFactory(CONSTANTS.RESOURCE_KEYS.AUTO_SCROLL_MANAGER, () => new AutoScrollManager(controller.configManager, controller.messageCacheManager, controller.messageLifecycleManager));
-      }
-
-      /** @override */
-      applyPlatformSpecificUiUpdates(controller, newConfig) {
-        // Enable or disable the auto-scroll manager based on the new config.
-        if (newConfig.platforms[PLATFORM].features.load_full_history_on_chat_load.enabled) {
-          controller.autoScrollManager?.enable();
-        } else {
-          controller.autoScrollManager?.disable();
-        }
-      }
+      // No-op adapter, inherits defaults
     }
 
     class ChatGPTAvatarAdapter extends BaseAvatarAdapter {
@@ -3992,8 +4168,6 @@ ${CONSTANTS.SELECTORS.USER_MESSAGE} .${cls.collapsibleBtn} {right: 4px;}
         const extraCss = `
 /* Set the message ID holder as the positioning anchor for Timestamps */
 ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER} {position: relative !important;}
-/* Adjust avatar position to align with bubble margin */
-${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {top: var(${CSS_VARS.MESSAGE_MARGIN_TOP});}
 `;
         return StyleTemplates.getAvatarCss(extraCss);
       }
@@ -4027,15 +4201,21 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {top: var(${CSS_VARS.MESSAGE_MARGIN
           };
         }
 
+        // Find the *first* message element within this turn.
+        const firstMessageElement = turnContainer.querySelector(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
+        if (!(firstMessageElement instanceof HTMLElement)) {
+          return null; // No message element found to attach to
+        }
+
         // Guard: Skip avatar injection for Deep Research result containers.
         // These containers have their own layout that conflicts with the avatar.
-        if (turnContainer.querySelector(CONSTANTS.SELECTORS.DEEP_RESEARCH_RESULT)) {
+        if (firstMessageElement.querySelector(CONSTANTS.SELECTORS.DEEP_RESEARCH_RESULT)) {
           return null;
         }
 
         return {
           shouldInject: true,
-          targetElement: centeredWrapper,
+          targetElement: firstMessageElement,
           processedTarget: turnContainer,
           exclusionKey: turnContainer,
           originalElement: msgElem,
@@ -4453,13 +4633,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {top: var(${CSS_VARS.MESSAGE_MARGIN
     class ChatGPTSettingsPanelAdapter extends BaseSettingsPanelAdapter {
       /** @override */
       getPlatformSpecificFeatureToggles() {
-        const toggles = [{ configKey: 'features.timestamp.enabled' }, { configKey: 'features.collapsible_button.auto_collapse_user_message.enabled' }];
-
-        if (isFirefox()) {
-          toggles.unshift({ configKey: 'features.load_full_history_on_chat_load.enabled' });
-        }
-
-        return toggles;
+        return [{ configKey: 'features.timestamp.enabled' }, { configKey: 'features.collapsible_button.auto_collapse_user_message.enabled' }];
       }
     }
 
@@ -4505,7 +4679,10 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {top: var(${CSS_VARS.MESSAGE_MARGIN
       }
 
       /** @override */
-      applyAdditionalHighlight(messageElement, styleHandle) {
+      applyAdditionalHighlight(messageNode, styleHandle) {
+        if (!messageNode || !messageNode.element) return;
+        const messageElement = messageNode.element;
+
         const role = PlatformAdapters.General.getMessageRole(messageElement);
         if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT) {
           const turnContainer = messageElement.closest(CONSTANTS.SELECTORS.CONVERSATION_UNIT);
@@ -4526,20 +4703,12 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {top: var(${CSS_VARS.MESSAGE_MARGIN
         const autoscrollBtn = h(
           `button#${cls.autoscrollBtnId}.${cls.btn}`,
           {
-            title: 'Run layout scan and rescan DOM',
-            dataset: { [CONSTANTS.DATA_KEYS.ORIGINAL_TITLE]: 'Run layout scan and rescan DOM' },
-            onclick: () => {
-              // 1. Subscribe once to the completion event
-              fixedNavManagerInstance.registerPlatformListenerOnce(EVENTS.AUTO_SCROLL_COMPLETE, () => {
-                // 2. Perform the "DOM Rescan" logic *after* scan is complete.
-                if (fixedNavManagerInstance.messageLifecycleManager) {
-                  fixedNavManagerInstance.messageLifecycleManager.scanForUnprocessedMessages();
-                }
-                EventBus.publish(EVENTS.CACHE_UPDATE_REQUEST);
-              });
-
-              // 3. Start the scan.
-              EventBus.publish(EVENTS.AUTO_SCROLL_REQUEST);
+            title: 'Auto-scroll is not required on ChatGPT.',
+            disabled: true,
+            style: { opacity: '0.5', cursor: 'not-allowed' },
+            dataset: { [CONSTANTS.DATA_KEYS.ORIGINAL_TITLE]: 'Auto-scroll is not required on ChatGPT.' },
+            onclick: (e) => {
+              e.preventDefault();
             },
           },
           [createIconFromDef(StyleDefinitions.ICONS.scrollToTop)]
@@ -4550,30 +4719,19 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {top: var(${CSS_VARS.MESSAGE_MARGIN
 
       /** @override */
       updatePlatformSpecificButtonState(autoscrollBtn, isAutoScrolling, autoScrollManager) {
-        if (!isFirefox()) {
-          autoscrollBtn.disabled = true;
-          autoscrollBtn.title = 'Layout scan is not required on your browser.';
-          autoscrollBtn.style.opacity = '0.5';
-          return;
-        }
+        autoscrollBtn.disabled = true;
+        autoscrollBtn.title = 'Auto-scroll is not required on ChatGPT.';
+        autoscrollBtn.style.opacity = '0.5';
+        autoscrollBtn.style.cursor = 'not-allowed';
+      }
 
-        const isScanComplete = autoScrollManager?.isLayoutScanComplete;
-        const isDisabled = isAutoScrolling || isScanComplete;
-
-        autoscrollBtn.disabled = isDisabled;
-        autoscrollBtn.style.opacity = '1';
-
-        if (isScanComplete) {
-          autoscrollBtn.title = 'Layout scan complete';
-        } else if (isAutoScrolling) {
-          autoscrollBtn.title = 'Scanning layout...';
-        } else {
-          autoscrollBtn.title = DomState.get(autoscrollBtn, CONSTANTS.DATA_KEYS.ORIGINAL_TITLE);
-        }
+      /** @override */
+      getShiftActionText() {
+        return '\n[Shift] Auto-scroll';
       }
     }
 
-    class ChatGPTTimestampAdapter extends BaseTimestampAdapter {
+    class ChatGPTApiMessageAdapter extends BaseApiMessageAdapter {
       constructor() {
         super();
         this.originalFetch = unsafeWindow.fetch.bind(unsafeWindow);
@@ -4581,6 +4739,9 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {top: var(${CSS_VARS.MESSAGE_MARGIN
         this.isInterceptionEnabled = false;
         this.fetchWrapperSymbol = Symbol.for(`${APPID}:FETCH_WRAPPER`);
         this._lastFetchObserveErrorAt = 0; // Rate-limit observer errors to avoid log spam
+        this.parentMap = new Map(); // Mapping from node ID to parent node ID
+        /** @type {Map<string, string>} Mapping from chatId to its current leaf message ID */
+        this.chatLeafMap = new Map();
       }
 
       /** @override */
@@ -4591,7 +4752,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {top: var(${CSS_VARS.MESSAGE_MARGIN
 
         // Check if unsafeWindow is available and valid
         if (typeof unsafeWindow === 'undefined' || !unsafeWindow.fetch) {
-          Logger.error('TIMESTAMP', '', 'unsafeWindow.fetch is unavailable. Adapter disabled.');
+          Logger.error('API_MESSAGE', '', 'unsafeWindow.fetch is unavailable. Adapter disabled.');
           return;
         }
 
@@ -4609,8 +4770,17 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {top: var(${CSS_VARS.MESSAGE_MARGIN
           // Override the page's fetch
           unsafeWindow.fetch = wrappedFetch;
 
+          // EventBus subscription for DOM reference cleanup to prevent memory leaks
+          EventBus.subscribe(
+            EVENTS.NAVIGATION_START,
+            () => {
+              this.clearDomReferences();
+            },
+            'ChatGPTApiMessageAdapter.clearDomReferences'
+          );
+
           this.isInitialized = true;
-          Logger.debug('TIMESTAMP', LOG_STYLES.TEAL, 'Successfully intercepted unsafeWindow.fetch');
+          Logger.debug('API_MESSAGE', LOG_STYLES.TEAL, 'Successfully intercepted unsafeWindow.fetch');
         } catch (e) {
           Logger.error('FETCH WRAP FAILED', LOG_STYLES.RED, 'Could not wrap fetch:', e);
           // Attempt to restore if partially failed
@@ -4626,38 +4796,61 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {top: var(${CSS_VARS.MESSAGE_MARGIN
         // Restoring the original fetch here can destroy site-specific polyfills or interceptors applied after our initialization.
         if (this.isInitialized) {
           this.isInterceptionEnabled = false;
-          Logger.debug('TIMESTAMP', LOG_STYLES.TEAL, 'Disabled fetch interception (pass-through mode activated).');
+          Logger.debug('API_MESSAGE', LOG_STYLES.TEAL, 'Disabled fetch interception (pass-through mode activated).');
         }
-        // Data cache is preserved (BaseTimestampAdapter behavior)
+        // Data cache is preserved (BaseApiMessageAdapter behavior)
+      }
+
+      _getChatIdFromCurrentUrl() {
+        const match = window.location.pathname.match(/\/(?:c|share)\/([a-zA-Z0-9-]+)/i);
+        return match ? match[1] : null;
       }
 
       /** @override */
-      hasTimestampLogic() {
-        return true;
-      }
-
-      /** @override */
-      isTimestampEnabledSync(defaultConfig) {
-        try {
-          const storedValue = localStorage.getItem(CONSTANTS.STORE_KEYS.LOCAL_TIMESTAMP_ENABLED);
-          if (storedValue !== null) {
-            return storedValue === 'true';
+      addMessageData(id, node) {
+        // Dynamically register the parent for real-time messages not present in the API JSON
+        if (node && node.chatId && !this.parentMap.has(id)) {
+          const currentLeafId = this.chatLeafMap.get(node.chatId);
+          if (currentLeafId && currentLeafId !== id) {
+            this.parentMap.set(id, currentLeafId);
           }
-        } catch (e) {
-          Logger.warn('TIMESTAMP', '', 'Failed to access localStorage. Falling back to default config.', e);
         }
-        return Boolean(defaultConfig?.features?.timestamp?.enabled);
+        super.addMessageData(id, node);
+      }
+
+      /** @override */
+      getAllMessageData() {
+        const currentChatId = this._getChatIdFromCurrentUrl();
+
+        // When opening a new chat screen, clean up past temporary caches (chatId === null) as they are remnants of other chats.
+        if (!currentChatId) {
+          for (const [id, node] of this.cache.entries()) {
+            if (node.chatId === null) {
+              this.cache.delete(id);
+            }
+          }
+        }
+
+        const allNodes = Array.from(this.cache.values());
+
+        // Filter nodes belonging to the current chat.
+        // If a node has no chatId (e.g. generated during a New Chat session before URL update),
+        // we tentatively include it. Once the URL updates, it will remain without chatId
+        // but will be correctly scoped to the active session.
+        return allNodes.filter((node) => node.chatId === currentChatId || node.chatId === null);
       }
 
       _getChatIdFromUrl(url) {
         if (!url) return null;
-        // Match .../conversation/[ID] only. Must end with the ID.
+        // Match .../conversation/[ID] or .../shared_conversation/[ID] only. Must end with the ID.
         // The ID must contain at least 4 hyphens.
         // (e.g., 8-4-4-4-12 format)
-        const endpoint = CONSTANTS.URL_PATTERNS.CONVERSATION_ENDPOINT;
-        const pattern = new RegExp(`${escapeRegExp(endpoint)}\\/([^/]*-[^/]*-[^/]*-[^/]*-[^/]+)$`);
-        const match = url.match(pattern);
-        return match ? match[1] : null;
+        for (const endpoint of CONSTANTS.URL_PATTERNS.CONVERSATION_ENDPOINTS) {
+          const pattern = new RegExp(`${escapeRegExp(endpoint)}\\/([^/]*-[^/]*-[^/]*-[^/]*-[^/]+)$`);
+          const match = url.match(pattern);
+          if (match) return match[1];
+        }
+        return null;
       }
 
       _wrappedFetch(input, init) {
@@ -4694,7 +4887,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {top: var(${CSS_VARS.MESSAGE_MARGIN
       }
 
       /**
-       * Processes the intercepted response to extract timestamps.
+       * Processes the intercepted response to extract message data.
        * @param {RequestInfo|URL} input
        * @param {Response} response
        */
@@ -4715,7 +4908,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {top: var(${CSS_VARS.MESSAGE_MARGIN
         let chatId = this._getChatIdFromUrl(normalizedUrl);
 
         // Only process conversation endpoints
-        if (!normalizedUrl.includes(CONSTANTS.URL_PATTERNS.CONVERSATION_ENDPOINT)) return;
+        const isConversationEndpoint = CONSTANTS.URL_PATTERNS.CONVERSATION_ENDPOINTS.some((endpoint) => normalizedUrl.includes(endpoint));
+        if (!isConversationEndpoint) return;
 
         // Check response status
         if (!response.ok || response.status !== 200) return;
@@ -4735,49 +4929,298 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {top: var(${CSS_VARS.MESSAGE_MARGIN
           // not other endpoints like /conversations (history list).
           if (!chatId) return;
 
-          // Parse the JSON data
-          const timestamps = this._extractTimestamps(data);
+          // Parse the JSON data and pass chatId
+          const messagesMap = this._extractMessages(data, chatId);
 
-          if (timestamps.size > 0) {
+          if (messagesMap.size > 0) {
+            // Update the leaf map with the current_node from API if not already set or if explicitly provided
+            if (data.current_node) {
+              this.chatLeafMap.set(chatId, data.current_node);
+            }
+
+            // Clear existing cache for THIS chat to prevent stale branches from inflating counts
+            for (const [id, node] of this.cache.entries()) {
+              if (node.chatId === chatId) {
+                this.cache.delete(id);
+              }
+            }
+
             // Store in persistent cache
-            timestamps.forEach((date, id) => this.addTimestamp(id, date));
+            messagesMap.forEach((node, id) => this.addMessageData(id, node));
             // Publish event
-            EventBus.publish(EVENTS.TIMESTAMPS_LOADED, { timestamps });
+            EventBus.publish(EVENTS.API_MESSAGES_LOADED, { messages: messagesMap });
           }
         } catch (e) {
-          Logger.error('TIMESTAMP ERROR', LOG_STYLES.RED, 'Failed to parse conversation JSON:', e);
+          Logger.error('API_MESSAGE ERROR', LOG_STYLES.RED, 'Failed to parse conversation JSON:', e);
         }
       }
 
       /**
-       * Extracts timestamps from the parsed JSON object.
-       * @param {object} data - The parsed JSON response.
-       * @returns {Map<string, Date>}
+       * Checks if a raw message object from the API is valid for UI display.
+       * @param {Object} msg - The raw message object from the JSON response.
+       * @returns {boolean} True if the message should be displayed, false otherwise.
        */
-      _extractTimestamps(data) {
-        /** @type {Map<string, Date>} */
-        const newTimestamps = new Map();
-        let added = 0;
+      _isValidMessage(msg) {
+        const { recipient, metadata, content, author } = msg;
 
-        if (data && data.mapping) {
-          Object.values(data.mapping).forEach((item) => {
-            if (item && item.message && item.message.id && item.message.create_time) {
-              // Add to our temporary map. We don't check for existence,
-              // TimestampManager will handle merging/overwriting.
-              newTimestamps.set(item.message.id, new Date(item.message.create_time * 1000));
-              added++;
-            }
-          });
-
-          if (added > 0) {
-            Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, `Parsed ${added} historical timestamps.`);
-          } else {
-            Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, 'API response processed, but no valid timestamps were found in data.mapping.');
-          }
-        } else {
-          Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, 'API response processed, but data.mapping was not found or was empty.');
+        if (recipient !== 'all') {
+          return false;
         }
-        return newTimestamps;
+
+        if (metadata?.is_visually_hidden_from_conversation === true) {
+          return false;
+        }
+
+        const contentType = content?.content_type;
+        if (['model_editable_context', 'user_editable_context'].includes(contentType)) {
+          return false;
+        }
+
+        const parts = content?.parts ?? [];
+        if (parts.length === 0) {
+          return false;
+        }
+
+        const isAllEmptyStrings = parts.every((part) => typeof part === 'string' && part.trim() === '');
+        if (isAllEmptyStrings) {
+          return false;
+        }
+
+        // Strict role filtering to exclude internal system/tool messages
+        const role = author?.role;
+        if (role === 'system') {
+          return false;
+        }
+
+        if (role === 'tool') {
+          // Only allow tool messages if they contain a visible image asset (e.g., DALL-E)
+          const hasImage = parts.some((part) => typeof part === 'object' && part !== null && part.content_type === 'image_asset_pointer');
+          if (!hasImage) {
+            return false;
+          }
+        }
+
+        return true;
+      }
+
+      /**
+       * Clears DOM references from cached nodes to prevent memory leaks during navigation.
+       */
+      clearDomReferences() {
+        for (const node of this.cache.values()) {
+          node.element = null;
+          node.turnElement = null;
+        }
+        Logger.debug('API_MESSAGE', LOG_STYLES.TEAL, 'Cleared DOM references from API cache to prevent memory leaks.');
+      }
+
+      /**
+       * Updates the active leaf ID for a specific chat based on the currently mounted IDs from the DOM.
+       * @param {string|null} chatId - The ID of the chat.
+       * @param {string[]} domIds - Array of message IDs currently present or referenced in the DOM.
+       */
+      updateActiveBranch(chatId, domIds) {
+        if (!chatId || !domIds || domIds.length === 0) return;
+
+        // Determine the deepest mounted message ID (New Leaf)
+        const latestIdFromDom = domIds[domIds.length - 1];
+        const currentLeafId = this.chatLeafMap.get(chatId); // Old Leaf
+
+        if (latestIdFromDom === currentLeafId) return;
+
+        // Initial assignment
+        if (!currentLeafId) {
+          this.chatLeafMap.set(chatId, latestIdFromDom);
+          return;
+        }
+
+        // Dynamically register missing parent-child relationships using DOM order
+        // Required for fallback caching mechanisms that rely on parentMap traversing
+        for (let i = 1; i < domIds.length; i++) {
+          const childId = domIds[i];
+          const parentId = domIds[i - 1];
+          if (!this.parentMap.has(childId)) {
+            this.parentMap.set(childId, parentId);
+          }
+        }
+
+        // Check if the new leaf is actually an ancestor of the current leaf (e.g., due to DOM rendering delay of image messages)
+        let isAncestor = false;
+        let checkId = currentLeafId;
+        while (checkId) {
+          if (checkId === latestIdFromDom) {
+            isAncestor = true;
+            break;
+          }
+          checkId = this.parentMap.get(checkId);
+        }
+
+        if (isAncestor) {
+          // The DOM is just lagging behind the API cache. Do not rewind the active branch.
+          return;
+        }
+
+        // Check if the old leaf is in the ancestry of the new leaf using the robust parentMap
+        let isBranchSwitched = true;
+        let currId = latestIdFromDom;
+        while (currId) {
+          if (currId === currentLeafId) {
+            isBranchSwitched = false;
+            break;
+          }
+          currId = this.parentMap.get(currId);
+        }
+
+        if (isBranchSwitched) {
+          Logger.debug('API_MESSAGE', LOG_STYLES.TEAL, `Branch switched for chat ${chatId}. New leaf: ${latestIdFromDom}`);
+        }
+
+        // Update the internal state to reflect the new leaf node
+        this.chatLeafMap.set(chatId, latestIdFromDom);
+      }
+
+      /**
+       * Checks if a node belongs to the active branch of a specific chat.
+       * @param {string|null} chatId
+       * @param {string} nodeId
+       * @returns {boolean}
+       */
+      isActiveNode(chatId, nodeId) {
+        if (!chatId) return true;
+        const leafId = this.chatLeafMap.get(chatId);
+        if (!leafId) return true; // Fallback if no leaf is recorded yet
+
+        let currId = leafId;
+        while (currId) {
+          if (currId === nodeId) return true;
+          currId = this.parentMap.get(currId);
+        }
+        return false;
+      }
+
+      /** @override */
+      clearCache() {
+        super.clearCache();
+        this.parentMap.clear();
+        this.chatLeafMap.clear();
+      }
+
+      /**
+       * Extracts and parses messages from the JSON object.
+       * Processes the entire mapping to support all branches (chat trees).
+       * @param {object} data - The parsed JSON response.
+       * @param {string} chatId - The conversation ID.
+       * @returns {Map<string, MessageNode>}
+       */
+      _extractMessages(data, chatId) {
+        /** @type {Map<string, MessageNode>} */
+        const messagesMap = new Map();
+        if (!data || !data.mapping) return messagesMap;
+
+        const nodeMap = data.mapping;
+        const turnIdCache = new Map();
+
+        // 1. Build parent map and initialize active branch for tree tracking
+        Object.keys(nodeMap).forEach((nodeId) => {
+          const parentId = nodeMap[nodeId]?.parent;
+          if (parentId) {
+            this.parentMap.set(nodeId, parentId);
+          }
+        });
+
+        // Initialize active branch from current_node (if available) to support unmounted nodes on initial load
+        if (data.current_node) {
+          this.chatLeafMap.set(chatId, data.current_node);
+        }
+
+        /**
+         * Resolves the turnId for a given node.
+         * A new turnId is established when the role switches between 'user' and 'non-user', or when a 'system' message appears (which ChatGPT uses as an explicit turn boundary).
+         */
+        const resolveTurnId = (nodeId) => {
+          if (turnIdCache.has(nodeId)) return turnIdCache.get(nodeId);
+
+          const path = [];
+          let currId = nodeId;
+          while (currId && currId !== 'client-created-root' && !turnIdCache.has(currId)) {
+            path.push(currId);
+            currId = nodeMap[currId]?.parent;
+          }
+
+          let currentTurnId = currId && turnIdCache.has(currId) ? turnIdCache.get(currId) : null;
+
+          // Traverse top-down to identify turn boundaries based on role changes and system messages
+          for (let i = path.length - 1; i >= 0; i--) {
+            const id = path[i];
+            const item = nodeMap[id];
+            const parentItem = item.parent ? nodeMap[item.parent] : null;
+
+            const getRoleType = (node) => {
+              const role = node?.message?.author?.role;
+              return role === 'user' ? 'user' : 'non-user';
+            };
+
+            const roleType = getRoleType(item);
+            const parentRoleType = getRoleType(parentItem);
+            const isSystem = item?.message?.author?.role === 'system';
+
+            // A new turn starts if this is the first node, the role is 'system', or the role type changed from the parent
+            if (!currentTurnId || isSystem || roleType !== parentRoleType) {
+              currentTurnId = id;
+            }
+            turnIdCache.set(id, currentTurnId);
+          }
+
+          return currentTurnId;
+        };
+
+        // 2. Extract and format message data
+        Object.keys(nodeMap).forEach((nodeId) => {
+          const item = nodeMap[nodeId];
+          const msg = item?.message;
+
+          if (msg && this._isValidMessage(msg)) {
+            const { id, author, content, create_time } = msg;
+
+            const rawRole = author?.role;
+            const role = rawRole === 'tool' ? 'assistant' : rawRole;
+
+            const parts = content?.parts ?? [];
+            const hasImage = parts.some((part) => typeof part === 'object' && part !== null && part.content_type === 'image_asset_pointer');
+
+            const type = hasImage ? 'image' : 'text';
+
+            // Extract and join text parts, then prepend image prefix if necessary
+            const textContent = parts
+              .filter((part) => typeof part === 'string')
+              .join('\n')
+              .trim();
+            const text = hasImage ? `(image) ${textContent}`.trim() : textContent;
+
+            const turnId = resolveTurnId(nodeId);
+            const timestamp = create_time ?? 0;
+
+            /** @type {MessageNode} */
+            const node = {
+              id,
+              chatId,
+              turnId,
+              role,
+              type,
+              text,
+              timestamp,
+              element: null,
+              turnElement: null,
+            };
+
+            messagesMap.set(id, node);
+          }
+        });
+
+        if (messagesMap.size > 0) {
+          Logger.debug('API_MESSAGES', LOG_STYLES.TEAL, `Parsed ${messagesMap.size} messages across all branches.`);
+        }
+        return messagesMap;
       }
     }
 
@@ -4800,7 +5243,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {top: var(${CSS_VARS.MESSAGE_MARGIN
       Observer: new ChatGPTObserverAdapter(),
       SettingsPanel: new ChatGPTSettingsPanelAdapter(),
       FixedNav: new ChatGPTFixedNavAdapter(),
-      Timestamp: new ChatGPTTimestampAdapter(),
+      ApiMessage: new ChatGPTApiMessageAdapter(),
       UIManager: new ChatGPTUIManagerAdapter(),
     };
 
@@ -4823,13 +5266,17 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {top: var(${CSS_VARS.MESSAGE_MARGIN
     // ---- Default Settings & Theme Configuration ----
     const CONSTANTS = {
       ...SHARED_CONSTANTS,
+      CAPABILITIES: {
+        TIMESTAMP: false,
+        API_MESSAGE: false,
+      },
       UI_SPECS: {
         ...SHARED_CONSTANTS.UI_SPECS,
         HEADER_POSITION_MIN_WIDTH: 960,
       },
       OBSERVER_OPTIONS: {
         childList: true,
-        subtree: true,
+        subtree: false,
       },
       Z_INDICES: {
         ...SHARED_CONSTANTS.Z_INDICES,
@@ -4940,6 +5387,9 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {top: var(${CSS_VARS.MESSAGE_MARGIN
       URL_PATTERNS: {
         EXCLUDED: [],
       },
+      STRINGS: {
+        INTERNAL_ID_PREFIX: 'gemini-msg-',
+      },
     };
 
     // ---- Site-specific Style Variables ----
@@ -5048,20 +5498,19 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {top: var(${CSS_VARS.MESSAGE_MARGIN
 
       /** @override */
       getMessageId(element) {
-        if (!element) return null;
-        return element.getAttribute(CONSTANTS.ATTRIBUTES.MESSAGE_ID);
+        // In Gemini, the DOM is the source of truth. Returning the internally assigned ID is the normal flow.
+        return getVirtualId(element);
       }
 
       /** @override */
       getMessageRole(messageElement) {
-        if (!messageElement) return null;
         return messageElement.tagName.toLowerCase();
       }
 
       /** @override */
       getChatTitle() {
         // 1. Try to get title from selected chat history item
-        const chatTitle = document.querySelector(CONSTANTS.SELECTORS.CONVERSATION_TITLE_WRAPPER)?.querySelector(CONSTANTS.SELECTORS.CONVERSATION_TITLE_TEXT)?.textContent.trim();
+        const chatTitle = document.querySelector(CONSTANTS.SELECTORS.CONVERSATION_TITLE_WRAPPER)?.querySelector(CONSTANTS.SELECTORS.CONVERSATION_TITLE_TEXT)?.textContent?.trim();
         if (chatTitle) {
           return chatTitle;
         }
@@ -5069,7 +5518,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {top: var(${CSS_VARS.MESSAGE_MARGIN
         // 2. If no chat selected, try to get title from selected Gem
         const selectedGem = document.querySelector(CONSTANTS.SELECTORS.GEM_SELECTED_ITEM);
         if (selectedGem) {
-          return selectedGem.querySelector(CONSTANTS.SELECTORS.GEM_NAME)?.textContent.trim() ?? null;
+          return selectedGem.querySelector(CONSTANTS.SELECTORS.GEM_NAME)?.textContent?.trim() ?? null;
         }
 
         // Return null if no specific chat or Gem is active (e.g., initial load or "New Chat" page).
@@ -5114,6 +5563,72 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {top: var(${CSS_VARS.MESSAGE_MARGIN
       }
 
       /** @override */
+      extractMessageNodes() {
+        /** @type {MessageNode[]} */
+        const nodes = [];
+        const rootContainer = this.getMessagesRoot();
+        if (!rootContainer) return nodes;
+
+        const allCandidates = rootContainer.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
+
+        for (let i = 0; i < allCandidates.length; i++) {
+          const msg = allCandidates[i];
+          if (msg instanceof HTMLElement) {
+            const node = this.createMessageNode(msg);
+            if (node) {
+              nodes.push(node);
+            }
+          }
+        }
+        return nodes;
+      }
+
+      /** @override */
+      createMessageNode(messageElement) {
+        // In Gemini, the messageElement itself (user-query or model-response) is treated as the entity.
+        // Assign an internal ID to unmapped DOM elements (normal flow).
+        const messageId = getOrCreateVirtualId(messageElement, CONSTANTS.STRINGS.INTERNAL_ID_PREFIX);
+
+        if (!messageId) return null;
+
+        const rawRole = this.getMessageRole(messageElement);
+        let role;
+        if (rawRole === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER) {
+          role = CONSTANTS.INTERNAL_ROLES.USER;
+        } else if (rawRole === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT) {
+          role = CONSTANTS.INTERNAL_ROLES.ASSISTANT;
+        } else {
+          return null;
+        }
+
+        let hasImage = false;
+        if (CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE && messageElement.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE)) {
+          hasImage = true;
+        }
+        if (CONSTANTS.SELECTORS.RAW_USER_IMAGE_BUBBLE && messageElement.querySelector(CONSTANTS.SELECTORS.RAW_USER_IMAGE_BUBBLE)) {
+          hasImage = true;
+        }
+
+        const type = /** @type {'image'|'text'} */ (hasImage ? 'image' : 'text');
+        const text = this.getJumpListDisplayText(messageElement);
+
+        const rawTurnElement = messageElement.closest(CONSTANTS.SELECTORS.CONVERSATION_UNIT);
+        const turnElement = rawTurnElement instanceof HTMLElement ? rawTurnElement : null;
+
+        return {
+          id: messageId,
+          chatId: null,
+          turnId: '',
+          role: /** @type {'user'|'assistant'} */ (role),
+          type: type,
+          text: text,
+          timestamp: null,
+          element: messageElement,
+          turnElement: turnElement,
+        };
+      }
+
+      /** @override */
       initializeSentinel(callback) {
         // prettier-ignore
         const combinedSelector = [
@@ -5144,6 +5659,16 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {top: var(${CSS_VARS.MESSAGE_MARGIN
         setTimeout(() => {
           element.style.scrollMarginTop = originalScrollMargin;
         }, CONSTANTS.TIMING.TIMEOUTS.SCROLL_OFFSET_CLEANUP);
+      }
+
+      /** @override */
+      isAppendOrderValid(newNode, lastNode) {
+        // For Gemini, rely on DOM positions.
+        if (!newNode.element || !lastNode.element) {
+          return false; // Force rebuild if elements are missing to be safe
+        }
+        const position = lastNode.element.compareDocumentPosition(newNode.element);
+        return !!(position & Node.DOCUMENT_POSITION_FOLLOWING);
       }
     }
 
@@ -5943,9 +6468,14 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
           autoscrollBtn.title = DomState.get(autoscrollBtn, CONSTANTS.DATA_KEYS.ORIGINAL_TITLE);
         }
       }
+
+      /** @override */
+      getShiftActionText() {
+        return '\n[Shift] Load history';
+      }
     }
 
-    class GeminiTimestampAdapter extends BaseTimestampAdapter {
+    class GeminiApiMessageAdapter extends BaseApiMessageAdapter {
       // No-op adapter, inherits defaults
     }
 
@@ -5968,7 +6498,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       Observer: new GeminiObserverAdapter(),
       SettingsPanel: new GeminiSettingsPanelAdapter(),
       FixedNav: new GeminiFixedNavAdapter(),
-      Timestamp: new GeminiTimestampAdapter(),
+      ApiMessage: new GeminiApiMessageAdapter(),
       UIManager: new GeminiUIManagerAdapter(),
     };
 
@@ -6456,7 +6986,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         EVENTS.VISIBILITY_RECHECK,
         EVENTS.UI_REPOSITION,
         EVENTS.INPUT_AREA_RESIZED,
-        EVENTS.TIMESTAMP_ADDED,
+        EVENTS.API_MESSAGE_ADDED,
         EVENTS.CHAT_CONTENT_WIDTH_UPDATED,
         EVENTS.NAVIGATION,
         EVENTS.NAVIGATION_START,
@@ -8036,14 +8566,6 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
   }
 
   /**
-   * Checks if the current browser is Firefox.
-   * @returns {boolean} True if the browser is Firefox, otherwise false.
-   */
-  function isFirefox() {
-    return navigator.userAgent.includes('Firefox');
-  }
-
-  /**
    * @typedef {Node|string|number|boolean|null|undefined} HChild
    */
   /**
@@ -8183,6 +8705,45 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     return `${APPID}-${prefix}-${crypto.randomUUID()}`;
   }
 
+  /**
+   * Virtual ID manager using a closure to encapsulate state.
+   * Manages unique IDs for DOM elements that lack native identifiers.
+   */
+  const { getVirtualId, getOrCreateVirtualId } = (() => {
+    const virtualIdMap = new WeakMap();
+    let virtualIdCounter = 0;
+
+    return {
+      /**
+       * Gets the virtual ID for a given element if it exists.
+       * @param {HTMLElement} element
+       * @returns {string | null}
+       */
+      getVirtualId: (element) => {
+        if (!(element instanceof HTMLElement)) return null;
+        return virtualIdMap.get(element) || null;
+      },
+      /**
+       * Gets the virtual ID for a given element, or creates a new one if it doesn't exist.
+       * @param {HTMLElement} element
+       * @param {string} prefix
+       * @returns {string | null}
+       */
+      getOrCreateVirtualId: (element, prefix) => {
+        if (!(element instanceof HTMLElement)) return null;
+        let id = virtualIdMap.get(element);
+        if (!id) {
+          id = `${prefix}${++virtualIdCounter}`;
+          virtualIdMap.set(element, id);
+        }
+        return id;
+      },
+    };
+  })();
+
+  /**
+   * Proposes a unique name by appending a suffix if the base name already exists in a given set.
+  
   /**
    * Proposes a unique name by appending a suffix if the base name already exists in a given set.
    * It checks for "Copy", "Copy 2", "Copy 3", etc., in a case-insensitive manner.
@@ -9150,16 +9711,6 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
      * @returns {Promise<void>}
      */
     async save(obj) {
-      // --- Sync timestamp toggle to localStorage (ChatGPT only) ---
-      if (PlatformAdapters.Timestamp.hasTimestampLogic()) {
-        try {
-          const isTimestampEnabled = Boolean(obj?.platforms?.[PLATFORM]?.features?.timestamp?.enabled);
-          localStorage.setItem(CONSTANTS.STORE_KEYS.LOCAL_TIMESTAMP_ENABLED, String(isTimestampEnabled));
-        } catch (e) {
-          Logger.warn('Config', '', 'Failed to access localStorage for timestamp toggle sync.', e);
-        }
-      }
-
       // 1. Sanitization & Normalization
       // Do NOT deepClone the entire object to avoid performance hit with large images.
       const { themeSets, ...configWithoutThemes } = obj;
@@ -9707,9 +10258,13 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
      */
     constructor(streamingState) {
       super();
+      /** @type {MessageNode[]} */
       this.userMessages = [];
+      /** @type {MessageNode[]} */
       this.assistantMessages = [];
+      /** @type {MessageNode[]} */
       this.totalMessages = [];
+      /** @type {Map<string, { role: 'user'|'assistant', index: number, totalIndex: number }>} */
       this.elementMap = new Map();
       this.streamingState = streamingState;
       this.debouncedRebuildCache = debounce(this.rebuild.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.CACHE_UPDATE, true);
@@ -9729,9 +10284,27 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         this.debouncedRebuildCache();
       });
 
-      this._subscribe(EVENTS.RAW_MESSAGE_ADDED, (element) => {
-        // Determine dynamically whether to append or rebuild based on DOM position.
-        this.append(element);
+      // Rebuild cache when historical API messages are loaded
+      this._subscribe(EVENTS.API_MESSAGES_LOADED, () => {
+        this.debouncedRebuildCache();
+      });
+
+      // Process new message nodes detected in real-time or update DOM bindings
+      this._subscribe(EVENTS.API_MESSAGE_ADDED, (payload) => {
+        if (payload && payload.node) {
+          const existingInfo = this.elementMap.get(payload.node.id);
+          if (existingInfo) {
+            // Update DOM references for virtual scroll re-mounting
+            const existingNode = this.totalMessages[existingInfo.totalIndex];
+            if (existingNode && existingNode.element !== payload.node.element) {
+              existingNode.element = payload.node.element;
+              existingNode.turnElement = payload.node.turnElement;
+              this.debouncedNotify();
+            }
+          } else {
+            this.append(payload.node);
+          }
+        }
       });
 
       this.rebuild();
@@ -9758,49 +10331,54 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         return;
       }
 
-      // Limit search scope to the messages root container
-      const rootContainer = PlatformAdapters.General.getMessagesRoot();
+      // Preserve old map and arrays to maintain object identity across virtual scrolls
+      const oldMap = this.elementMap;
+      const oldTotalMessages = this.totalMessages;
 
       this.userMessages = [];
       this.assistantMessages = [];
       this.totalMessages = [];
+      this.elementMap = new Map();
 
-      // Fetch all candidates in document order and classify using the adapter
-      const allCandidates = rootContainer.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
+      // 1. Fetch all MessageNodes from the platform adapter
+      const nodes = PlatformAdapters.General.extractMessageNodes();
 
-      for (let i = 0; i < allCandidates.length; i++) {
-        const msg = allCandidates[i];
-        if (!(msg instanceof HTMLElement)) continue;
+      // 2. Build arrays while reusing existing objects if present
+      for (let i = 0; i < nodes.length; i++) {
+        const newNode = nodes[i];
+        let targetNode = newNode;
 
-        const role = PlatformAdapters.General.getMessageRole(msg);
-
-        if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER) {
-          this.userMessages.push(msg);
-          this.totalMessages.push(msg);
-        } else if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT) {
-          // Filter out empty, non-functional message containers
-          if (PlatformAdapters.General.filterMessage(msg)) {
-            this.assistantMessages.push(msg);
-            this.totalMessages.push(msg);
+        const existingInfo = oldMap.get(newNode.id);
+        if (existingInfo) {
+          const oldNode = oldTotalMessages[existingInfo.totalIndex];
+          if (oldNode) {
+            oldNode.element = newNode.element;
+            oldNode.turnElement = newNode.turnElement;
+            oldNode.timestamp = newNode.timestamp;
+            oldNode.text = newNode.text;
+            targetNode = oldNode;
           }
         }
+
+        if (targetNode.role === CONSTANTS.INTERNAL_ROLES.USER) {
+          this.userMessages.push(targetNode);
+        } else if (targetNode.role === CONSTANTS.INTERNAL_ROLES.ASSISTANT) {
+          this.assistantMessages.push(targetNode);
+        }
+        this.totalMessages.push(targetNode);
       }
 
-      // Rebuild the lookup map for O(1) access.
-      // This must be done after the arrays are fully filtered and sorted to ensure consistency.
-      this.elementMap.clear();
-
-      // Use for loops for better performance in hot paths
+      // 3. Rebuild the lookup map for O(1) access
       for (let i = 0; i < this.userMessages.length; i++) {
-        this.elementMap.set(this.userMessages[i], { role: CONSTANTS.INTERNAL_ROLES.USER, index: i, totalIndex: -1 });
+        this.elementMap.set(this.userMessages[i].id, { role: /** @type {'user'|'assistant'} */ (CONSTANTS.INTERNAL_ROLES.USER), index: i, totalIndex: -1 });
       }
       for (let i = 0; i < this.assistantMessages.length; i++) {
-        this.elementMap.set(this.assistantMessages[i], { role: CONSTANTS.INTERNAL_ROLES.ASSISTANT, index: i, totalIndex: -1 });
+        this.elementMap.set(this.assistantMessages[i].id, { role: /** @type {'user'|'assistant'} */ (CONSTANTS.INTERNAL_ROLES.ASSISTANT), index: i, totalIndex: -1 });
       }
 
       // Populate totalIndex using the sorted totalMessages array
       for (let i = 0; i < this.totalMessages.length; i++) {
-        const entry = this.elementMap.get(this.totalMessages[i]);
+        const entry = this.elementMap.get(this.totalMessages[i].id);
         if (entry) {
           entry.totalIndex = i;
         }
@@ -9810,97 +10388,46 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     }
 
     /**
-     * Appends a new message element to the cache if it follows the last known message.
-     * If the message appears earlier in the DOM (e.g., history load), triggers a full rebuild.
-     * @param {HTMLElement} rawElement - The raw element detected by Sentinel.
+     * Appends a new message node to the cache if it follows the last known message.
+     * If the message is older, triggers a full rebuild.
+     * @param {MessageNode} node - The message node from API or DOM fallback.
      */
-    append(rawElement) {
-      // 1. Resolve the message container from the raw element
-      const messageElement = PlatformAdapters.General.findMessageElement(rawElement);
-      if (!messageElement || !messageElement.isConnected) return;
-
-      // 2. Check for duplicates and handle DOM swaps (Virtual Scroll remounts)
-      const messageId = PlatformAdapters.General.getMessageId(messageElement);
-      if (messageId) {
-        let existingElement = null;
-        for (let i = 0; i < this.totalMessages.length; i++) {
-          if (PlatformAdapters.General.getMessageId(this.totalMessages[i]) === messageId) {
-            existingElement = this.totalMessages[i];
-            break;
-          }
-        }
-        if (existingElement) {
-          if (existingElement !== messageElement) {
-            const info = this.elementMap.get(existingElement);
-            if (info) {
-              this.elementMap.delete(existingElement);
-              this.elementMap.set(messageElement, info);
-
-              this.totalMessages[info.totalIndex] = messageElement;
-              if (info.role === CONSTANTS.INTERNAL_ROLES.USER) {
-                this.userMessages[info.index] = messageElement;
-              } else {
-                this.assistantMessages[info.index] = messageElement;
-              }
-              // Notify other managers of the DOM swap so they can re-inject UI elements
-              this.debouncedNotify();
-            }
-          }
-          return;
-        }
+    append(node) {
+      // 1. Check for duplicates
+      if (this.elementMap.has(node.id)) {
+        return;
       }
 
-      if (this.elementMap.has(messageElement)) return;
-
-      // 3. Filter out invalid or ghost messages
-      if (!PlatformAdapters.General.filterMessage(messageElement)) return;
-
-      // 4. Validate Order and Cache Integrity
+      // 2. Validate Order and Cache Integrity
       // If the cache is empty, we can't determine order relative to "last". Fallback to rebuild.
       if (this.totalMessages.length === 0) {
         this.debouncedRebuildCache();
         return;
       }
 
-      const lastMessage = this.totalMessages.at(-1);
-
-      // Check if the new message is strictly AFTER the last cached message in the DOM.
-      // DOCUMENT_POSITION_FOLLOWING (4): The node (messageElement) follows the reference node (lastMessage).
-      const position = lastMessage.compareDocumentPosition(messageElement);
-      if (!(position & Node.DOCUMENT_POSITION_FOLLOWING)) {
-        // The new message is BEFORE the last message (e.g. history loaded at top).
-        // Our append-only assumption is violated. Force a full rebuild to sort everything correctly.
+      const lastNode = this.totalMessages.at(-1);
+      if (!PlatformAdapters.General.isAppendOrderValid(node, lastNode)) {
         this.debouncedRebuildCache();
         return;
       }
 
-      // 5. Determine the role (User or Assistant)
-      const rawRole = PlatformAdapters.General.getMessageRole(messageElement);
-      let role = null;
-
-      if (rawRole === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER) {
-        role = CONSTANTS.INTERNAL_ROLES.USER;
-      } else if (rawRole === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT) {
-        role = CONSTANTS.INTERNAL_ROLES.ASSISTANT;
-      }
-
-      if (!role) return;
-
-      // 6. Safe Append
-      if (role === CONSTANTS.INTERNAL_ROLES.USER) {
-        this.userMessages.push(messageElement);
+      // 3. Safe Append
+      if (node.role === CONSTANTS.INTERNAL_ROLES.USER) {
+        this.userMessages.push(node);
+      } else if (node.role === CONSTANTS.INTERNAL_ROLES.ASSISTANT) {
+        this.assistantMessages.push(node);
       } else {
-        this.assistantMessages.push(messageElement);
+        return; // Ignore invalid roles
       }
-      this.totalMessages.push(messageElement);
+      this.totalMessages.push(node);
 
-      // 7. Update indices
-      const roleIndex = (role === CONSTANTS.INTERNAL_ROLES.USER ? this.userMessages : this.assistantMessages).length - 1;
+      // 4. Update indices
+      const roleIndex = (node.role === CONSTANTS.INTERNAL_ROLES.USER ? this.userMessages : this.assistantMessages).length - 1;
       const totalIndex = this.totalMessages.length - 1;
 
-      this.elementMap.set(messageElement, { role, index: roleIndex, totalIndex });
+      this.elementMap.set(node.id, { role: node.role, index: roleIndex, totalIndex });
 
-      // 8. Trigger UI update
+      // 5. Trigger UI update
       this.debouncedNotify();
     }
 
@@ -9909,24 +10436,59 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     }
 
     /**
-     * Finds the role and index of a given message element within the cached arrays.
-     * @param {HTMLElement} messageElement
+     * Finds the role and index of a given message ID within the cached arrays.
+     * @param {string} id
      * @returns {{role: 'user'|'assistant', index: number, totalIndex: number} | null}
      */
-    findMessageIndex(messageElement) {
-      return this.elementMap.get(messageElement) || null;
+    findMessageIndex(id) {
+      if (!id || typeof id !== 'string') return null;
+      return this.elementMap.get(id) || null;
     }
 
     /**
-     * Retrieves a message element at a specific index for a given role.
+     * Retrieves a message node at a specific index for a given role.
      * @param {'user'|'assistant'} role
      * @param {number} index
-     * @returns {HTMLElement | null}
+     * @returns {MessageNode | null}
      */
     getMessageAtIndex(role, index) {
       const targetArray = role === 'user' ? this.userMessages : this.assistantMessages;
       if (index >= 0 && index < targetArray.length) {
         return targetArray[index];
+      }
+      return null;
+    }
+
+    /**
+     * Finds the nearest DOM element (message or turn container) to scroll to.
+     * @param {MessageNode} node
+     * @returns {HTMLElement | null}
+     */
+    getScrollTarget(node) {
+      if (!node) return null;
+
+      // Check isConnected to handle virtual scrolling unmounts.
+      // If the specific element is unmounted, fallback to the turn container which persists in the DOM to trigger remounting.
+      if (node.element && node.element.isConnected) return node.element;
+      if (node.turnElement && node.turnElement.isConnected) return node.turnElement;
+
+      // Fallback: Find the closest mounted message or turn container
+      const idx = this.totalMessages.indexOf(node);
+      if (idx !== -1) {
+        let offset = 1;
+        while (idx - offset >= 0 || idx + offset < this.totalMessages.length) {
+          if (idx - offset >= 0) {
+            const prevNode = this.totalMessages[idx - offset];
+            if (prevNode.element && prevNode.element.isConnected) return prevNode.element;
+            if (prevNode.turnElement && prevNode.turnElement.isConnected) return prevNode.turnElement;
+          }
+          if (idx + offset < this.totalMessages.length) {
+            const nextNode = this.totalMessages[idx + offset];
+            if (nextNode.element && nextNode.element.isConnected) return nextNode.element;
+            if (nextNode.turnElement && nextNode.turnElement.isConnected) return nextNode.turnElement;
+          }
+          offset++;
+        }
       }
       return null;
     }
@@ -9940,21 +10502,21 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     }
 
     /**
-     * @returns {HTMLElement[]}
+     * @returns {MessageNode[]}
      */
     getUserMessages() {
       return this.userMessages;
     }
 
     /**
-     * @returns {HTMLElement[]}
+     * @returns {MessageNode[]}
      */
     getAssistantMessages() {
       return this.assistantMessages;
     }
 
     /**
-     * @returns {HTMLElement[]}
+     * @returns {MessageNode[]}
      */
     getTotalMessages() {
       return this.totalMessages;
@@ -10733,7 +11295,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
                 // Re-check state if the parent container's children change.
                 updatePanelState();
               });
-              disappearanceObserver.observe(panel.parentElement, { childList: true, subtree: false });
+              disappearanceObserver.observe(panel.parentElement, CONSTANTS.OBSERVER_OPTIONS);
             }
           } else {
             // --- Panel just disappeared ---
@@ -11166,9 +11728,11 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
      * The batch processor efficiently skips elements that already have avatars.
      */
     restoreAvatars() {
-      const allMessages = this.messageCacheManager.getTotalMessages();
-      for (const msg of allMessages) {
-        this.queueForInjection(msg);
+      const allNodes = this.messageCacheManager.getTotalMessages();
+      for (const node of allNodes) {
+        if (node.element) {
+          this.queueForInjection(node.element);
+        }
       }
     }
 
@@ -11448,13 +12012,20 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       render: (info, msgElem, manager) => {
         const createClickHandler = (direction) => (e) => {
           e.stopPropagation();
-          const roleInfo = manager.messageCacheManager.findMessageIndex(msgElem);
-          if (!roleInfo) return;
-          const newIndex = roleInfo.index + direction;
-          const targetMsg = manager.messageCacheManager.getMessageAtIndex(roleInfo.role, newIndex);
-          if (targetMsg) {
-            scrollToElement(targetMsg);
-            EventBus.publish(EVENTS.NAV_HIGHLIGHT_MESSAGE, targetMsg);
+          let holder = msgElem.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
+          if (!holder) holder = msgElem.querySelector(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
+          holder = holder || msgElem;
+          const msgId = PlatformAdapters.General.getMessageId(holder);
+          const nodeInfo = msgId ? manager.messageCacheManager.findMessageIndex(msgId) : null;
+          if (!nodeInfo) return;
+          const newIndex = nodeInfo.index + direction;
+          const targetNode = manager.messageCacheManager.getMessageAtIndex(nodeInfo.role, newIndex);
+          if (targetNode) {
+            const targetToScroll = manager.messageCacheManager.getScrollTarget(targetNode);
+            if (targetToScroll) {
+              scrollToElement(targetToScroll);
+            }
+            EventBus.publish(EVENTS.NAV_HIGHLIGHT_MESSAGE, targetNode);
           }
         };
         const prevBtn = manager.featureTemplates.navPrevButton.cloneNode(true);
@@ -11553,8 +12124,14 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     }
 
     updateAll() {
-      const allMessages = this.messageCacheManager.getTotalMessages();
-      this._processUpdateQueue(allMessages, CONSTANTS.RESOURCE_KEYS.BATCH_TASK, () => {
+      const allNodes = this.messageCacheManager.getTotalMessages();
+      const mountedMessages = [];
+      for (let i = 0; i < allNodes.length; i++) {
+        if (allNodes[i].element && allNodes[i].element.isConnected) {
+          mountedMessages.push(allNodes[i].element);
+        }
+      }
+      this._processUpdateQueue(mountedMessages, CONSTANTS.RESOURCE_KEYS.BATCH_TASK, () => {
         this._updateNavButtonStates();
       });
     }
@@ -11566,12 +12143,6 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       const nodes = turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
       /** @type {HTMLElement[]} */
       const allMessageElements = [];
-
-      // If the turnNode itself matches the selector (e.g., outer shell as the container), include it.
-      if (turnNode.matches(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS)) {
-        allMessageElements.push(turnNode);
-      }
-
       for (let i = 0; i < nodes.length; i++) {
         const node = nodes[i];
         if (node instanceof HTMLElement) {
@@ -11841,24 +12412,22 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
       const disabledHint = '(No message to scroll to)';
       const cls = this.styleHandle.classes;
-
-      const allMessages = this.messageCacheManager.getTotalMessages();
-
+      const allNodes = this.messageCacheManager.getTotalMessages();
       const cancelFn = runBatchUpdate(
-        allMessages,
+        allNodes,
         CONSTANTS.PROCESSING.BATCH_SIZE,
-        (message) => {
-          if (!message.isConnected) return null;
+        (node) => {
+          const message = node.element;
+          if (!message || !message.isConnected) return null;
           const container = this.navContainers.get(message);
           if (!container || !container.isConnected) return null;
 
           // Calculate state based on cache role index logic
           // We need to know if this is the first or last message of its role.
-          const roleInfo = this.messageCacheManager.findMessageIndex(message);
+          const roleInfo = this.messageCacheManager.findMessageIndex(node.id);
           if (!roleInfo) return null;
 
           const roleMessages = roleInfo.role === CONSTANTS.INTERNAL_ROLES.USER ? this.messageCacheManager.getUserMessages() : this.messageCacheManager.getAssistantMessages();
-
           const isFirst = roleInfo.index === 0;
           const isLast = roleInfo.index === roleMessages.length - 1;
 
@@ -11918,7 +12487,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
           [CONSTANTS.NAV_ROLES.ASSISTANT]: -1,
           [CONSTANTS.NAV_ROLES.TOTAL]: -1,
         },
-        highlightedMessage: null,
+        highlightedMessage: null, // Now stores MessageNode | null
         isInitialSelectionDone: !!options.isReEnabling,
         jumpListComponent: null,
         lastFilterValue: '',
@@ -11973,9 +12542,9 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       }
 
       // --- Performance Optimization: Search Cache ---
-      /** @type {Map<HTMLElement, {displayText: string, lowerText: string, roleClass: string}>} */
+      /** @type {Map<string, {displayText: string, lowerText: string, roleClass: string}>} */
       this.searchCache = new Map();
-      /** @type {HTMLElement[]} */
+      /** @type {MessageNode[]} */
       this.indexingQueue = [];
       this.indexingTask = null;
 
@@ -12025,8 +12594,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       if (this.state) {
         // jumpListComponent is managed by BaseManager and will be destroyed automatically.
 
-        if (this.state.highlightedMessage && this.styleHandle) {
-          this.state.highlightedMessage.classList.remove(this.styleHandle.classes.highlightMessage);
+        if (this.state.highlightedMessage && this.state.highlightedMessage.element && this.styleHandle) {
+          this.state.highlightedMessage.element.classList.remove(this.styleHandle.classes.highlightMessage);
         }
       }
 
@@ -12045,18 +12614,23 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
      * @param {HTMLElement} turnNode
      */
     _handleTurnComplete(turnNode) {
-      // If turnNode is the outer shell and its content remounts, remove it from search cache to force re-indexing.
-      if (this.searchCache.has(turnNode)) {
-        this.searchCache.delete(turnNode);
-      }
-
       // Retrieve all message elements contained within the turn
       // Accurately identify them using CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS
       const messages = turnNode.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
 
       messages.forEach((msg) => {
-        if (msg instanceof HTMLElement && this.searchCache.has(msg)) {
-          this.searchCache.delete(msg);
+        if (msg instanceof HTMLElement) {
+          let holder = msg.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
+          if (!holder) holder = msg.querySelector(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
+          holder = holder || msg;
+          const msgId = PlatformAdapters.General.getMessageId(holder);
+          const nodeInfo = msgId ? this.messageCacheManager.findMessageIndex(msgId) : null;
+          if (nodeInfo) {
+            const node = this.messageCacheManager.getTotalMessages()[nodeInfo.totalIndex];
+            if (node && this.searchCache.has(node.id)) {
+              this.searchCache.delete(node.id);
+            }
+          }
         }
       });
 
@@ -12081,12 +12655,11 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       }
     }
 
-    navigateToMessage(element) {
-      if (!element) return;
+    navigateToMessage(node) {
       // Manual navigation overrides the initial auto-scroll logic.
       this.state.isInitialSelectionDone = true;
-      this.setHighlightAndIndices(element);
-      this._scrollToMessage(element);
+      this.setHighlightAndIndices(node);
+      this._scrollToMessage(node);
     }
 
     resetState() {
@@ -12103,8 +12676,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         this.navConsole.classList.add(this.styleHandle.classes.unpositioned);
       }
 
-      if (this.state.highlightedMessage) {
-        this.state.highlightedMessage.classList.remove(this.styleHandle.classes.highlightMessage);
+      if (this.state.highlightedMessage && this.state.highlightedMessage.element) {
+        this.state.highlightedMessage.element.classList.remove(this.styleHandle.classes.highlightMessage);
       }
 
       // Ensure the jump list component is properly destroyed via manager
@@ -12150,17 +12723,18 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     _syncSearchCache() {
       const totalMessages = this.messageCacheManager.getTotalMessages();
 
-      // 1. Cleanup: Remove messages that are no longer in the DOM
-      for (const msg of this.searchCache.keys()) {
-        if (!this.messageCacheManager.findMessageIndex(msg)) {
-          this.searchCache.delete(msg);
+      // 1. Cleanup: Remove messages that are no longer in the cache
+      const validIds = new Set(totalMessages.map((m) => m.id));
+      for (const id of this.searchCache.keys()) {
+        if (!validIds.has(id)) {
+          this.searchCache.delete(id);
         }
       }
 
       // 2. Queueing: Find messages not yet cached
       this.indexingQueue = [];
       for (const msg of totalMessages) {
-        if (!this.searchCache.has(msg)) {
+        if (!this.searchCache.has(msg.id)) {
           this.indexingQueue.push(msg);
         }
       }
@@ -12181,18 +12755,32 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         if (this.isDestroyed || !this.jumpListStyleHandle) return;
 
         const cls = this.jumpListStyleHandle.classes;
+        const totalMessages = this.messageCacheManager.getTotalMessages();
+        const latestMsgId = totalMessages.length > 0 ? totalMessages[totalMessages.length - 1].id : null;
 
         while (this.indexingQueue.length > 0 && deadline.timeRemaining() > 1) {
           const msg = this.indexingQueue.shift();
-          // Double check if still valid and not cached
-          if (msg && msg.isConnected && !this.searchCache.has(msg)) {
-            const role = PlatformAdapters.General.getMessageRole(msg);
-            const roleClass = role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER ? cls.userItem : role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT ? cls.asstItem : null;
+          // Double check if not cached
+          if (msg && !this.searchCache.has(msg.id)) {
+            const roleClass = msg.role === CONSTANTS.INTERNAL_ROLES.USER ? cls.userItem : msg.role === CONSTANTS.INTERNAL_ROLES.ASSISTANT ? cls.asstItem : null;
 
-            const rawText = PlatformAdapters.General.getJumpListDisplayText(msg);
+            let rawText = msg.text;
+            const isLatest = msg.id === latestMsgId;
+
+            // Streaming fallback: Only extract from DOM if it is the latest message (which might be streaming)
+            // OR if the text is currently empty. Past messages safely use their stable cached text.
+            if ((isLatest || !rawText) && msg.element) {
+              rawText = PlatformAdapters.General.getJumpListDisplayText(msg.element);
+              if (msg.type === 'image' && !rawText.startsWith('(image)')) {
+                rawText = `(image) ${rawText}`.trim();
+              }
+            } else if (!rawText) {
+              rawText = '';
+            }
+
             const displayText = (rawText || '').replace(/\s+/g, ' ').trim();
 
-            this.searchCache.set(msg, {
+            this.searchCache.set(msg.id, {
               displayText: displayText,
               lowerText: displayText.toLowerCase(),
               roleClass: roleClass,
@@ -12208,14 +12796,12 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     }
 
     /**
-     * @param {HTMLElement} targetMsg
+     * @param {MessageNode} targetNode
      * @returns {void}
      */
-    setHighlightAndIndices(targetMsg) {
-      if (!targetMsg) return;
-
+    setHighlightAndIndices(targetNode) {
       // Retrieve cached info for O(1) access
-      const cachedInfo = this.messageCacheManager.findMessageIndex(targetMsg);
+      const cachedInfo = this.messageCacheManager.findMessageIndex(targetNode.id);
       if (!cachedInfo) return;
 
       const totalMessages = this.messageCacheManager.getTotalMessages();
@@ -12226,14 +12812,14 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       let currentRoleIndex = cachedInfo.index;
 
       // Verify if the cached index actually points to the target message.
-      if (totalMessages[currentTotalIndex] !== targetMsg) {
+      if (totalMessages[currentTotalIndex] !== targetNode) {
         // If mismatch (e.g. due to cache lag), fall back to O(N) indexOf for ALL indices to ensure consistency.
         // We cannot trust ANY part of the cachedInfo if the totalIndex verification fails.
-        currentTotalIndex = totalMessages.indexOf(targetMsg);
+        currentTotalIndex = totalMessages.indexOf(targetNode);
         if (cachedInfo.role === CONSTANTS.INTERNAL_ROLES.USER) {
-          currentRoleIndex = userMessages.indexOf(targetMsg);
+          currentRoleIndex = userMessages.indexOf(targetNode);
         } else {
-          currentRoleIndex = asstMessages.indexOf(targetMsg);
+          currentRoleIndex = asstMessages.indexOf(targetNode);
         }
       }
 
@@ -12246,13 +12832,13 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       // Determine indices based on the message role
       if (cachedInfo.role === CONSTANTS.INTERNAL_ROLES.USER) {
         newIndices[CONSTANTS.NAV_ROLES.USER] = currentRoleIndex;
-        newIndices[CONSTANTS.NAV_ROLES.ASSISTANT] = this.findNearestIndex(targetMsg, CONSTANTS.INTERNAL_ROLES.ASSISTANT);
+        newIndices[CONSTANTS.NAV_ROLES.ASSISTANT] = this.findNearestIndex(targetNode, CONSTANTS.INTERNAL_ROLES.ASSISTANT);
       } else {
         newIndices[CONSTANTS.NAV_ROLES.ASSISTANT] = currentRoleIndex;
-        newIndices[CONSTANTS.NAV_ROLES.USER] = this.findNearestIndex(targetMsg, CONSTANTS.INTERNAL_ROLES.USER);
+        newIndices[CONSTANTS.NAV_ROLES.USER] = this.findNearestIndex(targetNode, CONSTANTS.INTERNAL_ROLES.USER);
       }
 
-      this.state.highlightedMessage = targetMsg;
+      this.state.highlightedMessage = targetNode;
       this.state.currentIndices = newIndices;
 
       this._renderUI();
@@ -12261,12 +12847,12 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     /**
      * @private
      * @description Finds the index of the nearest preceding message of a specific role using cached data.
-     * @param {HTMLElement} currentMsg
+     * @param {MessageNode} currentMsg
      * @param {string} targetRole
      * @returns {number} The index of the nearest message in the target role's array, or -1 if not found.
      */
     findNearestIndex(currentMsg, targetRole) {
-      const currentInfo = this.messageCacheManager.findMessageIndex(currentMsg);
+      const currentInfo = this.messageCacheManager.findMessageIndex(currentMsg.id);
       if (!currentInfo) return -1;
 
       const totalMessages = this.messageCacheManager.getTotalMessages();
@@ -12282,7 +12868,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       // Iterate backwards from the current message's position in the master list.
       for (let i = startIndex; i >= 0; i--) {
         const candidateMsg = totalMessages[i];
-        const candidateInfo = this.messageCacheManager.findMessageIndex(candidateMsg);
+        const candidateInfo = this.messageCacheManager.findMessageIndex(candidateMsg.id);
 
         // Check if the candidate matches the target role.
         if (candidateInfo && candidateInfo.role === targetRole) {
@@ -12327,8 +12913,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
       // Validate the currently highlighted message.
       if (this.state.highlightedMessage) {
-        if (!this.messageCacheManager.findMessageIndex(this.state.highlightedMessage)) {
-          Logger.log('NAVIGATION', '', 'Highlighted message was removed from the DOM. Reselecting...');
+        if (!this.messageCacheManager.findMessageIndex(this.state.highlightedMessage.id)) {
+          Logger.log('NAVIGATION', '', 'Highlighted message was removed from the cache. Reselecting...');
           // The highlighted message was deleted. Find the best candidate to re-highlight.
           const lastKnownIndex = this.state.currentIndices[CONSTANTS.NAV_ROLES.TOTAL];
           // Try to select the message at the same index, or the new last message if the index is now out of bounds.
@@ -12737,8 +13323,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         el.classList.remove(cls.highlightMessage);
         el.classList.remove(cls.highlightTurn);
       });
-      if (highlightedMessage) {
-        highlightedMessage.classList.add(cls.highlightMessage);
+      if (highlightedMessage && highlightedMessage.element) {
+        highlightedMessage.element.classList.add(cls.highlightMessage);
         PlatformAdapters.FixedNav.applyAdditionalHighlight(highlightedMessage, this.styleHandle);
       }
 
@@ -12784,17 +13370,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       // Update Tooltips and State
       const roleName = activeRole === CONSTANTS.NAV_ROLES.TOTAL ? 'message' : activeRole === CONSTANTS.NAV_ROLES.ASSISTANT ? 'assistant message' : 'user message';
 
-      // Determine Shift action text dynamically
-      let shiftActionText = '';
-      if (PLATFORM === PLATFORM_DEFS.GEMINI.NAME) {
-        shiftActionText = '\n[Shift] Load history';
-      } else if (PLATFORM === PLATFORM_DEFS.CHATGPT.NAME) {
-        if (isFirefox()) {
-          shiftActionText = '\n[Shift] Scan layout';
-        } else {
-          shiftActionText = '';
-        }
-      }
+      // Determine Shift action text dynamically via PlatformAdapter
+      const shiftActionText = PlatformAdapters.FixedNav.getShiftActionText();
 
       const updateTooltip = (el, text) => {
         if (el instanceof HTMLElement && el.title !== text) {
@@ -12865,10 +13442,28 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       }
     }
 
-    _scrollToMessage(element) {
-      if (!element) return;
-      const targetToScroll = element;
-      scrollToElement(targetToScroll);
+    _scrollToMessage(node) {
+      const targetToScroll = this.messageCacheManager.getScrollTarget(node);
+
+      if (targetToScroll) {
+        scrollToElement(targetToScroll);
+
+        // Event-driven scroll adjustment for virtual scrolling
+        // If the target element is unmounted, scrolling to its parent container forces the framework to mount it.
+        // We listen for the cache update (triggered by updateDomBinding) to perform a final precision scroll.
+        if (!node.element || node.element !== targetToScroll) {
+          const unsubscribe = this._subscribe(EVENTS.CACHE_UPDATED, () => {
+            if (this.isDestroyed) return;
+            if (node.element) {
+              unsubscribe();
+              scrollToElement(node.element);
+            }
+          });
+
+          // Safety timeout to prevent memory leaks if the element never mounts
+          setTimeout(unsubscribe, CONSTANTS.TIMING.TIMEOUTS.SCROLL_OFFSET_CLEANUP);
+        }
+      }
     }
 
     _toggleAllMessages() {
@@ -12952,7 +13547,15 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
       const messageElement = target.closest(CONSTANTS.SELECTORS.FIXED_NAV_MESSAGE_CONTAINERS);
       if (messageElement instanceof HTMLElement && !target.closest(`a, button, input, #${cls.consoleId}`)) {
-        this.setHighlightAndIndices(messageElement);
+        let holder = messageElement.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
+        if (!holder) holder = messageElement.querySelector(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
+        holder = holder || messageElement;
+        const msgId = PlatformAdapters.General.getMessageId(holder);
+        const nodeInfo = msgId ? this.messageCacheManager.findMessageIndex(msgId) : null;
+        if (nodeInfo) {
+          const node = this.messageCacheManager.getTotalMessages()[nodeInfo.totalIndex];
+          if (node) this.setHighlightAndIndices(node);
+        }
       }
     }
 
@@ -13319,8 +13922,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       // Force refresh the last message in the cache to ensure latest text content.
       // This is critical for streaming messages where content changes but element identity remains.
       const lastMessage = messages.at(-1);
-      if (lastMessage && this.searchCache.has(lastMessage)) {
-        this.searchCache.delete(lastMessage);
+      if (lastMessage && this.searchCache.has(lastMessage.id)) {
+        this.searchCache.delete(lastMessage.id);
       }
 
       const jumpList = new JumpListComponent(
@@ -13328,7 +13931,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         messages,
         this.state.highlightedMessage,
         {
-          onSelect: (message) => this._handleJumpListSelect(message),
+          onSelect: (messageNode) => this._handleJumpListSelect(messageNode),
         },
         this.jumpListStyleHandle,
         // Fallback to empty string as initialFilterValue is mandatory
@@ -13356,8 +13959,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       this.state.jumpListComponent = null;
     }
 
-    _handleJumpListSelect(messageElement) {
-      this.navigateToMessage(messageElement);
+    _handleJumpListSelect(messageNode) {
+      this.navigateToMessage(messageNode);
       this._hideJumpList();
     }
   }
@@ -13383,7 +13986,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       this.isScanPending = false;
       /** @type {WeakMap<HTMLElement, boolean>} */
       this.processedElements = new WeakMap();
-      /** @type {WeakMap<HTMLElement, Element>} */
+      /** @type {WeakMap<HTMLElement, boolean>} */
       this.completeFiredElements = new WeakMap();
     }
 
@@ -13416,7 +14019,6 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
      */
     _cleanupProcessedFlags() {
       this.processedElements = new WeakMap();
-      /** @type {WeakMap<HTMLElement, Element>} */
       this.completeFiredElements = new WeakMap();
     }
 
@@ -13472,41 +14074,27 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       // Platform-specific hook to handle elements that need a container
       if (!messageElement && PlatformAdapters.General.ensureMessageContainerForImage) {
         // Let the adapter create a wrapper if needed and return it.
-        // We only do this for the image selector, not for markdown.
-        if (contentElement.matches(CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE)) {
-          messageElement = PlatformAdapters.General.ensureMessageContainerForImage(contentElement);
-        }
+        messageElement = PlatformAdapters.General.ensureMessageContainerForImage(contentElement);
       }
 
       // If we have a valid message container, proceed.
       if (messageElement) {
-        // Publish the timestamp for this message as soon as it's identified.
-        // This is for real-time messages; historical ones are loaded via API.
-        // Find the correct messageId from the parent element
-        const messageIdHolder = contentElement.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
-        const messageId = PlatformAdapters.General.getMessageId(messageIdHolder);
+        const node = PlatformAdapters.General.createMessageNode(messageElement);
 
-        // Always publish TIMESTAMP_ADDED when a message is detected.
-        // The TimestampManager will handle buffering (during navigation) or immediate application.
-        if (messageId) {
-          EventBus.publish(EVENTS.TIMESTAMP_ADDED, { messageId: messageId, timestamp: new Date() });
+        // Always publish API_MESSAGE_ADDED when a message is detected.
+        // The ApiMessageManager will handle buffering (during navigation) or immediate application.
+        if (node) {
+          EventBus.publish(EVENTS.API_MESSAGE_ADDED, { messageId: node.id, node: node });
         }
 
-        // Remount tracking: Use the outer shell as the key to remember the last processed inner content.
-        // This ensures events re-fire when the element goes out of view and comes back.
-        const closestShell = messageElement.closest(CONSTANTS.SELECTORS.CONVERSATION_UNIT);
-        const outerShell = closestShell instanceof HTMLElement ? closestShell : messageElement;
-        const lastProcessedContent = this.completeFiredElements.get(outerShell);
+        // Fire avatar injection event. The AvatarManager will handle the one-per-turn logic.
+        EventBus.publish(EVENTS.AVATAR_INJECT, messageElement);
 
-        if (lastProcessedContent !== contentElement) {
-          this.completeFiredElements.set(outerShell, contentElement);
-
-          // Fire avatar injection event. The AvatarManager will handle the one-per-turn logic.
-          EventBus.publish(EVENTS.AVATAR_INJECT, messageElement);
-
-          // Fire message complete event for other managers.
-          // Use a different in-memory flag to ensure this only fires once per message container,
-          // even if it has multiple content parts detected (e.g. text and images).
+        // Fire message complete event for other managers.
+        // Use a different in-memory flag to ensure this only fires once per message container,
+        // even if it has multiple content parts detected (e.g. text and images).
+        if (!this.completeFiredElements.has(messageElement)) {
+          this.completeFiredElements.set(messageElement, true);
           EventBus.publish(EVENTS.MESSAGE_COMPLETE, messageElement);
         }
       }
@@ -13519,6 +14107,153 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
   //              data and real-time message additions.
   // =================================================================================
 
+  class ApiMessageManager extends BaseManager {
+    /**
+     * @param {ConfigManager} configManager
+     * @param {MessageCacheManager} messageCacheManager
+     */
+    constructor(configManager, messageCacheManager) {
+      super();
+      this.configManager = configManager;
+      this.messageCacheManager = messageCacheManager;
+      /** @type {Map<string, MessageNode>} */
+      this.pendingMessages = new Map(); // Buffer for messages during navigation
+      this.isNavigating = true; // Track navigation state (Initialize as true to buffer initial page load)
+    }
+
+    _onInit() {
+      // Register automatic cleanup of UI and listeners when destroyed
+      this.addDisposable(() => this.pendingMessages.clear());
+
+      this._subscribe(EVENTS.NAVIGATION_START, () => this._handleNavigationStart());
+      this._subscribe(EVENTS.NAVIGATION_END, () => this._handleNavigationEnd());
+
+      // Subscribe to data events
+      this._subscribe(EVENTS.API_MESSAGE_ADDED, (data) => this._handleApiMessageAdded(data));
+      this._subscribe(EVENTS.API_MESSAGES_LOADED, (data) => this._loadHistoricalMessages(data));
+
+      // Subscribe to streaming end to finalize the latest assistant message text
+      this._subscribe(EVENTS.STREAMING_END, () => this._handleStreamingEnd());
+    }
+
+    _onDestroy() {
+      this.pendingMessages.clear();
+    }
+
+    /** @private */
+    _handleNavigationStart() {
+      this.isNavigating = true;
+      this.pendingMessages.clear();
+    }
+
+    /** @private */
+    _handleNavigationEnd() {
+      this.isNavigating = false;
+
+      // Fallback strategy:
+      // Apply pending messages only if API didn't provide data for them.
+      // This handles "New Chat" scenarios or API failures/delays.
+      if (this.pendingMessages.size > 0) {
+        Logger.debug('API_MESSAGE', LOG_STYLES.TEAL, `Processing ${this.pendingMessages.size} pending messages.`);
+
+        let addedCount = 0;
+        this.pendingMessages.forEach((node, messageId) => {
+          // Only apply if NOT already present (i.e., not loaded from API)
+          if (!PlatformAdapters.ApiMessage.getMessageData(messageId)) {
+            PlatformAdapters.ApiMessage.addMessageData(messageId, node);
+            addedCount++;
+          }
+        });
+
+        this.pendingMessages.clear();
+
+        if (addedCount > 0) {
+          Logger.debug('API_MESSAGE', LOG_STYLES.TEAL, `Applied ${addedCount} fallback messages.`);
+        }
+      }
+    }
+
+    /**
+     * @private
+     * @param {object} detail
+     * @param {Map<string, MessageNode>} detail.messages
+     */
+    _loadHistoricalMessages({ messages }) {
+      // Data is already stored in Adapter by the time this event fires.
+      if (messages && messages.size > 0) {
+        Logger.debug('API_MESSAGE', LOG_STYLES.TEAL, `Notified of ${messages.size} historical messages.`);
+      }
+    }
+
+    /**
+     * Finalizes the text of the latest assistant message upon streaming completion.
+     * @private
+     */
+    _handleStreamingEnd() {
+      const asstMessages = this.messageCacheManager.getAssistantMessages();
+      if (asstMessages.length === 0) return;
+
+      const latestMsgNode = asstMessages.at(-1);
+      if (!latestMsgNode?.element) return;
+
+      let holder = latestMsgNode.element.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
+      if (!holder) holder = latestMsgNode.element.querySelector(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
+      holder = holder || latestMsgNode.element;
+
+      const msgId = PlatformAdapters.General.getMessageId(holder);
+      if (!msgId) return;
+
+      const rawText = PlatformAdapters.General.getJumpListDisplayText(latestMsgNode.element);
+      const text = (rawText || '').replace(/\s+/g, ' ').trim();
+      if (!text) return;
+
+      // Update pending messages buffer
+      const pendingNode = this.pendingMessages.get(msgId);
+      if (pendingNode) {
+        pendingNode.text = text;
+      }
+
+      // Update persistent API cache
+      if (PlatformAdapters.ApiMessage?.getMessageData) {
+        const cachedNode = PlatformAdapters.ApiMessage.getMessageData(msgId);
+        if (cachedNode) {
+          cachedNode.text = text;
+        }
+      }
+    }
+
+    /**
+     * @private
+     * @param {object} detail
+     * @param {string} detail.messageId
+     * @param {MessageNode} detail.node
+     */
+    _handleApiMessageAdded({ messageId, node }) {
+      if (!messageId || !node) return;
+
+      // If navigating and NOT a new chat page, buffer the message data.
+      // "New Chat" pages don't trigger history load, so we can apply immediately.
+      const isNewChat = PlatformAdapters.General.isNewChatPage();
+
+      if (this.isNavigating && !isNewChat) {
+        this.pendingMessages.set(messageId, node);
+        return;
+      }
+
+      // Normal processing (Real-time or New Chat)
+      if (!PlatformAdapters.ApiMessage.getMessageData(messageId)) {
+        Logger.debug('API_MESSAGE', LOG_STYLES.TEAL, `Added real-time message data for ${messageId}.`);
+
+        PlatformAdapters.ApiMessage.addMessageData(messageId, node);
+      }
+    }
+  }
+
+  // =================================================================================
+  // SECTION: Timestamp Management
+  // Description: Manages the rendering of message timestamps based on cached data.
+  // =================================================================================
+
   class TimestampManager extends BaseManager {
     /**
      * @param {ConfigManager} configManager
@@ -13528,15 +14263,12 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       super();
       this.configManager = configManager;
       this.messageCacheManager = messageCacheManager;
-      /** @type {Map<string, Date>} */
-      this.pendingTimestamps = new Map(); // Buffer for timestamps during navigation
       /** @type {WeakMap<HTMLElement, HTMLElement>} */
       this.timestampDomCache = new WeakMap();
       this.styleHandle = null;
       this.timestampContainerTemplate = null;
       this.timestampSpanTemplate = null;
-      this.isEnabled = false; // Add state tracking
-      this.isNavigating = true; // Track navigation state (Initialize as true to buffer initial page load)
+      this.isEnabled = false; // Track feature state
       /** @type {(() => void) | null} */
       this._cacheUpdateUnsub = null;
     }
@@ -13548,57 +14280,20 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       this.addDisposable(() => this.disable());
 
       this._subscribe(EVENTS.NAVIGATION_START, () => this._handleNavigationStart());
-      this._subscribe(EVENTS.NAVIGATION_END, () => this._handleNavigationEnd());
-
-      // Subscribe to data events regardless of the feature toggle state.
-      this._subscribe(EVENTS.TIMESTAMP_ADDED, (data) => this._handleTimestampAdded(data));
-      this._subscribe(EVENTS.TIMESTAMPS_LOADED, (data) => this._loadHistoricalTimestamps(data));
     }
 
     _onDestroy() {
       // disable() is called via disposable.
-      this.pendingTimestamps.clear();
-    }
-
-    /** @private */
-    _handleNavigationStart() {
-      this.isNavigating = true;
-      this.pendingTimestamps.clear();
-
-      // Cancel pending batch tasks immediately
-      this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
-      this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK_SINGLE, null);
-
-      // Explicitly reset the WeakMap to drop references to old DOM elements
       this.timestampDomCache = new WeakMap();
     }
 
     /** @private */
-    _handleNavigationEnd() {
-      this.isNavigating = false;
+    _handleNavigationStart() {
+      // Cancel pending batch tasks immediately
+      this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
 
-      // Fallback strategy:
-      // Apply pending timestamps only if API didn't provide data for them.
-      // This handles "New Chat" scenarios or API failures/delays.
-      if (this.pendingTimestamps.size > 0) {
-        Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, `Processing ${this.pendingTimestamps.size} pending timestamps.`);
-
-        let addedCount = 0;
-        this.pendingTimestamps.forEach((timestamp, messageId) => {
-          // Only apply if NOT already present (i.e., not loaded from API)
-          if (!PlatformAdapters.Timestamp.getTimestamp(messageId)) {
-            PlatformAdapters.Timestamp.addTimestamp(messageId, timestamp);
-            addedCount++;
-          }
-        });
-
-        this.pendingTimestamps.clear();
-
-        if (addedCount > 0 && this.isEnabled) {
-          Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, `Applied ${addedCount} fallback timestamps.`);
-          this.updateAllTimestamps();
-        }
-      }
+      // Explicitly reset the WeakMap to drop references to old DOM elements
+      this.timestampDomCache = new WeakMap();
     }
 
     /**
@@ -13609,13 +14304,12 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, 'Enabling...');
       this.isEnabled = true;
 
-      // Subscribe to cache updates (e.g., deletions) using the new return-based pattern
+      // Subscribe to cache updates (e.g., deletions, insertions, dom rebinding) using the new return-based pattern
       if (!this._cacheUpdateUnsub) {
         this._cacheUpdateUnsub = this._subscribe(EVENTS.CACHE_UPDATED, () => this.updateAllTimestamps());
       }
 
       // Initial render
-      // This will render any data that was collected while the setting was OFF.
       this.updateAllTimestamps();
     }
 
@@ -13627,7 +14321,6 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, 'Disabling...');
       this.isEnabled = false;
       this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
-      this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK_SINGLE, null);
 
       // Unsubscribe from events that trigger DOM updates
       if (this._cacheUpdateUnsub) {
@@ -13637,141 +14330,6 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
       // Hide all timestamps instead of physically removing them
       this.updateAllTimestamps();
-    }
-
-    /**
-     * @private
-     * @param {object} detail
-     * @param {Map<string, Date>} detail.timestamps
-     */
-    _loadHistoricalTimestamps({ timestamps }) {
-      // Data is already stored in Adapter by the time this event fires.
-      if (timestamps && timestamps.size > 0) {
-        Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, `Notified of ${timestamps.size} historical timestamps.`);
-      }
-
-      // If enabled, trigger a DOM update now that historical data is loaded
-      if (this.isEnabled) {
-        this.updateAllTimestamps();
-      }
-    }
-
-    /**
-     * @private
-     * @param {object} detail
-     * @param {string} detail.messageId
-     * @param {Date} detail.timestamp
-     */
-    _handleTimestampAdded({ messageId, timestamp }) {
-      if (!messageId || !timestamp) return;
-
-      // If navigating and NOT a new chat page, buffer the timestamp.
-      // "New Chat" pages don't trigger history load, so we can apply immediately.
-      const isNewChat = PlatformAdapters.General.isNewChatPage();
-
-      if (this.isNavigating && !isNewChat) {
-        this.pendingTimestamps.set(messageId, timestamp);
-        return;
-      }
-
-      // Normal processing (Real-time or New Chat)
-      if (!PlatformAdapters.Timestamp.getTimestamp(messageId)) {
-        Logger.debug('TIMESTAMPS', LOG_STYLES.TEAL, `Added real-time timestamp for ${messageId}.`);
-
-        PlatformAdapters.Timestamp.addTimestamp(messageId, timestamp);
-
-        // If enabled, trigger a DOM update for the new real-time timestamp
-        if (this.isEnabled) {
-          this._updateSingleTimestamp(messageId);
-        }
-      }
-    }
-
-    /**
-     * @private
-     * Updates a single timestamp item. Uses BATCH_TASK_SINGLE to avoid conflicts with full updates.
-     */
-    _updateSingleTimestamp(messageId) {
-      const selector = `[${CONSTANTS.ATTRIBUTES.MESSAGE_ID}="${messageId}"]`;
-      const anchor = document.querySelector(selector);
-      if (!anchor) return;
-
-      const messageElement = PlatformAdapters.General.findMessageElement(anchor);
-      if (!messageElement) return;
-
-      // Cancel any pending single update to prioritize the latest one if spamming occurs
-      this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK_SINGLE, null);
-
-      const item = {
-        messageElement,
-        existingContainer: this.timestampDomCache.get(messageElement),
-        anchor,
-        roleClass: null,
-        timestampText: this._formatTimestamp(PlatformAdapters.Timestamp.getTimestamp(messageId)),
-      };
-
-      const cls = this.styleHandle.classes;
-
-      const cancel = runBatchUpdate(
-        [item],
-        1,
-        (m) => {
-          // Measure
-          if (!m.messageElement.isConnected) return null;
-
-          if (m.existingContainer && !m.existingContainer.isConnected) {
-            m.existingContainer = null;
-            this.timestampDomCache.delete(m.messageElement);
-          }
-
-          // If not in cache, check DOM to prevent duplicates from race conditions
-          if (!m.existingContainer) {
-            m.existingContainer = m.anchor.querySelector(`.${cls.container}`);
-            if (m.existingContainer) {
-              this.timestampDomCache.set(m.messageElement, m.existingContainer);
-            }
-          }
-
-          if (!m.existingContainer) {
-            const role = PlatformAdapters.General.getMessageRole(m.messageElement);
-            if (role) {
-              m.roleClass = role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER ? cls.user : cls.assistant;
-            }
-          }
-          return m;
-        },
-        (m) => {
-          // Mutate
-          let container = m.existingContainer;
-          if (!container && m.anchor && m.anchor.isConnected && m.roleClass) {
-            const node = this.timestampContainerTemplate.cloneNode(true);
-            const span = this.timestampSpanTemplate.cloneNode(true);
-            if (node instanceof HTMLElement && span instanceof Element) {
-              container = node;
-              container.classList.add(m.roleClass);
-              container.appendChild(span);
-              m.anchor.prepend(container);
-              this.timestampDomCache.set(m.messageElement, container);
-            }
-          }
-          if (container && container.isConnected) {
-            const span = container.lastElementChild;
-            if (span) span.textContent = m.timestampText;
-            container.classList.toggle(cls.hidden, !m.timestampText);
-          }
-        },
-        () => this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK_SINGLE, null),
-        null
-      );
-      this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK_SINGLE, cancel);
-    }
-
-    /**
-     * @param {string} messageId
-     * @returns {Date | undefined}
-     */
-    getTimestamp(messageId) {
-      return PlatformAdapters.Timestamp.getTimestamp(messageId);
     }
 
     injectStyle() {
@@ -13791,7 +14349,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       if (!config) return;
 
       const allMessages = this.messageCacheManager.getTotalMessages();
-      const isTimestampEnabled = config.platforms[PLATFORM].features.timestamp.enabled;
+      const isTimestampEnabled = this.isEnabled;
 
       // Run a batch operation with Measure/Mutate separation to create/update all
       const cls = this.styleHandle.classes;
@@ -13800,36 +14358,45 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         allMessages,
         CONSTANTS.PROCESSING.BATCH_SIZE,
         // Measure
-        (messageElement) => {
-          if (!messageElement.isConnected) return null;
+        (messageNode) => {
+          const messageElement = messageNode.element;
+          if (!messageElement || !messageElement.isConnected) return null;
 
           let existingContainer = this.timestampDomCache.get(messageElement);
-          if (existingContainer && !existingContainer.isConnected) {
-            existingContainer = null;
-            this.timestampDomCache.delete(messageElement);
-          }
-
           let anchor = null;
           let roleClass = null;
           let timestampText = '';
 
           // Calculate Anchor & Role only if needed (not cached yet)
           if (!existingContainer) {
-            const messageIdHolder = messageElement.matches(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER) ? messageElement : messageElement.querySelector(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
+            let anchorTarget = null;
 
-            if (messageIdHolder) {
-              anchor = messageIdHolder;
+            // Adjust anchor for image messages to align with nav buttons at the top
+            if (messageNode.type === 'image' || messageElement.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE)) {
+              const navParent = PlatformAdapters.BubbleUI.getNavPositioningParent(messageElement);
+              if (navParent) {
+                anchorTarget = navParent;
+                anchorTarget.style.position = 'relative';
+              }
+            }
+
+            // Fallback for text messages
+            if (!anchorTarget) {
+              anchorTarget = messageElement.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
+              if (!anchorTarget) anchorTarget = messageElement.querySelector(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
+            }
+
+            if (anchorTarget) {
+              anchor = anchorTarget;
 
               // Check DOM for existing container (Idempotency)
               existingContainer = anchor.querySelector(`.${cls.container}`);
+
               if (existingContainer) {
                 this.timestampDomCache.set(messageElement, existingContainer);
               } else if (isTimestampEnabled) {
                 // Only calculate role if we need to create it
-                const role = PlatformAdapters.General.getMessageRole(messageElement);
-                if (role) {
-                  roleClass = role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER ? cls.user : cls.assistant;
-                }
+                roleClass = messageNode.role === CONSTANTS.INTERNAL_ROLES.USER ? cls.user : cls.assistant;
               }
             }
           } else {
@@ -13839,13 +14406,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
           // Calculate Text (always needed to update content/visibility)
           if (isTimestampEnabled) {
-            // Use the anchor found above, or find it now if we have a container but need ID
-            const holder = anchor || (messageElement.matches(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER) ? messageElement : messageElement.querySelector(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER));
-            if (holder) {
-              const messageId = PlatformAdapters.General.getMessageId(holder);
-              const timestamp = messageId ? this.getTimestamp(messageId) : undefined;
-              timestampText = this._formatTimestamp(timestamp);
-            }
+            timestampText = this._formatTimestamp(messageNode.timestamp);
           }
 
           return {
@@ -13862,11 +14423,11 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
           // Create if missing and valid AND feature is enabled
           if (!container && m.anchor && m.anchor.isConnected && m.roleClass && isTimestampEnabled) {
-            const node = this.timestampContainerTemplate.cloneNode(true);
+            const nodeDom = this.timestampContainerTemplate.cloneNode(true);
             const span = this.timestampSpanTemplate.cloneNode(true);
 
-            if (node instanceof HTMLElement && span instanceof Element) {
-              container = node;
+            if (nodeDom instanceof HTMLElement && span instanceof Element) {
+              container = nodeDom;
               container.classList.add(m.roleClass);
               container.appendChild(span);
               m.anchor.prepend(container);
@@ -13894,14 +14455,15 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     }
 
     /**
-     * @param {Date} date
+     * @param {number | undefined} unixTimestamp
      * @returns {string}
      * @private
      */
-    _formatTimestamp(date) {
-      if (!(date instanceof Date) || isNaN(date.getTime())) {
-        return ''; // Return empty string if date is invalid
+    _formatTimestamp(unixTimestamp) {
+      if (typeof unixTimestamp !== 'number' || isNaN(unixTimestamp)) {
+        return ''; // Return empty string if invalid
       }
+      const date = new Date(unixTimestamp * 1000);
       const yyyy = date.getFullYear();
       const mm = String(date.getMonth() + 1).padStart(2, '0');
       const dd = String(date.getDate()).padStart(2, '0');
@@ -13963,24 +14525,20 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       const config = this.configManager.get();
       if (!config) return;
 
-      const allMessages = this.messageCacheManager.getTotalMessages();
+      const allNodes = this.messageCacheManager.getTotalMessages();
       const isNavConsoleEnabled = config.platforms[PLATFORM].features.fixed_nav_console.enabled;
       const cls = this.styleHandle.classes;
 
       const cancelFn = runBatchUpdate(
-        allMessages,
+        allNodes,
         CONSTANTS.PROCESSING.BATCH_SIZE,
         // Measure
-        (message, i) => {
+        (node, i) => {
+          const message = node.element;
           // Skip if message is no longer in DOM
-          if (!message.isConnected) return null;
+          if (!message || !message.isConnected) return null;
 
           let existingSpan = this.numberSpanCache.get(message);
-          if (existingSpan && !existingSpan.isConnected) {
-            existingSpan = null;
-            this.numberSpanCache.delete(message);
-          }
-
           let anchor = null;
           let role = null;
 
@@ -13995,7 +14553,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
                 this.numberSpanCache.set(message, existingSpan);
               } else if (isNavConsoleEnabled) {
                 // Only calculate role if we need to create it
-                role = PlatformAdapters.General.getMessageRole(message);
+                role = node.role;
               }
             }
           }
@@ -14015,11 +14573,11 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
           // Create new span if needed AND feature is enabled
           if (!span && m.anchor && m.anchor.isConnected && m.role && isNavConsoleEnabled) {
             m.anchor.classList.add(cls.parent);
-            const roleClass = m.role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER ? cls.user : cls.assistant;
+            const roleClass = m.role === CONSTANTS.INTERNAL_ROLES.USER ? cls.user : cls.assistant;
 
-            const node = this.numberSpanTemplate.cloneNode(true);
-            if (node instanceof HTMLElement) {
-              span = node;
+            const nodeDom = this.numberSpanTemplate.cloneNode(true);
+            if (nodeDom instanceof HTMLElement) {
+              span = nodeDom;
               span.classList.add(roleClass);
               m.anchor.appendChild(span);
               this.numberSpanCache.set(m.message, span);
@@ -18021,6 +18579,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     constructor(role, messages, highlightedMessage, callbacks, styleHandle, initialFilterValue, searchCache) {
       super(callbacks);
       this.role = role;
+      /** @type {MessageNode[]} */
       this.messages = messages;
       this.styleHandle = styleHandle;
 
@@ -18029,18 +18588,27 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       // OR if it is the latest message (volatile), fetch data from DOM and update the cache.
       const cls = this.styleHandle.classes;
       this.searchableMessages = this.messages.map((msg, originalIndex) => {
-        let cachedData = searchCache.get(msg);
+        let cachedData = searchCache.get(msg.id);
         const isLatest = originalIndex === this.messages.length - 1;
-        // Force refresh for items holding the virtual scroll placeholder text
-        const hasFallback = cachedData && cachedData.displayText && cachedData.displayText.includes('(Not loaded');
 
         // 1. Force refresh for the latest message to ensure real-time consistency during streaming.
-        // 2. Fallback generation for uncached items, items with empty text, or placeholder items.
-        if (isLatest || !cachedData || !cachedData.displayText || hasFallback) {
-          const role = PlatformAdapters.General.getMessageRole(msg);
-          const roleClass = role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER ? cls.userItem : role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT ? cls.asstItem : null;
+        // 2. Fallback generation for uncached items or items with empty text (previously cached during streaming).
+        if (isLatest || !cachedData || !cachedData.displayText) {
+          const roleClass = msg.role === CONSTANTS.INTERNAL_ROLES.USER ? cls.userItem : msg.role === CONSTANTS.INTERNAL_ROLES.ASSISTANT ? cls.asstItem : null;
 
-          const rawText = PlatformAdapters.General.getJumpListDisplayText(msg);
+          let rawText = msg.text;
+
+          // Streaming fallback: Only extract from DOM if it is the latest message
+          // OR if the text is currently empty. Past messages safely use their stable cached text.
+          if ((isLatest || !rawText) && msg.element) {
+            rawText = PlatformAdapters.General.getJumpListDisplayText(msg.element);
+            if (msg.type === 'image' && !rawText.startsWith('(image)')) {
+              rawText = `(image) ${rawText}`.trim();
+            }
+          } else if (!rawText) {
+            rawText = '';
+          }
+
           const displayText = (rawText || '').replace(/\s+/g, ' ').trim();
 
           // Only update/set cache if data is missing or has changed (for latest message)
@@ -18051,12 +18619,12 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
               roleClass: roleClass,
             };
             // Update shared cache
-            searchCache.set(msg, cachedData);
+            searchCache.set(msg.id, cachedData);
           }
         }
 
         return {
-          element: msg,
+          node: msg,
           originalIndex: originalIndex,
           displayText: cachedData.displayText,
           lowerText: cachedData.lowerText,
@@ -18462,8 +19030,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       }
     }
 
-    updateHighlightedMessage(newMessage) {
-      this.state.highlightedMessage = newMessage;
+    updateHighlightedMessage(newMessageNode) {
+      this.state.highlightedMessage = newMessageNode;
       // Re-render visible items to update the '.is-current' class
       this._requestRender();
     }
@@ -18474,7 +19042,6 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
      * @returns {boolean} True if the element is inside the component.
      */
     contains(target) {
-      if (!target) return false;
       // Check if inside the main list element
       if (this.element?.contains(target)) return true;
       // Check if inside the preview tooltip (which is attached to body)
@@ -18708,7 +19275,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     }
 
     _configureItem(item, searchableMessage, index) {
-      const messageElement = searchableMessage.element;
+      const messageNode = searchableMessage.node;
       const originalIndex = searchableMessage.originalIndex;
       const cls = this.styleHandle.classes;
 
@@ -18731,7 +19298,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       }
 
       // Apply current state
-      if (this.state.highlightedMessage === messageElement) {
+      if (this.state.highlightedMessage === messageNode) {
         item.classList.add(cls.current);
       }
       if (this.state.focusedIndex === index) {
@@ -18974,7 +19541,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
           if (this.state.filteredMessages.length > 0) {
             this.state.focusedIndex = 0;
             this._updateFocus(false);
-            const targetMessage = this.state.filteredMessages[this.state.focusedIndex].element;
+            const targetMessage = this.state.filteredMessages[this.state.focusedIndex].node;
             if (targetMessage) this.callbacks.onSelect?.(targetMessage);
           }
           break;
@@ -19037,7 +19604,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         case 'Enter': {
           event.preventDefault();
           if (this.state.focusedIndex > -1) {
-            const targetMessage = this.state.filteredMessages[this.state.focusedIndex].element;
+            const targetMessage = this.state.filteredMessages[this.state.focusedIndex].node;
             if (targetMessage) this.callbacks.onSelect?.(targetMessage);
           }
           return; // Don't update focus on enter
@@ -20172,6 +20739,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       this.themeManager = null;
       this.bubbleUIManager = null;
       this.messageLifecycleManager = null;
+      this.apiMessageManager = null;
       this.timestampManager = null;
       this.fixedNavManager = null;
       this.messageNumberManager = null;
@@ -20206,28 +20774,6 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
       const config = this.configManager.get();
       config.themeSets = this._ensureUniqueThemeIds(config.themeSets);
-
-      // --- Sync and Self-Heal localStorage Timestamp state ---
-      if (PlatformAdapters.Timestamp.hasTimestampLogic()) {
-        const isTimestampEnabled = Boolean(config?.platforms?.[PLATFORM]?.features?.timestamp?.enabled);
-        try {
-          localStorage.setItem(CONSTANTS.STORE_KEYS.LOCAL_TIMESTAMP_ENABLED, String(isTimestampEnabled));
-        } catch (e) {
-          Logger.warn('APP', '', 'Failed to self-heal localStorage for timestamp toggle sync.', e);
-        }
-
-        // Force the correct interception state based on the loaded config to prevent rogue background processes
-        if (isTimestampEnabled) {
-          // Safe initialization check: prevent late-binding that could corrupt site fetch polyfills.
-          if (!PlatformAdapters.Timestamp.isInitialized) {
-            Logger.warn('TIMESTAMP', LOG_STYLES.YELLOW, 'Timestamp is enabled but fetch was not wrapped at document-start (e.g., due to cleared local storage). Interception will start on the next reload.');
-          } else {
-            PlatformAdapters.Timestamp.init();
-          }
-        } else {
-          PlatformAdapters.Timestamp.cleanup();
-        }
-      }
 
       // Shared state for streaming status
       // Store as instance property to access within AppController (e.g. for Heartbeat guard)
@@ -20266,7 +20812,11 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         PlatformAdapters.AppController.initializePlatformManagers(this);
       }
 
-      if (PlatformAdapters.Timestamp.hasTimestampLogic()) {
+      if (CONSTANTS.CAPABILITIES.API_MESSAGE) {
+        this.apiMessageManager = this.manageFactory(CONSTANTS.RESOURCE_KEYS.API_MESSAGE_MANAGER, () => new ApiMessageManager(this.configManager, this.messageCacheManager));
+      }
+
+      if (CONSTANTS.CAPABILITIES.TIMESTAMP) {
         this.timestampManager = this.manageFactory(CONSTANTS.RESOURCE_KEYS.TIMESTAMP_MANAGER, () => new TimestampManager(this.configManager, this.messageCacheManager));
       }
 
@@ -20297,6 +20847,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         this.standingImageManager,
         this.bubbleUIManager,
         this.messageLifecycleManager,
+        this.apiMessageManager,
         this.timestampManager,
         this.uiManager,
         this.messageNumberManager,
@@ -20318,7 +20869,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
       // --- Post-Init Logic ---
       // Manually enable timestamp manager if config says so
-      if (this.timestampManager && config.platforms[PLATFORM].features.timestamp.enabled) {
+      if (CONSTANTS.CAPABILITIES.TIMESTAMP && this.timestampManager && config.platforms[PLATFORM].features.timestamp.enabled) {
         this.timestampManager.enable();
       }
 
@@ -20386,6 +20937,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       this.themeManager = null;
       this.bubbleUIManager = null;
       this.messageLifecycleManager = null;
+      this.apiMessageManager = null;
       this.timestampManager = null;
       this.fixedNavManager = null;
       this.messageNumberManager = null;
@@ -20425,8 +20977,10 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       if (!needsRepair && this.messageCacheManager) {
         const totalMessages = this.messageCacheManager.getTotalMessages();
         if (totalMessages.length > 0) {
-          const lastMsg = totalMessages.at(-1);
-          if (!lastMsg.isConnected) {
+          // Find the last message that is supposed to be mounted in the DOM
+          const lastMountedMsg = totalMessages.findLast((msg) => msg.element);
+
+          if (lastMountedMsg && !lastMountedMsg.element.isConnected) {
             needsRepair = true;
             reason = 'Disconnected DOM elements';
           }
@@ -20498,9 +21052,10 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       if (this.messageCacheManager) {
         const totalMessages = this.messageCacheManager.getTotalMessages();
         if (totalMessages.length > 0) {
-          // Check the last message as a proxy for the entire list stability
-          const lastMsg = totalMessages.at(-1);
-          if (!lastMsg.isConnected) {
+          // Check the last mounted message as a proxy for the entire list stability
+          const lastMountedMsg = totalMessages.findLast((msg) => msg.element);
+
+          if (lastMountedMsg && !lastMountedMsg.element.isConnected) {
             Logger.debug('HEARTBEAT', LOG_STYLES.ORANGE, 'Disconnected element detected. Scheduling self-healing.');
             // Use runWhenIdle to defer repair during high load (scrolling/resizing)
             const cancelIdleFn = runWhenIdle(() => {
@@ -20551,16 +21106,6 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         // 2. Load latest from storage (updates ConfigManager state)
         const newConfig = await this.configManager.load(true);
         if (this.isDestroyed) return;
-
-        // --- Sync localStorage Timestamp state for remote updates ---
-        if (PlatformAdapters.Timestamp.hasTimestampLogic()) {
-          try {
-            const isTimestampEnabled = Boolean(newConfig?.platforms?.[PLATFORM]?.features?.timestamp?.enabled);
-            localStorage.setItem(CONSTANTS.STORE_KEYS.LOCAL_TIMESTAMP_ENABLED, String(isTimestampEnabled));
-          } catch (e) {
-            Logger.warn('SYNC', '', 'Failed to sync localStorage for timestamp toggle during remote update.', e);
-          }
-        }
 
         // 3. Detect changes
         const { themeChanged } = this._detectConfigChanges(oldConfig, newConfig);
@@ -20638,21 +21183,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
         if (newTimestampEnabled && !oldTimestampEnabled) {
           this.timestampManager.enable();
-          // Fetch interception MUST start at document-start to be reliable.
-          // Late binding wraps site polyfills, causing data corruption or null responses.
-          // Therefore, we must reload the page.
-          if (!isRemote) {
-            Logger.log('TIMESTAMP', LOG_STYLES.TEAL, 'Timestamp enabled. Reloading to safely apply API interception...');
-            window.location.reload();
-            return; // Prevent further UI updates as the page is reloading
-          } else {
-            // For remote updates, do NOT reload (prevents data loss in active tab) and do NOT call init() (prevents crash from late-binding).
-            // Interception will naturally start on the next navigation/reload.
-            Logger.log('TIMESTAMP', LOG_STYLES.TEAL, 'Remote timestamp enable detected. Interception will start on next reload.');
-          }
         } else if (!newTimestampEnabled && oldTimestampEnabled) {
           this.timestampManager.disable();
-          PlatformAdapters.Timestamp.cleanup();
         } else if (newTimestampEnabled) {
           // If already enabled, just force an update (e.g., if nav console was toggled)
           this.timestampManager.updateAllTimestamps();
@@ -20884,9 +21416,9 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
   const sentinel = new Sentinel(OWNERID);
 
   // Initialize network interception immediately to safely wrap fetch before site scripts load.
-  // It starts in an active state to ensure early API calls are not missed during initial load or SPA navigation.
-  if (PlatformAdapters.Timestamp.isTimestampEnabledSync(DEFAULT_THEME_CONFIG.platforms[PLATFORM])) {
-    PlatformAdapters.Timestamp.init();
+  // API interception is required for virtual scrolling data management.
+  if (CONSTANTS.CAPABILITIES.API_MESSAGE) {
+    PlatformAdapters.ApiMessage.init();
   }
 
   // Initialize lifecycle management to handle app startup and navigation

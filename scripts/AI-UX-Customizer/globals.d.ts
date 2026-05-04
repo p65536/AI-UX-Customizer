@@ -67,6 +67,18 @@ declare function cloneInto<T>(obj: T, target: object, options?: { cloneFunctions
 
 // --- Data Structures ---
 
+interface MessageNode {
+    id: string;
+    chatId: string | null;
+    turnId: string;
+    role: 'user' | 'assistant';
+    type: 'text' | 'image';
+    text: string;
+    timestamp: number | null;
+    element: HTMLElement | null;
+    turnElement: HTMLElement | null;
+}
+
 interface ActorConfig {
     name: string | null;
     icon: string | null;
@@ -261,13 +273,13 @@ interface AppEvents {
      */
     DEFERRED_LAYOUT_UPDATE: 'aiuxc:DEFERRED_LAYOUT_UPDATE';
     /**
-     * @description (ChatGPT-only) Fired when historical timestamps are loaded from the API.
+     * @description (ChatGPT-only) Fired when historical messages are loaded from the API.
      */
-    TIMESTAMPS_LOADED: 'aiuxc:TIMESTAMPS_LOADED';
+    API_MESSAGES_LOADED: 'aiuxc:API_MESSAGES_LOADED';
     /**
-     * @description Fired when a new timestamp for a realtime message is recorded.
+     * @description Fired when a new message is recorded via API or DOM fallback.
      */
-    TIMESTAMP_ADDED: 'aiuxc:TIMESTAMP_ADDED';
+    API_MESSAGE_ADDED: 'aiuxc:API_MESSAGE_ADDED';
 
     // System & Config
     /**
@@ -338,7 +350,7 @@ interface AppEventMap {
     'aiuxc:NAVIGATION': null;
     'aiuxc:CACHE_UPDATE_REQUEST': null;
     'aiuxc:CACHE_UPDATED': null;
-    'aiuxc:NAV_HIGHLIGHT_MESSAGE': HTMLElement;
+    'aiuxc:NAV_HIGHLIGHT_MESSAGE': MessageNode;
     'aiuxc:RAW_MESSAGE_ADDED': HTMLElement;
     'aiuxc:AVATAR_INJECT': HTMLElement;
     'aiuxc:MESSAGE_COMPLETE': HTMLElement;
@@ -346,8 +358,8 @@ interface AppEventMap {
     'aiuxc:STREAMING_START': null;
     'aiuxc:STREAMING_END': null;
     'aiuxc:DEFERRED_LAYOUT_UPDATE': null;
-    'aiuxc:TIMESTAMPS_LOADED': { chatId: string; timestamps: Map<string, Date> };
-    'aiuxc:TIMESTAMP_ADDED': { messageId: string; timestamp: Date };
+    'aiuxc:API_MESSAGES_LOADED': { messages: Map<string, MessageNode> };
+    'aiuxc:API_MESSAGE_ADDED': { messageId: string; node: MessageNode };
     'aiuxc:REMOTE_CONFIG_CHANGED': null;
     'aiuxc:SUSPEND_OBSERVERS': null;
     'aiuxc:RESUME_OBSERVERS': null;
@@ -399,11 +411,12 @@ interface IConfigManager {
 }
 
 interface IMessageCacheManager {
-    getTotalMessages(): HTMLElement[];
-    getUserMessages(): HTMLElement[];
-    getAssistantMessages(): HTMLElement[];
+    getTotalMessages(): MessageNode[];
+    getUserMessages(): MessageNode[];
+    getAssistantMessages(): MessageNode[];
     debouncedRebuildCache(): void;
-    findMessageIndex(element: HTMLElement): { role: string; index: number; totalIndex: number } | null;
+    findMessageIndex(id: string): { role: string; index: number; totalIndex: number } | null;
+    getScrollTarget(node: MessageNode): HTMLElement | null;
     notify(): void;
 }
 
@@ -413,16 +426,21 @@ interface IMessageLifecycleManager {
     processRawMessage(element: HTMLElement): void;
 }
 
+interface ITimestampManager {
+    enable(): void;
+    disable(): void;
+    updateAllTimestamps(): void;
+}
+
 interface IAutoScrollManager {
     enable(): void;
     disable(): void;
-    isLayoutScanComplete: boolean;
 }
 
 interface IFixedNavigationManager {
     messageCacheManager: IMessageCacheManager;
     messageLifecycleManager: IMessageLifecycleManager;
-    setHighlightAndIndices(element: HTMLElement): void;
+    setHighlightAndIndices(node: MessageNode): void;
     updateUI(): void;
     registerPlatformListenerOnce(event: string, listener: Function): void;
 }
@@ -454,6 +472,7 @@ interface IAppController {
     messageLifecycleManager: IMessageLifecycleManager;
     autoScrollManager: IAutoScrollManager | null;
     fixedNavManager: IFixedNavigationManager | null;
+    timestampManager: ITimestampManager | null;
 }
 
 declare class ThemeService {
@@ -533,11 +552,14 @@ interface GeneralAdapter {
     getJumpListDisplayText(element: HTMLElement): string;
     findMessageElement(element: Element): HTMLElement | null;
     filterMessage(element: Element): boolean;
+    extractMessageNodes(): MessageNode[];
+    createMessageNode(element: HTMLElement): MessageNode | null;
     ensureMessageContainerForImage(element: HTMLElement): HTMLElement | null;
     initializeSentinel(callback: (element: HTMLElement) => void): () => void;
     performInitialScan(lifecycleManager: IMessageLifecycleManager): number;
     onNavigationEnd(lifecycleManager: IMessageLifecycleManager): void;
     scrollTo(element: HTMLElement): void;
+    isAppendOrderValid(newNode: MessageNode, lastNode: MessageNode): boolean;
 }
 
 interface StyleManagerAdapter {
@@ -623,20 +645,21 @@ interface SettingsPanelAdapter {
 interface FixedNavAdapter {
     isHeaderPositionAvailable(navConsoleWidth?: number): boolean;
     getNavAnchorContainer(): HTMLElement | null;
-    handleInfiniteScroll(manager: IFixedNavigationManager, highlightedMessage: HTMLElement | null, previousTotalMessages: number): void;
-    applyAdditionalHighlight(messageElement: HTMLElement, styleHandle: StyleHandle): void;
+    handleInfiniteScroll(manager: IFixedNavigationManager, highlightedMessage: MessageNode | null, previousTotalMessages: number): void;
+    applyAdditionalHighlight(messageNode: MessageNode, styleHandle: StyleHandle): void;
     getPlatformSpecificButtons(manager: IFixedNavigationManager, styleHandle: StyleHandle): Element[];
     updatePlatformSpecificButtonState(btn: HTMLButtonElement, isAutoScrolling: boolean, autoScrollManager: IAutoScrollManager): void;
+    getShiftActionText(): string;
 }
 
-interface TimestampAdapter {
+interface ApiMessageAdapter {
     isInitialized: boolean;
     init(): void;
     cleanup(): void;
-    hasTimestampLogic(): boolean;
-    isTimestampEnabledSync(defaultConfig: PlatformConfig): boolean;
-    addTimestamp(id: string, date: Date): void;
-    getTimestamp(id: string): Date | undefined;
+    addMessageData(id: string, node: MessageNode): void;
+    getMessageData(id: string): MessageNode | undefined;
+    getAllMessageData(): MessageNode[];
+    clearCache(): void;
 }
 
 interface UIManagerAdapter {
@@ -646,6 +669,11 @@ interface UIManagerAdapter {
 // --- Platform Definitions ---
 
 interface PlatformConstants {
+    CAPABILITIES: {
+        TIMESTAMP: boolean;
+        API_MESSAGE: boolean;
+    };
+
     // Storage Configuration & Limits
     STORAGE_SETTINGS: {
         ROOT_KEY: string;
@@ -751,7 +779,6 @@ interface PlatformConstants {
         WARNING_SHOW_PATH: string;
         ERRORS_PATH: string;
         SIZE_EXCEEDED_PATH: string;
-        LOCAL_TIMESTAMP_ENABLED: string;
     };
     RESOURCE_KEYS: {
         SETTINGS_BUTTON: string;
@@ -770,6 +797,7 @@ interface PlatformConstants {
         BUBBLE_UI_MANAGER: string;
         MESSAGE_LIFECYCLE_MANAGER: string;
         TOAST_MANAGER: string;
+        API_MESSAGE_MANAGER: string;
         TIMESTAMP_MANAGER: string;
         FIXED_NAV_MANAGER: string;
         MESSAGE_NUMBER_MANAGER: string;
@@ -777,7 +805,6 @@ interface PlatformConstants {
         LAYOUT_RESIZE_OBSERVER: string;
         INTEGRITY_SCAN: string;
         BATCH_TASK: string;
-        BATCH_TASK_SINGLE: string;
         BATCH_TASK_TURN: string;
         ZERO_MSG_TIMER: string;
         NAVIGATION_MONITOR: string;
@@ -814,7 +841,7 @@ interface PlatformAdapters {
     Observer: ObserverAdapter;
     SettingsPanel: SettingsPanelAdapter;
     FixedNav: FixedNavAdapter;
-    Timestamp: TimestampAdapter;
+    ApiMessage: ApiMessageAdapter;
     UIManager: UIManagerAdapter;
 }
 

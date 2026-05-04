@@ -175,7 +175,7 @@ Configure ON/OFF and thresholds for convenient UI improvement features.
 
 | Property Name | Description | Example | Notes/Allowed Values |
 | --- | --- | --- | --- |
-| `load_full_history_on_chat_load` | `ChatGPT` (Firefox only)<br>Enables "layout scan and rescan DOM" on chat load.<br>`Gemini`<br>Enables auto-load full chat history on chat load.  | `{ "enabled": true }` | `true`/`false`<br>`ChatGPT`<br>Automatically scans the chat layout when opening a chat (Firefox only. See notes below.).<br>`Gemini`<br>Automatically loads the entire chat history when opening a chat.  |
+| `load_full_history_on_chat_load` | **[Gemini only]**<br>Enables auto-load full chat history on chat load.  | `{ "enabled": true }` | `true`/`false`<br>**[Gemini only]**<br>Automatically loads the entire chat history when opening a chat.  |
 | `timestamp` | `ChatGPT` **[ChatGPT only]**<br>Displays the creation time for each message. | `{ "enabled": true }` | `true`/`false`<br>`ChatGPT` only.<br>This feature is not available for Gemini to ensure strict compliance with Google's Terms of Service regarding internal API usage. |
 | `collapsible_button` | Displays a button to collapse messages at the top of each message bubble.  | `{ "enabled": true }` | `true`/`false`<br>Displays on the top-left for assistant and top-right for user.<br>Note: For Gemini, user bubbles have a standard collapse button, so this script does not process user bubbles for Gemini.<br>When this feature is enabled, a button to toggle the collapse state of all messages is displayed to the right of the message input field.  |
 | `collapsible_button.`<br>`auto_collapse_user_message` | **[ChatGPT only]**<br>Automatically collapses user messages that exceed the height threshold upon loading. | `{ "enabled": false }` | `true`/`false`<br>Default is `false`.<br>Requires `collapsible_button` to be enabled. |
@@ -183,15 +183,10 @@ Configure ON/OFF and thresholds for convenient UI improvement features.
 | `fixed_nav_console` | Displays an integrated navigation console.  | `{ "enabled": true, "position": "input_top" }` | `true`/`false`<br>Displays a console bar consolidating navigation-related features for efficient message movement.<br>Accepted values for `position`: `"input_top"` (floating above input) or `"header"` (embedded in top bar). Default is `"input_top"`.  |
 | `fixed_nav_console.`<br>`keyboard_shortcuts` | Enables keyboard shortcuts for navigation.<br>**Alt + ↑ / ↓**: Previous / Next message<br>**Alt + Shift + ↑ / ↓**: First / Last message<br>**Alt + J**: Open Jump List<br>**Alt + N**: Input message number | `{ "enabled": true }` | `true`/`false`<br>Default is `true`.<br>Requires `fixed_nav_console` to be enabled. |
 
-##### Notes about `load_full_history_on_chat_load` (ChatGPT / Firefox-only Option):
-When using Firefox, you may experience a "rubber-banding" or scroll-bouncing effect while scrolling. This is likely caused by layout shifts, where the height of off-screen elements (suspected to be the avatar icons) is calculated late, causing the entire page to reflow.  
-Setting this option to `true` will automatically run a "layout scan" (which simulates scrolling through the entire chat) when a conversation is loaded. This process forces the browser to calculate and finalize the height of all elements, mitigating this scrolling issue.  
-If this option is set to `false`, you can still run this function manually at any time by pressing the "Layout Scan" button on the far left of the navigation console.  
-
 ##### Notes about `timestamp` (ChatGPT-only Feature):
 This feature displays the precise creation time for each message.  
 This is made possible by intercepting the `/backend-api/conversation/` API request on ChatGPT, which contains historical timestamp data. This interception requires the script to run at `document-start`.  
-This feature is **not implemented for Gemini** because Gemini uses a different data loading mechanism, and a similar API endpoint providing historical timestamps is not available for interception.
+This feature is not available for Gemini to ensure strict compliance with Google's Terms of Service regarding internal API usage.
 
 -----
 

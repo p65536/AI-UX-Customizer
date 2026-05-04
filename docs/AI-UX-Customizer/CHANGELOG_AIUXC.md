@@ -3,6 +3,18 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.2.0] - 2026-05-04
+- **Version History Note**
+  - This update is built directly upon the stable `1.0.5` release. The temporary virtual scrolling patches introduced in the interim `1.1.0` version have been completely rewritten with a fundamentally stronger architecture to better handle ChatGPT's underlying changes.
+  - Although ChatGPT has currently reverted their virtual scrolling update, the new API-based message processing ensures the script remains fully functional even if virtual scrolling is introduced again in the future.
+- **New Features & Improvements**
+  - **[ChatGPT]** Added support for Shared Conversation links (`/share/`). All UI customization and navigation features now work flawlessly on shared chats.
+- **Changes & Removals**
+  - **[ChatGPT]** Removed the "Scan layout on chat load" feature and the auto-scroll button from the navigation console. This function is no longer required and is incompatible with ChatGPT's updated rendering engine.
+- **Core Changes**
+  - Overhauled internal message state management and API caching to ensure robust performance, accurate message tracking, and better stability across both platforms.
+  - Improved internal architecture by strictly separating platform-specific UI checks from the core message lifecycle manager, enhancing overall stability.
+
 ## [1.1.1] - 2026-04-22
 - **Bug Fixes**
   - **[ChatGPT]** Fixed an issue where the collapsible button and auto-collapse functionality were not appearing on user messages.
