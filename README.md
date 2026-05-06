@@ -34,6 +34,9 @@ It integrates powerful theme and navigation features into a single codebase, all
 
 ## Recent Updates
 
+### 2026-05-06
+- Updated `Quick Text Buttons` (3.1.5 -> 3.2.0)
+
 ### 2026-05-04
 - Updated `AI UX Customizer` (1.1.1 -> 1.2.0)
 
@@ -73,11 +76,11 @@ A userscript that adds powerful **theming**, **UI customization**, and **advance
 
 ### 2. Quick Text Buttons (QTB)
 
-Adds customizable text buttons to paste frequently used prompts into ChatGPT/Gemini inputs. Efficiently manage your snippets and templates by category and profile.
+Adds customizable text buttons to paste frequently used prompts into [ChatGPT/Gemini/Claude] inputs. Efficiently manage your snippets and templates by category and profile.
 
 | Platform | GitHub | Greasy Fork | Version | Last Updated | Changelog |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **ChatGPT** & **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/Quick-Text-Buttons/Quick-Text-Buttons.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/544699-quick-text-buttons) | 3.1.5 | 2026-03-20 | [View](./docs/Quick-Text-Buttons/CHANGELOG_QTBUX.md) |
+| **ChatGPT** & **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/Quick-Text-Buttons/Quick-Text-Buttons.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/544699-quick-text-buttons) | 3.2.0 | 2026-05-06 | [View](./docs/Quick-Text-Buttons/CHANGELOG_QTBUX.md) |
 
 **[View Detailed Features & Manual for Quick Text Buttons](./docs/Quick-Text-Buttons/README.md)**
 

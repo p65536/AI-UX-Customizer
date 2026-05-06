@@ -1,7 +1,14 @@
 # Changelog
 
-### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **UX Customizer (AIUXC/GPTUX/GGGUX)**, strict version matching is required:
--  QTB v3.1.2+ with AIUXC v1.0.0-b489+ / GPTUX v2.4.2+ / GGGUX v2.4.2+
+### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **AI UX Customizer (AIUXC**, strict version matching is required:
+-  QTB v3.1.2+ with AIUXC v1.0.0-b489+
+
+## [3.2.0] - 2026-05-06
+- **New Features**
+  - **[Claude]** Added official support for Claude (claude.ai).
+- **Core Changes**
+  - Enhanced the internal text insertion logic to handle complex editor behaviors, specifically for Claude's editor.
+  - Minor internal code improvements for better stability.
 
 ## [3.1.5] - 2026-03-20
 - **Core Changes**

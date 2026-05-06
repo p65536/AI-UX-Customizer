@@ -6,13 +6,14 @@
 
 ## Overview
 
-`Quick-Text-Buttons` is a **Prompt Manager** script that adds customizable text buttons to paste frequently used prompts into ChatGPT and Gemini inputs.
+`Quick-Text-Buttons (QTB)` is a **Prompt Manager** script that adds customizable text buttons to paste frequently used prompts into AI services inputs.
 You can efficiently manage and utilize your snippets and templates by organizing them into "Profiles" and "Categories."
 
 Currently, it supports the following AI services:
 
  - **ChatGPT**
  - **Gemini**
+ - **Claude**
 
 ---
 

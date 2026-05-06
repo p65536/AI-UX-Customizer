@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name         Quick-Text-Buttons
 // @namespace    https://github.com/p65536
-// @version      3.1.5
+// @version      3.2.0
 // @license      MIT
-// @description  Adds customizable text buttons to paste frequently used prompts into ChatGPT/Gemini inputs.
+// @description  Adds customizable text buttons to paste frequently used prompts into [ChatGPT/Gemini/Claude] inputs.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/qtb.svg
 // @author       p65536
 // @match        https://chatgpt.com/*
 // @match        https://gemini.google.com/*
+// @match        https://claude.ai/*
 // @grant        GM.getValue
 // @grant        GM.setValue
 // @grant        GM_addValueChangeListener
@@ -302,6 +303,7 @@
     URL_EXCLUSIONS: {
       chatgpt: [/^\/codex/, /^\/gpts/, /^\/apps/],
       gemini: [/^\/gems/],
+      claude: [],
     },
     PLATFORM: {
       CHATGPT: {
@@ -311,6 +313,10 @@
       GEMINI: {
         ID: 'gemini',
         HOST: 'gemini.google.com',
+      },
+      CLAUDE: {
+        ID: 'claude',
+        HOST: 'claude.ai',
       },
     },
     SELECTORS: {
@@ -332,6 +338,15 @@
         // Button occupies 48px (left:8px + width:40px). 52px provides a 4px gap.
         ANCHOR_PADDING_LEFT: '52px',
         INSERT_METHOD: 'append',
+      },
+      claude: {
+        // Reference element for button positioning - Toolbar left container
+        INSERTION_ANCHOR: 'fieldset:has([data-testid="chat-input"]) div.flex.w-full.items-center > div.flex-1.flex.items-center',
+        // Actual input element for text insertion
+        INPUT_TARGET: 'div.ProseMirror[data-testid="chat-input"]',
+        // Settings for layout strategy
+        ANCHOR_PADDING_LEFT: null,
+        INSERT_METHOD: 'prepend',
       },
     },
     MODAL_TYPES: {
@@ -617,6 +632,63 @@
         [this.VARS.DELETE_BTN_HOVER_TEXT]: 'var(--gem-sys-color--on-error-container)',
         [this.VARS.DELETE_BTN_HOVER_BG]: 'color-mix(in srgb, var(--gem-sys-color--on-error-container) 15%, var(--gem-sys-color--error-container))',
         [this.VARS.DND_INDICATOR]: 'var(--gem-sys-color--primary)',
+      },
+      claude: {
+        [this.VARS.MODAL_BG]: 'hsl(var(--bg-100))',
+        [this.VARS.PANEL_BG]: 'hsl(var(--bg-100))',
+        [this.VARS.INPUT_BG]: 'hsl(var(--bg-000))',
+
+        [this.VARS.TEXT_PRIMARY]: 'hsl(var(--text-100))',
+        [this.VARS.TEXT_SECONDARY]: 'hsl(var(--text-300))',
+        [this.VARS.TEXT_DANGER]: 'hsl(var(--danger-000))',
+        [this.VARS.TEXT_WARNING]: '#FFD54F',
+        [this.VARS.TEXT_ACCENT]: '#5e81ac',
+
+        [this.VARS.BORDER_DEFAULT]: 'hsl(var(--border-300))',
+        [this.VARS.BORDER_MEDIUM]: 'hsl(var(--border-400))',
+        [this.VARS.BORDER_LIGHT]: 'hsl(var(--border-200))',
+
+        [this.VARS.BTN_BG]: 'hsl(var(--bg-300))',
+        [this.VARS.BTN_HOVER_BG]: 'color-mix(in srgb, hsl(var(--bg-300)), hsl(var(--text-100)) 20%)',
+        [this.VARS.BTN_TEXT]: 'hsl(var(--text-100))',
+        [this.VARS.BTN_BORDER]: 'hsl(var(--border-300))',
+
+        [this.VARS.TOGGLE_BG_OFF]: 'hsl(var(--bg-300))',
+        [this.VARS.TOGGLE_BG_ON]: 'hsl(var(--accent-brand))',
+        [this.VARS.TOGGLE_KNOB]: 'hsl(var(--text-100))',
+
+        [this.VARS.LIST_BG]: 'hsl(var(--bg-100))',
+        [this.VARS.LIST_SHADOW]: '0 4px 16px rgb(0 0 0 / 0.15), 0 0 0 1px hsl(var(--border-200))',
+        [this.VARS.TAB_BG]: 'transparent',
+        [this.VARS.TAB_TEXT]: 'hsl(var(--text-300))',
+        [this.VARS.TAB_BORDER]: 'hsl(var(--border-300))',
+        [this.VARS.TAB_HOVER_BG]: 'color-mix(in srgb, hsl(var(--bg-200)), hsl(var(--text-100)) 15%)',
+        [this.VARS.TAB_ACTIVE_BG]: 'color-mix(in srgb, hsl(var(--bg-200)), hsl(var(--text-100)) 15%)',
+        [this.VARS.TAB_ACTIVE_BORDER]: 'hsl(var(--border-400))',
+        [this.VARS.TAB_ACTIVE_OUTLINE]: 'transparent',
+
+        [this.VARS.OPTION_BG]: 'transparent',
+        [this.VARS.OPTION_TEXT]: 'hsl(var(--text-300))',
+        [this.VARS.OPTION_BORDER]: 'hsl(var(--border-300))',
+        [this.VARS.OPTION_HOVER_BG]: 'color-mix(in srgb, hsl(var(--bg-200)), hsl(var(--text-100)) 15%)',
+        [this.VARS.OPTION_HOVER_BORDER]: 'hsl(var(--border-400))',
+        [this.VARS.OPTION_HOVER_OUTLINE]: 'transparent',
+
+        [this.VARS.INSERT_BTN_COLOR]: 'hsl(var(--text-400))',
+        [this.VARS.INSERT_BTN_HOVER_BG]: 'color-mix(in srgb, hsl(var(--bg-200)), hsl(var(--text-100)) 20%)',
+        [this.VARS.INSERT_BTN_POSITION]: 'static',
+        [this.VARS.INSERT_BTN_LEFT]: 'auto',
+        [this.VARS.INSERT_BTN_BOTTOM]: 'auto',
+        [this.VARS.INSERT_BTN_SIZE]: '32px',
+
+        [this.VARS.ANCHOR_PADDING_LEFT]: '0',
+        [this.VARS.ANCHOR_GAP]: '4px',
+
+        [this.VARS.DELETE_BTN_TEXT]: 'hsl(var(--text-100))',
+        [this.VARS.DELETE_BTN_BG]: 'hsl(var(--danger-000))',
+        [this.VARS.DELETE_BTN_HOVER_TEXT]: 'hsl(var(--text-100))',
+        [this.VARS.DELETE_BTN_HOVER_BG]: 'hsl(var(--danger-100))',
+        [this.VARS.DND_INDICATOR]: '#5e81ac',
       },
     };
 
@@ -991,9 +1063,10 @@ cursor: pointer;
 transition: background 0.15s;
 }
 .${cls.tab}.active {
-background: var(${v.TAB_ACTIVE_BG});
-border-color: var(${v.TAB_ACTIVE_BORDER});
-outline: 2px solid var(${v.TAB_ACTIVE_OUTLINE});
+background: var(${v.TAB_ACTIVE_BG}) !important;
+border-color: var(${v.TAB_ACTIVE_BORDER}) !important;
+outline: 2px solid var(${v.TAB_ACTIVE_OUTLINE}) !important;
+outline-offset: -2px !important;
 }
 .${cls.tab}:hover {
 background: var(${v.TAB_HOVER_BG});
@@ -1025,6 +1098,7 @@ cursor: pointer;
 background: var(${v.OPTION_HOVER_BG}) !important;
 border-color: var(${v.OPTION_HOVER_BORDER}) !important;
 outline: 2px solid var(${v.OPTION_HOVER_OUTLINE});
+outline-offset: -2px;
 }
 .${cls.option}.active {
 background: var(${v.TAB_ACTIVE_BG});
@@ -1653,6 +1727,13 @@ font-size: 0.95em;
             selectors: CONSTANTS.SELECTORS.gemini,
           };
         }
+        // Claude
+        if (host.includes(CONSTANTS.PLATFORM.CLAUDE.HOST)) {
+          return {
+            platformId: CONSTANTS.PLATFORM.CLAUDE.ID,
+            selectors: CONSTANTS.SELECTORS.claude,
+          };
+        }
         // invalid
         return null;
       },
@@ -1696,6 +1777,113 @@ font-size: 0.95em;
     },
 
     Editor: {
+      /**
+       * Handles platform-specific custom text insertion logic (e.g., paragraph split emulation).
+       * @param {HTMLElement} editor The target editor element.
+       * @param {string} text The text to insert.
+       * @returns {boolean} True if the custom insertion handled the operation, otherwise false.
+       */
+      handleCustomInsertion(editor, text) {
+        /*
+         * [CLAUDE-SPECIFIC WORKAROUND: PARAGRAPH SPLIT EMULATION]
+         * Claude uses ProseMirror, which strictly enforces its internal document schema.
+         * 1. Simple `Range.insertNode(<br>)` fails because ProseMirror sanitizes/flattens unexpected raw <br> or \n inside a paragraph.
+         * 2. `ClipboardEvent('paste')` fails because modern browsers flag script-generated paste events as `isTrusted: false`, which ProseMirror security actively blocks.
+         * 3. `document.execCommand('insertText')` is deprecated and discouraged.
+         * SOLUTION: Emulate a multiline paste by manipulating the DOM directly.
+         * Split the input string by '\n', inject the first line into the current <p>,
+         * extract any existing text after the cursor, create new <p> siblings for subsequent lines, and append the extracted remainder to the final <p>.
+         */
+        const platform = PlatformAdapters.General.getPlatformDetails();
+        if (platform?.platformId === CONSTANTS.PLATFORM.CLAUDE.ID) {
+          const selection = window.getSelection();
+          if (!selection || selection.rangeCount === 0) return false;
+
+          const range = selection.getRangeAt(0);
+          if (!range.collapsed) {
+            range.deleteContents();
+          }
+
+          const lines = text.split('\n');
+          if (lines.length === 0) return true;
+
+          // Find the closest paragraph or block element
+          let currentBlock = range.startContainer;
+          while (currentBlock && currentBlock !== editor && currentBlock.nodeType !== Node.ELEMENT_NODE) {
+            currentBlock = currentBlock.parentNode;
+          }
+
+          // Type Narrowing for @ts-check: Ensure currentBlock is an Element before calling closest()
+          if (currentBlock instanceof Element && currentBlock !== editor) {
+            const blockParent = currentBlock.closest('p, h1, h2, h3, h4, h5, h6, li, blockquote, pre');
+            if (blockParent && editor.contains(blockParent)) {
+              currentBlock = blockParent;
+            }
+          }
+
+          // Insert first line into current position
+          const textNode = document.createTextNode(lines[0]);
+          range.insertNode(textNode);
+          range.setStartAfter(textNode);
+
+          if (lines.length > 1) {
+            // Extract the remainder of the current block
+            const remainderRange = document.createRange();
+            remainderRange.setStart(range.startContainer, range.startOffset);
+
+            if (currentBlock && currentBlock.nodeType === Node.ELEMENT_NODE && editor.contains(currentBlock)) {
+              remainderRange.setEndAfter(currentBlock.lastChild || currentBlock);
+            } else {
+              remainderRange.setEnd(editor, editor.childNodes.length);
+            }
+
+            const remainderFragment = remainderRange.extractContents();
+            let lastInsertedBlock = currentBlock && editor.contains(currentBlock) ? currentBlock : textNode;
+
+            // Insert subsequent lines as new paragraphs
+            for (let i = 1; i < lines.length; i++) {
+              const p = document.createElement('p');
+
+              if (i === lines.length - 1) {
+                const finalLineNode = document.createTextNode(lines[i]);
+                p.appendChild(finalLineNode);
+                p.appendChild(remainderFragment);
+
+                range.setStartAfter(finalLineNode);
+                range.collapse(true);
+              } else {
+                if (lines[i] === '') {
+                  p.appendChild(document.createElement('br'));
+                } else {
+                  p.textContent = lines[i];
+                }
+              }
+
+              if (lastInsertedBlock.parentNode && editor.contains(lastInsertedBlock.parentNode)) {
+                if (lastInsertedBlock.nextSibling) {
+                  lastInsertedBlock.parentNode.insertBefore(p, lastInsertedBlock.nextSibling);
+                } else {
+                  lastInsertedBlock.parentNode.appendChild(p);
+                }
+              } else {
+                editor.appendChild(p);
+              }
+              lastInsertedBlock = p;
+            }
+          } else {
+            range.collapse(true);
+          }
+
+          selection.removeAllRanges();
+          selection.addRange(range);
+
+          editor.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+          editor.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+          return true;
+        }
+        return false;
+      },
+
       /**
        * Builds the DOM structure for text insertion based on platform specifics.
        * @param {string} text The text to insert.
@@ -2024,6 +2212,11 @@ font-size: 0.95em;
       if (options.insert_before_newline) textToInsert = '\n' + textToInsert;
       if (options.insert_after_newline) textToInsert += '\n';
 
+      // [Platform Hook] Custom insertion for specific platforms (e.g., Claude)
+      if (PlatformAdapters.Editor.handleCustomInsertion(editor, textToInsert)) {
+        return;
+      }
+
       // 5. Delete selected text if any
       if (!range.collapsed) {
         range.deleteContents();
@@ -2319,6 +2512,7 @@ font-size: 0.95em;
       }
     };
 
+    /** @this {any} */
     const debounced = function (...args) {
       cancel();
       timerId = setTimeout(() => {
@@ -7163,6 +7357,7 @@ font-size: 0.95em;
         const orig = history[m];
         this.originalHistoryMethods[m] = orig;
 
+        /** @this {History} */
         const wrapper = function (...args) {
           const result = orig.apply(this, args);
           instance._onUrlChange();
