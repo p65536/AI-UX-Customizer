@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.2.0
+// @version      1.2.1
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -170,6 +170,7 @@
       AVATAR_INJECTION_LIMIT: 5,
       SCROLL_CORRECTION_MAX_MS: 300,
       SCROLL_CORRECTION_STABLE_FRAMES: 3,
+      PROGRESSIVE_SCROLL_LIMIT: 20,
     },
     IMAGE_PROCESSING: {
       QUALITY: 0.85,
@@ -196,6 +197,7 @@
         WAIT_FOR_MAIN_CONTENT: 10000,
         BLOB_URL_REVOKE_DELAY: 10000, // The time to wait before revoking a Blob URL after export, allowing the download to start.
         SELF_HEAL_IDLE_TIMEOUT_MS: 1000,
+        PROGRESSIVE_SCROLL_TIMEOUT: 5000,
       },
       THRESHOLDS: {
         SUSPEND_LIMIT_MS: 5 * 60 * 1000, // 5 minutes threshold for heavy throttling/suspension
@@ -2995,6 +2997,16 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
     getShiftActionText() {
       return '';
     }
+
+    /**
+     * Optional hook to handle platform-specific scroll logic.
+     * @param {MessageNode} messageNode The target message node.
+     * @param {FixedNavigationManager} manager The manager instance.
+     * @returns {boolean} True if the scroll was handled by the adapter, false to use the default common logic.
+     */
+    handleScrollToMessage(messageNode, manager) {
+      return false;
+    }
   }
 
   /**
@@ -3117,6 +3129,7 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
         TURN_ROLE: 'data-turn',
         MESSAGE_ID: 'data-message-id',
         TURN_ID: 'data-turn-id',
+        TURN_ID_VIRTUAL: 'data-turn-id-container',
       },
       SELECTORS: {
         // [IMPORTANT] CSS Scoping & Dynamic Selectors:
@@ -3132,9 +3145,10 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
         MESSAGES_ROOT: 'main',
 
         // --- Message containers ---
-        CONVERSATION_UNIT: ':is(section[data-testid^="conversation-turn-"], article[data-testid^="conversation-turn-"])',
+        // Target persistent turn containers (Active section or Virtualized placeholder div)
+        CONVERSATION_UNIT: ':is(section[data-turn-id], article[data-turn-id], div[data-turn-id-container])',
         MESSAGE_ID_HOLDER: '[data-message-id], [id^="image-"]',
-        MESSAGE_ROOT_NODE: ':is(section[data-testid^="conversation-turn-"], article[data-testid^="conversation-turn-"])',
+        MESSAGE_ROOT_NODE: ':is(section[data-testid^="conversation-turn-"], article[data-testid^="conversation-turn-"], [data-turn-id-container])',
 
         // --- Selectors for messages ---
         USER_MESSAGE: 'div[data-message-author-role="user"]',
@@ -3469,13 +3483,9 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
           const hasText = messageElement.querySelector(CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT)?.textContent?.trim();
           const hasImage = messageElement.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE);
 
-          // If it has neither text nor an image inside it, check the turn context.
+          // If it has neither text nor an image inside it, it is a ghost artifact. Filter it out.
           if (!hasText && !hasImage) {
-            const turnContainer = messageElement.closest(CONSTANTS.SELECTORS.CONVERSATION_UNIT);
-            // If the turn contains an image elsewhere, this empty message is likely a ghost artifact. Filter it out.
-            if (turnContainer && turnContainer.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE)) {
-              return false; // Exclude this ghost message
-            }
+            return false;
           }
         }
         return true; // Keep all other messages
@@ -3484,12 +3494,15 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
       /** @override */
       extractMessageNodes() {
         // --- ChatGPT Architecture Note ---
-        // 1. Turn Management (DOM as Source of Truth):
-        //    Turn containers are always present in the DOM (even if their inner messages are virtualized out of view).
-        //    Therefore, we iterate through the DOM turn containers to establish the definitive structure and order.
-        // 2. Intra-Turn Messages (API Data Priority):
-        //    For messages (text, images) within a turn, we prioritize data from the API cache to ensure completeness.
-        //    We fallback to extracting data directly from the DOM only when API data is unavailable (e.g., newly generated messages).
+        // 1. Turn Container Persistence (DOM):
+        //    Turn containers (section or virtualized div) are always present in the DOM.
+        //    We map these containers to their IDs to maintain a reliable scroll target even when bubbles are unmounted.
+        // 2. Active Path (API as Source of Truth):
+        //    We derive the definitive message order by traversing the API tree (parentMap) from the leaf to the root.
+        //    This ensures a complete and correctly ordered list regardless of DOM virtualization.
+        // 3. Persistence-aware Merging:
+        //    We reconstruct the list by following the Active Path, using live DOM elements where available,
+        //    and falling back to API cache for unmounted messages while maintaining a link to the persistent turn container.
 
         /** @type {MessageNode[]} */
         const nodes = [];
@@ -3498,229 +3511,102 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
         const match = window.location.pathname.match(/\/(?:c|share)\/([a-zA-Z0-9-]+)/i);
         const currentChatId = match ? match[1] : null;
 
-        // Initialize state for the current chat
-        if (!this.chatTurnCaches.has(currentChatId)) {
-          this.chatTurnCaches.set(currentChatId, new Map());
-        }
-        const activeTurnMessageIds = this.chatTurnCaches.get(currentChatId);
-
-        // Get cached messages from API (as fallback pool)
-        const apiNodesMap = new Map();
         const apiAdapter = PlatformAdapters.ApiMessage;
-        if (apiAdapter.isInitialized && typeof apiAdapter.getAllMessageData === 'function') {
-          const allData = apiAdapter.getAllMessageData();
-          for (const node of allData) {
-            // Only consider nodes for the current chat or unbound nodes
-            if (node.chatId === currentChatId || node.chatId === null) {
-              apiNodesMap.set(node.id, node);
-            }
-          }
-        }
-
-        // Build topological order map for safe sorting of unmounted nodes
-        const orderMap = new Map();
-        if (apiAdapter.isInitialized && apiAdapter.chatLeafMap && apiAdapter.parentMap) {
-          const leafId = apiAdapter.chatLeafMap.get(currentChatId);
-          let currId = leafId;
-          const path = [];
-          while (currId) {
-            path.unshift(currId);
-            currId = apiAdapter.parentMap.get(currId);
-          }
-          for (let k = 0; k < path.length; k++) {
-            orderMap.set(path[k], k);
-          }
-        }
+        const hasApi = apiAdapter.isInitialized;
 
         const rootContainer = this.getMessagesRoot();
         if (!rootContainer) return nodes;
 
-        // Iterate through all turn containers in DOM order (Source of Truth)
+        // 1. Map all turn containers present in DOM (including virtualized ones)
+        const turnMap = new Map(); // Map<turnId, HTMLElement>
         const turnContainers = rootContainer.querySelectorAll(CONSTANTS.SELECTORS.CONVERSATION_UNIT);
+        for (let i = 0; i < turnContainers.length; i++) {
+          const tc = turnContainers[i];
+          if (tc instanceof HTMLElement) {
+            const id = tc.getAttribute(CONSTANTS.ATTRIBUTES.TURN_ID) || tc.getAttribute(CONSTANTS.ATTRIBUTES.TURN_ID_VIRTUAL);
+            if (id) turnMap.set(id, tc);
+          }
+        }
+
+        // 2. Gather all mounted message elements and link to their turn containers
+        const mountedElements = new Map(); // Map<msgId, { element: HTMLElement, turnElement: HTMLElement }>
+        const activeIdsFromDom = [];
         let sequentialTimestamp = Math.floor(Date.now() / 1000);
 
-        // Synchronize the active branch state with current DOM IDs
-        const activeIdsFromDom = [];
-        for (let i = 0; i < turnContainers.length; i++) {
-          const turnContainer = turnContainers[i];
-          if (!(turnContainer instanceof HTMLElement)) continue;
+        const messageElements = rootContainer.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
+        for (let i = 0; i < messageElements.length; i++) {
+          const msgEl = messageElements[i];
+          if (msgEl instanceof HTMLElement && this.filterMessage(msgEl)) {
+            let holder = msgEl.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
+            if (!holder) holder = msgEl.querySelector(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
+            const msgId = holder ? this.getMessageId(holder) : null;
 
-          const turnId = turnContainer.getAttribute(CONSTANTS.ATTRIBUTES.TURN_ID);
-
-          const messageElements = turnContainer.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
-
-          if (messageElements.length > 0) {
-            // MOUNTED: Extract from DOM and update cache
-            const currentTurnIds = [];
-            for (let j = 0; j < messageElements.length; j++) {
-              const msgEl = messageElements[j];
-              if (msgEl instanceof HTMLElement && this.filterMessage(msgEl)) {
-                let holder = msgEl.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
-                if (!holder) holder = msgEl.querySelector(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
-                const msgId = holder ? this.getMessageId(holder) : null;
-                if (msgId) {
-                  currentTurnIds.push(msgId);
-                  activeIdsFromDom.push(msgId);
-                }
+            if (msgId) {
+              const turnElement = msgEl.closest(CONSTANTS.SELECTORS.CONVERSATION_UNIT);
+              if (turnElement instanceof HTMLElement) {
+                mountedElements.set(msgId, { element: msgEl, turnElement });
+                activeIdsFromDom.push(msgId);
               }
-            }
-            if (turnId && currentTurnIds.length > 0) {
-              activeTurnMessageIds.set(turnId, currentTurnIds);
-            } else if (turnId && currentTurnIds.length === 0) {
-              // Fallback: Turn container exists, but DOM extraction failed (e.g., due to delayed image rendering).
-              // Identify and supplement active nodes belonging to this turn from the API cache.
-              const fallbackIds = [];
-              for (const [id, node] of apiNodesMap.entries()) {
-                const isActive = apiAdapter.isInitialized && typeof apiAdapter.isActiveNode === 'function' ? apiAdapter.isActiveNode(currentChatId, id) : true;
-                if (node.turnId === turnId && isActive) {
-                  // Exclude empty nodes (placeholders) just after generation starts to prevent index shifting.
-                  if (!(node.type === 'text' && node.text === '')) {
-                    fallbackIds.push(id);
-                  }
-                }
-              }
-              if (fallbackIds.length > 0) {
-                // Ensure correct order using topological sort.
-                fallbackIds.sort((a, b) => (orderMap.get(a) ?? Infinity) - (orderMap.get(b) ?? Infinity));
-                activeIdsFromDom.push(...fallbackIds);
-                activeTurnMessageIds.set(turnId, fallbackIds); // Repair cache
-              }
-            }
-          } else if (turnId) {
-            // UNMOUNTED: Supplement with cached IDs to maintain branch integrity for virtual scrolling
-            const cachedIds = activeTurnMessageIds.get(turnId);
-            if (cachedIds) {
-              cachedIds.forEach((id) => {
-                activeIdsFromDom.push(id);
-              });
             }
           }
         }
 
-        if (apiAdapter.isInitialized && typeof apiAdapter.updateActiveBranch === 'function') {
+        // Synchronize DOM state with API tree
+        if (hasApi && typeof apiAdapter.updateActiveBranch === 'function') {
           apiAdapter.updateActiveBranch(currentChatId, activeIdsFromDom);
         }
 
-        const isActiveNode = (id) => {
-          if (apiAdapter.isInitialized && typeof apiAdapter.isActiveNode === 'function') {
-            return apiAdapter.isActiveNode(currentChatId, id);
-          }
-          return true; // Fallback if adapter is missing
-        };
-
-        for (let i = 0; i < turnContainers.length; i++) {
-          const turnContainer = turnContainers[i];
-          if (!(turnContainer instanceof HTMLElement)) continue;
-
-          const turnId = turnContainer.getAttribute(CONSTANTS.ATTRIBUTES.TURN_ID);
-          if (!turnId) continue;
-
-          const messageElements = turnContainer.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
-          let extractedFromDom = false;
-
-          if (messageElements.length > 0) {
-            // MOUNTED: Extract from DOM and record active IDs
-            const activeIdsForTurn = [];
-            const tempNodes = [];
-
-            for (let j = 0; j < messageElements.length; j++) {
-              const msgEl = messageElements[j];
-              if (msgEl instanceof HTMLElement && this.filterMessage(msgEl)) {
-                let holder = msgEl.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
-                if (!holder) holder = msgEl.querySelector(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
-                const msgId = holder ? this.getMessageId(holder) : null;
-
-                if (msgId) {
-                  activeIdsForTurn.push(msgId);
-
-                  const cachedNode = apiNodesMap.get(msgId);
-                  let node = null;
-
-                  // Merge API cache and DOM to prevent data loss (e.g., timestamps) while maintaining DOM references.
-                  // Inherit from cache if it exists, otherwise extract from DOM and generate sequential timestamp.
-                  if (cachedNode) {
-                    // Use cached data for past messages to prevent DOM delayed rendering issues, just update DOM references
-                    node = {
-                      ...cachedNode,
-                      element: msgEl,
-                      turnElement: turnContainer,
-                    };
-                  } else {
-                    // Extract from DOM for new or streaming messages
-                    node = this.createMessageNode(msgEl);
-                    if (node) {
-                      node.turnId = turnId;
-                      node.turnElement = turnContainer;
-
-                      // Generate sequential timestamp since API cache is not available
-                      node.timestamp = sequentialTimestamp++;
-
-                      // Update API Cache with fresh DOM node
-                      if (apiAdapter.isInitialized && typeof apiAdapter.addMessageData === 'function') {
-                        apiAdapter.addMessageData(msgId, node);
-                      }
-                    }
-                  }
-
-                  if (node) {
-                    tempNodes.push(node);
-                  }
-                }
-              }
-            }
-
-            if (activeIdsForTurn.length > 0) {
-              extractedFromDom = true;
-              activeTurnMessageIds.set(turnId, activeIdsForTurn);
-              nodes.push(...tempNodes);
+        // 3. Build Active Path from API tree
+        let activePathIds = [];
+        if (hasApi && apiAdapter.chatLeafMap && apiAdapter.parentMap) {
+          const leafId = apiAdapter.chatLeafMap.get(currentChatId);
+          if (leafId) {
+            let currId = leafId;
+            while (currId) {
+              activePathIds.unshift(currId);
+              currId = apiAdapter.parentMap.get(currId);
             }
           }
+        }
 
-          if (!extractedFromDom) {
-            // UNMOUNTED or DELAYED: Restore from API Cache
-            const activeIds = activeTurnMessageIds.get(turnId);
+        // Fallback: Use DOM order if API path is unavailable
+        if (activePathIds.length === 0) {
+          activePathIds = activeIdsFromDom;
+        }
 
-            // Check if the cached activeIds are still valid for the current active branch
-            let isCachedIdsValid = false;
-            if (activeIds && activeIds.length > 0) {
-              isCachedIdsValid = activeIds.every((msgId) => isActiveNode(msgId));
-            }
+        // 4. Reconstruct complete message list using persistence-aware merging
+        for (const msgId of activePathIds) {
+          const mountedData = mountedElements.get(msgId);
+          const cachedNode = hasApi ? apiAdapter.getMessageData(msgId) : null;
 
-            if (isCachedIdsValid) {
-              // Restore only the previously mounted active IDs
-              for (const msgId of activeIds) {
-                const cachedNode = apiNodesMap.get(msgId);
-                if (cachedNode) {
-                  // Create a fresh node object without stale DOM references
-                  const restoredNode = { ...cachedNode, element: null, turnElement: turnContainer };
-                  nodes.push(restoredNode);
-                }
-              }
-            } else {
-              // Fallback: Restore all active branch nodes for this turn (handles tree switching or initial load)
-              const restoredNodes = [];
-              for (const cachedNode of apiNodesMap.values()) {
-                if (cachedNode.turnId === turnId && isActiveNode(cachedNode.id)) {
-                  const restoredNode = { ...cachedNode, element: null, turnElement: turnContainer };
-                  restoredNodes.push(restoredNode);
-                }
-              }
-
-              // Sort using absolute tree topological order instead of timestamps
-              restoredNodes.sort((a, b) => {
-                const idxA = orderMap.has(a.id) ? orderMap.get(a.id) : Infinity;
-                const idxB = orderMap.has(b.id) ? orderMap.get(b.id) : Infinity;
-                return idxA - idxB;
+          if (mountedData) {
+            // MOUNTED: Update with live DOM references
+            if (cachedNode) {
+              nodes.push({
+                ...cachedNode,
+                element: mountedData.element,
+                turnElement: mountedData.turnElement,
               });
-
-              nodes.push(...restoredNodes);
-
-              // Update cache to reflect the new active branch for this unmounted turn
-              activeTurnMessageIds.set(
-                turnId,
-                restoredNodes.map((n) => n.id)
-              );
+            } else {
+              // FRESH: New message not yet in API cache
+              const newNode = this.createMessageNode(mountedData.element);
+              if (newNode) {
+                newNode.turnElement = mountedData.turnElement;
+                newNode.timestamp = sequentialTimestamp++;
+                nodes.push(newNode);
+                if (hasApi && typeof apiAdapter.addMessageData === 'function') {
+                  apiAdapter.addMessageData(msgId, newNode);
+                }
+              }
             }
+          } else if (cachedNode) {
+            // UNMOUNTED: Restore from cache and link to persistent turn container
+            const turnElement = turnMap.get(cachedNode.turnId) || null;
+            nodes.push({
+              ...cachedNode,
+              element: null,
+              turnElement: turnElement,
+            });
           }
         }
 
@@ -3763,10 +3649,15 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
         const rawTurnElement = messageElement.closest(CONSTANTS.SELECTORS.CONVERSATION_UNIT);
         const turnElement = rawTurnElement instanceof HTMLElement ? rawTurnElement : null;
 
+        let turnId = '';
+        if (turnElement) {
+          turnId = turnElement.getAttribute(CONSTANTS.ATTRIBUTES.TURN_ID) || turnElement.getAttribute(CONSTANTS.ATTRIBUTES.TURN_ID_VIRTUAL) || '';
+        }
+
         return {
           id: messageId,
           chatId: currentChatId,
-          turnId: '',
+          turnId: turnId,
           role: /** @type {'user'|'assistant'} */ (role),
           type: type,
           text: text,
@@ -3893,6 +3784,10 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
         const adjustScroll = () => {
           // Exclusive control: stop current loop if a new scrollTo is called
           if (this._activeScrollId !== myScrollId) return;
+
+          // Abort correction loop immediately if target is detached from DOM
+          // (e.g., when a virtual placeholder is replaced by the real React element)
+          if (!scrollTargetElement.isConnected) return;
 
           const now = performance.now();
           if (now - startTime > MAX_DURATION_MS) return; // Stop if timeout reached
@@ -4728,6 +4623,73 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
       /** @override */
       getShiftActionText() {
         return '\n[Shift] Auto-scroll';
+      }
+
+      /** @override */
+      handleScrollToMessage(node, manager) {
+        const attemptScroll = () => {
+          if (manager.isDestroyed) return false;
+
+          // If message bubble is connected, scroll to it directly (Final target reached)
+          if (node.element && node.element.isConnected) {
+            PlatformAdapters.General.scrollTo(node.element);
+            return true;
+          }
+
+          // If bubble is unmounted but persistent turn container is connected, scroll to the container
+          if (node.turnElement && node.turnElement.isConnected) {
+            PlatformAdapters.General.scrollTo(node.turnElement);
+            // Return false to keep progressive scroll active, waiting for the real element to mount
+            return false;
+          }
+
+          // Fallback: search closest mounted element in cache
+          const targetToScroll = manager.messageCacheManager.getScrollTarget(node);
+          if (targetToScroll) {
+            PlatformAdapters.General.scrollTo(targetToScroll);
+          }
+          return false;
+        };
+
+        const reached = attemptScroll();
+
+        if (!reached) {
+          const limit = CONSTANTS.RETRY.PROGRESSIVE_SCROLL_LIMIT || 20;
+          const timeout = CONSTANTS.TIMING.TIMEOUTS.PROGRESSIVE_SCROLL_TIMEOUT || 5000;
+          let attempts = 0;
+
+          // Use persistent listener instead of one-time listener to ensure all retry frames are captured
+          const unsubscribe = manager.registerPlatformListener(EVENTS.CACHE_UPDATED, processUpdate);
+
+          function processUpdate() {
+            if (manager.isDestroyed) {
+              if (typeof unsubscribe === 'function') unsubscribe();
+              return;
+            }
+            attempts++;
+
+            const isFinalTargetReached = node.element && node.element.isConnected;
+
+            if (isFinalTargetReached) {
+              // Final target reached, stop listening and do precision scroll
+              if (typeof unsubscribe === 'function') unsubscribe();
+              attemptScroll();
+            } else if (attempts < limit) {
+              // Still waiting for real element, try scrolling to placeholder/nearest
+              attemptScroll();
+            } else {
+              // Max attempts reached, cleanup
+              if (typeof unsubscribe === 'function') unsubscribe();
+            }
+          }
+
+          setTimeout(() => {
+            if (typeof unsubscribe === 'function') unsubscribe();
+          }, timeout);
+        }
+
+        // Return true to indicate the adapter fully handled the scroll
+        return true;
       }
     }
 
@@ -13443,6 +13405,12 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     }
 
     _scrollToMessage(node) {
+      // 1. Hook for platform-specific progressive scrolling (e.g., ChatGPT)
+      if (PlatformAdapters.FixedNav.handleScrollToMessage && PlatformAdapters.FixedNav.handleScrollToMessage(node, this)) {
+        return; // Adapter handled the scroll completely
+      }
+
+      // 2. Default common scroll logic (Original behavior for other platforms)
       const targetToScroll = this.messageCacheManager.getScrollTarget(node);
 
       if (targetToScroll) {

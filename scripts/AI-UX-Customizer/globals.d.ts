@@ -442,6 +442,7 @@ interface IFixedNavigationManager {
     messageLifecycleManager: IMessageLifecycleManager;
     setHighlightAndIndices(node: MessageNode): void;
     updateUI(): void;
+    registerPlatformListener(event: string, listener: Function): () => void;
     registerPlatformListenerOnce(event: string, listener: Function): void;
 }
 
@@ -623,6 +624,8 @@ interface GenericPanelObserverConfig {
     triggerSelector: string;
     observerType: string;
     targetResolver: (el: HTMLElement) => HTMLElement | null;
+    checkVisibility: (panel: HTMLElement, trigger: HTMLElement) => boolean;
+    attributesToWatch: string[];
     immediateCallback?: () => void;
 }
 
@@ -646,6 +649,7 @@ interface FixedNavAdapter {
     isHeaderPositionAvailable(navConsoleWidth?: number): boolean;
     getNavAnchorContainer(): HTMLElement | null;
     handleInfiniteScroll(manager: IFixedNavigationManager, highlightedMessage: MessageNode | null, previousTotalMessages: number): void;
+    handleScrollToMessage(messageNode: MessageNode, manager: IFixedNavigationManager): boolean;
     applyAdditionalHighlight(messageNode: MessageNode, styleHandle: StyleHandle): void;
     getPlatformSpecificButtons(manager: IFixedNavigationManager, styleHandle: StyleHandle): Element[];
     updatePlatformSpecificButtonState(btn: HTMLButtonElement, isAutoScrolling: boolean, autoScrollManager: IAutoScrollManager): void;
@@ -691,6 +695,9 @@ interface PlatformConstants {
     RETRY: {
         SCROLL_OFFSET_FOR_NAV: number;
         AVATAR_INJECTION_LIMIT: number;
+        SCROLL_CORRECTION_MAX_MS: number;
+        SCROLL_CORRECTION_STABLE_FRAMES: number;
+        PROGRESSIVE_SCROLL_LIMIT: number;
     };
     IMAGE_PROCESSING: {
         QUALITY: number;

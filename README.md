@@ -20,19 +20,28 @@ It integrates powerful theme and navigation features into a single codebase, all
 > * Please migrate to AIUXC for future updates. [**Read the Migration Guide**](./docs/AI-UX-Customizer/MIGRATION.md)
 
 > [!NOTE]
-> **Resolved: ChatGPT Navigation and Scrolling Stability**
+> **Resolved: ChatGPT Navigation and Virtual Scrolling Adaptation**
 > 
-> **Issue (April 2026):**
-> A previous site update to ChatGPT introduced "virtual scrolling" (dynamically unmounting off-screen messages), which temporarily caused incorrect message counts and erratic scrolling behavior.
+> **Issue (April - May 2026):**
+> ChatGPT has re-introduced aggressive "virtual scrolling" (dynamically unmounting off-screen messages), which causes standard DOM-based message tracking and navigation to become unstable. 
 > 
 > **Current Status:**
-> This has been resolved. I have implemented a fundamental **API-based tracking logic** (previously mentioned in future plans) to ensure reliable message management regardless of the DOM state. 
+> This has been fundamentally resolved in **1.2.1**. The architecture has been overhauled to ensure reliable performance regardless of the DOM's state. 
 > 
-> Furthermore, ChatGPT has since reverted the "virtual scrolling" behavior, and the site has returned to its previous specification. Combined with the new API-based architecture, message navigation and UI stability are now fully restored and significantly more robust than before.
+> **Key Enhancements:**
+> - **API-Driven Active Path Reconstruction:** The script now derives the definitive message order and count directly from the underlying API tree. This ensures that the Jump List and navigation console remain accurate and consistent, even for messages that are currently unmounted from the DOM. 
+> - **Progressive Multi-Stage Scrolling:** A new navigation mechanism has been implemented to handle virtualized messages. The script now performs incremental scrolls through persistent placeholders, "waiting" for the target element to be re-mounted by the site's framework before final precision positioning. 
+> 
+> Combined with the API-based architecture, message navigation and UI stability are now more robust and fully adapted to ChatGPT's virtualization specifications.
+>
+> ... I hope.
 
 ---
 
 ## Recent Updates
+
+### 2026-05-07
+- Updated `AI UX Customizer` (1.2.0 -> 1.2.1)
 
 ### 2026-05-06
 - Updated `Quick Text Buttons` (3.1.5 -> 3.2.0)
@@ -63,7 +72,7 @@ A userscript that adds powerful **theming**, **UI customization**, and **advance
 
 | Platform | GitHub | Greasy Fork | Version | Last Updated | Changelog |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **ChatGPT** & **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/AI-UX-Customizer/AI-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/570496-ai-ux-customizer) | 1.2.0 | 2026-05-04 | [View](./docs/AI-UX-Customizer/CHANGELOG_AIUXC.md) |
+| **ChatGPT** & **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/AI-UX-Customizer/AI-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/570496-ai-ux-customizer) | 1.2.1 | 2026-05-07 | [View](./docs/AI-UX-Customizer/CHANGELOG_AIUXC.md) |
 
 **[View Detailed Features & Manual for AI UX Customizer](./docs/AI-UX-Customizer/README.md)**
 

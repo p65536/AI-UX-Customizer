@@ -3,6 +3,17 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.2.1] - 2026-05-07
+- **Version History Note**
+  - **[ChatGPT]** ChatGPT has once again rolled out its aggressive virtual scrolling update. This release fundamentally overhauls the message tracking and scrolling architecture to fully adapt to this change, replacing previous temporary patches with a more robust, long-term solution.
+- **Bug Fixes & Improvements**
+  - **[ChatGPT]** Fixed an issue where off-screen messages would disappear from the Jump List in long conversations. The list now accurately reflects the complete chat history regardless of your scroll position.
+  - **[ChatGPT]** Resolved a navigation bug where jumping to a distant message would sometimes stop prematurely. The script now progressively scrolls to ensure the target message successfully loads and comes into view.
+  - **[ChatGPT]** Fixed an issue where empty "ghost" messages would incorrectly appear in the Jump List due to network lag or invisible background processing.
+- **Core Changes**
+  - Upgraded the internal message tracking system to synchronize directly with the chat's underlying data structure, rather than relying solely on visible screen elements.
+  - Refactored the scrolling engine using platform-specific adapters to isolate ChatGPT's unique loading behaviors, ensuring continued stability for Gemini.
+
 ## [1.2.0] - 2026-05-04
 - **Version History Note**
   - This update is built directly upon the stable `1.0.5` release. The temporary virtual scrolling patches introduced in the interim `1.1.0` version have been completely rewritten with a fundamentally stronger architecture to better handle ChatGPT's underlying changes.
