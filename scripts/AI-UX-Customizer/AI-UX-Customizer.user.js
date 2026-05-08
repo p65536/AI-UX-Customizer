@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.2.1
+// @version      1.2.2
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -11092,42 +11092,36 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
      */
     startGenericInputAreaObserver(config) {
       const { triggerSelector, resizeTargetSelector } = config;
-      let observedInputArea = null;
 
       const setupObserver = (inputArea) => {
-        if (inputArea === observedInputArea) return;
-
-        // Cleanup previous observers
-        if (observedInputArea) {
-          this.unobserveElement(observedInputArea);
-        }
-
-        observedInputArea = inputArea;
-
         // Resize Observer (via ObserverManager)
         // If the inputArea itself matches the target, use it. Otherwise find the target within.
         const resizeTarget = inputArea.matches(resizeTargetSelector) ? inputArea : inputArea.querySelector(resizeTargetSelector);
 
-        if (resizeTarget instanceof HTMLElement) {
+        // Observe the element if it's not already in the manager's official list.
+        // This ensures elements are re-observed correctly after temporary React unmounts.
+        if (resizeTarget instanceof HTMLElement && !this.observedElements.has(resizeTarget)) {
           this.observeElement(resizeTarget, CONSTANTS.OBSERVED_ELEMENT_TYPES.INPUT_AREA);
-        }
 
-        // Trigger initial placement
-        EventBus.publish(EVENTS.UI_REPOSITION);
+          // Trigger initial placement
+          EventBus.publish(EVENTS.UI_REPOSITION);
+        }
       };
 
       // Use Sentinel to detect when the trigger is added
       sentinel.on(triggerSelector, setupObserver);
 
-      // Initial check
-      const initialInputArea = document.querySelector(triggerSelector);
-      if (initialInputArea instanceof HTMLElement) {
-        setupObserver(initialInputArea);
+      // Initial check for all existing elements
+      const initialInputAreas = document.querySelectorAll(triggerSelector);
+      for (let i = 0; i < initialInputAreas.length; i++) {
+        const area = initialInputAreas[i];
+        if (area instanceof HTMLElement) {
+          setupObserver(area);
+        }
       }
 
       return () => {
         sentinel.off(triggerSelector, setupObserver);
-        if (observedInputArea) this.unobserveElement(observedInputArea);
       };
     }
 
