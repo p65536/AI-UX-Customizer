@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.2.2
+// @version      1.2.3
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -4819,10 +4819,30 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
         // Pass-through immediately if interception is disabled to avoid interfering with site logic.
         if (!this.isInterceptionEnabled) return this.originalFetch(input, init);
 
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+        let normalizedUrl = url;
+        try {
+          normalizedUrl = new URL(url, location.href).pathname;
+        } catch {
+          // Pass-through safely if URL parsing fails
+          return this.originalFetch(input, init);
+        }
+
+        // Bypass interception entirely for non-conversation endpoints
+        const isConversationEndpoint = CONSTANTS.URL_PATTERNS.CONVERSATION_ENDPOINTS.some((endpoint) => normalizedUrl.includes(endpoint));
+        if (!isConversationEndpoint) return this.originalFetch(input, init);
+
         // 1. Call the original fetch immediately.
         // We return this Promise chain to the site code.
         return this.originalFetch(input, init).then((response) => {
           try {
+            // Skip cloning for streaming responses (text/event-stream) and non-JSON data
+            // This completely prevents UI freezing caused by backpressure
+            const contentType = response.headers.get('content-type') || '';
+            if (!response.ok || !contentType.includes('application/json')) {
+              return response;
+            }
+
             // 2. Clone the response immediately upon resolution.
             // This ensures we get a copy before the site's code consumes the stream.
             // Wrapped in try-catch to act as a failsafe; if cloning fails (e.g. stream locked),
@@ -4830,7 +4850,7 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
             const clonedResponse = response.clone();
 
             // 3. Process the clone asynchronously (Fire-and-forget).
-            this._processIntercentedResponse(input, clonedResponse).catch((e) => {
+            this._processIntercentedResponse(url, normalizedUrl, clonedResponse).catch((e) => {
               // Rate-limit error logging
               const now = Date.now();
               if (now - this._lastFetchObserveErrorAt > 60000) {
@@ -4850,31 +4870,15 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
 
       /**
        * Processes the intercepted response to extract message data.
-       * @param {RequestInfo|URL} input
+       * @param {string} url
+       * @param {string} normalizedUrl
        * @param {Response} response
        */
-      async _processIntercentedResponse(input, response) {
+      async _processIntercentedResponse(url, normalizedUrl, response) {
         if (!this.isInterceptionEnabled) return;
-
-        // Check URL patterns
-        const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-        let normalizedUrl = url;
-        try {
-          // Resolve relative URLs relative to the current page
-          normalizedUrl = new URL(url, location.href).pathname;
-        } catch {
-          // Ignore URL parsing errors
-        }
 
         // Try to get ID from URL first (GET request)
         let chatId = this._getChatIdFromUrl(normalizedUrl);
-
-        // Only process conversation endpoints
-        const isConversationEndpoint = CONSTANTS.URL_PATTERNS.CONVERSATION_ENDPOINTS.some((endpoint) => normalizedUrl.includes(endpoint));
-        if (!isConversationEndpoint) return;
-
-        // Check response status
-        if (!response.ok || response.status !== 200) return;
 
         Logger.debug('FETCH', LOG_STYLES.ORANGE, 'Target API URL intercepted:', url);
 
