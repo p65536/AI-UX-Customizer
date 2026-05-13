@@ -3,6 +3,13 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.2.4] - 2026-05-13
+- **Bug Fixes**
+  - **[ChatGPT]** Addressed the "streaming interrupted" error and UI freezing issues that occurred with models requiring long response times (e.g., Thinking models).
+- **Core Changes**
+  - **[ChatGPT]** Adjusted the API monitoring mechanism to bypass real-time message generation traffic. This improves stability during continuous conversations.
+  - **[ChatGPT]** Enhanced the self-healing logic; real-time message metadata (like exact server timestamps) now synchronizes automatically after a response is complete or the page is refreshed.
+
 ## [1.2.3] - 2026-05-11
 - **Bug Fixes**
   - **[ChatGPT]** Fixed a critical issue where the chat interface would freeze or stop updating during message generation, particularly when using "thinking" models.

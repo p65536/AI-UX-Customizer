@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.2.3
+// @version      1.2.4
 // @license      MIT
 // @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
@@ -201,6 +201,7 @@
       },
       THRESHOLDS: {
         SUSPEND_LIMIT_MS: 5 * 60 * 1000, // 5 minutes threshold for heavy throttling/suspension
+        FETCH_ERROR_LOG_THROTTLE_MS: 60 * 1000, // 60 seconds throttle for fetch error logs
       },
       ANIMATIONS: {
         TOAST_LEAVE_DURATION: 300,
@@ -4819,6 +4820,11 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
         // Pass-through immediately if interception is disabled to avoid interfering with site logic.
         if (!this.isInterceptionEnabled) return this.originalFetch(input, init);
 
+        // Only intercept GET requests. Pass-through POST (chat generation) to prevent UI freezing
+        // caused by buffering heavy streaming responses like Thinking models.
+        const method = init && init.method ? init.method.toUpperCase() : 'GET';
+        if (method !== 'GET') return this.originalFetch(input, init);
+
         const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
         let normalizedUrl = url;
         try {
@@ -4853,7 +4859,7 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
             this._processIntercentedResponse(url, normalizedUrl, clonedResponse).catch((e) => {
               // Rate-limit error logging
               const now = Date.now();
-              if (now - this._lastFetchObserveErrorAt > 60000) {
+              if (now - this._lastFetchObserveErrorAt > CONSTANTS.TIMING.THRESHOLDS.FETCH_ERROR_LOG_THROTTLE_MS) {
                 this._lastFetchObserveErrorAt = now;
                 Logger.debug('FETCH', LOG_STYLES.ORANGE, 'Internal processing failed:', e);
               }
@@ -4877,23 +4883,20 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
       async _processIntercentedResponse(url, normalizedUrl, response) {
         if (!this.isInterceptionEnabled) return;
 
-        // Try to get ID from URL first (GET request)
-        let chatId = this._getChatIdFromUrl(normalizedUrl);
+        // Get ID from URL (Since we only intercept GET requests, the ID should always be in the URL)
+        const chatId = this._getChatIdFromUrl(normalizedUrl);
+
+        // This acts as a filter to ensure we are processing actual chat data,
+        // not other endpoints like /conversations (history list) or malformed URLs.
+        if (!chatId) return;
 
         Logger.debug('FETCH', LOG_STYLES.ORANGE, 'Target API URL intercepted:', url);
 
         try {
           const data = await response.json();
 
-          // If ID wasn't in URL, try to find it in the response (POST request / New Chat)
           // Added strict null check for 'data' to prevent TypeError if site polyfills or backend returns null
-          if (!chatId && data && data.conversation_id) {
-            chatId = data.conversation_id;
-          }
-
-          // This acts as a filter to ensure we are processing actual chat data,
-          // not other endpoints like /conversations (history list).
-          if (!chatId) return;
+          if (!data) return;
 
           // Parse the JSON data and pass chatId
           const messagesMap = this._extractMessages(data, chatId);
