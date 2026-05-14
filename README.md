@@ -40,6 +40,9 @@ It integrates powerful theme and navigation features into a single codebase, all
 
 ## Recent Updates
 
+### 2026-05-14
+- Released `Gemini Default Model Setter` (1.0.0)
+
 ### 2026-05-13
 - Updated `AI UX Customizer` (1.2.3 -> 1.2.4)
 
@@ -48,15 +51,6 @@ It integrates powerful theme and navigation features into a single codebase, all
 
 ### 2026-05-08
 - Updated `AI UX Customizer` (1.2.1 -> 1.2.2)
-
-### 2026-05-07
-- Updated `AI UX Customizer` (1.2.0 -> 1.2.1)
-
-### 2026-05-06
-- Updated `Quick Text Buttons` (3.1.5 -> 3.2.0)
-
-### 2026-05-04
-- Updated `AI UX Customizer` (1.1.1 -> 1.2.0)
 
 ---
 
@@ -74,7 +68,7 @@ A userscript that adds powerful **theming**, **UI customization**, and **advance
 
 | Platform | GitHub | Greasy Fork | Version | Last Updated | Changelog |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **ChatGPT** & **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/AI-UX-Customizer/AI-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/570496-ai-ux-customizer) | 1.2.4 | 2026-05-13 | [View](./docs/AI-UX-Customizer/CHANGELOG_AIUXC.md) |
+| **ChatGPT**<br>**Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/AI-UX-Customizer/AI-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/570496-ai-ux-customizer) | 1.2.4 | 2026-05-13 | [View](./docs/AI-UX-Customizer/CHANGELOG_AIUXC.md) |
 
 **[View Detailed Features & Manual for AI UX Customizer](./docs/AI-UX-Customizer/README.md)**
 
@@ -91,11 +85,26 @@ Adds customizable text buttons to paste frequently used prompts into [ChatGPT/Ge
 
 | Platform | GitHub | Greasy Fork | Version | Last Updated | Changelog |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **ChatGPT** & **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/Quick-Text-Buttons/Quick-Text-Buttons.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/544699-quick-text-buttons) | 3.2.0 | 2026-05-06 | [View](./docs/Quick-Text-Buttons/CHANGELOG_QTBUX.md) |
+| **ChatGPT**<br>**Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/Quick-Text-Buttons/Quick-Text-Buttons.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/544699-quick-text-buttons) | 3.2.0 | 2026-05-06 | [View](./docs/Quick-Text-Buttons/CHANGELOG_QTBUX.md) |
 
 **[View Detailed Features & Manual for Quick Text Buttons](./docs/Quick-Text-Buttons/README.md)**
 
 ![Quick Text Buttons Showcase Image](./docs/Quick-Text-Buttons/images/qtb_open_textlist.webp) 
+
+---
+
+### 3. Gemini Default Model Setter (GDMS)
+
+Automatically forces Google Gemini to use your preferred specific model (e.g., "Pro" or "Advanced") upon page load, URL change, or tab return. Sets the initial state but allows you to seamlessly switch models manually if needed mid-task.
+
+| Platform | GitHub | Greasy Fork | Version | Last Updated | Changelog |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/Gemini-Default-Model-Setter/Gemini-Default-Model-Setter.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/578088-gemini-default-model-setter) | 1.0.0 | 2026-05-14 | [View](./docs/Gemini-Default-Model-Setter/CHANGELOG_GDMS.md) |
+
+**[View Detailed Features & Manual for Gemini Default Model Setter](./docs/Gemini-Default-Model-Setter/README.md)**
+
+![Extension Menu](./docs/Gemini-Default-Model-Setter/images/menu.png)  
+![Settings Modal](./docs/Gemini-Default-Model-Setter/images/settings.png)  
 
 ---
 
