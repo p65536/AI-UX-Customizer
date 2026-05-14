@@ -8,6 +8,22 @@
 ![platform](https://img.shields.io/badge/platform-ChatGPT-lightgrey)
 ![platform](https://img.shields.io/badge/platform-Gemini-lightgrey)
 
+---
+
+## Table of Contents
+
+- [About This Project](#about-this-project)
+- [Recent Updates](#recent-updates)
+- **[Scripts in This Project](#scripts-in-this-project)**
+  - <img src="https://cdn.jsdelivr.net/gh/p65536/p65536@main/images/icons/aiuxc.svg" width="18" height="18" align="center"> [1. AI UX Customizer (AIUXC)](#1-ai-ux-customizer-aiuxc)
+  - <img src="https://cdn.jsdelivr.net/gh/p65536/p65536@main/images/icons/qtb.svg" width="18" height="18" align="center"> [2. Quick Text Buttons (QTB)](#2-quick-text-buttons-qtb)
+  - <img src="https://cdn.jsdelivr.net/gh/p65536/p65536@main/images/icons/gdms.svg" width="18" height="18" align="center"> [3. Gemini Default Model Setter (GDMS)](#3-gemini-default-model-setter-gdms)
+- [Installation](#installation)
+- [Updating](#updating)
+- [Tested Environment](#tested-environment)
+
+---
+
 ## About This Project
 
 **`AI UX Customizer`** is a project that provides a suite of userscripts to enhance the user experience of various AI chat services.
