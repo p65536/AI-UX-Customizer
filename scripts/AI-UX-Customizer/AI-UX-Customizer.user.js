@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.2.4
+// @version      1.3.0
 // @license      MIT
-// @description  Fully customize the chat UI of ChatGPT and Gemini. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
-// @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/aiuxc.svg
+// @description  Fully customize the chat UI of [ChatGPT/Gemini]. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
+// @icon         https://cdn.jsdelivr.net/gh/p65536/p65536@main/images/icons/aiuxc.svg
 // @author       p65536
 // @match        https://chatgpt.com/*
 // @match        https://gemini.google.com/*
@@ -16,7 +16,6 @@
 // @grant        GM_removeValueChangeListener
 // @grant        GM_xmlhttpRequest
 // @grant        unsafeWindow
-// @connect      raw.githubusercontent.com
 // @connect      *
 // @run-at       document-start
 // @noframes
@@ -241,6 +240,10 @@
       INPUT_AREA: 'inputArea',
       SIDE_PANEL: 'sidePanel',
     },
+    OBSERVER_STRATEGIES: {
+      SENTINEL: 'sentinel',
+      MUTATION: 'mutation',
+    },
     Z_INDICES: {
       // Some settings are configured on the SECTION: Platform Constants
       SETTINGS_BUTTON: 10000,
@@ -347,6 +350,15 @@
   };
 
   /**
+   * Common constant for default SVG icons to prevent redundant generation of large strings during the initialization of each platform's settings.
+   */
+  const DEFAULT_ICONS = {
+    ASSISTANT:
+      '<svg xmlns="http://www.w3.org/2000/svg" enable-background="new 0 0 24 24" height="24px" viewBox="0 0 24 24" width="24px" fill="#e3e3e3"><g><rect fill="none" height="24" width="24"/></g><g><g><path d="M19.94,9.06C19.5,5.73,16.57,3,13,3C9.47,3,6.57,5.61,6.08,9l-1.93,3.48C3.74,13.14,4.22,14,5,14h1l0,2c0,1.1,0.9,2,2,2h1 v3h7l0-4.68C18.62,15.07,20.35,12.24,19.94,9.06z M14.89,14.63L14,15.05V19h-3v-3H8v-4H6.7l1.33-2.33C8.21,7.06,10.35,5,13,5 c2.76,0,5,2.24,5,5C18,12.09,16.71,13.88,14.89,14.63z"/><path d="M12.5,12.54c-0.41,0-0.74,0.31-0.74,0.73c0,0.41,0.33,0.74,0.74,0.74c0.42,0,0.73-0.33,0.73-0.74 C13.23,12.85,12.92,12.54,12.5,12.54z"/><path d="M12.5,7c-1.03,0-1.74,0.67-2,1.45l0.96,0.4c0.13-0.39,0.43-0.86,1.05-0.86c0.95,0,1.13,0.89,0.8,1.36 c-0.32,0.45-0.86,0.75-1.14,1.26c-0.23,0.4-0.18,0.87-0.18,1.16h1.06c0-0.55,0.04-0.65,0.13-0.82c0.23-0.42,0.65-0.62,1.09-1.27 c0.4-0.59,0.25-1.38-0.01-1.8C13.95,7.39,13.36,7,12.5,7z"/></g></g></svg>',
+    USER: '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px" fill="#e3e3e3"><path d="M0 0h24v24H0V0z" fill="none"/><path d="M12 6c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2m0 10c2.7 0 5.8 1.29 6 2H6c.23-.72 3.31-2 6-2m0-12C9.79 4 8 5.79 8 8s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm0 10c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>',
+  };
+
+  /**
    * Generates the default configuration for a platform.
    * Defined as a factory function to prevent reference sharing between platforms.
    * @returns {object}
@@ -375,7 +387,7 @@
       defaultSet: {
         assistant: {
           name: 'Assistant',
-          icon: '<svg xmlns="http://www.w3.org/2000/svg" enable-background="new 0 0 24 24" height="24px" viewBox="0 0 24 24" width="24px" fill="#e3e3e3"><g><rect fill="none" height="24" width="24"/></g><g><g><path d="M19.94,9.06C19.5,5.73,16.57,3,13,3C9.47,3,6.57,5.61,6.08,9l-1.93,3.48C3.74,13.14,4.22,14,5,14h1l0,2c0,1.1,0.9,2,2,2h1 v3h7l0-4.68C18.62,15.07,20.35,12.24,19.94,9.06z M14.89,14.63L14,15.05V19h-3v-3H8v-4H6.7l1.33-2.33C8.21,7.06,10.35,5,13,5 c2.76,0,5,2.24,5,5C18,12.09,16.71,13.88,14.89,14.63z"/><path d="M12.5,12.54c-0.41,0-0.74,0.31-0.74,0.73c0,0.41,0.33,0.74,0.74,0.74c0.42,0,0.73-0.33,0.73-0.74 C13.23,12.85,12.92,12.54,12.5,12.54z"/><path d="M12.5,7c-1.03,0-1.74,0.67-2,1.45l0.96,0.4c0.13-0.39,0.43-0.86,1.05-0.86c0.95,0,1.13,0.89,0.8,1.36 c-0.32,0.45-0.86,0.75-1.14,1.26c-0.23,0.4-0.18,0.87-0.18,1.16h1.06c0-0.55,0.04-0.65,0.13-0.82c0.23-0.42,0.65-0.62,1.09-1.27 c0.4-0.59,0.25-1.38-0.01-1.8C13.95,7.39,13.36,7,12.5,7z"/></g></g></svg>',
+          icon: DEFAULT_ICONS.ASSISTANT,
           textColor: null,
           font: null,
           bubbleBackgroundColor: null,
@@ -386,7 +398,7 @@
         },
         user: {
           name: 'You',
-          icon: '<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px" fill="#e3e3e3"><path d="M0 0h24v24H0V0z" fill="none"/><path d="M12 6c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2m0 10c2.7 0 5.8 1.29 6 2H6c.23-.72 3.31-2 6-2m0-12C9.79 4 8 5.79 8 8s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm0 10c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>',
+          icon: DEFAULT_ICONS.USER,
           textColor: null,
           font: null,
           bubbleBackgroundColor: null,
@@ -2505,7 +2517,9 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
      * @returns {boolean} True if the page should be excluded, default is false.
      */
     isExcludedPage() {
-      return false;
+      const excludedPatterns = CONSTANTS.URL_PATTERNS.EXCLUDED;
+      const pathname = window.location.pathname;
+      return excludedPatterns.some((pattern) => pattern.test(pathname));
     }
 
     /**
@@ -2584,12 +2598,11 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
 
     /**
      * Finds the root message container element for a given content element (e.g. text node or image).
-     * @param {Element} element The content element.
+     * @param {Element} contentElement The content element.
      * @returns {HTMLElement | null} The parent message container.
-     * @throws {Error} Must be implemented by subclasses.
      */
-    findMessageElement(element) {
-      throw new Error('findMessageElement must be implemented by the platform adapter.');
+    findMessageElement(contentElement) {
+      return contentElement.closest(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
     }
 
     /**
@@ -2606,7 +2619,23 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
      * @returns {MessageNode[]}
      */
     extractMessageNodes() {
-      return [];
+      /** @type {MessageNode[]} */
+      const nodes = [];
+      const rootContainer = this.getMessagesRoot();
+      if (!rootContainer) return nodes;
+
+      const allCandidates = rootContainer.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
+
+      for (let i = 0; i < allCandidates.length; i++) {
+        const msg = allCandidates[i];
+        if (msg instanceof HTMLElement) {
+          const node = this.createMessageNode(msg);
+          if (node) {
+            nodes.push(node);
+          }
+        }
+      }
+      return nodes;
     }
 
     /**
@@ -2656,23 +2685,36 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
     }
 
     /**
-     * Scrolls to a target element using platform-specific logic.
+     * Scrolls to a target element.
      * @param {HTMLElement} element The target element.
-     * @throws {Error} Must be implemented by subclasses.
      */
     scrollTo(element) {
-      throw new Error('scrollTo must be implemented by the platform adapter.');
+      const offset = CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV;
+      const behavior = 'auto';
+
+      // Use scrollIntoView + scroll-margin-top logic
+      const originalScrollMargin = element.style.scrollMarginTop;
+      element.style.scrollMarginTop = `${offset}px`;
+
+      element.scrollIntoView({ behavior, block: 'start' });
+
+      setTimeout(() => {
+        element.style.scrollMarginTop = originalScrollMargin;
+      }, CONSTANTS.TIMING.TIMEOUTS.SCROLL_OFFSET_CLEANUP);
     }
 
     /**
-     * Checks if a new message node can be safely appended to the cache based on platform-specific ordering rules.
+     * Checks if a new message node can be safely appended to the cache based on ordering rules.
      * @param {MessageNode} newNode The new message node to append.
      * @param {MessageNode} lastNode The currently last message node in the cache.
      * @returns {boolean} True if the order is valid (append), false if invalid (force rebuild).
-     * @throws {Error} Must be implemented by subclasses.
      */
     isAppendOrderValid(newNode, lastNode) {
-      throw new Error('isAppendOrderValid must be implemented by the platform adapter.');
+      if (!newNode.element || !lastNode.element) {
+        return false;
+      }
+      const position = lastNode.element.compareDocumentPosition(newNode.element);
+      return !!(position & Node.DOCUMENT_POSITION_FOLLOWING);
     }
   }
 
@@ -2794,6 +2836,12 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
      * @returns {number | null} The X coordinate, or null to fallback to CSS default.
      */
     getToastPositionX() {
+      // Use the input resize target (form container) as it spans the correct width
+      const inputArea = document.querySelector(CONSTANTS.SELECTORS.INPUT_RESIZE_TARGET);
+      if (inputArea instanceof HTMLElement && inputArea.offsetWidth > 0) {
+        const rect = inputArea.getBoundingClientRect();
+        return rect.left + rect.width / 2;
+      }
       return null;
     }
   }
@@ -2840,10 +2888,26 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
      * Performs READ operations only.
      * @param {HTMLElement} msgElem The message element to process.
      * @returns {AvatarMeasurement | null} The measurement result or null if processing should stop.
-     * @throws {Error} Must be implemented by subclasses.
      */
     measureAvatarTarget(msgElem) {
-      throw new Error('measureAvatarTarget must be implemented by the platform adapter.');
+      // The guard should only check for the existence of the avatar container itself.
+      if (msgElem.getElementsByClassName(CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER_CLASS).length > 0) {
+        return {
+          shouldInject: false,
+          targetElement: null,
+          processedTarget: msgElem,
+          exclusionKey: msgElem,
+          originalElement: msgElem,
+        };
+      }
+
+      return {
+        shouldInject: true,
+        targetElement: msgElem,
+        processedTarget: msgElem,
+        exclusionKey: msgElem,
+        originalElement: msgElem,
+      };
     }
 
     /**
@@ -2867,19 +2931,107 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
      * Recalculates the position and size of standing images.
      * @param {StandingImageManager} instance The manager instance.
      * @returns {Promise<void>}
-     * @throws {Error} Must be implemented by subclasses.
      */
     async recalculateLayout(instance) {
-      throw new Error('recalculateLayout must be implemented by the platform adapter.');
+      const v = instance.style.vars;
+      const rootStyle = document.documentElement.style;
+
+      if (this.shouldHideStandingImages()) {
+        rootStyle.setProperty(v.assistantWidth, '0px');
+        rootStyle.setProperty(v.userWidth, '0px');
+        return;
+      }
+
+      await withLayoutCycle({
+        measure: () => {
+          // --- Read Phase ---
+          const windowWidth = window.innerWidth;
+          const windowHeight = window.innerHeight;
+          const bounds = this.measureLayoutBounds(instance, windowWidth, windowHeight);
+          if (!bounds) return null;
+
+          const cls = instance.style.classes;
+          const assistantImg = document.getElementById(cls.assistantImageId);
+          const userImg = document.getElementById(cls.userImageId);
+
+          return {
+            ...bounds,
+            windowHeight,
+            assistantImgHeight: assistantImg ? assistantImg.offsetHeight : 0,
+            userImgHeight: userImg ? userImg.offsetHeight : 0,
+          };
+        },
+        mutate: (measured) => {
+          // --- Write Phase ---
+          if (instance.isDestroyed || !measured) {
+            if (!measured) {
+              rootStyle.setProperty(v.assistantWidth, '0px');
+              rootStyle.setProperty(v.userWidth, '0px');
+            }
+            return;
+          }
+
+          const { appLeft, appRight, messageLeft, messageRight, windowHeight, assistantImgHeight, userImgHeight } = measured;
+
+          // Set Assistant base position (Platform specific)
+          rootStyle.setProperty(v.assistantLeft, `${appLeft}px`);
+
+          // Calculate available widths
+          const assistantAvailableWidth = messageLeft - appLeft;
+          const userAvailableWidth = appRight - messageRight;
+
+          // Delegate common calculation
+          StandingImageLayout.apply(instance, {
+            assistantAvailableWidth,
+            userAvailableWidth,
+            assistantImgHeight,
+            userImgHeight,
+            windowHeight,
+          });
+        },
+      });
+    }
+
+    /**
+     * Determines if standing images should be hidden based on current UI state.
+     * @returns {boolean}
+     */
+    shouldHideStandingImages() {
+      return false;
+    }
+
+    /**
+     * Measures the boundaries of the application and message areas.
+     * @param {StandingImageManager} instance
+     * @param {number} windowWidth
+     * @param {number} windowHeight
+     * @returns {{appLeft: number, appRight: number, messageLeft: number, messageRight: number} | null}
+     */
+    measureLayoutBounds(instance, windowWidth, windowHeight) {
+      return null;
     }
 
     /**
      * Updates the visibility of standing images.
      * @param {StandingImageManager} instance The manager instance.
-     * @throws {Error} Must be implemented by subclasses.
      */
     updateVisibility(instance) {
-      throw new Error('updateVisibility must be implemented by the platform adapter.');
+      const isCanvasActive = PlatformAdapters.General.isCanvasModeActive();
+      const isFilePanelActive = PlatformAdapters.General.isFilePanelActive();
+      const cls = instance.style.classes;
+      const v = instance.style.vars;
+
+      [cls.userImageId, cls.assistantImageId].forEach((id) => {
+        const imgElement = document.getElementById(id);
+        if (!imgElement) return;
+
+        // Determine actor based on index or ID check
+        const isUser = id === cls.userImageId;
+        const varName = isUser ? v.userImage : v.assistantImage;
+
+        const hasImage = !!document.documentElement.style.getPropertyValue(varName);
+        imgElement.style.opacity = hasImage && !isCanvasActive && !isFilePanelActive && !instance.isAutoScrolling ? '1' : '0';
+      });
     }
 
     /**
@@ -2887,7 +3039,10 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
      * @param {StandingImageManager} instance The manager instance.
      */
     setupEventListeners(instance) {
-      // No-op by default
+      // Registers a listener for the CACHE_UPDATED event to trigger layout recalculation.
+      // This ensures that standing images maintain correct positioning and visibility
+      // when the internal message cache is rebuilt or updated (e.g., after DOM updates or navigation).
+      instance.registerPlatformListener(EVENTS.CACHE_UPDATED, instance.scheduleUpdate);
     }
   }
 
@@ -2896,6 +3051,29 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
    * @description Manages DOM observers.
    */
   class BaseObserverAdapter {
+    /**
+     * @protected
+     * @description Starts a stateful observer for the input area to detect resizing and DOM reconstruction (button removal).
+     * @param {ObserverDependencies} dependencies The required methods from ObserverManager.
+     * @returns {() => void} A cleanup function.
+     */
+    startInputAreaObserver(dependencies) {
+      // Use shared logic from ObserverManager via dependencies
+      return dependencies.startGenericInputAreaObserver({
+        triggerSelector: CONSTANTS.SELECTORS.INPUT_RESIZE_TARGET,
+        resizeTargetSelector: CONSTANTS.SELECTORS.INPUT_RESIZE_TARGET,
+      });
+    }
+
+    /**
+     * Gets the configuration for observing turn completion based on platform specifics.
+     * @returns {{ strategy: string, selector?: string, observerOptions?: MutationObserverInit }}
+     * @throws {Error} Must be implemented by subclasses.
+     */
+    getTurnCompletionConfig() {
+      throw new Error('getTurnCompletionConfig must be implemented by the platform adapter.');
+    }
+
     /**
      * Returns functions to start platform-specific observers.
      * @returns {Array<(dependencies: ObserverDependencies) => () => void>} Array of starter functions.
@@ -2937,11 +3115,31 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
   class BaseFixedNavAdapter {
     /**
      * Checks if the header position is available based on the current window state.
-     * @param {number} [navConsoleWidth] Optional width of the console for strict checking.
      * @returns {boolean} True if header positioning is allowed.
      */
-    isHeaderPositionAvailable(navConsoleWidth) {
-      return true;
+    isHeaderPositionAvailable() {
+      // 1. Check for panels that compress the layout (Canvas or File Panel)
+      if (PlatformAdapters.General.isCanvasModeActive() || PlatformAdapters.General.isFilePanelActive()) {
+        return false;
+      }
+
+      // 2. Check available width in the main container (accounts for sidebar)
+      const selector = this.getScrollContainerForHeaderCheck();
+      const container = selector ? document.querySelector(selector) : null;
+      if (container instanceof HTMLElement) {
+        return container.offsetWidth >= CONSTANTS.UI_SPECS.HEADER_POSITION_MIN_WIDTH;
+      }
+
+      // Fallback to window width if container not found
+      return window.innerWidth >= CONSTANTS.UI_SPECS.HEADER_POSITION_MIN_WIDTH;
+    }
+
+    /**
+     * Gets the CSS selector for the container used to measure width for header positioning.
+     * @returns {string | null}
+     */
+    getScrollContainerForHeaderCheck() {
+      return null;
     }
 
     /**
@@ -2978,7 +3176,28 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
      * @returns {Element[]} Array of button elements.
      */
     getPlatformSpecificButtons(manager, styleHandle) {
-      return [];
+      const cls = styleHandle.classes;
+      const isSupported = this.isAutoScrollSupported();
+      const tooltip = this.getAutoScrollTooltip(false);
+
+      const autoscrollBtn = h(
+        `button#${cls.autoscrollBtnId}.${cls.btn}`,
+        {
+          title: tooltip,
+          disabled: !isSupported,
+          style: isSupported ? {} : { opacity: '0.5', cursor: 'not-allowed' },
+          dataset: { [CONSTANTS.DATA_KEYS.ORIGINAL_TITLE]: tooltip },
+          onclick: (e) => {
+            e.preventDefault();
+            if (isSupported) {
+              EventBus.publish(EVENTS.AUTO_SCROLL_REQUEST);
+            }
+          },
+        },
+        [createIconFromDef(StyleDefinitions.ICONS.scrollToTop)]
+      );
+
+      return [autoscrollBtn];
     }
 
     /**
@@ -2988,7 +3207,38 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
      * @param {IAutoScrollManager} autoScrollManager The auto-scroll manager instance.
      */
     updatePlatformSpecificButtonState(btn, isAutoScrolling, autoScrollManager) {
-      // No-op by default
+      const isSupported = this.isAutoScrollSupported();
+      if (!isSupported) {
+        btn.disabled = true;
+        btn.title = this.getAutoScrollTooltip(false);
+        btn.style.opacity = '0.5';
+        btn.style.cursor = 'not-allowed';
+        return;
+      }
+
+      btn.disabled = isAutoScrolling;
+      if (isAutoScrolling) {
+        btn.title = this.getAutoScrollTooltip(true);
+      } else {
+        btn.title = DomState.get(btn, CONSTANTS.DATA_KEYS.ORIGINAL_TITLE);
+      }
+    }
+
+    /**
+     * Returns whether the auto-scroll feature is supported on this platform.
+     * @returns {boolean}
+     */
+    isAutoScrollSupported() {
+      return false;
+    }
+
+    /**
+     * Gets the tooltip text for the auto-scroll button.
+     * @param {boolean} isAutoScrolling
+     * @returns {string}
+     */
+    getAutoScrollTooltip(isAutoScrolling) {
+      return '';
     }
 
     /**
@@ -3066,13 +3316,6 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
     getAllMessageData() {
       return Array.from(this.cache.values());
     }
-
-    /**
-     * Clears all cached message data.
-     */
-    clearCache() {
-      this.cache.clear();
-    }
   }
 
   /**
@@ -3083,10 +3326,9 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
     /**
      * Ensures the settings button is correctly placed in the DOM.
      * @param {CustomSettingsButton} settingsButton The button component.
-     * @throws {Error} Must be implemented by subclasses.
      */
     ensureButtonPlacement(settingsButton) {
-      throw new Error('ensureButtonPlacement must be implemented by the platform adapter.');
+      ensureSettingsButtonPlacement(settingsButton, CONSTANTS.SELECTORS.INSERTION_ANCHOR, PlatformAdapters.General.isExcludedPage);
     }
   }
 
@@ -3324,13 +3566,6 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
       }
 
       /** @override */
-      isExcludedPage() {
-        const excludedPatterns = CONSTANTS.URL_PATTERNS.EXCLUDED;
-        const pathname = window.location.pathname;
-        return excludedPatterns.some((pattern) => pattern.test(pathname));
-      }
-
-      /** @override */
       isNewChatPage() {
         const path = window.location.pathname;
         // Main new chat page or GPT/Project top page (no conversation ID)
@@ -3532,7 +3767,7 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
         // 2. Gather all mounted message elements and link to their turn containers
         const mountedElements = new Map(); // Map<msgId, { element: HTMLElement, turnElement: HTMLElement }>
         const activeIdsFromDom = [];
-        let sequentialTimestamp = Math.floor(Date.now() / 1000);
+        let sequentialTimestamp = Math.floor(Temporal.Now.instant().epochMilliseconds / 1000);
 
         const messageElements = rootContainer.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
         for (let i = 0; i < messageElements.length; i++) {
@@ -3662,7 +3897,7 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
           role: /** @type {'user'|'assistant'} */ (role),
           type: type,
           text: text,
-          timestamp: Math.floor(Date.now() / 1000), // UNIX timestamp
+          timestamp: Math.floor(Temporal.Now.instant().epochMilliseconds / 1000), // UNIX timestamp
           element: messageElement,
           turnElement: turnElement,
         };
@@ -3819,21 +4054,6 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
         // Start the correction loop
         requestAnimationFrame(adjustScroll);
       }
-
-      /** @override */
-      isAppendOrderValid(newNode, lastNode) {
-        // Safety check: If elements are not mounted in the DOM (unstable state), do not allow partial append.
-        // Force a full rebuild to ensure an accurate state.
-        if (!newNode.element || !lastNode.element) {
-          return false;
-        }
-
-        // Determine validity based on physical DOM position.
-        // Allow append only if the new element is strictly 'following' the last element.
-        // This prevents temporary count spikes during initial load or regeneration where elements mount irregularly.
-        const position = lastNode.element.compareDocumentPosition(newNode.element);
-        return !!(position & Node.DOCUMENT_POSITION_FOLLOWING);
-      }
     }
 
     class ChatGPTStyleManagerAdapter extends BaseStyleManagerAdapter {
@@ -3919,8 +4139,8 @@ ${CONSTANTS.SELECTORS.USER_MESSAGE} .${cls.collapsibleBtn} {right: 4px;}
 
     class ChatGPTThemeManagerAdapter extends BaseThemeManagerAdapter {
       /** @override */
-      shouldDeferInitialTheme(themeManager) {
-        const initialTitle = themeManager.getChatTitleAndCache();
+      shouldDeferInitialTheme(manager) {
+        const initialTitle = manager.getChatTitleAndCache();
         // Defer if the title is the ambiguous "ChatGPT" and we are NOT on the "New Chat" page.
         // This indicates a transition to a specific chat page that hasn't loaded its final title yet.
         if (initialTitle === 'ChatGPT' && !isNewChatPage()) {
@@ -3931,16 +4151,16 @@ ${CONSTANTS.SELECTORS.USER_MESSAGE} .${cls.collapsibleBtn} {right: 4px;}
       }
 
       /** @override */
-      selectThemeForUpdate(themeManager, config, urlChanged, titleChanged) {
-        const currentTitle = themeManager.getChatTitleAndCache();
+      selectThemeForUpdate(manager, config, urlChanged, titleChanged) {
+        const currentTitle = manager.getChatTitleAndCache();
 
         // 1. Invalidate cache on URL change to force pattern re-evaluation.
         if (urlChanged) {
-          themeManager.cachedThemeSet = null;
+          manager.cachedThemeSet = null;
         }
 
         // 2. Get the candidate theme based on the current context (URL, Title).
-        const candidateTheme = themeManager.getThemeSet();
+        const candidateTheme = manager.getThemeSet();
 
         // 3. Flicker prevention logic:
         // If the URL changed, the title is currently "ChatGPT" (loading),
@@ -3948,10 +4168,10 @@ ${CONSTANTS.SELECTORS.USER_MESSAGE} .${cls.collapsibleBtn} {right: 4px;}
         // then keep the previous theme to avoid a flash of the default theme before the title loads.
         // Exception: Do not maintain the previous theme if we are navigating to the "New Chat" page.
         const isDefaultTheme = candidateTheme.metadata.id === CONSTANTS.THEME_IDS.DEFAULT;
-        const shouldKeepPreviousTheme = urlChanged && currentTitle === 'ChatGPT' && isDefaultTheme && themeManager.lastAppliedThemeSet && !isNewChatPage();
+        const shouldKeepPreviousTheme = urlChanged && currentTitle === 'ChatGPT' && isDefaultTheme && manager.lastAppliedThemeSet && !isNewChatPage();
 
         if (shouldKeepPreviousTheme) {
-          return themeManager.lastAppliedThemeSet;
+          return manager.lastAppliedThemeSet;
         }
 
         // Otherwise, apply the candidate theme immediately.
@@ -4041,17 +4261,6 @@ ${CONSTANTS.SELECTORS.USER_MESSAGE} .${cls.collapsibleBtn} {right: 4px;}
       getAutoScrollMessage() {
         return 'Scanning layout to prevent scroll issues...';
       }
-
-      /** @override */
-      getToastPositionX() {
-        // Use the input resize target (form container) as it spans the correct width
-        const inputArea = document.querySelector(CONSTANTS.SELECTORS.INPUT_RESIZE_TARGET);
-        if (inputArea instanceof HTMLElement && inputArea.offsetWidth > 0) {
-          const rect = inputArea.getBoundingClientRect();
-          return rect.left + rect.width / 2;
-        }
-        return null;
-      }
     }
 
     class ChatGPTAppControllerAdapter extends BaseAppControllerAdapter {
@@ -4131,11 +4340,7 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
 
     class ChatGPTStandingImageAdapter extends BaseStandingImageAdapter {
       /** @override */
-      async recalculateLayout(instance) {
-        const rootStyle = document.documentElement.style;
-        const cls = instance.style.classes;
-        const v = instance.style.vars;
-
+      shouldHideStandingImages() {
         // Check for Canvas mode
         const isCanvasActive = PlatformAdapters.General.isCanvasModeActive();
 
@@ -4151,12 +4356,11 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
         }
 
         // If canvas mode is active or the activity panel is open, hide standing images.
-        if (isCanvasActive || isRightSidebarOpen) {
-          rootStyle.setProperty(v.assistantWidth, '0px');
-          rootStyle.setProperty(v.userWidth, '0px');
-          return;
-        }
+        return isCanvasActive || isRightSidebarOpen;
+      }
 
+      /** @override */
+      measureLayoutBounds(instance, windowWidth, windowHeight) {
         // --- Determine Message Area Rect ---
         let chatRect = null;
         const isNewChat = PlatformAdapters.General.isNewChatPage();
@@ -4172,94 +4376,41 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
             chatRect = chatContent.getBoundingClientRect();
           } else {
             // Abort to avoid visual bugs.
-            return;
+            return null;
           }
         }
 
-        await withLayoutCycle({
-          measure: () => {
-            // --- Read Phase ---
-            const assistantImg = document.getElementById(cls.assistantImageId);
-            const userImg = document.getElementById(cls.userImageId);
+        const sidebarWidth = getSidebarWidth();
 
-            return {
-              chatRect: chatRect, // Can be null (for virtual calculation) or pre-fetched rect
-              sidebarWidth: getSidebarWidth(),
-              windowWidth: window.innerWidth,
-              windowHeight: window.innerHeight,
-              assistantImgHeight: assistantImg ? assistantImg.offsetHeight : 0,
-              userImgHeight: userImg ? userImg.offsetHeight : 0,
-            };
-          },
-          mutate: (measured) => {
-            // --- Write Phase ---
-            if (instance.isDestroyed) return;
-            if (!measured) return;
+        // --- Virtual Rect Calculation (if needed) ---
+        if (!chatRect) {
+          // Default width fallback (50vw per requirement)
+          let targetWidth = windowWidth * 0.5;
 
-            const { sidebarWidth, windowWidth, windowHeight, assistantImgHeight, userImgHeight } = measured;
-            let { chatRect } = measured;
-
-            const config = instance.configManager.get();
-
-            // --- Virtual Rect Calculation (if needed) ---
-            if (!chatRect) {
-              // Default width fallback (50vw per requirement)
-              let targetWidth = windowWidth * 0.5;
-
-              const configWidth = config.platforms[PLATFORM].options.chat_content_max_width;
-              if (configWidth && typeof configWidth === 'string' && configWidth.endsWith('vw')) {
-                const vwValue = parseInt(configWidth, 10);
-                if (!isNaN(vwValue)) {
-                  targetWidth = (windowWidth * vwValue) / 100;
-                }
-              }
-
-              // Calculate centered position relative to the available space (window - sidebar)
-              const availableSpace = windowWidth - sidebarWidth;
-              // If the configured width is wider than available space, clamp it
-              const effectiveWidth = Math.min(targetWidth, availableSpace);
-
-              const left = sidebarWidth + (availableSpace - effectiveWidth) / 2;
-
-              chatRect = new DOMRect(left, 0, effectiveWidth, 0);
+          const config = instance.configManager.get();
+          const configWidth = config.platforms[PLATFORM].options.chat_content_max_width;
+          if (configWidth && typeof configWidth === 'string' && configWidth.endsWith('vw')) {
+            const vwValue = parseInt(configWidth, 10);
+            if (!isNaN(vwValue)) {
+              targetWidth = (windowWidth * vwValue) / 100;
             }
+          }
 
-            // Set Assistant base position (Platform specific)
-            rootStyle.setProperty(v.assistantLeft, sidebarWidth + 'px');
+          // Calculate centered position relative to the available space (window - sidebar)
+          const availableSpace = windowWidth - sidebarWidth;
+          // If the configured width is wider than available space, clamp it
+          const effectiveWidth = Math.min(targetWidth, availableSpace);
 
-            // Calculate available widths
-            const assistantAvailableWidth = chatRect.left - sidebarWidth;
-            const userAvailableWidth = windowWidth - chatRect.right;
+          const left = sidebarWidth + (availableSpace - effectiveWidth) / 2;
+          chatRect = { left, right: left + effectiveWidth };
+        }
 
-            // Delegate common calculation
-            StandingImageLayout.apply(instance, {
-              assistantAvailableWidth,
-              userAvailableWidth,
-              assistantImgHeight,
-              userImgHeight,
-              windowHeight,
-            });
-          },
-        });
-      }
-
-      /** @override */
-      updateVisibility(instance) {
-        const isCanvasActive = PlatformAdapters.General.isCanvasModeActive();
-        const cls = instance.style.classes;
-        const v = instance.style.vars;
-
-        [cls.userImageId, cls.assistantImageId].forEach((id) => {
-          const imgElement = document.getElementById(id);
-          if (!imgElement) return;
-
-          // Determine actor based on index or ID check
-          const isUser = id === cls.userImageId;
-          const varName = isUser ? v.userImage : v.assistantImage;
-
-          const hasImage = !!document.documentElement.style.getPropertyValue(varName);
-          imgElement.style.opacity = hasImage && !isCanvasActive && !instance.isAutoScrolling ? '1' : '0';
-        });
+        return {
+          appLeft: sidebarWidth,
+          appRight: windowWidth,
+          messageLeft: chatRect.left,
+          messageRight: chatRect.right,
+        };
       }
     }
 
@@ -4276,6 +4427,8 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
           triggerSelector: CONSTANTS.SELECTORS.RIGHT_SIDEBAR,
           observerType: CONSTANTS.OBSERVED_ELEMENT_TYPES.SIDE_PANEL,
           targetResolver: (el) => el, // Target Resolver (Trigger is the Panel)
+          checkVisibility: (panel) => panel.offsetParent !== null,
+          attributesToWatch: [],
           immediateCallback: () => EventBus.publish(EVENTS.SIDEBAR_LAYOUT_CHANGED),
         });
       }
@@ -4294,6 +4447,8 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
           // Target Resolver: The trigger is inside a section, inside the main div.
           // We need the parent div that holds the width.
           targetResolver: (el) => el.closest(CONSTANTS.SELECTORS.SIDEBAR_SURFACE_PRIMARY),
+          checkVisibility: (panel) => panel.offsetParent !== null,
+          attributesToWatch: [],
           immediateCallback: () => EventBus.publish(EVENTS.VISIBILITY_RECHECK),
         });
       }
@@ -4310,6 +4465,8 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
           triggerSelector: CONSTANTS.SELECTORS.CANVAS_CONTAINER, // Trigger (Button)
           observerType: CONSTANTS.OBSERVED_ELEMENT_TYPES.SIDE_PANEL,
           targetResolver: (el) => el.closest(CONSTANTS.SELECTORS.CANVAS_RESIZE_TARGET), // Target Resolver (Find Parent Panel)
+          checkVisibility: (panel) => panel.offsetParent !== null,
+          attributesToWatch: [],
           immediateCallback: () => EventBus.publish(EVENTS.VISIBILITY_RECHECK),
         });
       }
@@ -4452,21 +4609,8 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
           sentinel.off(selector, setupObserver);
           resizeObserver?.disconnect();
           titleObserver?.disconnect();
+          debouncedTitleUpdate.cancel();
         };
-      }
-
-      /**
-       * @private
-       * @description Starts a stateful observer for the input area to detect resizing and DOM reconstruction (button removal).
-       * @param {object} dependencies The ObserverManager dependencies.
-       * @returns {() => void} A cleanup function.
-       */
-      startInputAreaObserver(dependencies) {
-        // Use shared logic from ObserverManager via dependencies
-        return dependencies.startGenericInputAreaObserver({
-          triggerSelector: CONSTANTS.SELECTORS.INPUT_RESIZE_TARGET,
-          resizeTargetSelector: CONSTANTS.SELECTORS.INPUT_RESIZE_TARGET,
-        });
       }
 
       /**
@@ -4500,6 +4644,19 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
 
         return () => {
           sentinel.off(triggerSelector, listener);
+          // Clean up the applied class from any existing targets to prevent styling leaks on navigation
+          const affectedElements = document.querySelectorAll(`.${className}`);
+          for (let i = 0; i < affectedElements.length; i++) {
+            affectedElements[i].classList.remove(className);
+          }
+        };
+      }
+
+      /** @override */
+      getTurnCompletionConfig() {
+        return {
+          strategy: CONSTANTS.OBSERVER_STRATEGIES.SENTINEL,
+          selector: CONSTANTS.SELECTORS.TURN_COMPLETE_SELECTOR,
         };
       }
 
@@ -4507,13 +4664,13 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
       getPlatformObserverStarters() {
         // prettier-ignore
         return [
-          this.startGlobalTitleObserver,
-          this.startSidebarObserver,
-          this.startCanvasObserver,
-          this.startRightSidebarObserver,
-          this.startResearchPanelObserver,
-          this.startInputAreaObserver,
-          this.startStyleOptimizationObserver,
+          this.startGlobalTitleObserver.bind(this),
+          this.startSidebarObserver.bind(this),
+          this.startCanvasObserver.bind(this),
+          this.startRightSidebarObserver.bind(this),
+          this.startResearchPanelObserver.bind(this),
+          this.startInputAreaObserver.bind(this),
+          this.startStyleOptimizationObserver.bind(this),
         ];
       }
 
@@ -4535,20 +4692,8 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
 
     class ChatGPTFixedNavAdapter extends BaseFixedNavAdapter {
       /** @override */
-      isHeaderPositionAvailable(navConsoleWidth) {
-        // 1. Check for panels that compress the layout (Canvas)
-        if (PlatformAdapters.General.isCanvasModeActive()) {
-          return false;
-        }
-
-        // 2. Check available width in the main container (accounts for sidebar)
-        const container = document.querySelector(CONSTANTS.SELECTORS.SCROLL_CONTAINER);
-        if (container instanceof HTMLElement) {
-          return container.offsetWidth >= CONSTANTS.UI_SPECS.HEADER_POSITION_MIN_WIDTH;
-        }
-
-        // Fallback to window width if container not found
-        return window.innerWidth >= CONSTANTS.UI_SPECS.HEADER_POSITION_MIN_WIDTH;
+      getScrollContainerForHeaderCheck() {
+        return CONSTANTS.SELECTORS.SCROLL_CONTAINER;
       }
 
       /** @override */
@@ -4594,31 +4739,8 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
       }
 
       /** @override */
-      getPlatformSpecificButtons(fixedNavManagerInstance, styleHandle) {
-        const cls = styleHandle.classes;
-        const autoscrollBtn = h(
-          `button#${cls.autoscrollBtnId}.${cls.btn}`,
-          {
-            title: 'Auto-scroll is not required on ChatGPT.',
-            disabled: true,
-            style: { opacity: '0.5', cursor: 'not-allowed' },
-            dataset: { [CONSTANTS.DATA_KEYS.ORIGINAL_TITLE]: 'Auto-scroll is not required on ChatGPT.' },
-            onclick: (e) => {
-              e.preventDefault();
-            },
-          },
-          [createIconFromDef(StyleDefinitions.ICONS.scrollToTop)]
-        );
-
-        return [autoscrollBtn];
-      }
-
-      /** @override */
-      updatePlatformSpecificButtonState(autoscrollBtn, isAutoScrolling, autoScrollManager) {
-        autoscrollBtn.disabled = true;
-        autoscrollBtn.title = 'Auto-scroll is not required on ChatGPT.';
-        autoscrollBtn.style.opacity = '0.5';
-        autoscrollBtn.style.cursor = 'not-allowed';
+      getAutoScrollTooltip(isAutoScrolling) {
+        return 'Auto-scroll is not required on ChatGPT.';
       }
 
       /** @override */
@@ -4659,12 +4781,23 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
           const timeout = CONSTANTS.TIMING.TIMEOUTS.PROGRESSIVE_SCROLL_TIMEOUT || 5000;
           let attempts = 0;
 
+          const timerKey = generateUniqueId('progScrollTimer');
+          let isCleanedUp = false;
+
+          const cleanup = () => {
+            if (isCleanedUp) return;
+            isCleanedUp = true;
+            if (typeof unsubscribe === 'function') unsubscribe();
+            clearTimeout(timerId);
+            manager.manageResource(timerKey, null);
+          };
+
           // Use persistent listener instead of one-time listener to ensure all retry frames are captured
           const unsubscribe = manager.registerPlatformListener(EVENTS.CACHE_UPDATED, processUpdate);
 
           function processUpdate() {
             if (manager.isDestroyed) {
-              if (typeof unsubscribe === 'function') unsubscribe();
+              cleanup();
               return;
             }
             attempts++;
@@ -4673,20 +4806,22 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
 
             if (isFinalTargetReached) {
               // Final target reached, stop listening and do precision scroll
-              if (typeof unsubscribe === 'function') unsubscribe();
+              cleanup();
               attemptScroll();
             } else if (attempts < limit) {
               // Still waiting for real element, try scrolling to placeholder/nearest
               attemptScroll();
             } else {
               // Max attempts reached, cleanup
-              if (typeof unsubscribe === 'function') unsubscribe();
+              cleanup();
             }
           }
 
-          setTimeout(() => {
-            if (typeof unsubscribe === 'function') unsubscribe();
+          const timerId = setTimeout(() => {
+            cleanup();
           }, timeout);
+
+          manager.manageResource(timerKey, cleanup);
         }
 
         // Return true to indicate the adapter fully handled the scroll
@@ -4858,7 +4993,7 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
             // 3. Process the clone asynchronously (Fire-and-forget).
             this._processIntercentedResponse(url, normalizedUrl, clonedResponse).catch((e) => {
               // Rate-limit error logging
-              const now = Date.now();
+              const now = Temporal.Now.instant().epochMilliseconds;
               if (now - this._lastFetchObserveErrorAt > CONSTANTS.TIMING.THRESHOLDS.FETCH_ERROR_LOG_THROTTLE_MS) {
                 this._lastFetchObserveErrorAt = now;
                 Logger.debug('FETCH', LOG_STYLES.ORANGE, 'Internal processing failed:', e);
@@ -5067,13 +5202,6 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
         return false;
       }
 
-      /** @override */
-      clearCache() {
-        super.clearCache();
-        this.parentMap.clear();
-        this.chatLeafMap.clear();
-      }
-
       /**
        * Extracts and parses messages from the JSON object.
        * Processes the entire mapping to support all branches (chat trees).
@@ -5194,10 +5322,7 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
     }
 
     class ChatGPTUIManagerAdapter extends BaseUIManagerAdapter {
-      /** @override */
-      ensureButtonPlacement(settingsButton) {
-        ensureSettingsButtonPlacement(settingsButton, CONSTANTS.SELECTORS.INSERTION_ANCHOR, PlatformAdapters.General.isExcludedPage);
-      }
+      // No-op adapter, inherits defaults
     }
 
     const PlatformAdapters = {
@@ -5313,8 +5438,8 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
         SCROLL_CONTAINER: null,
 
         // --- Site Specific Selectors ---
-        CONVERSATION_TITLE_WRAPPER: '[data-test-id="conversation"].selected',
-        CONVERSATION_TITLE_TEXT: '.conversation-title',
+        CONVERSATION_TITLE_WRAPPER: 'a[aria-current="page"], a.is-active',
+        CONVERSATION_TITLE_TEXT: '.title-text',
         CHAT_HISTORY_SCROLL_CONTAINER: '[data-test-id="chat-history-container"]',
 
         // --- BubbleFeature-specific Selectors ---
@@ -5352,6 +5477,8 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
 
         // --- Header Integration Selectors ---
         HEADER_RIGHT_SECTION: 'top-bar-actions .right-section',
+        TOP_BAR: 'top-bar-actions',
+        CHAT_HISTORY_SCROLLER: 'infinite-scroller.chat-history',
       },
       URL_PATTERNS: {
         EXCLUDED: [],
@@ -5431,13 +5558,6 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
       }
 
       /** @override */
-      isExcludedPage() {
-        const excludedPatterns = CONSTANTS.URL_PATTERNS.EXCLUDED;
-        const pathname = window.location.pathname;
-        return excludedPatterns.some((pattern) => pattern.test(pathname));
-      }
-
-      /** @override */
       isFilePanelActive() {
         return !!document.querySelector(CONSTANTS.SELECTORS.FILE_PANEL_CONTAINER);
       }
@@ -5478,13 +5598,23 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
 
       /** @override */
       getChatTitle() {
-        // 1. Try to get title from selected chat history item
+        // 1. Try to get title from document.title
+        const docTitle = document.title.trim();
+        // Remove " - Google Gemini" or " - Gemini" from the end
+        const extractedTitle = docTitle.replace(/\s*-\s*(Google\s+)?Gemini$/i, '').trim();
+
+        // If the extracted title is not just "Google Gemini" or "Gemini" (the default new chat titles), use it.
+        if (extractedTitle && !/^Google\s+Gemini$/i.test(extractedTitle) && !/^Gemini$/i.test(extractedTitle)) {
+          return extractedTitle;
+        }
+
+        // 2. Fallback: Try to get title from selected chat history item in the DOM
         const chatTitle = document.querySelector(CONSTANTS.SELECTORS.CONVERSATION_TITLE_WRAPPER)?.querySelector(CONSTANTS.SELECTORS.CONVERSATION_TITLE_TEXT)?.textContent?.trim();
         if (chatTitle) {
           return chatTitle;
         }
 
-        // 2. If no chat selected, try to get title from selected Gem
+        // 3. Fallback: If no chat selected, try to get title from selected Gem
         const selectedGem = document.querySelector(CONSTANTS.SELECTORS.GEM_SELECTED_ITEM);
         if (selectedGem) {
           return selectedGem.querySelector(CONSTANTS.SELECTORS.GEM_NAME)?.textContent?.trim() ?? null;
@@ -5527,37 +5657,10 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
       }
 
       /** @override */
-      findMessageElement(contentElement) {
-        return contentElement.closest(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
-      }
-
-      /** @override */
-      extractMessageNodes() {
-        /** @type {MessageNode[]} */
-        const nodes = [];
-        const rootContainer = this.getMessagesRoot();
-        if (!rootContainer) return nodes;
-
-        const allCandidates = rootContainer.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
-
-        for (let i = 0; i < allCandidates.length; i++) {
-          const msg = allCandidates[i];
-          if (msg instanceof HTMLElement) {
-            const node = this.createMessageNode(msg);
-            if (node) {
-              nodes.push(node);
-            }
-          }
-        }
-        return nodes;
-      }
-
-      /** @override */
       createMessageNode(messageElement) {
         // In Gemini, the messageElement itself (user-query or model-response) is treated as the entity.
         // Assign an internal ID to unmapped DOM elements (normal flow).
         const messageId = getOrCreateVirtualId(messageElement, CONSTANTS.STRINGS.INTERNAL_ID_PREFIX);
-
         if (!messageId) return null;
 
         const rawRole = this.getMessageRole(messageElement);
@@ -5613,32 +5716,6 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
           sentinel.off(combinedSelector, callback);
         };
       }
-
-      /** @override */
-      scrollTo(element) {
-        const offset = CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV;
-        const behavior = 'auto';
-
-        // Use scrollIntoView + scroll-margin-top logic
-        const originalScrollMargin = element.style.scrollMarginTop;
-        element.style.scrollMarginTop = `${offset}px`;
-
-        element.scrollIntoView({ behavior, block: 'start' });
-
-        setTimeout(() => {
-          element.style.scrollMarginTop = originalScrollMargin;
-        }, CONSTANTS.TIMING.TIMEOUTS.SCROLL_OFFSET_CLEANUP);
-      }
-
-      /** @override */
-      isAppendOrderValid(newNode, lastNode) {
-        // For Gemini, rely on DOM positions.
-        if (!newNode.element || !lastNode.element) {
-          return false; // Force rebuild if elements are missing to be safe
-        }
-        const position = lastNode.element.compareDocumentPosition(newNode.element);
-        return !!(position & Node.DOCUMENT_POSITION_FOLLOWING);
-      }
     }
 
     class GeminiStyleManagerAdapter extends BaseStyleManagerAdapter {
@@ -5665,15 +5742,32 @@ justify-content: flex-end !important;
 /* Make content areas transparent to show the main background */
 ${CONSTANTS.SELECTORS.CHAT_WINDOW},
 ${CONSTANTS.SELECTORS.INPUT_CONTAINER},
-${CONSTANTS.SELECTORS.INPUT_AREA_BG_TARGET},
 ${CONSTANTS.SELECTORS.GEM_MANAGER_CONTAINER},
-${CONSTANTS.SELECTORS.GEM_MANAGER_CONTAINER} > .container {
+${CONSTANTS.SELECTORS.GEM_MANAGER_CONTAINER} > .container,
+${CONSTANTS.SELECTORS.TOP_BAR},
+${CONSTANTS.SELECTORS.TOP_BAR} > div {
 background: none !important;
+box-shadow: none !important;
 }
 
-/* Forcefully hide the gradient pseudo-element on the input container */
-${CONSTANTS.SELECTORS.INPUT_CONTAINER}::before {
+/* Forcefully hide gradient pseudo-elements that interfere with the theme */
+${CONSTANTS.SELECTORS.INPUT_CONTAINER}::before,
+${CONSTANTS.SELECTORS.INPUT_CONTAINER}::after,
+${CONSTANTS.SELECTORS.TOP_BAR}::before,
+${CONSTANTS.SELECTORS.TOP_BAR}::after {
 display: none !important;
+background: none !important;
+mask-image: none !important;
+-webkit-mask-image: none !important;
+}
+
+/* Remove scroll mask fade effect from chat history containers */
+${CONSTANTS.SELECTORS.CHAT_WINDOW},
+${CONSTANTS.SELECTORS.CHAT_WINDOW_CONTENT},
+${CONSTANTS.SELECTORS.CHAT_HISTORY_MAIN},
+${CONSTANTS.SELECTORS.CHAT_HISTORY_SCROLLER} {
+mask-image: none !important;
+-webkit-mask-image: none !important;
 }
 `;
       }
@@ -5692,28 +5786,7 @@ display: none !important;
     }
 
     class GeminiThemeManagerAdapter extends BaseThemeManagerAdapter {
-      /** @override */
-      shouldDeferInitialTheme(themeManager) {
-        // This issue is specific to ChatGPT's title behavior, so Gemini never defers.
-        return false;
-      }
-
-      /** @override */
-      selectThemeForUpdate(themeManager, config, urlChanged, titleChanged) {
-        // If the URL has changed, we must invalidate the cache to allow 'urlPatterns' (and 'matchPatterns') to be re-evaluated against the new context.
-        if (urlChanged) {
-          themeManager.cachedThemeSet = null;
-        }
-
-        // Always return the evaluated theme set.
-        return themeManager.getThemeSet();
-      }
-
-      /** @override */
-      getStyleOverrides() {
-        // The default block alignment is sufficient for Gemini.
-        return {};
-      }
+      // No-op adapter, inherits defaults
     }
 
     class GeminiBubbleUIAdapter extends BaseBubbleUIAdapter {
@@ -5753,17 +5826,6 @@ display: none !important;
       /** @override */
       getAutoScrollMessage() {
         return 'Auto-scrolling to load history...';
-      }
-
-      /** @override */
-      getToastPositionX() {
-        // Use the input resize target (input-area-v2)
-        const inputArea = document.querySelector(CONSTANTS.SELECTORS.INPUT_RESIZE_TARGET);
-        if (inputArea instanceof HTMLElement && inputArea.offsetWidth > 0) {
-          const rect = inputArea.getBoundingClientRect();
-          return rect.left + rect.width / 2;
-        }
-        return null;
       }
     }
 
@@ -5820,6 +5882,9 @@ display: none !important;
           async start() {
             if (this.isScrolling) return;
 
+            // Set the flag immediately to prevent re-entrancy from other events.
+            this.isScrolling = true;
+
             // Canvas (Immersive Panel) Handling
             // If Canvas is open, it changes the DOM structure and causes freezing during scroll.
             // We must close it before starting the scroll process.
@@ -5838,22 +5903,21 @@ display: none !important;
                 }
 
                 // Wait for Canvas to disappear from DOM
-                const startWait = Date.now();
+                const startWait = performance.now();
                 while (document.querySelector(CONSTANTS.SELECTORS.CANVAS_CONTAINER)) {
-                  if (Date.now() - startWait > AutoScrollManager.CONFIG.CANVAS_CLOSE_TIMEOUT_MS) {
+                  if (performance.now() - startWait > AutoScrollManager.CONFIG.CANVAS_CLOSE_TIMEOUT_MS) {
                     Logger.warn('AUTOSCROLL', LOG_STYLES.YELLOW, 'Timed out waiting for Canvas to close. Aborting scroll.');
+                    this.isScrolling = false;
                     return;
                   }
                   await new Promise((r) => requestAnimationFrame(r));
                 }
               } else {
                 Logger.warn('AUTOSCROLL', LOG_STYLES.YELLOW, 'Canvas active but close button not found. Aborting scroll to prevent freeze.');
+                this.isScrolling = false;
                 return;
               }
             }
-
-            // Set the flag immediately to prevent re-entrancy from other events.
-            this.isScrolling = true;
 
             // Polling to find both the observer container and scroll container.
             // Maximum wait: 3 seconds (60 attempts * 50ms)
@@ -6097,29 +6161,6 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       }
 
       /** @override */
-      measureAvatarTarget(msgElem) {
-        // The guard should only check for the existence of the avatar container itself.
-        if (msgElem.getElementsByClassName(CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER_CLASS).length > 0) {
-          // (Logic adapted: Return context to ensure processed check is maintained, but do not inject)
-          return {
-            shouldInject: false,
-            targetElement: null,
-            processedTarget: msgElem,
-            exclusionKey: msgElem,
-            originalElement: msgElem,
-          };
-        }
-
-        return {
-          shouldInject: true,
-          targetElement: msgElem,
-          processedTarget: msgElem,
-          exclusionKey: msgElem,
-          originalElement: msgElem,
-        };
-      }
-
-      /** @override */
       injectAvatar(measurement, avatarContainer) {
         const { shouldInject, targetElement } = measurement;
 
@@ -6132,100 +6173,37 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
     class GeminiStandingImageAdapter extends BaseStandingImageAdapter {
       /** @override */
-      async recalculateLayout(instance) {
+      shouldHideStandingImages() {
         // Handle early exits that don't require measurement.
-        const v = instance.style.vars;
-        const cls = instance.style.classes;
+        return PlatformAdapters.General.isCanvasModeActive() || PlatformAdapters.General.isFilePanelActive();
+      }
 
-        if (PlatformAdapters.General.isCanvasModeActive() || PlatformAdapters.General.isFilePanelActive()) {
-          const rootStyle = document.documentElement.style;
-          rootStyle.setProperty(v.assistantWidth, '0px');
-          rootStyle.setProperty(v.userWidth, '0px');
-          return;
+      /** @override */
+      measureLayoutBounds(instance) {
+        const chatArea = document.querySelector(CONSTANTS.SELECTORS.MAIN_APP_CONTAINER);
+
+        // Find the message area using priority selectors defined in STANDING_IMAGE_ANCHOR
+        const selectors = CONSTANTS.SELECTORS.STANDING_IMAGE_ANCHOR.split(',').map((s) => s.trim());
+        let messageArea = null;
+        for (const selector of selectors) {
+          messageArea = document.querySelector(selector);
+          if (messageArea) break;
         }
 
-        await withLayoutCycle({
-          measure: () => {
-            // --- Read Phase ---
-            const chatArea = document.querySelector(CONSTANTS.SELECTORS.MAIN_APP_CONTAINER);
+        if (!chatArea || !messageArea) {
+          // Signal to mutate to reset styles.
+          return null;
+        }
 
-            // Find the message area using priority selectors defined in STANDING_IMAGE_ANCHOR
-            const selectors = CONSTANTS.SELECTORS.STANDING_IMAGE_ANCHOR.split(',').map((s) => s.trim());
-            let messageArea = null;
-            for (const selector of selectors) {
-              messageArea = document.querySelector(selector);
-              if (messageArea) break;
-            }
+        const chatRect = chatArea.getBoundingClientRect();
+        const messageRect = messageArea.getBoundingClientRect();
 
-            if (!chatArea || !messageArea) return null; // Signal to mutate to reset styles.
-
-            const assistantImg = document.getElementById(cls.assistantImageId);
-            const userImg = document.getElementById(cls.userImageId);
-
-            return {
-              chatRect: chatArea.getBoundingClientRect(),
-              messageRect: messageArea.getBoundingClientRect(),
-              windowHeight: window.innerHeight,
-              assistantImgHeight: assistantImg ? assistantImg.offsetHeight : 0,
-              userImgHeight: userImg ? userImg.offsetHeight : 0,
-            };
-          },
-          mutate: (measured) => {
-            // --- Write Phase ---
-            if (instance.isDestroyed) return;
-            const rootStyle = document.documentElement.style;
-
-            if (!measured) {
-              rootStyle.setProperty(v.assistantWidth, '0px');
-              rootStyle.setProperty(v.userWidth, '0px');
-              return;
-            }
-
-            const { chatRect, messageRect, windowHeight, assistantImgHeight, userImgHeight } = measured;
-
-            // Set Assistant base position (Platform specific)
-            rootStyle.setProperty(v.assistantLeft, `${chatRect.left}px`);
-
-            // Calculate available widths
-            const assistantAvailableWidth = messageRect.left - chatRect.left;
-            const userAvailableWidth = chatRect.right - messageRect.right;
-
-            // Delegate common calculation
-            StandingImageLayout.apply(instance, {
-              assistantAvailableWidth,
-              userAvailableWidth,
-              assistantImgHeight,
-              userImgHeight,
-              windowHeight,
-            });
-          },
-        });
-      }
-
-      /** @override */
-      updateVisibility(instance) {
-        const isCanvasActive = PlatformAdapters.General.isCanvasModeActive();
-        const isFilePanelActive = PlatformAdapters.General.isFilePanelActive();
-        const cls = instance.style.classes;
-        const v = instance.style.vars;
-
-        [cls.userImageId, cls.assistantImageId].forEach((id) => {
-          const imgElement = document.getElementById(id);
-          if (!imgElement) return;
-
-          const isUser = id === cls.userImageId;
-          const varName = isUser ? v.userImage : v.assistantImage;
-
-          const hasImage = !!document.documentElement.style.getPropertyValue(varName);
-          imgElement.style.opacity = hasImage && !isCanvasActive && !isFilePanelActive && !instance.isAutoScrolling ? '1' : '0';
-        });
-      }
-
-      /** @override */
-      setupEventListeners(instance) {
-        // Gemini-specific: Subscribe to cacheUpdated because this platform's updateVisibility() logic depends on the message count.
-        // Use scheduleUpdate to ensure layout is also recalculated after navigation or DOM updates.
-        instance.registerPlatformListener(EVENTS.CACHE_UPDATED, instance.scheduleUpdate);
+        return {
+          appLeft: chatRect.left,
+          appRight: chatRect.right,
+          messageLeft: messageRect.left,
+          messageRight: messageRect.right,
+        };
       }
     }
 
@@ -6242,6 +6220,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
           triggerSelector: `${CONSTANTS.SELECTORS.CANVAS_CONTAINER}, ${CONSTANTS.SELECTORS.FILE_PANEL_CONTAINER}`, // Trigger (Panel itself)
           observerType: CONSTANTS.OBSERVED_ELEMENT_TYPES.SIDE_PANEL,
           targetResolver: (el) => el, // Target Resolver (The trigger is the panel)
+          checkVisibility: (panel) => panel.offsetParent !== null,
+          attributesToWatch: [],
           immediateCallback: () => EventBus.publish(EVENTS.VISIBILITY_RECHECK),
         });
       }
@@ -6331,30 +6311,28 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
           sentinel.off(selector, setupObserver);
           resizeObserver?.disconnect();
           titleObserver?.disconnect();
+          debouncedTitleUpdate.cancel();
         };
       }
 
-      /**
-       * @private
-       * @description Starts a stateful observer for the input area to detect resizing and DOM reconstruction (button removal).
-       * @param {object} dependencies The ObserverManager dependencies.
-       * @returns {() => void} A cleanup function.
-       */
-      startInputAreaObserver(dependencies) {
-        // Use shared logic from ObserverManager via dependencies
-        return dependencies.startGenericInputAreaObserver({
-          triggerSelector: CONSTANTS.SELECTORS.INPUT_RESIZE_TARGET,
-          resizeTargetSelector: CONSTANTS.SELECTORS.INPUT_RESIZE_TARGET,
-        });
+      /** @override */
+      getTurnCompletionConfig() {
+        return {
+          strategy: CONSTANTS.OBSERVER_STRATEGIES.MUTATION,
+          observerOptions: {
+            childList: true,
+            subtree: true,
+          },
+        };
       }
 
       /** @override */
       getPlatformObserverStarters() {
         // prettier-ignore
         return [
-          this.startSidebarObserver,
-          this.startPanelObserver,
-          this.startInputAreaObserver,
+          this.startSidebarObserver.bind(this),
+          this.startPanelObserver.bind(this),
+          this.startInputAreaObserver.bind(this),
         ];
       }
 
@@ -6377,20 +6355,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
     class GeminiFixedNavAdapter extends BaseFixedNavAdapter {
       /** @override */
-      isHeaderPositionAvailable(navConsoleWidth) {
-        // 1. Check for panels that compress the layout (Canvas or File Panel)
-        if (PlatformAdapters.General.isCanvasModeActive() || PlatformAdapters.General.isFilePanelActive()) {
-          return false;
-        }
-
-        // 2. Check available width in the main container (accounts for sidebar)
-        const container = document.querySelector(CONSTANTS.SELECTORS.MAIN_APP_CONTAINER);
-        if (container instanceof HTMLElement) {
-          return container.offsetWidth >= CONSTANTS.UI_SPECS.HEADER_POSITION_MIN_WIDTH;
-        }
-
-        // Fallback to window width if container not found
-        return window.innerWidth >= CONSTANTS.UI_SPECS.HEADER_POSITION_MIN_WIDTH;
+      getScrollContainerForHeaderCheck() {
+        return CONSTANTS.SELECTORS.MAIN_APP_CONTAINER;
       }
 
       /** @override */
@@ -6412,30 +6378,13 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       }
 
       /** @override */
-      getPlatformSpecificButtons(fixedNavManagerInstance, styleHandle) {
-        const cls = styleHandle.classes;
-        const autoscrollBtn = h(
-          `button#${cls.autoscrollBtnId}.${cls.btn}`,
-          {
-            title: 'Load full chat history',
-            dataset: { [CONSTANTS.DATA_KEYS.ORIGINAL_TITLE]: 'Load full chat history' },
-            onclick: () => EventBus.publish(EVENTS.AUTO_SCROLL_REQUEST),
-          },
-          [createIconFromDef(StyleDefinitions.ICONS.scrollToTop)]
-        );
-
-        return [autoscrollBtn];
+      isAutoScrollSupported() {
+        return true;
       }
 
       /** @override */
-      updatePlatformSpecificButtonState(autoscrollBtn, isAutoScrolling, autoScrollManager) {
-        autoscrollBtn.disabled = isAutoScrolling;
-
-        if (isAutoScrolling) {
-          autoscrollBtn.title = 'Loading history...';
-        } else {
-          autoscrollBtn.title = DomState.get(autoscrollBtn, CONSTANTS.DATA_KEYS.ORIGINAL_TITLE);
-        }
+      getAutoScrollTooltip(isAutoScrolling) {
+        return isAutoScrolling ? 'Loading history...' : 'Load full chat history';
       }
 
       /** @override */
@@ -6449,10 +6398,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     }
 
     class GeminiUIManagerAdapter extends BaseUIManagerAdapter {
-      /** @override */
-      ensureButtonPlacement(settingsButton) {
-        ensureSettingsButtonPlacement(settingsButton, CONSTANTS.SELECTORS.INSERTION_ANCHOR, PlatformAdapters.General.isExcludedPage);
-      }
+      // No-op adapter, inherits defaults
     }
 
     const PlatformAdapters = {
@@ -6741,7 +6687,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         return;
       }
 
-      const now = Date.now();
+      const now = performance.now();
       if (!this._events[key]) {
         this._events[key] = { count: 1, startTime: now };
         return;
@@ -6990,7 +6936,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       }
       const onceListener = (...args) => {
         this.unsubscribe(event, key);
-        listener(...args);
+        return listener(...args);
       };
       this.subscribe(event, onceListener, key);
     },
@@ -7021,15 +6967,13 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       if (Logger.levels[Logger.level] >= Logger.levels.debug) {
         // --- Aggregation logic START ---
         if (this._aggregatedEvents.has(event)) {
-          if (!this._logAggregation[event]) {
-            this._logAggregation[event] = { timer: null, count: 0 };
-          }
+          this._logAggregation[event] ??= { timer: null, count: 0 };
           const aggregation = this._logAggregation[event];
           aggregation.count++;
 
           clearTimeout(aggregation.timer);
           aggregation.timer = setTimeout(() => {
-            const finalCount = this._logAggregation[event]?.count || 0;
+            const finalCount = this._logAggregation[event]?.count ?? 0;
             if (finalCount > 0) {
               Logger.debug('EventBus', LOG_STYLES.PURPLE, `Event Published: ${event} (x${finalCount})`);
             }
@@ -7039,7 +6983,12 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
           // Execute subscribers for the aggregated event, but without the verbose individual logs.
           [...this.events[event].values()].forEach((listener) => {
             try {
-              listener(...args);
+              const result = listener(...args);
+              if (result instanceof Promise) {
+                result.catch((e) => {
+                  Logger.error('', '', `EventBus async error in listener for event "${event}":`, e);
+                });
+              }
             } catch (e) {
               Logger.error('', '', `EventBus error in listener for event "${event}":`, e);
             }
@@ -7071,7 +7020,12 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
           try {
             // Log which specific subscriber is being executed
             Logger.debug('', LOG_STYLES.PURPLE, `-> Executing: ${key}`);
-            listener(...args);
+            const result = listener(...args);
+            if (result instanceof Promise) {
+              result.catch((e) => {
+                Logger.error('LISTENER ERROR', LOG_STYLES.RED, `Async listener "${key}" failed for event "${event}":`, e);
+              });
+            }
           } catch (e) {
             // Enhance error logging with the specific subscriber key
             Logger.error('LISTENER ERROR', LOG_STYLES.RED, `Listener "${key}" failed for event "${event}":`, e);
@@ -7083,7 +7037,12 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         // Iterate over a copy of the values in case a listener unsubscribes itself.
         [...this.events[event].values()].forEach((listener) => {
           try {
-            listener(...args);
+            const result = listener(...args);
+            if (result instanceof Promise) {
+              result.catch((e) => {
+                Logger.error('LISTENER ERROR', LOG_STYLES.RED, `Async listener failed for event "${event}":`, e);
+              });
+            }
           } catch (e) {
             Logger.error('LISTENER ERROR', LOG_STYLES.RED, `Listener failed for event "${event}":`, e);
           }
@@ -7115,12 +7074,23 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
       for (const work of queueToProcess) {
         try {
-          work();
+          const result = work();
+          if (result instanceof Promise) {
+            result.catch((e) => {
+              Logger.error('UI QUEUE ERROR', LOG_STYLES.RED, 'Async error in queued UI work:', e);
+            });
+          }
         } catch (e) {
           Logger.error('UI QUEUE ERROR', LOG_STYLES.RED, 'Error in queued UI work:', e);
         }
       }
-      this.isUiWorkScheduled = false;
+
+      // Check if new work was added during processing (e.g., from trailing edge handlers)
+      if (this.uiWorkQueue.length > 0) {
+        requestAnimationFrame(this._processUIWorkQueue.bind(this));
+      } else {
+        this.isUiWorkScheduled = false;
+      }
     },
   };
 
@@ -7382,7 +7352,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       // Wrap listener to guard against execution after destruction
       const guardedListener = (...args) => {
         if (this.isDestroyed) return;
-        listener(...args);
+        return listener(...args);
       };
 
       const baseKey = createEventKey(this, event);
@@ -7410,7 +7380,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       // Wrap listener to guard against execution after destruction
       const guardedListener = (...args) => {
         if (this.isDestroyed) return;
-        listener(...args);
+        return listener(...args);
       };
 
       const baseKey = createEventKey(this, event);
@@ -7428,7 +7398,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       const wrappedListener = (...args) => {
         // Execute dispose to remove from manager and avoid memory leaks
         disposeFn();
-        guardedListener(...args);
+        return guardedListener(...args);
       };
 
       EventBus.once(event, wrappedListener, key);
@@ -8383,20 +8353,24 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
    * @returns {() => void} A function to cancel the scheduled task.
    */
   function runWhenIdle(callback, timeout) {
+    const FALLBACK_DELAY_MS = 1;
+    const SIMULATED_TIME_REMAINING_MS = 50;
+
     if ('requestIdleCallback' in window) {
       const id = window.requestIdleCallback(callback, { timeout });
       return () => window.cancelIdleCallback(id);
     } else {
-      // Fallback: Execute almost immediately (1ms) to avoid blocking.
-      // This satisfies the "run by timeout" contract trivially since 1ms < timeout.
+      // Fallback: Execute almost immediately to avoid blocking.
+      // This satisfies the "run by timeout" contract trivially.
       const id = setTimeout(() => {
+        // [DO NOT REFACTOR] Duck Typing for API Compatibility
         // Provide a minimal IdleDeadline-like object.
-        // timeRemaining() returns 50ms to simulate a fresh frame.
+        // Do not simplify or remove this object structure, as callers expect the `timeRemaining` method.
         callback({
           didTimeout: false,
-          timeRemaining: () => 50,
+          timeRemaining: () => SIMULATED_TIME_REMAINING_MS,
         });
-      }, 1);
+      }, FALLBACK_DELAY_MS);
 
       return () => clearTimeout(id);
     }
@@ -8710,9 +8684,6 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     };
   })();
 
-  /**
-   * Proposes a unique name by appending a suffix if the base name already exists in a given set.
-  
   /**
    * Proposes a unique name by appending a suffix if the base name already exists in a given set.
    * It checks for "Copy", "Copy 2", "Copy 3", etc., in a case-insensitive manner.
@@ -9751,7 +9722,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       const tempManifestString = JSON.stringify(tempManifest);
       const hasManifestChange = tempManifestString !== this._lastSavedManifestContent;
 
-      const commitTimestamp = Date.now();
+      const commitTimestamp = Temporal.Now.instant().epochMilliseconds;
 
       // Explicitly update timestamp and write manifest if there are ANY changes (theme content OR manifest structure).
       // This ensures that even if only a color inside a theme changed (without changing ID list), the updated manifest
@@ -9924,12 +9895,12 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         } else {
           // Fallback for legacy data or corruption: force update to be safe
           shouldUpdate = true;
-          newTimestamp = Date.now();
+          newTimestamp = Temporal.Now.instant().epochMilliseconds;
         }
       } catch (e) {
         Logger.warn('SyncManager', '', 'Failed to parse remote config. Forcing update.', e);
         shouldUpdate = true;
-        newTimestamp = Date.now();
+        newTimestamp = Temporal.Now.instant().epochMilliseconds;
       }
 
       if (shouldUpdate) {
@@ -10542,6 +10513,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       // State for layout preview and throttling
       this.cachedPreviewWidth = undefined; // undefined: no preview, null: preview default, string: preview value
       this.isLayoutUpdateScheduled = false;
+      this.isLayoutUpdatePending = false;
     }
 
     _onInit() {
@@ -10874,14 +10846,21 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     }
 
     scheduleLayoutUpdate() {
-      if (this.isLayoutUpdateScheduled) return;
+      if (this.isLayoutUpdateScheduled) {
+        this.isLayoutUpdatePending = true;
+        return;
+      }
       this.isLayoutUpdateScheduled = true;
+      this.isLayoutUpdatePending = false;
       EventBus.queueUIWork(() => {
         try {
           if (this.isDestroyed) return;
           this.applyChatContentMaxWidth();
         } finally {
           this.isLayoutUpdateScheduled = false;
+          if (this.isLayoutUpdatePending) {
+            this.scheduleLayoutUpdate();
+          }
         }
       });
     }
@@ -11013,6 +10992,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       this.processedTurnNodes = new Set();
       /** @type {Map<HTMLElement, [string, (element: Element) => void]>} */
       this.sentinelTurnListeners = new Map();
+      /** @type {Map<HTMLElement, { observer: MutationObserver, cancel: () => void }>} */
+      this.mutationTurnObservers = new Map();
       this.debouncedCacheUpdate = debounce(this._publishCacheUpdate.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.CACHE_UPDATE, true);
       this.pageScopeCleaner = null;
       this.streamingState = streamingState;
@@ -11081,6 +11062,12 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       }
       this.sentinelTurnListeners.clear();
 
+      for (const { observer, cancel } of this.mutationTurnObservers.values()) {
+        observer.disconnect();
+        if (cancel) cancel();
+      }
+      this.mutationTurnObservers.clear();
+
       // layoutResizeObserver is automatically disconnected by BaseManager
 
       // Page-specific observers are automatically disposed by BaseManager via PageObserverScope
@@ -11137,15 +11124,19 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
      * @param {string} config.triggerSelector
      * @param {string} config.observerType
      * @param {function(HTMLElement): HTMLElement|null} config.targetResolver - A function to resolve the actual panel element from the trigger element.
+     * @param {function(HTMLElement, HTMLElement): boolean} config.checkVisibility - A function to determine if the panel is visible based on the panel and trigger elements.
+     * @param {string[]} config.attributesToWatch - An array of attribute names to monitor for changes.
      * @param {function(): void} [config.immediateCallback] - An optional callback executed immediately and repeatedly during the animation loop.
      * @returns {() => void} A cleanup function.
      */
     startGenericPanelObserver(config) {
-      const { triggerSelector, observerType, targetResolver, immediateCallback } = config;
+      const { triggerSelector, observerType, targetResolver, checkVisibility, attributesToWatch, immediateCallback } = config;
       let isPanelVisible = false;
       let isStateUpdating = false; // Lock to prevent race conditions
       let disappearanceObserver = null;
+      let attributeObserver = null;
       let observedPanel = null;
+      let trackedPanel = null;
       let animationLoopId = null;
       const STABILIZATION_MS = CONSTANTS.TIMING.ANIMATIONS.LAYOUT_STABILIZATION_MS;
       const MAX_DURATION_MS = 5000; // Hard limit to prevent infinite loops
@@ -11169,7 +11160,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       const startUpdateLoop = (targetPanel) => {
         if (animationLoopId) cancelAnimationFrame(animationLoopId);
 
-        const startTime = Date.now();
+        const startTime = performance.now();
         // Initial deadline
         loopEndTime = startTime + STABILIZATION_MS;
         lastRectString = getRectString(targetPanel);
@@ -11177,7 +11168,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         const loop = () => {
           triggerUpdates();
 
-          const now = Date.now();
+          const now = performance.now();
 
           // Check for geometric changes to extend the deadline
           if (targetPanel) {
@@ -11216,9 +11207,34 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
           if (trigger instanceof HTMLElement) {
             panel = targetResolver(trigger);
-            // Check if the panel exists and is visible in the DOM (offsetParent is non-null).
-            if (panel instanceof HTMLElement && panel.offsetParent !== null) {
+
+            // Keep attribute observer attached as long as the panel is resolved in the DOM
+            if (panel !== trackedPanel) {
+              if (attributeObserver) {
+                attributeObserver.disconnect();
+                attributeObserver = null;
+              }
+              trackedPanel = panel;
+
+              if (trackedPanel && attributesToWatch.length > 0) {
+                attributeObserver = new MutationObserver(() => {
+                  updatePanelState();
+                });
+                attributeObserver.observe(trackedPanel, { attributes: true, attributeFilter: attributesToWatch });
+              }
+            }
+
+            if (panel instanceof HTMLElement && checkVisibility(panel, trigger)) {
               isNowVisible = true;
+            }
+          } else {
+            // If trigger is gone, clear tracked panel and observer
+            if (trackedPanel) {
+              if (attributeObserver) {
+                attributeObserver.disconnect();
+                attributeObserver = null;
+              }
+              trackedPanel = null;
             }
           }
 
@@ -11286,6 +11302,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       return () => {
         sentinel.off(triggerSelector, updatePanelState);
         disappearanceObserver?.disconnect();
+        if (attributeObserver) attributeObserver.disconnect();
         if (observedPanel) {
           this.unobserveElement(observedPanel);
         }
@@ -11339,6 +11356,12 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
           sentinel.off(selector, callback);
         }
         this.sentinelTurnListeners.clear();
+
+        for (const { observer, cancel } of this.mutationTurnObservers.values()) {
+          observer.disconnect();
+          if (cancel) cancel();
+        }
+        this.mutationTurnObservers.clear();
 
         // Subscribe to CACHE_UPDATED to manage the NAVIGATION_END lifecycle.
         EventBus.subscribe(EVENTS.CACHE_UPDATED, this.boundHandleCacheUpdateForNavigation, this._cacheEventKey);
@@ -11491,7 +11514,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     /**
      * @description Processes a turn node, handling both completed and streaming turns.
      * If the turn is already complete, it triggers final updates (e.g., for navigation).
-     * If the turn is streaming, it attaches a dedicated MutationObserver to watch for its completion.
+     * If the turn is streaming, it attaches a dedicated observer (Sentinel or MutationObserver) to watch for its completion.
      * @param {HTMLElement} turnNode The turn container element to process or observe.
      */
     observeTurnForCompletion(turnNode) {
@@ -11502,7 +11525,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
       PerfMonitor.throttleLog('observeTurnForCompletion', CONSTANTS.TIMING.PERF_MONITOR_THROTTLE);
       // Do not re-process turns that have already been handled or are currently being observed.
-      if (this.processedTurnNodes.has(turnNode) || this.sentinelTurnListeners.has(turnNode)) return;
+      if (this.processedTurnNodes.has(turnNode) || this.sentinelTurnListeners.has(turnNode) || this.mutationTurnObservers.has(turnNode)) return;
       if (turnNode.nodeType !== Node.ELEMENT_NODE) return;
 
       if (this._isTurnComplete(turnNode)) {
@@ -11517,33 +11540,72 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
           EventBus.publish(EVENTS.DEFERRED_LAYOUT_UPDATE);
         }
       } else {
-        // This branch handles streaming turns using the efficient Sentinel observer.
-        const sentinelCallback = (completionElement) => {
-          // Ensure the completion element belongs to the turn we are observing.
-          const completedTurnNode = completionElement.closest(CONSTANTS.SELECTORS.CONVERSATION_UNIT);
-          if (completedTurnNode !== turnNode) return;
+        const config = PlatformAdapters.Observer.getTurnCompletionConfig();
 
-          // Self-remove the listener to prevent memory leaks and redundant calls.
-          sentinel.off(CONSTANTS.SELECTORS.TURN_COMPLETE_SELECTOR, sentinelCallback);
-          this.sentinelTurnListeners.delete(turnNode);
+        if (config.strategy === CONSTANTS.OBSERVER_STRATEGIES.SENTINEL && config.selector) {
+          // This branch handles streaming turns using the efficient Sentinel observer.
+          const sentinelCallback = (completionElement) => {
+            // Ensure the completion element belongs to the turn we are observing.
+            const completedTurnNode = completionElement.closest(CONSTANTS.SELECTORS.CONVERSATION_UNIT);
+            if (completedTurnNode !== turnNode) return;
 
-          EventBus.publish(EVENTS.TURN_COMPLETE, turnNode);
+            // Self-remove the listener to prevent memory leaks and redundant calls.
+            sentinel.off(config.selector, sentinelCallback);
+            this.sentinelTurnListeners.delete(turnNode);
 
-          // End streaming state if active
-          if (this.streamingState.isActive) {
-            this.streamingState.isActive = false;
-            EventBus.publish(EVENTS.STREAMING_END);
-            EventBus.publish(EVENTS.DEFERRED_LAYOUT_UPDATE);
-          }
+            EventBus.publish(EVENTS.TURN_COMPLETE, turnNode);
 
-          // Manually trigger a cache update now that streaming is complete.
-          this.debouncedCacheUpdate();
-          this.processedTurnNodes.add(turnNode);
-        };
+            // End streaming state if active
+            if (this.streamingState.isActive) {
+              this.streamingState.isActive = false;
+              EventBus.publish(EVENTS.STREAMING_END);
+              EventBus.publish(EVENTS.DEFERRED_LAYOUT_UPDATE);
+            }
 
-        // Store the listener so it can be cleaned up on navigation.
-        this.sentinelTurnListeners.set(turnNode, [CONSTANTS.SELECTORS.TURN_COMPLETE_SELECTOR, sentinelCallback]);
-        sentinel.on(CONSTANTS.SELECTORS.TURN_COMPLETE_SELECTOR, sentinelCallback);
+            // Manually trigger a cache update now that streaming is complete.
+            this.debouncedCacheUpdate();
+            this.processedTurnNodes.add(turnNode);
+          };
+
+          // Store the listener so it can be cleaned up on navigation.
+          this.sentinelTurnListeners.set(turnNode, [config.selector, sentinelCallback]);
+          sentinel.on(config.selector, sentinelCallback);
+        } else if (config.strategy === CONSTANTS.OBSERVER_STRATEGIES.MUTATION && config.observerOptions) {
+          // This branch handles streaming turns using MutationObserver for property changes.
+          // Debounce the completion check to prevent layout thrashing during rapid DOM updates.
+          const checkCompletion = debounce(
+            () => {
+              if (this.isDestroyed || !turnNode.isConnected) return;
+
+              if (this._isTurnComplete(turnNode)) {
+                const observerData = this.mutationTurnObservers.get(turnNode);
+                if (observerData) {
+                  observerData.observer.disconnect();
+                }
+                this.mutationTurnObservers.delete(turnNode);
+
+                EventBus.publish(EVENTS.TURN_COMPLETE, turnNode);
+
+                // End streaming state if active
+                if (this.streamingState.isActive) {
+                  this.streamingState.isActive = false;
+                  EventBus.publish(EVENTS.STREAMING_END);
+                  EventBus.publish(EVENTS.DEFERRED_LAYOUT_UPDATE);
+                }
+
+                // Manually trigger a cache update now that streaming is complete.
+                this.debouncedCacheUpdate();
+                this.processedTurnNodes.add(turnNode);
+              }
+            },
+            150,
+            false
+          ); // Use setTimeout (false) to ensure timely evaluation rather than idle time
+
+          const observer = new MutationObserver(checkCompletion);
+          observer.observe(turnNode, config.observerOptions);
+          this.mutationTurnObservers.set(turnNode, { observer, cancel: checkCompletion.cancel });
+        }
       }
     }
 
@@ -11571,14 +11633,23 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         }
       }
 
-      // 2. Cleanup Processed Turn Nodes (Set)
+      // 2. Cleanup Turn Observers (MutationObserver)
+      for (const [turnNode, { observer, cancel }] of this.mutationTurnObservers) {
+        if (!turnNode.isConnected) {
+          observer.disconnect();
+          if (cancel) cancel();
+          this.mutationTurnObservers.delete(turnNode);
+        }
+      }
+
+      // 3. Cleanup Processed Turn Nodes (Set)
       for (const turnNode of this.processedTurnNodes) {
         if (!turnNode.isConnected) {
           this.processedTurnNodes.delete(turnNode);
         }
       }
 
-      // 3. Cleanup Observed Elements (ResizeObserver)
+      // 4. Cleanup Observed Elements (ResizeObserver)
       for (const element of this.observedElements.keys()) {
         if (!element.isConnected) {
           this.layoutResizeObserver.unobserve(element);
@@ -11798,6 +11869,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       this.messageCacheManager = messageCacheManager;
       this.themeManager = themeManager;
       this.isUpdateScheduled = false;
+      this.isUpdatePending = false;
       this.isAutoScrolling = false;
       this.scheduleUpdate = this.scheduleUpdate.bind(this);
       this.anchorSelectors = [];
@@ -11860,8 +11932,12 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
     scheduleUpdate() {
       if (this.isDestroyed) return;
-      if (this.isUpdateScheduled) return;
+      if (this.isUpdateScheduled) {
+        this.isUpdatePending = true;
+        return;
+      }
       this.isUpdateScheduled = true;
+      this.isUpdatePending = false;
       EventBus.queueUIWork(async () => {
         try {
           if (this.isDestroyed) return;
@@ -11869,6 +11945,9 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
           await this.recalculateStandingImagesLayout();
         } finally {
           this.isUpdateScheduled = false;
+          if (this.isUpdatePending) {
+            this.scheduleUpdate();
+          }
         }
       });
     }
@@ -11883,8 +11962,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       const cls = this.style.classes;
       if (document.getElementById(cls.assistantImageId)) return;
 
-      const userImg = h('div', { id: cls.userImageId });
-      const asstImg = h('div', { id: cls.assistantImageId });
+      const userImg = h(`div#${cls.userImageId}`);
+      const asstImg = h(`div#${cls.assistantImageId}`);
 
       document.body.appendChild(userImg);
       document.body.appendChild(asstImg);
@@ -11938,6 +12017,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
           e.stopPropagation();
           info.msgWrapper.classList.toggle(cls.collapsed);
         };
+        button.onpointerdown = (e) => e.stopPropagation();
         return button;
       },
       update: (element, info, isEnabled, messageElement, manager, measurement) => {
@@ -11997,6 +12077,9 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
         prevBtn.onclick = createClickHandler(-1);
         nextBtn.onclick = createClickHandler(1);
+        prevBtn.onpointerdown = (e) => e.stopPropagation();
+        nextBtn.onpointerdown = (e) => e.stopPropagation();
+
         const cls = manager.styleHandle.classes;
         return h(`div.${cls.navGroupTop}`, [prevBtn, nextBtn]);
       },
@@ -12019,6 +12102,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
           e.stopPropagation();
           scrollToElement(msgElem);
         };
+        topBtn.onpointerdown = (e) => e.stopPropagation();
+
         const cls = manager.styleHandle.classes;
         return h(`div.${cls.navGroupBottom}`, [topBtn]);
       },
@@ -12468,6 +12553,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       this.uiCache = null;
 
       this.isRepositionScheduled = false;
+      this.isRepositionPending = false;
       this.scheduleReposition = this.scheduleReposition.bind(this);
 
       this.handleBodyClick = this.handleBodyClick.bind(this);
@@ -12509,7 +12595,6 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       this.searchCache = new Map();
       /** @type {MessageNode[]} */
       this.indexingQueue = [];
-      this.indexingTask = null;
 
       this.styleHandle = this.injectStyle();
       // Pre-inject JumpList styles to avoid overhead on toggle
@@ -12552,6 +12637,10 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
      */
     _onDestroy() {
       this.isRepositionScheduled = false;
+      if (this.idleIndexingCancelFn) {
+        this.idleIndexingCancelFn();
+        this.idleIndexingCancelFn = null;
+      }
 
       // Perform cleanup that requires state before clearing it
       if (this.state) {
@@ -12649,7 +12738,10 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       // Clear performance caches to release memory
       if (this.searchCache) this.searchCache.clear();
       this.indexingQueue = [];
-      // Pending idle tasks are cleared implicitly as they check the queue length
+      if (this.idleIndexingCancelFn) {
+        this.idleIndexingCancelFn();
+        this.idleIndexingCancelFn = null;
+      }
 
       this.state = {
         currentIndices: {
@@ -12710,6 +12802,11 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
     /** @private */
     _runIdleIndexing() {
+      if (this.idleIndexingCancelFn) {
+        this.idleIndexingCancelFn();
+        this.idleIndexingCancelFn = null;
+      }
+
       if (this.indexingQueue.length === 0) return;
 
       // Use runWhenIdle utility
@@ -12971,10 +13068,27 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         `button.${btnBaseClass}.${cls.btnAccent}`,
         {
           title: 'Previous message',
+          onclick: (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this._navigateTo(this.state.activeRole, 'prev');
+          },
         },
         [createIconFromDef(StyleDefinitions.ICONS.arrowUp)]
       );
-      const btnFirst = h(`button.${btnBaseClass}.${cls.btnDanger}`, { title: 'First message', style: { display: 'none' } }, [createIconFromDef(StyleDefinitions.ICONS.scrollToFirst)]);
+      const btnFirst = h(
+        `button.${btnBaseClass}.${cls.btnDanger}`,
+        {
+          title: 'First message',
+          style: { display: 'none' },
+          onclick: (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this._navigateTo(this.state.activeRole, 'first');
+          },
+        },
+        [createIconFromDef(StyleDefinitions.ICONS.scrollToFirst)]
+      );
 
       // Platform specific buttons (Scan) - Shift mode for Left Slot
       const platformButtons = PlatformAdapters.FixedNav.getPlatformSpecificButtons(this, this.styleHandle);
@@ -12989,16 +13103,38 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         `button.${btnBaseClass}.${cls.btnAccent}`,
         {
           title: 'Next message',
+          onclick: (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this._navigateTo(this.state.activeRole, 'next');
+          },
         },
         [createIconFromDef(StyleDefinitions.ICONS.arrowDown)]
       );
-      const btnLast = h(`button.${btnBaseClass}.${cls.btnDanger}`, { title: 'Last message', style: { display: 'none' } }, [createIconFromDef(StyleDefinitions.ICONS.scrollToLast)]);
+      const btnLast = h(
+        `button.${btnBaseClass}.${cls.btnDanger}`,
+        {
+          title: 'Last message',
+          style: { display: 'none' },
+          onclick: (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this._navigateTo(this.state.activeRole, 'last');
+          },
+        },
+        [createIconFromDef(StyleDefinitions.ICONS.scrollToLast)]
+      );
 
       const btnFold = h(
         `button#${cls.bulkCollapseBtnId}.${btnBaseClass}`,
         {
           style: { display: 'none' },
           dataset: { [CONSTANTS.DATA_KEYS.STATE]: CONSTANTS.UI_STATES.EXPANDED },
+          onclick: (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this._toggleAllMessages();
+          },
         },
         [createIconFromDef(StyleDefinitions.ICONS.bulkCollapse), createIconFromDef(StyleDefinitions.ICONS.bulkExpand)]
       );
@@ -13010,6 +13146,11 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         {
           title: 'Click: Open Jump List\nRight-Click: Switch Role',
           oncontextmenu: this._handleRoleContextMenu,
+          onclick: (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this._toggleJumpList(e.currentTarget);
+          },
         },
         [] // Icon will be set in _renderUI
       );
@@ -13019,6 +13160,11 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         {
           title: 'Click to enter message number to jump\n[Right-Click] Cycle modes (Normal/Shift)',
           oncontextmenu: this._handleModeContextMenu,
+          onclick: (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this._startJumpInputSession(e.currentTarget);
+          },
         },
         [h(`span.${cls.counterCurrent}`, '--'), ' / ', h(`span.${cls.counterTotal}`, '--')]
       );
@@ -13083,22 +13229,29 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     }
 
     scheduleReposition() {
-      if (this.isRepositionScheduled) return;
+      if (this.isRepositionScheduled) {
+        this.isRepositionPending = true;
+        return;
+      }
       this.isRepositionScheduled = true;
-      EventBus.queueUIWork(() => {
+      this.isRepositionPending = false;
+      EventBus.queueUIWork(async () => {
         try {
           if (this.isDestroyed) return;
-          this.repositionContainers();
+          await this.repositionContainers();
         } finally {
           this.isRepositionScheduled = false;
+          if (this.isRepositionPending) {
+            this.scheduleReposition();
+          }
         }
       });
     }
 
     /**
-     * @returns {void}
+     * @returns {Promise<void>}
      */
-    repositionContainers() {
+    async repositionContainers() {
       if (!this.navConsole) return;
 
       const config = this.configManager.get();
@@ -13112,7 +13265,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       }
 
       // Use withLayoutCycle to prevent layout thrashing
-      withLayoutCycle({
+      await withLayoutCycle({
         measure: () => {
           // --- Read Phase ---
           // 1. Determine Target Mode
@@ -13421,16 +13574,31 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         // If the target element is unmounted, scrolling to its parent container forces the framework to mount it.
         // We listen for the cache update (triggered by updateDomBinding) to perform a final precision scroll.
         if (!node.element || node.element !== targetToScroll) {
+          const timerKey = generateUniqueId('scrollTimer');
+          let isCleanedUp = false;
+
+          const cleanup = () => {
+            if (isCleanedUp) return;
+            isCleanedUp = true;
+            unsubscribe();
+            clearTimeout(timerId);
+            this.manageResource(timerKey, null);
+          };
+
           const unsubscribe = this._subscribe(EVENTS.CACHE_UPDATED, () => {
             if (this.isDestroyed) return;
-            if (node.element) {
-              unsubscribe();
+            if (node.element && node.element.isConnected) {
+              cleanup();
               scrollToElement(node.element);
             }
           });
 
           // Safety timeout to prevent memory leaks if the element never mounts
-          setTimeout(unsubscribe, CONSTANTS.TIMING.TIMEOUTS.SCROLL_OFFSET_CLEANUP);
+          const timerId = setTimeout(() => {
+            cleanup();
+          }, CONSTANTS.TIMING.TIMEOUTS.SCROLL_OFFSET_CLEANUP);
+
+          this.manageResource(timerKey, cleanup);
         }
       }
     }
@@ -13493,27 +13661,6 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         this._hideJumpList();
       }
 
-      const navButton = target.closest(`.${cls.btn}`);
-      if (navButton instanceof HTMLElement && this.navConsole?.contains(navButton)) {
-        this.handleButtonClick(navButton);
-        return;
-      }
-
-      // In the new UI, counters and labels are singleton elements representing the active role.
-      // We no longer filter by role attribute.
-      const counter = target.closest(`.${cls.counter}`);
-      if (counter instanceof HTMLElement && this.navConsole?.contains(counter)) {
-        this.handleCounterClick(e, counter);
-        return;
-      }
-
-      // Handle Role Button Click
-      const roleBtn = target.closest(`.${cls.roleBtn}`);
-      if (roleBtn instanceof HTMLElement && this.navConsole?.contains(roleBtn)) {
-        this._toggleJumpList(roleBtn);
-        return;
-      }
-
       const messageElement = target.closest(CONSTANTS.SELECTORS.FIXED_NAV_MESSAGE_CONTAINERS);
       if (messageElement instanceof HTMLElement && !target.closest(`a, button, input, #${cls.consoleId}`)) {
         let holder = messageElement.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
@@ -13526,51 +13673,6 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
           if (node) this.setHighlightAndIndices(node);
         }
       }
-    }
-
-    /**
-     * Handles clicks on the main navigation buttons (prev, next, etc.).
-     * @param {HTMLElement} buttonElement
-     * @returns {void}
-     */
-    handleButtonClick(buttonElement) {
-      const btns = this.uiCache.buttons;
-
-      // Handle platform-specific buttons dynamically
-      if (btns.platformButtons && btns.platformButtons.includes(buttonElement)) {
-        return; // Let the button's own event listener handle it
-      }
-
-      switch (buttonElement) {
-        case btns.fold:
-          this._toggleAllMessages();
-          break;
-        case btns.prev:
-          this._navigateTo(this.state.activeRole, 'prev');
-          break;
-        case btns.next:
-          this._navigateTo(this.state.activeRole, 'next');
-          break;
-        case btns.first:
-          this._navigateTo(this.state.activeRole, 'first');
-          break;
-        case btns.last:
-          this._navigateTo(this.state.activeRole, 'last');
-          break;
-        default:
-          Logger.warn('NAV ERROR', LOG_STYLES.YELLOW, 'Unknown button clicked:', buttonElement);
-          break;
-      }
-    }
-
-    /**
-     * Handles clicks on the navigation counters, allowing the user to jump to a specific message number.
-     * @param {MouseEvent} e The click event object.
-     * @param {HTMLElement} counterSpan
-     * @returns {void}
-     */
-    handleCounterClick(e, counterSpan) {
-      this._startJumpInputSession(counterSpan);
     }
 
     /** @private */
@@ -13672,6 +13774,23 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     }
 
     _handleKeyDown(e) {
+      if (e.key === 'Escape') {
+        // Handle auto-scroll cancellation first.
+        if (this.autoScrollManager?.isScrolling) {
+          e.preventDefault();
+          e.stopPropagation();
+          EventBus.publish(EVENTS.AUTO_SCROLL_CANCEL_REQUEST);
+          return;
+        }
+        // Then handle jump list closure if auto-scroll is not active.
+        if (this.state.jumpListComponent) {
+          e.preventDefault();
+          e.stopPropagation();
+          this._hideJumpList();
+          return;
+        }
+      }
+
       // Guard: Disable shortcuts if the console is not visible (e.g. New Chat page)
       // This prevents "ghost" inputs from being created in the background.
       if (this.navConsole && this.navConsole.classList.contains(this.styleHandle.classes.hidden)) {
@@ -13683,7 +13802,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
       if (shortcutsEnabled && e.altKey && !e.ctrlKey && !e.metaKey) {
         // Throttle check
-        const now = Date.now();
+        const now = performance.now();
         if (now - this.lastShortcutTime < CONSTANTS.TIMING.KEYBOARD_THROTTLE) {
           e.preventDefault();
           return;
@@ -13736,21 +13855,6 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         if (actionTaken) {
           this.lastShortcutTime = now;
           return;
-        }
-      }
-
-      if (e.key === 'Escape') {
-        // Handle auto-scroll cancellation first.
-        if (this.autoScrollManager?.isScrolling) {
-          e.preventDefault();
-          e.stopPropagation();
-          EventBus.publish(EVENTS.AUTO_SCROLL_CANCEL_REQUEST);
-        }
-        // Then handle jump list closure if auto-scroll is not active.
-        else if (this.state.jumpListComponent) {
-          e.preventDefault();
-          e.stopPropagation();
-          this._hideJumpList();
         }
       }
     }
@@ -13969,6 +14073,9 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         }
       });
       this._subscribe(EVENTS.NAVIGATION_START, () => {
+        // Cancel any pending integrity scan to prevent it from running on the new page
+        this.manageResource(CONSTANTS.RESOURCE_KEYS.INTEGRITY_SCAN, null);
+        this.isScanPending = false;
         this._cleanupProcessedFlags();
       });
       this._subscribe(EVENTS.NAVIGATION_END, () => {
@@ -14430,15 +14537,15 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
      */
     _formatTimestamp(unixTimestamp) {
       if (typeof unixTimestamp !== 'number' || isNaN(unixTimestamp)) {
-        return ''; // Return empty string if invalid
+        return '';
       }
-      const date = new Date(unixTimestamp * 1000);
-      const yyyy = date.getFullYear();
-      const mm = String(date.getMonth() + 1).padStart(2, '0');
-      const dd = String(date.getDate()).padStart(2, '0');
-      const hh = String(date.getHours()).padStart(2, '0');
-      const ii = String(date.getMinutes()).padStart(2, '0');
-      const ss = String(date.getSeconds()).padStart(2, '0');
+      const zonedDateTime = Temporal.Instant.fromEpochMilliseconds(Math.floor(unixTimestamp * 1000)).toZonedDateTimeISO(Temporal.Now.timeZoneId());
+      const yyyy = zonedDateTime.year;
+      const mm = String(zonedDateTime.month).padStart(2, '0');
+      const dd = String(zonedDateTime.day).padStart(2, '0');
+      const hh = String(zonedDateTime.hour).padStart(2, '0');
+      const ii = String(zonedDateTime.minute).padStart(2, '0');
+      const ss = String(zonedDateTime.second).padStart(2, '0');
       return `${yyyy}-${mm}-${dd} ${hh}:${ii}:${ss}`;
     }
   }
@@ -14584,9 +14691,9 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
    * @description Base class for a UI component with lifecycle management.
    */
   class UIComponentBase extends BaseManager {
-    constructor(callbacks) {
+    constructor(context) {
       super();
-      this.callbacks = callbacks;
+      this.context = context;
       this.element = null;
       this.storeSubscriptions = [];
     }
@@ -14679,14 +14786,6 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         // Notify only the specific path that changed.
         this.notify(path);
       }
-    }
-
-    /**
-     * Returns a deep copy of the current full state object.
-     * @returns {object}
-     */
-    getData() {
-      return deepClone(this.state);
     }
 
     /**
@@ -14811,7 +14910,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
      */
     _setupDynamicState(element, options) {
       if (options.visibleIf || options.disabledIf) {
-        const deps = options.dependencies || [];
+        const deps = [...(options.dependencies || [])];
         // If specific dependencies aren't listed but we have a key, watch the key too (unlikely for visibility but safe)
         if (options.key && !deps.includes(options.key)) deps.push(options.key);
 
@@ -14938,16 +15037,15 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     text(key, label, options) {
       const cls = this.styles;
       const input = this.create('input', { type: 'text' }, []);
-      const errorSpan = this.create('div', { className: cls.formErrorMsg }, []);
+      const errorSpan = this.create(`div.${cls.formErrorMsg}`, {}, []);
 
       const children = [input];
 
       // File selection button for image fields
       if (options.fieldType === 'image' || options.fieldType === 'icon') {
         const btn = this.create(
-          'button',
+          `button.${cls.localFileBtn}`,
           {
-            className: cls.localFileBtn,
             type: 'button',
             title: 'Select local file',
             onclick: () => {
@@ -14981,11 +15079,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         children.push(btn);
       }
 
-      const container = this.create('div', { className: cls.formField }, [
-        this.create('div', { className: cls.labelRow }, [this.create('label', { title: options.tooltip }, label)]),
-        this.create('div', { className: cls.inputWrapper }, children),
-        errorSpan,
-      ]);
+      const container = this.create(`div.${cls.formField}`, {}, [this.create(`div.${cls.labelRow}`, {}, [this.create('label', { title: options.tooltip }, label)]), this.create(`div.${cls.inputWrapper}`, {}, children), errorSpan]);
 
       if (container instanceof HTMLElement && input instanceof HTMLInputElement) {
         this._bindInput(container, input, key, options);
@@ -15001,9 +15095,9 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     textarea(key, label, options) {
       const cls = this.styles;
       const input = this.create('textarea', { rows: options.rows || 3 }, []);
-      const errorSpan = this.create('div', { className: cls.formErrorMsg }, []);
+      const errorSpan = this.create(`div.${cls.formErrorMsg}`, {}, []);
 
-      const container = this.create('div', { className: cls.formField }, [this.create('label', { title: options.tooltip }, label), input, errorSpan]);
+      const container = this.create(`div.${cls.formField}`, {}, [this.create('label', { title: options.tooltip }, label), input, errorSpan]);
 
       if (container instanceof HTMLElement && input instanceof HTMLTextAreaElement) {
         this._bindInput(container, input, key, options);
@@ -15018,12 +15112,12 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       const cls = this.styles;
       const input = this.create('input', { type: 'checkbox' }, []);
 
-      const container = this.create('div', { className: cls.submenuRow }, [
+      const container = this.create(`div.${cls.submenuRow}`, {}, [
         this.create('label', { title: options.title }, label), // Label on left
-        this.create('label', { className: cls.toggleSwitch, title: options.title }, [
+        this.create(`label.${cls.toggleSwitch}`, { title: options.title }, [
           // Switch on right
           input,
-          this.create('span', { className: cls.toggleSlider }, []),
+          this.create(`span.${cls.toggleSlider}`, {}, []),
         ]),
       ]);
 
@@ -15040,12 +15134,12 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       const step = options.step || 1;
 
       const input = this.create('input', { type: 'range', min, max, step }, []);
-      const display = this.create('span', { className: cls.sliderDisplay }, []);
+      const display = this.create(`span.${cls.sliderDisplay}`, {}, []);
 
-      const controlGroup = this.create('div', { className: cls.sliderSubgroupControl }, [input, display]);
+      const controlGroup = this.create(`div.${cls.sliderSubgroupControl}`, {}, [input, display]);
       const containerClass = options.containerClass ? cls[options.containerClass] : cls.sliderContainer;
 
-      const container = this.create('div', { className: containerClass }, [this.create('label', { title: options.tooltip }, label), controlGroup]);
+      const container = this.create(`div.${containerClass}`, {}, [this.create('label', { title: options.tooltip }, label), controlGroup]);
 
       const extendedOptions = {
         ...options,
@@ -15091,7 +15185,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
       let container;
       if (options.showLabel) {
-        container = this.create('div', { className: cls.formField }, [this.create('label', { title: options.tooltip }, label), input]);
+        container = this.create(`div.${cls.formField}`, {}, [this.create('label', { title: options.tooltip }, label), input]);
       } else {
         // Bare select (often used in rows)
         container = input;
@@ -15109,8 +15203,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       const cls = this.styles;
       const input = this.create('input', { type: 'text', autocomplete: 'off' }, []);
 
-      const swatchValue = this.create('span', { className: cls.colorSwatchValue }, []);
-      const swatch = this.create('button', { className: cls.colorSwatch, type: 'button', title: 'Open color picker' }, [this.create('span', { className: cls.colorSwatchChecker }, []), swatchValue]);
+      const swatchValue = this.create(`span.${cls.colorSwatchValue}`, {}, []);
+      const swatch = this.create(`button.${cls.colorSwatch}`, { type: 'button', title: 'Open color picker' }, [this.create(`span.${cls.colorSwatchChecker}`, {}, []), swatchValue]);
 
       // Picker logic encapsulation
       let activePicker = null;
@@ -15139,10 +15233,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
           const popupRoot = this.create('div', {}, []);
           // Apply the pickerRootId from context to ensure styles are scoped correctly
           const popupWrapper = this.create(
-            'div',
+            `div#${this.context.pickerRootId}.${cls.colorPickerPopup}`,
             {
-              id: this.context.pickerRootId,
-              className: cls.colorPickerPopup,
               style: { position: 'absolute' },
             },
             [popupRoot]
@@ -15211,12 +15303,12 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         };
       }
 
-      const container = this.create('div', { className: cls.formField }, [
-        this.create('div', { className: cls.labelRow }, [
+      const container = this.create(`div.${cls.formField}`, {}, [
+        this.create(`div.${cls.labelRow}`, {}, [
           this.create('label', { title: options.tooltip }, label),
-          this.create('span', { className: cls.statusText }, []), // Error container placeholder
+          this.create(`span.${cls.statusText}`, {}, []), // Error container placeholder
         ]),
-        this.create('div', { className: cls.colorFieldWrapper }, [input, swatch]),
+        this.create(`div.${cls.colorFieldWrapper}`, {}, [input, swatch]),
       ]);
 
       const extendedOptions = {
@@ -15273,7 +15365,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
     group(label, children, options) {
       const cls = this.styles;
-      const container = this.create('fieldset', { className: cls.submenuFieldset }, [this.create('legend', {}, label), ...children]);
+      const container = this.create(`fieldset.${cls.submenuFieldset}`, {}, [this.create('legend', {}, label), ...children]);
       if (container instanceof HTMLElement) {
         this._setupDynamicState(container, options);
       }
@@ -15288,7 +15380,10 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       } else if (options.className) {
         className += ` ${options.className}`;
       }
-      const container = this.create('div', { className }, children);
+      // Convert space-separated classes to Emmet syntax: .class1.class2
+      const emmetClasses = className.trim().replace(/\s+/g, '.');
+      const container = this.create(`div.${emmetClasses}`, {}, children);
+
       if (container instanceof HTMLElement) {
         this._setupDynamicState(container, options);
       }
@@ -15296,7 +15391,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     }
 
     separator(options) {
-      const container = this.create('div', { className: this.styles.submenuSeparator }, []);
+      const container = this.create(`div.${this.styles.submenuSeparator}`, {}, []);
       if (container instanceof HTMLElement) {
         this._setupDynamicState(container, options);
       }
@@ -15315,8 +15410,13 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       let className = '';
       if (options.className && this.styles[options.className]) {
         className = this.styles[options.className];
+      } else if (options.className) {
+        className = options.className;
       }
-      const container = this.create('div', { className }, children);
+
+      const tag = className ? `div.${className.trim().replace(/\s+/g, '.')}` : 'div';
+      const container = this.create(tag, {}, children);
+
       if (container instanceof HTMLElement) {
         this._setupDynamicState(container, options);
       }
@@ -16020,13 +16120,14 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
       // Create footer buttons declaratively using map and h().
       const buttons = this.options.buttons.map((btnDef) => {
-        // Combine common button class with any custom classes provided
-        const fullClassName = [commonBtnClass, btnDef.className].filter(Boolean).join(' ');
+        // Combine common button class with any custom classes provided, then format for Emmet
+        const fullClassName = [commonBtnClass, btnDef.className].filter(Boolean).join(' ').trim().replace(/\s+/g, '.');
+
+        const tag = btnDef.id ? `button#${btnDef.id}.${fullClassName}` : `button.${fullClassName}`;
+
         return h(
-          'button',
+          tag,
           {
-            id: btnDef.id,
-            className: fullClassName,
             onclick: (e) => btnDef.onClick(this, e),
             title: btnDef.title || '',
           },
@@ -16034,19 +16135,19 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         );
       });
 
-      const buttonGroup = h(`div.${cls.buttonGroup}`, buttons);
+      const buttonGroup = h(`div.${cls.buttonGroup}`, {}, buttons);
 
       // Create the entire modal structure using h().
+      const dialogTag = this.options.id ? `dialog#${this.options.id}.${cls.dialog}` : `dialog.${cls.dialog}`;
       const dialogElement = h(
-        `dialog.${cls.dialog}`, // Common dialog class
+        dialogTag,
         {
-          id: this.options.id, // Specific ID passed from options (Required for CSS scoping)
           [`data-${APPID}-scope`]: '',
         },
         (modalBox = h(`div.${cls.box}`, { style: { width: this.options.width } }, [
-          (header = h(`div.${cls.header}`, this.options.title)),
-          (content = h(`div.${cls.content}`)),
-          (footer = h(`div.${cls.footer}`, [(footerMessage = h(`div.${cls.footerMessage}`)), buttonGroup])),
+          (header = h(`div.${cls.header}`, {}, this.options.title)),
+          (content = h(`div.${cls.content}`, {}, [])),
+          (footer = h(`div.${cls.footer}`, {}, [(footerMessage = h(`div.${cls.footerMessage}`, {}, [])), buttonGroup])),
         ]))
       );
 
@@ -16088,7 +16189,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         }
         this.element.showModal();
         // Positioning logic
-        if (anchorElement && typeof anchorElement.getBoundingClientRect === 'function') {
+        if (anchorElement instanceof Element) {
           // ANCHORED POSITIONING
           const modalBox = this.dom.modalBox;
           const btnRect = anchorElement.getBoundingClientRect();
@@ -16171,14 +16272,13 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
    */
   class CustomSettingsButton extends UIComponentBase {
     /**
-     * @param {object} callbacks
-     * @param {function(): void} callbacks.onClick
+     * @param {SettingsButtonContext} context
      * @param {object} options
      * @param {string} options.id
      * @param {string} options.title
      */
-    constructor(callbacks, options) {
-      super(callbacks);
+    constructor(context, options) {
+      super(context);
       this.options = options;
       this.styleHandle = null;
       this.id = null;
@@ -16199,14 +16299,13 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         oldElement.remove();
       }
 
-      this.element = h('button', {
-        id: this.id,
+      this.element = h(`button#${this.id}`, {
         type: 'button',
         title: this.options.title,
         onclick: (e) => {
           e.preventDefault();
           e.stopPropagation();
-          this.callbacks.onClick?.();
+          this.context.onClick?.();
         },
       });
 
@@ -16242,19 +16341,10 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
    */
   class SettingsPanelComponent extends UIComponentBase {
     /**
-     * @param {object} callbacks
-     * @param {(config: AppConfig) => Promise<void>} [callbacks.onSave]
-     * @param {() => Promise<AppConfig>} [callbacks.getCurrentConfig]
-     * @param {() => object} [callbacks.getCurrentWarning]
-     * @param {() => ThemeSet} [callbacks.getCurrentThemeSet]
-     * @param {() => void} [callbacks.onShowJsonModal]
-     * @param {function(string=): void} [callbacks.onShowThemeModal]
-     * @param {() => HTMLElement|null} [callbacks.getAnchorElement]
-     * @param {(config: AppConfig) => {size: number, isExceeded: boolean}} [callbacks.checkSize]
-     * @param {() => void} [callbacks.onShow]
+     * @param {UIContext} context
      */
-    constructor(callbacks) {
-      super(callbacks);
+    constructor(context) {
+      super(context);
       this.activeThemeSet = null;
       this.subscriptions = [];
       this.store = null;
@@ -16345,14 +16435,14 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
      */
     async show() {
       // Initialize or refresh store with the latest config
-      const currentConfig = await this.callbacks.getCurrentConfig();
+      const currentConfig = await this.context.getCurrentConfig();
       if (this.isDestroyed) return;
 
-      const currentWarning = this.callbacks.getCurrentWarning();
+      const currentWarning = this.context.getCurrentWarning();
       const { SYSTEM_ROOT, SYSTEM_WARNING, SYSTEM_SIZE_EXCEEDED } = CONSTANTS.STORE_KEYS;
 
       // Check size state
-      const sizeInfo = this.callbacks.checkSize(currentConfig);
+      const sizeInfo = this.context.checkSize(currentConfig);
       // If size is exceeded, override warning message for the panel context
       // unless a system warning is already active.
       let warningState = currentWarning;
@@ -16401,8 +16491,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       this._renderContent();
 
       // Update applied theme name display (manual DOM update as it's not in store)
-      if (this.callbacks.getCurrentThemeSet) {
-        this.activeThemeSet = this.callbacks.getCurrentThemeSet();
+      if (this.context.getCurrentThemeSet) {
+        this.activeThemeSet = this.context.getCurrentThemeSet();
         const themeName = this.activeThemeSet.metadata?.name || 'Default Settings';
         const themeNameEl = this.element.querySelector(`#${this.style.prefix}-theme-name`);
         if (themeNameEl) {
@@ -16410,7 +16500,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         }
       }
 
-      const anchor = this.callbacks.getAnchorElement();
+      const anchor = this.context.getAnchorElement();
 
       if (anchor) {
         const anchorRect = anchor.getBoundingClientRect();
@@ -16439,9 +16529,6 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
       document.addEventListener('click', this._handleDocumentClick, true);
       document.addEventListener('keydown', this._handleDocumentKeydown, true);
-
-      // Notify callbacks
-      this.callbacks.onShow?.();
     }
 
     _createPanelContainer() {
@@ -16475,13 +16562,61 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       const warningBanner = this._createSystemWarning(ui);
 
       // --- 2. Applied Theme Section ---
-      const themeSection = ui.group('Applied Theme', [ui.button(`${prefix}-theme-name`, 'Loading...', null, { fullWidth: true, title: 'Click to edit this theme' })], {});
+      const themeSection = ui.group(
+        'Applied Theme',
+        [
+          ui.button(
+            `${prefix}-theme-name`,
+            'Loading...',
+            () => {
+              if (this.activeThemeSet) {
+                let themeKey = this.activeThemeSet.metadata?.id;
+                if (themeKey === 'default') {
+                  themeKey = CONSTANTS.THEME_IDS.DEFAULT;
+                }
+                this.context.onShowThemeModal?.(themeKey || CONSTANTS.THEME_IDS.DEFAULT);
+                this.hide();
+              }
+            },
+            { fullWidth: true, title: 'Click to edit this theme' }
+          ),
+        ],
+        {}
+      );
 
       // --- 3. Submenu Section ---
       const submenuSection = ui.row(
         [
-          ui.group('Themes', [ui.button(`${prefix}-edit-themes-btn`, 'Edit Themes...', null, { fullWidth: true, title: 'Open the theme editor to create and modify themes.' })], {}),
-          ui.group('JSON', [ui.button(`${prefix}-json-btn`, 'JSON...', null, { fullWidth: true, title: 'Opens the advanced settings modal to directly edit, import, or export the entire configuration in JSON format.' })], {}),
+          ui.group(
+            'Themes',
+            [
+              ui.button(
+                `${prefix}-edit-themes-btn`,
+                'Edit Themes...',
+                () => {
+                  this.context.onShowThemeModal?.();
+                  this.hide();
+                },
+                { fullWidth: true, title: 'Open the theme editor to create and modify themes.' }
+              ),
+            ],
+            {}
+          ),
+          ui.group(
+            'JSON',
+            [
+              ui.button(
+                `${prefix}-json-btn`,
+                'JSON...',
+                () => {
+                  this.context.onShowJsonModal?.();
+                  this.hide();
+                },
+                { fullWidth: true, title: 'Opens the advanced settings modal to directly edit, import, or export the entire configuration in JSON format.' }
+              ),
+            ],
+            {}
+          ),
         ],
         { className: 'topRow' }
       );
@@ -16614,7 +16749,6 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       // Assemble
       this.element.replaceChildren(warningBanner, themeSection, submenuSection, optionsSection, featuresSection);
 
-      this._setupStaticListeners();
       this._setupObservers(ui);
     }
 
@@ -16651,7 +16785,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     }
 
     _handleDocumentClick(e) {
-      const anchor = this.callbacks.getAnchorElement();
+      const anchor = this.context.getAnchorElement();
       if (this.element && !this.element.contains(e.target) && anchor && !anchor.contains(e.target)) {
         this.hide();
       }
@@ -16672,42 +16806,10 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       const storeData = this.store.getStateRef();
       const newConfig = sanitizeConfigForSave(storeData);
       try {
-        await this.callbacks.onSave?.(newConfig);
+        await this.context.onSave?.(newConfig);
       } catch (e) {
         Logger.error('UI', '', 'SettingsPanel save failed:', e);
       }
-    }
-
-    _setupStaticListeners() {
-      const prefix = this.style.prefix;
-
-      // Bind actions for self-static buttons (Theme, JSON, etc.)
-      // Note: Use optional chaining or check existence as re-render might change IDs
-      const bindClick = (id, handler) => {
-        const btn = this.element.querySelector(`#${id}`);
-        if (btn) btn.onclick = handler;
-      };
-
-      bindClick(`${prefix}-theme-name`, () => {
-        if (this.activeThemeSet) {
-          let themeKey = this.activeThemeSet.metadata?.id;
-          if (themeKey === 'default') {
-            themeKey = CONSTANTS.THEME_IDS.DEFAULT;
-          }
-          this.callbacks.onShowThemeModal?.(themeKey || CONSTANTS.THEME_IDS.DEFAULT);
-          this.hide();
-        }
-      });
-
-      bindClick(`${prefix}-json-btn`, () => {
-        this.callbacks.onShowJsonModal?.();
-        this.hide();
-      });
-
-      bindClick(`${prefix}-edit-themes-btn`, () => {
-        this.callbacks.onShowThemeModal?.();
-        this.hide();
-      });
     }
   }
 
@@ -16726,8 +16828,11 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       FILE_READER: 'fileReader',
     };
 
-    constructor(callbacks) {
-      super(callbacks);
+    /**
+     * @param {UIContext} context
+     */
+    constructor(context) {
+      super(context);
       this.modal = null;
       this.styleHandle = null;
       this.store = null;
@@ -16764,13 +16869,13 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         const cls = this.styleHandle.classes;
 
         // Initialize Data
-        const currentConfig = await this.callbacks.getCurrentConfig();
+        const currentConfig = await this.context.getCurrentConfig();
 
         // Guard: Stop if component was destroyed during await
         if (this.isDestroyed) return;
 
         const initialJson = JSON.stringify(currentConfig, null, 2);
-        const currentWarning = this.callbacks.getCurrentWarning();
+        const currentWarning = this.context.getCurrentWarning();
         const { SYSTEM_ROOT, SYSTEM_WARNING } = CONSTANTS.STORE_KEYS;
 
         this.store = new ReactiveStore({
@@ -16930,7 +17035,6 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         // Initial size calculation
         this._calculateAndSetSize(initialJson);
 
-        this.callbacks.onModalOpen?.();
         this.modal.show(anchorElement);
 
         // Focus handling
@@ -16954,9 +17058,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
       // 1. JSON Editor
       const textarea = ui.create(
-        'textarea',
+        `textarea.${cls.jsonEditor}`,
         {
-          className: cls.jsonEditor,
           spellcheck: false,
         },
         []
@@ -16978,8 +17081,9 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       container.appendChild(editorField);
 
       // 2. Status Bar
-      const statusMsg = ui.create('div', { className: 'status-msg-display' }, []);
-      const sizeInfo = ui.create('div', { className: 'size-info-display' }, []);
+      // Apply Emmet syntax directly to the static class names
+      const statusMsg = ui.create('div.status-msg-display', {}, []);
+      const sizeInfo = ui.create('div.size-info-display', {}, []);
 
       ui.observe(['status', 'sizeInfo'], (state) => {
         const status = state.status || {};
@@ -17140,7 +17244,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
       try {
         const obj = JSON.parse(jsonString);
-        await this.callbacks.onSave(obj);
+        await this.context.onSave(obj);
         this.close();
       } catch (e) {
         this.store.set('status', {
@@ -17159,7 +17263,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       this.store.set('status', { text: '', color: '' });
 
       try {
-        const config = await this.callbacks.getCurrentConfig();
+        const config = await this.context.getCurrentConfig();
         const jsonString = JSON.stringify(config, null, 2);
         const blob = new Blob([jsonString], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -17521,11 +17625,14 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       LISTENERS: 'listeners',
     };
 
-    constructor(callbacks) {
-      super(callbacks);
+    /**
+     * @param {UIContext} context
+     */
+    constructor(context) {
+      super(context);
       this.modal = null;
-      this.dataConverter = callbacks.dataConverter;
-      this.checkSize = callbacks.checkSize;
+      this.dataConverter = context.dataConverter;
+      this.checkSize = context.checkSize;
       this.store = null;
       this.previewController = null;
       this.style = null; // Style handle will be stored here
@@ -17561,7 +17668,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         this.style = StyleManager.request(StyleDefinitions.getThemeModal);
         this.pickerStyle = StyleManager.request(StyleDefinitions.getColorPicker);
 
-        const initialConfig = await this.callbacks.getCurrentConfig();
+        const initialConfig = await this.context.getCurrentConfig();
 
         // Guard: Stop if component was destroyed during await
         if (this.isDestroyed) return;
@@ -17716,8 +17823,6 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         // Sync initial mode.
         this.previewController.setIsEditingDefault(this.state.activeThemeKey === CONSTANTS.THEME_IDS.DEFAULT);
 
-        this.callbacks.onModalOpen?.();
-
         this._renderUI(); // Update header controls
 
         this.modal.show(null);
@@ -17759,7 +17864,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       this.clearStoreSubscriptions();
 
       const initialTheme = this._getCurrentThemeData(this.state.config, themeKey);
-      const currentWarning = this.callbacks.getCurrentWarning();
+      const currentWarning = this.context.getCurrentWarning();
       const { SYSTEM_ROOT, SYSTEM_WARNING } = CONSTANTS.STORE_KEYS;
 
       // Merge system state into the theme data
@@ -18030,64 +18135,33 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
     _renderPreview(ui, actor) {
       const cls = ui.context.styles;
-      const wrapperClass = actor === 'user' ? `${cls.previewBubbleWrapper} ${cls.userPreview}` : cls.previewBubbleWrapper;
-      return ui.create('div', { className: cls.previewContainer }, [
+      const wrapperEmmet = actor === 'user' ? `${cls.previewBubbleWrapper}.${cls.userPreview}` : cls.previewBubbleWrapper;
+
+      return ui.create(`div.${cls.previewContainer}`, {}, [
         ui.create('label', {}, 'Preview:'),
-        ui.create('div', { className: wrapperClass }, [ui.create('div', { className: cls.previewBubble, dataset: { [CONSTANTS.DATA_KEYS.PREVIEW_FOR]: actor } }, [ui.create('span', {}, 'Sample Text')])]),
+        ui.create(`div.${wrapperEmmet}`, {}, [ui.create(`div.${cls.previewBubble}`, { dataset: { [CONSTANTS.DATA_KEYS.PREVIEW_FOR]: actor } }, [ui.create('span', {}, 'Sample Text')])]),
       ]);
     }
 
     _renderPreviewInput(ui) {
       const cls = ui.context.styles;
-      return ui.create('div', { className: cls.previewContainer }, [
+      return ui.create(`div.${cls.previewContainer}`, {}, [
         ui.create('label', {}, 'Preview:'),
-        ui.create('div', { className: cls.previewBubbleWrapper }, [ui.create('div', { className: cls.previewInputArea, dataset: { [CONSTANTS.DATA_KEYS.PREVIEW_FOR]: 'inputArea' } }, [ui.create('span', {}, 'Sample input text')])]),
+        ui.create(`div.${cls.previewBubbleWrapper}`, {}, [ui.create(`div.${cls.previewInputArea}`, { dataset: { [CONSTANTS.DATA_KEYS.PREVIEW_FOR]: 'inputArea' } }, [ui.create('span', {}, 'Sample input text')])]),
       ]);
     }
 
     _renderPreviewBackground(ui) {
       const cls = ui.context.styles;
-      return ui.create('div', { className: cls.formField }, [
+      return ui.create(`div.${cls.formField}`, {}, [
         ui.create('label', {}, 'BG Preview:'),
-        ui.create('div', { className: cls.previewBubbleWrapper, style: { padding: '0', minHeight: '0' } }, [ui.create('div', { className: cls.previewBackground, dataset: { [CONSTANTS.DATA_KEYS.PREVIEW_FOR]: 'window' } }, [])]),
+        ui.create(`div.${cls.previewBubbleWrapper}`, { style: { padding: '0', minHeight: '0' } }, [ui.create(`div.${cls.previewBackground}`, { dataset: { [CONSTANTS.DATA_KEYS.PREVIEW_FOR]: 'window' } }, [])]),
       ]);
     }
 
     _setupEventListeners() {
       if (!this.modal) return;
       const modalElement = this.modal.element;
-      const cls = this.style.classes;
-
-      modalElement.addEventListener('click', (e) => {
-        const target = e.target.closest('button');
-        if (!target) return;
-
-        const actionMap = {
-          [`${cls.newBtn}`]: () => this._handleThemeNew(),
-          [`${cls.copyBtn}`]: () => this._handleThemeCopy(),
-          [`${cls.deleteBtn}`]: () => this._handleDeleteClick(),
-          [`${cls.deleteConfirmBtn}`]: () => this._handleThemeDeleteConfirm(),
-          [`${cls.deleteCancelBtn}`]: () => this._handleActionCancel(),
-          [`${cls.upBtn}`]: () => this._handleThemeMove(-1),
-          [`${cls.downBtn}`]: () => this._handleThemeMove(1),
-          [`${cls.renameBtn}`]: () => this._handleRenameClick(),
-          [`${cls.renameOkBtn}`]: () => this._handleRenameConfirm(),
-          [`${cls.renameCancelBtn}`]: () => this._handleActionCancel(),
-        };
-        const action = actionMap[target.id];
-        if (action) action();
-      });
-
-      modalElement.addEventListener('change', (e) => {
-        const target = e.target;
-        if (!(target instanceof HTMLElement)) return;
-
-        if (target.matches(`#${cls.themeSelect}`) && target instanceof HTMLSelectElement) {
-          this.state.activeThemeKey = target.value;
-          this._initFormWithTheme(this.state.activeThemeKey);
-          this._renderUI();
-        }
-      });
 
       modalElement.addEventListener('mouseover', (e) => {
         const target = e.target;
@@ -18104,18 +18178,6 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         const target = e.target;
         if (!(target instanceof HTMLElement)) return;
         if (target.matches('input[type="text"], textarea')) target.title = '';
-      });
-
-      modalElement.addEventListener('keydown', (e) => {
-        const target = e.target;
-        if (!(target instanceof HTMLElement)) return;
-
-        if (target.matches(`#${cls.renameInput}`)) {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            this._handleRenameConfirm();
-          }
-        }
       });
     }
 
@@ -18269,27 +18331,49 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       const commonInput = StyleDefinitions.COMMON_CLASSES.commonInput;
       const dangerBtn = StyleDefinitions.COMMON_CLASSES.dangerBtn;
 
-      const moveBtnClass = `${commonBtn} ${cls.moveBtn}`;
-      const deleteConfirmBtnClass = `${commonBtn} ${dangerBtn}`;
+      // Convert space-separated classes to dots for Emmet syntax
+      const moveBtnEmmet = `${commonBtn}.${cls.moveBtn}`.replace(/\s+/g, '.');
+      const deleteConfirmBtnEmmet = `${commonBtn}.${dangerBtn}`.replace(/\s+/g, '.');
 
       return h(`div.${cls.headerControls}`, [
         h(`div.${cls.headerRow}`, [
           h('label', { htmlFor: cls.themeSelect }, 'Theme:'),
-          h(`div.${cls.renameArea}`, [h(`select#${cls.themeSelect}.${commonInput}`), h('input', { type: 'text', id: cls.renameInput, className: commonInput, style: { display: 'none' } })]),
+          h(`div.${cls.renameArea}`, [
+            h(`select#${cls.themeSelect}.${commonInput}`, {
+              onchange: (e) => {
+                this.state.activeThemeKey = e.target.value;
+                this._initFormWithTheme(this.state.activeThemeKey);
+                this._renderUI();
+              },
+            }),
+            h(`input#${cls.renameInput}.${commonInput}`, {
+              type: 'text',
+              style: { display: 'none' },
+              onkeydown: (e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  this._handleRenameConfirm();
+                }
+              },
+            }),
+          ]),
           h(`div.${cls.actionArea}`, [
             h(`div#${cls.mainActionsId}`, [
-              h(`button#${cls.renameBtn}.${commonBtn}`, 'Rename'),
-              h('button', { id: cls.upBtn, className: moveBtnClass }, [createIconFromDef(StyleDefinitions.ICONS.arrowUp)]),
-              h('button', { id: cls.downBtn, className: moveBtnClass }, [createIconFromDef(StyleDefinitions.ICONS.arrowDown)]),
-              h(`button#${cls.newBtn}.${commonBtn}`, 'New'),
-              h(`button#${cls.copyBtn}.${commonBtn}`, 'Copy'),
-              h(`button#${cls.deleteBtn}.${commonBtn}`, 'Delete'),
+              h(`button#${cls.renameBtn}.${commonBtn}`, { onclick: () => this._handleRenameClick() }, 'Rename'),
+              h(`button#${cls.upBtn}.${moveBtnEmmet}`, { onclick: () => this._handleThemeMove(-1) }, [createIconFromDef(StyleDefinitions.ICONS.arrowUp)]),
+              h(`button#${cls.downBtn}.${moveBtnEmmet}`, { onclick: () => this._handleThemeMove(1) }, [createIconFromDef(StyleDefinitions.ICONS.arrowDown)]),
+              h(`button#${cls.newBtn}.${commonBtn}`, { onclick: () => this._handleThemeNew() }, 'New'),
+              h(`button#${cls.copyBtn}.${commonBtn}`, { onclick: () => this._handleThemeCopy() }, 'Copy'),
+              h(`button#${cls.deleteBtn}.${commonBtn}`, { onclick: () => this._handleDeleteClick() }, 'Delete'),
             ]),
-            h(`div#${cls.renameActionsId}`, { style: { display: 'none' } }, [h(`button#${cls.renameOkBtn}.${commonBtn}`, 'OK'), h(`button#${cls.renameCancelBtn}.${commonBtn}`, 'Cancel')]),
-            h('div', { id: cls.deleteConfirmGroup, className: cls.deleteConfirmGroup, style: { display: 'none' } }, [
+            h(`div#${cls.renameActionsId}`, { style: { display: 'none' } }, [
+              h(`button#${cls.renameOkBtn}.${commonBtn}`, { onclick: () => this._handleRenameConfirm() }, 'OK'),
+              h(`button#${cls.renameCancelBtn}.${commonBtn}`, { onclick: () => this._handleActionCancel() }, 'Cancel'),
+            ]),
+            h(`div#${cls.deleteConfirmGroup}.${cls.deleteConfirmGroup}`, { style: { display: 'none' } }, [
               h(`span.${cls.deleteConfirmLabel}`, 'Are you sure?'),
-              h('button', { id: cls.deleteConfirmBtn, className: deleteConfirmBtnClass }, 'Confirm Delete'),
-              h(`button#${cls.deleteCancelBtn}.${commonBtn}`, 'Cancel'),
+              h(`button#${cls.deleteConfirmBtn}.${deleteConfirmBtnEmmet}`, { onclick: () => this._handleThemeDeleteConfirm() }, 'Confirm Delete'),
+              h(`button#${cls.deleteCancelBtn}.${commonBtn}`, { onclick: () => this._handleActionCancel() }, 'Cancel'),
             ]),
           ]),
         ]),
@@ -18309,7 +18393,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       if (footerMessage) footerMessage.textContent = '';
 
       try {
-        await this.callbacks.onSave(newConfig);
+        await this.context.onSave(newConfig);
 
         // Guard: Check if destroyed during await
         if (!this.modal || this.isDestroyed) return false;
@@ -18545,8 +18629,17 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       RESIZE_OBSERVER: 'resizeObserver',
     };
 
-    constructor(role, messages, highlightedMessage, callbacks, styleHandle, initialFilterValue, searchCache) {
-      super(callbacks);
+    /**
+     * @param {string} role
+     * @param {MessageNode[]} messages
+     * @param {MessageNode | null} highlightedMessage
+     * @param {JumpListContext} context
+     * @param {StyleHandle} styleHandle
+     * @param {string} initialFilterValue
+     * @param {Map<string, any>} searchCache
+     */
+    constructor(role, messages, highlightedMessage, context, styleHandle, initialFilterValue, searchCache) {
+      super(context);
       this.role = role;
       /** @type {MessageNode[]} */
       this.messages = messages;
@@ -18623,7 +18716,6 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       // --- Render scheduling ---
       this.renderRafId = null;
       this.isRenderScheduled = false;
-      this.idleIndexingCancelFn = null;
 
       // Pending state for preview update aggregation
       this.pendingPreviewIndex = -1;
@@ -18703,18 +18795,17 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       this.scrollBox.addEventListener('scroll', this._handleScroll, { passive: true });
 
       // 3. The filter input container.
-      const filterInput = h('input', {
+      const filterInput = h(`input.${cls.filter}`, {
         type: 'text',
         placeholder: 'Filter with text or /pattern/flags',
         // Update tooltip to reflect flag restrictions
         title: 'Filter by plain text or a regular expression.\n' + 'Enter text for a simple search.\n' + 'Use /regex/flags format for advanced filtering.\n' + 'Allowed flags: i, m, s, u\n' + "(Note: 'g' and 'y' flags are forbidden)",
-        className: cls.filter,
         value: this.state.initialFilterValue,
         oninput: this._handleFilter,
         onkeydown: this._handleFilterKeyDown,
         onclick: (e) => e.stopPropagation(),
       });
-      const modeLabel = h('span', { className: cls.modeLabel });
+      const modeLabel = h(`span.${cls.modeLabel}`);
       const inputContainer = h(`div.${cls.filterContainer}`, [filterInput, modeLabel]);
 
       // 4. The main element (div) handles the overall layout using flexbox.
@@ -18818,11 +18909,6 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     _onDestroy() {
       // ResizeObserver is automatically disconnected by BaseManager
       this.resizeObserver = null;
-
-      if (this.idleIndexingCancelFn) {
-        this.idleIndexingCancelFn();
-        this.idleIndexingCancelFn = null;
-      }
 
       this._cancelScheduledPreview();
       this._cancelScheduledFilter();
@@ -19511,7 +19597,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
             this.state.focusedIndex = 0;
             this._updateFocus(false);
             const targetMessage = this.state.filteredMessages[this.state.focusedIndex].node;
-            if (targetMessage) this.callbacks.onSelect?.(targetMessage);
+            if (targetMessage) this.context.onSelect?.(targetMessage);
           }
           break;
       }
@@ -19574,7 +19660,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
           event.preventDefault();
           if (this.state.focusedIndex > -1) {
             const targetMessage = this.state.filteredMessages[this.state.focusedIndex].node;
-            if (targetMessage) this.callbacks.onSelect?.(targetMessage);
+            if (targetMessage) this.context.onSelect?.(targetMessage);
           }
           return; // Don't update focus on enter
         }
@@ -19630,7 +19716,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
       const originalIndex = DomState.getInt(listItem, CONSTANTS.DATA_KEYS.MESSAGE_INDEX, NaN);
       if (!isNaN(originalIndex) && this.messages[originalIndex]) {
-        this.callbacks.onSelect?.(this.messages[originalIndex]);
+        this.context.onSelect?.(this.messages[originalIndex]);
       }
     }
   }
@@ -19642,21 +19728,15 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
    */
   class SettingsWidgetController extends BaseManager {
     /**
-     * @param {object} callbacks
-     * @param {() => void} callbacks.onShowJsonModal
-     * @param {function(string=): void} callbacks.onShowThemeModal
-     * @param {(config: AppConfig) => Promise<void>} callbacks.onSave
-     * @param {() => Promise<AppConfig>} callbacks.getCurrentConfig
-     * @param {() => object} callbacks.getCurrentWarning
-     * @param {() => ThemeSet} callbacks.getCurrentThemeSet
-     * @param {(config: AppConfig) => {size: number, isExceeded: boolean}} callbacks.checkSize
+     * @param {UIContext} context
      */
-    constructor(callbacks) {
+    constructor(context) {
       super();
-      this.callbacks = callbacks;
+      this.context = context;
       this.settingsButton = null;
       this.settingsPanel = null;
       this.isRepositionScheduled = false;
+      this.isRepositionPending = false;
 
       // Loading state flags
       this.isPageLoading = true;
@@ -19688,15 +19768,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         CONSTANTS.RESOURCE_KEYS.SETTINGS_PANEL,
         () =>
           new SettingsPanelComponent({
-            onSave: this.callbacks.onSave,
-            getCurrentConfig: this.callbacks.getCurrentConfig,
-            getCurrentWarning: this.callbacks.getCurrentWarning,
-            getCurrentThemeSet: this.callbacks.getCurrentThemeSet,
-            onShowJsonModal: this.callbacks.onShowJsonModal,
-            onShowThemeModal: this.callbacks.onShowThemeModal,
+            ...this.context,
             getAnchorElement: () => this.getAnchorElement(),
-            checkSize: this.callbacks.checkSize,
-            onShow: () => {}, // Handled internally
           })
       );
 
@@ -19794,14 +19867,21 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     }
 
     scheduleButtonPlacement() {
-      if (this.isRepositionScheduled) return;
+      if (this.isRepositionScheduled) {
+        this.isRepositionPending = true;
+        return;
+      }
       this.isRepositionScheduled = true;
+      this.isRepositionPending = false;
       EventBus.queueUIWork(() => {
         try {
           if (this.isDestroyed) return;
           this.ensureButtonPlacement();
         } finally {
           this.isRepositionScheduled = false;
+          if (this.isRepositionPending) {
+            this.scheduleButtonPlacement();
+          }
         }
       });
     }
@@ -19818,17 +19898,11 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
    */
   class ModalCoordinator extends BaseManager {
     /**
-     * @param {object} callbacks
-     * @param {(config: AppConfig) => Promise<void>} callbacks.onSave
-     * @param {() => Promise<AppConfig>} callbacks.getCurrentConfig
-     * @param {() => object} callbacks.getCurrentWarning
-     * @param {DataConverter} callbacks.dataConverter
-     * @param {() => HTMLElement|null} callbacks.getAnchorElement
-     * @param {(config: AppConfig) => {size: number, isExceeded: boolean}} callbacks.checkSize
+     * @param {UIContext} context
      */
-    constructor(callbacks) {
+    constructor(context) {
       super();
-      this.callbacks = callbacks;
+      this.context = context;
       this.jsonModal = null;
       this.themeModal = null;
     }
@@ -19836,29 +19910,9 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     async _onInit() {
       // Initialize transient components
       // They are instantiated here but only render DOM when open() is called
-      this.jsonModal = this.manageFactory(
-        CONSTANTS.RESOURCE_KEYS.JSON_MODAL,
-        () =>
-          new JsonModalComponent({
-            onSave: this.callbacks.onSave,
-            getCurrentConfig: this.callbacks.getCurrentConfig,
-            getCurrentWarning: this.callbacks.getCurrentWarning,
-            onModalOpen: () => {},
-          })
-      );
+      this.jsonModal = this.manageFactory(CONSTANTS.RESOURCE_KEYS.JSON_MODAL, () => new JsonModalComponent(this.context));
 
-      this.themeModal = this.manageFactory(
-        CONSTANTS.RESOURCE_KEYS.THEME_MODAL,
-        () =>
-          new ThemeModalComponent({
-            onSave: this.callbacks.onSave,
-            getCurrentConfig: this.callbacks.getCurrentConfig,
-            getCurrentWarning: this.callbacks.getCurrentWarning,
-            dataConverter: this.callbacks.dataConverter,
-            checkSize: this.callbacks.checkSize,
-            onModalOpen: () => {},
-          })
-      );
+      this.themeModal = this.manageFactory(CONSTANTS.RESOURCE_KEYS.THEME_MODAL, () => new ThemeModalComponent(this.context));
 
       // Initialize components to ensure their lifecycle hooks (_onInit) are executed.
       // This is critical for initializing resources like debounced functions.
@@ -19915,9 +19969,10 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
           style: { display: 'flex', alignItems: 'center' },
         });
 
-        const reloadBtn = h('button', {
-          id: conflictReloadBtnId,
-          className: modalBtnClass,
+        // Convert space-separated classes to Emmet syntax
+        const btnEmmetClass = modalBtnClass.trim().replace(/\s+/g, '.');
+
+        const reloadBtn = h(`button#${conflictReloadBtnId}.${btnEmmetClass}`, {
           textContent: 'Reload UI',
           title: 'Discard local changes and load the settings from the other tab.',
           style: {
@@ -19952,27 +20007,20 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
   class UIManager extends BaseManager {
     /**
-     * @param {(config: AppConfig) => Promise<void>} onSaveCallback
-     * @param {() => Promise<AppConfig>} getCurrentConfigCallback
-     * @param {DataConverter} dataConverter
-     * @param {() => ThemeSet} getCurrentThemeSetCallback
-     * @param {(config: AppConfig) => {size: number, isExceeded: boolean}} checkSizeCallback
+     * @param {AppContext} appContext
      */
-    constructor(onSaveCallback, getCurrentConfigCallback, dataConverter, getCurrentThemeSetCallback, checkSizeCallback) {
+    constructor(appContext) {
       super();
 
       // Global UI State (Source of Truth)
       this.isWarningActive = false;
       this.warningMessage = '';
 
-      this.commonCallbacks = {
-        onSave: onSaveCallback,
-        getCurrentConfig: getCurrentConfigCallback,
+      // Combine UIManager state to build UIContext
+      this.uiContext = {
+        ...appContext,
         getCurrentWarning: () => ({ show: this.isWarningActive, message: this.warningMessage }),
-        dataConverter: dataConverter,
-        checkSize: checkSizeCallback,
       };
-      this.getCurrentThemeSetCallback = getCurrentThemeSetCallback;
 
       // Individual references for internal use
       this.widgetController = null;
@@ -19985,8 +20033,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         CONSTANTS.RESOURCE_KEYS.WIDGET_CONTROLLER,
         () =>
           new SettingsWidgetController({
-            ...this.commonCallbacks,
-            getCurrentThemeSet: this.getCurrentThemeSetCallback,
+            ...this.uiContext,
             // Wiring: Widget -> Modal Actions
             onShowJsonModal: () => {
               const anchor = this.widgetController.getAnchorElement();
@@ -20002,7 +20049,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         CONSTANTS.RESOURCE_KEYS.MODAL_COORDINATOR,
         () =>
           new ModalCoordinator({
-            ...this.commonCallbacks,
+            ...this.uiContext,
             // Wiring: Modal -> Widget Anchor Access
             getAnchorElement: () => this.widgetController.getAnchorElement(),
           })
@@ -20490,9 +20537,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       const children = [h('span', message)];
       if (showCancelButton) {
         const cancelButton = h(
-          'button',
+          `button.${cls.cancelBtn}`,
           {
-            className: cls.cancelBtn,
             title: 'Stop action',
             onclick: () => EventBus.publish(EVENTS.AUTO_SCROLL_CANCEL_REQUEST),
           },
@@ -20756,20 +20802,19 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
       // Create the rest of the managers, injecting their dependencies
       this.observerManager = this.manageFactory(CONSTANTS.RESOURCE_KEYS.OBSERVER_MANAGER, () => new ObserverManager(this.messageCacheManager, this.streamingState));
-      this.uiManager = this.manageFactory(
-        CONSTANTS.RESOURCE_KEYS.UI_MANAGER,
-        () =>
-          new UIManager(
-            (newConfig) => this.handleSave(newConfig),
-            () => Promise.resolve(this.configManager.get()),
-            this.dataConverter,
-            () => this.themeManager.getThemeSet(), // Pass the callback directly
-            (config) => ({
-              size: this.configManager.getConfigSize(config),
-              isExceeded: this.configManager.isSizeExceeded(this.configManager.getConfigSize(config)),
-            })
-          )
-      );
+
+      const appContext = {
+        onSave: (newConfig) => this.handleSave(newConfig),
+        getCurrentConfig: () => Promise.resolve(this.configManager.get()),
+        dataConverter: this.dataConverter,
+        getCurrentThemeSet: () => this.themeManager.getThemeSet(),
+        checkSize: (cfg) => ({
+          size: this.configManager.getConfigSize(cfg),
+          isExceeded: this.configManager.isSizeExceeded(this.configManager.getConfigSize(cfg)),
+        }),
+      };
+
+      this.uiManager = this.manageFactory(CONSTANTS.RESOURCE_KEYS.UI_MANAGER, () => new UIManager(appContext));
       this.avatarManager = this.manageFactory(CONSTANTS.RESOURCE_KEYS.AVATAR_MANAGER, () => new AvatarManager(this.configManager, this.messageCacheManager));
       this.standingImageManager = this.manageFactory(CONSTANTS.RESOURCE_KEYS.STANDING_IMAGE_MANAGER, () => new StandingImageManager(this.configManager, this.messageCacheManager, this.themeManager));
       this.bubbleUIManager = this.manageFactory(CONSTANTS.RESOURCE_KEYS.BUBBLE_UI_MANAGER, () => new BubbleUIManager(this.configManager, this.messageCacheManager));
@@ -20878,7 +20923,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       this.lastHiddenTime = 0;
       const visibilityHandler = () => {
         if (document.hidden) {
-          this.lastHiddenTime = Date.now();
+          this.lastHiddenTime = performance.now();
         } else {
           this._handleVisibilityRestored();
         }
@@ -20925,7 +20970,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     _handleVisibilityRestored() {
       if (this.isNavigating) return;
 
-      const now = Date.now();
+      const now = performance.now();
       const timeHidden = now - this.lastHiddenTime;
       // Retrieve threshold from constants
       const SUSPEND_LIMIT_MS = CONSTANTS.TIMING.THRESHOLDS.SUSPEND_LIMIT_MS;

@@ -3,6 +3,29 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.3.0] - 2026-05-19
+- **Improvements & Style Changes**
+  - Improved the reliability of message completion detection across platforms using a new hybrid detection strategy.
+  - Enhanced internal timers to be resilient against system clock changes, ensuring stable UI animations and auto-scrolling.
+  - Optimized memory usage and overall performance by deduplicating internal assets and streamlining DOM generation.
+  - Migrated application icon URL to jsDelivr CDN for better availability.
+- **Bug Fixes**
+  - **[Gemini]** Fixed an unintended transparency issue in the input area that caused the window background to bleed through.
+  - **[Gemini]** Fixed a bug where pressing the `ESC` key failed to cancel the auto-scroll process.
+  - **[Gemini]** Fixed a race condition where triggering the auto-scroll feature in rapid succession while waiting for the Canvas panel to close could cause duplicate scroll processes to run simultaneously.
+  - **[Gemini]** Fixed an issue where gradient fade effects on the top bar and chat history (introduced in a recent Gemini UI update) interfered with custom theme backgrounds.
+  - **[Gemini]** Fixed an issue where the correct theme was not being applied due to recent Gemini UI updates. The script now reliably identifies the current chat name to apply matching themes.
+  - **[ChatGPT]** Fixed a DOM styling leak where the Project page-specific CSS class remained attached to the layout container after navigating away, causing top gradient fades to be incorrectly hidden on standard chat pages.
+  - Fixed layout race conditions where UI elements would occasionally fail to position correctly during rapid screen updates.
+  - Fixed an issue where layout update events (like chat width or settings button position) could occasionally be skipped when triggered in rapid succession.
+  - Fixed an issue where newly queued UI tasks (such as trailing edge rescheduling) were left trapped in the queue without a requested frame execution, causing subsequent layout updates to be skipped.
+  - Fixed a resource leak (zombie timer) during SPA navigation that could cause invalid event triggers.
+  - Fixed a race condition where delayed message integrity scans could incorrectly execute after a page navigation, preventing invalid DOM access and erratic layout updates.
+  - Fixed a resource leak in the message jump list function where background text indexing tasks (using browser idle callbacks) were not properly canceled upon page navigation or component destruction, leading to redundant background operations.
+  - Fixed an issue in the jump list text indexing where rapidly triggered cache updates could overwrite the cancellation reference of an active idle task, leaving the older task running in the background.
+  - Fixed an underlying memory leak issue where internal timeouts and event listeners associated with virtual scrolling (waiting for elements to mount) were not properly cleaned up if the user navigated away rapidly.
+  - Fixed an issue where errors occurring in certain asynchronous event listeners were silently swallowed instead of being properly caught and logged to the console.
+
 ## [1.2.4] - 2026-05-13
 - **Bug Fixes**
   - **[ChatGPT]** Addressed the "streaming interrupted" error and UI freezing issues that occurred with models requiring long response times (e.g., Thinking models).

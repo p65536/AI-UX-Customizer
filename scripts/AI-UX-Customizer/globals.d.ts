@@ -637,6 +637,7 @@ interface GenericInputAreaObserverConfig {
 interface ObserverAdapter {
     getPlatformObserverStarters(): Array<(dependencies: ObserverDependencies) => () => void>;
     isTurnComplete(turnNode: HTMLElement): boolean;
+    getTurnCompletionConfig(): { strategy: string; selector?: string; observerOptions?: MutationObserverInit };
 }
 
 interface SettingsPanelAdapter {
@@ -646,7 +647,7 @@ interface SettingsPanelAdapter {
 }
 
 interface FixedNavAdapter {
-    isHeaderPositionAvailable(navConsoleWidth?: number): boolean;
+    isHeaderPositionAvailable(): boolean;
     getNavAnchorContainer(): HTMLElement | null;
     handleInfiniteScroll(manager: IFixedNavigationManager, highlightedMessage: MessageNode | null, previousTotalMessages: number): void;
     handleScrollToMessage(messageNode: MessageNode, manager: IFixedNavigationManager): boolean;
@@ -663,7 +664,6 @@ interface ApiMessageAdapter {
     addMessageData(id: string, node: MessageNode): void;
     getMessageData(id: string): MessageNode | undefined;
     getAllMessageData(): MessageNode[];
-    clearCache(): void;
 }
 
 interface UIManagerAdapter {
@@ -718,6 +718,8 @@ interface PlatformConstants {
     };
     UI_SPECS: {
         STANDING_IMAGE_MASK_THRESHOLD_PX: number;
+        HEADER_POSITION_MIN_WIDTH: number;
+        INPUT_MAX_WIDTH?: string;
         PREVIEW_BUBBLE_MAX_WIDTH: {
             USER: string;
             ASSISTANT: string;
@@ -743,6 +745,10 @@ interface PlatformConstants {
         INPUT_AREA: string;
         SIDE_PANEL: string;
     };
+    OBSERVER_STRATEGIES: {
+        SENTINEL: string;
+        MUTATION: string;
+    },
     Z_INDICES: Record<string, number | string>;
     INTERNAL_ROLES: {
         USER: string;
@@ -865,3 +871,32 @@ type AppDisconnectableObj = { disconnect: () => void };
 type AppAbortableObj = { abort: () => void };
 type AppDestructibleObj = { destroy: () => void };
 type AppDisposable = AppDisposableFn | AppDisposableObj | AppDisconnectableObj | AppAbortableObj | AppDestructibleObj;
+
+// --- Context Interfaces ---
+interface AppContext {
+    onSave: (config: AppConfig) => Promise<void>;
+    getCurrentConfig: () => Promise<AppConfig>;
+    dataConverter: DataConverter;
+    getCurrentThemeSet: () => ThemeSet;
+    checkSize: (config: AppConfig) => { size: number; isExceeded: boolean };
+}
+
+interface UIContext extends AppContext {
+    getCurrentWarning: () => { show: boolean; message: string };
+    onShowJsonModal?: () => void;
+    onShowThemeModal?: (themeKey?: string) => void;
+    getAnchorElement?: () => HTMLElement | null;
+}
+
+interface SettingsButtonContext {
+    onClick: () => void;
+}
+
+interface JumpListContext {
+    onSelect: (node: MessageNode) => void;
+}
+
+// --- DataConverter ---
+interface DataConverter {
+    imageToOptimizedDataUrl(file: File, options: { maxWidth?: number; maxHeight?: number; quality: number }): Promise<string>;
+}
