@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini Default Model Setter
 // @namespace    https://github.com/p65536
-// @version      1.0.0
+// @version      1.0.1
 // @license      MIT
 // @description  Automatically selects a specific model (e.g., "Pro") for Gemini upon page load, URL change, or tab return. The target model name and script state can be easily configured via the extension menu.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/gdms.svg
@@ -954,7 +954,11 @@ gap: 8px;
         }
 
         // Search for the target model among the rendered items using Regex
-        const targetBtn = items.find((el) => this.#isMatch(el.textContent.trim()));
+        const targetBtn = items.find((el) => {
+          const labelEl = el.querySelector('.label');
+          const textToMatch = labelEl ? labelEl.textContent : el.textContent;
+          return this.#isMatch(textToMatch.trim());
+        });
 
         // Fail-safe: If the target model button is not found (either menu didn't render or model doesn't exist),
         // abort and intentionally leave the menu open as a visual indicator of an invalid target.
