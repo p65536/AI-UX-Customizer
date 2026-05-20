@@ -3,6 +3,10 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.3.2] - 2026-05-20
+- **Compatibility**
+  - Added a fallback for older browsers that lack Temporal API support. While this project officially targets modern browser environments, this accommodation ensures users on legacy setups can still save settings and properly use the UI.
+
 ## [1.3.1] - 2026-05-20
 - **Style Improvements**
   - **[ChatGPT]** Fixed an issue where the central introduction area on custom GPT pages blocked the custom theme background.

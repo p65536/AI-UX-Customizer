@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.3.1
+// @version      1.3.2
 // @license      MIT
 // @description  Fully customize the chat UI of [ChatGPT/Gemini]. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://cdn.jsdelivr.net/gh/p65536/p65536@main/images/icons/aiuxc.svg
@@ -29,6 +29,41 @@
   const APPID = 'aiuxc';
   const APPNAME = 'AI UX Customizer';
   const LOG_PREFIX = `[${APPID.toUpperCase()}]`;
+
+  // --- Temporal API Polyfill ---
+  // Lightweight fallback for outdated browsers that do not support the Temporal API yet.
+  const globalObj = typeof globalThis !== 'undefined' ? globalThis : window;
+  if (typeof globalObj.Temporal === 'undefined') {
+    /** @type {any} */ (globalObj).Temporal = {
+      Now: {
+        instant: () => ({
+          epochMilliseconds: Date.now(),
+        }),
+        timeZoneId: () => {
+          try {
+            return Intl.DateTimeFormat().resolvedOptions().timeZone;
+          } catch {
+            return 'UTC';
+          }
+        },
+      },
+      Instant: {
+        fromEpochMilliseconds: (ms) => ({
+          toZonedDateTimeISO: () => {
+            const d = new Date(ms);
+            return {
+              year: d.getFullYear(),
+              month: d.getMonth() + 1,
+              day: d.getDate(),
+              hour: d.getHours(),
+              minute: d.getMinutes(),
+              second: d.getSeconds(),
+            };
+          },
+        }),
+      },
+    };
+  }
 
   // =================================================================================
   // SECTION: Global Constants & Base Configuration
