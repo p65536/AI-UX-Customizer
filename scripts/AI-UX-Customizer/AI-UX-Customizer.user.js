@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.3.0
+// @version      1.3.1
 // @license      MIT
 // @description  Fully customize the chat UI of [ChatGPT/Gemini]. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://cdn.jsdelivr.net/gh/p65536/p65536@main/images/icons/aiuxc.svg
@@ -3476,6 +3476,9 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
         // --- Sidebar Active Item (Title Fallback) ---
         SIDEBAR_ACTIVE_LINK: 'a[data-active][data-sidebar-item="true"]',
         SIDEBAR_LINK_TEXT: '.truncate',
+
+        // --- New Chat Intro Container ---
+        NEW_CHAT_INTRO_CONTAINER: 'main .composer-parent > .relative > .flex.h-full.items-center.justify-center',
       },
       URL_PATTERNS: {
         EXCLUDED: [/^\/library/, /^\/codex/, /^\/gpts/, /^\/images/, /^\/apps/],
@@ -4117,6 +4120,11 @@ max-width: var(${CSS_VARS.CHAT_CONTENT_MAX_WIDTH}) !important;
 /* Hide default scroll-to-bottom button */
 ${CONSTANTS.SELECTORS.SCROLL_TO_BOTTOM_BUTTON} {
 display: none !important;
+}
+
+/* Make new chat introduction area transparent to reveal theme background */
+${CONSTANTS.SELECTORS.NEW_CHAT_INTRO_CONTAINER} {
+background-color: transparent !important;
 }
 `;
       }

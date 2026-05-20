@@ -3,6 +3,10 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.3.1] - 2026-05-20
+- **Style Improvements**
+  - **[ChatGPT]** Fixed an issue where the central introduction area on custom GPT pages blocked the custom theme background.
+
 ## [1.3.0] - 2026-05-19
 - **Improvements & Style Changes**
   - Improved the reliability of message completion detection across platforms using a new hybrid detection strategy.
