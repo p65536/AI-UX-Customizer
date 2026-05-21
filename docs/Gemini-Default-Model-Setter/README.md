@@ -7,23 +7,19 @@
 ## Overview
 
 `Gemini Default Model Setter` is a helper userscript designed to streamline the workflow for Google Gemini power users.  
-It automatically forces Gemini to use your preferred specific model (e.g., "Pro" or "Advanced") upon page load, URL change, or when you return to the tab.
+It automatically forces Google Gemini to use your preferred specific model (e.g., "Flash" or "Pro") upon page load, URL change, or tab return.
 
-Stop manually selecting your preferred model every time you start a new conversation. This script is built on the philosophy of **"Setting the initial state while preserving manual control"**—ensuring you always start heavy tasks with your target model, but allowing you to seamlessly switch to a different model (like "Flash" for quicker tasks) during the chat without interference.
-
-**Supported Services:**
- - **Google Gemini**
+Stop manually selecting your preferred model every time you start a new conversation. This script ensures you always start with your target model, while still preserving your freedom to manually switch to a different model (like "Flash" for quicker tasks) during the chat.
 
 ---
 
 ## Key Features
 
-- **Automatic Selection**: Instantly selects your specified target model when starting a new chat or opening an existing history thread.
-- **Regex Targeting**: Easily configure your target model using case-insensitive Regular Expressions (e.g., `Pro`, `Flash`, `Advanced`) via an intuitive settings modal.
-- **Multilingual Support**: Since the model names are captured via user-defined Regular Expressions, the script is inherently compatible with all Gemini interface languages (English, Japanese, etc.) without any extra setup.
-- **Preserves Manual Control**: Sets the *initial* state but allows you to seamlessly switch models manually if you need a different engine mid-task.
-- **Auto-Check on Re-focus**: An optional fail-safe feature that re-verifies and sets the model when returning to the Gemini tab (useful for background loads or idle sessions).
-- **Extension Menu Integration**: Toggle the script's active state, change the target pattern, and manage visibility settings directly from your userscript manager's menu (Tampermonkey / Violentmonkey).
+* **Automatic Selection**: Instantly selects your specified target model and its Thinking Level when starting a new chat or opening an existing history thread.
+* **Regex Targeting**: Easily configure both your target model and its Thinking Level using case-insensitive Regular Expressions (e.g., `Pro` for model, `Extended` or `Deep Think` for thinking level) via an intuitive settings modal.
+* **Multilingual Support**: Since the model names are captured via user-defined Regular Expressions, the script is inherently compatible with all Gemini interface languages without any extra setup.
+* **Preserves Manual Control**: Sets the *initial* state but allows you to seamlessly switch models or thinking levels manually if you need a different setup mid-task.
+* **Auto-Check on Re-focus**: An optional fail-safe feature that re-verifies and sets your target configurations when returning to the Gemini tab (useful for background loads or idle sessions).
 
 ---
 
@@ -45,9 +41,11 @@ Use Regular Expressions to precisely target your desired model name.
 
 ## How to Use
 
-- **Initial Setup**: Click your userscript manager extension icon (e.g., Tampermonkey) while on the Gemini page. Click **"⚙️ Set Target Model Name"** to open the settings modal and input your desired model pattern.
-- **Enable/Disable**: You can easily suspend the script by clicking the **"🟢 Enabled / 🔴 Disabled"** toggle in the extension menu.
-- **Past Chat History**: When you click a past chat thread from the sidebar, the script will automatically switch it to your target model, allowing you to seamlessly continue past brainstorming with your highest-tier model.
+* **Initial Setup**: Click your userscript manager extension icon (e.g., Tampermonkey) while on the Gemini page. Click **"⚙️ Set Target Model Name"** or **"⚙️ Set Thinking Model Name"** to open the settings modal. Input your desired model pattern (e.g., `Pro`) and optionally configure the target thinking level (e.g., `Extended`). Leave the thinking level blank if you do not want the script to modify or interfere with the model's current thinking level setting.
+* **Past Chat History**: When you click a past chat thread from the sidebar, the script will automatically switch it to your target model, allowing you to seamlessly continue past brainstorming with your highest-tier model.
+* **About "Auto-Check on Re-focus"**:
+  * **Default is OFF.**
+  * When turned **ON**, the script checks the model and thinking level every time you switch back to the Gemini tab. This is great for idle tabs, but **note:** if you manually changed the model or customized the thinking level and then switched browser tabs, returning to Gemini will automatically reset them back to your target configurations. Keep this OFF if you frequently use manual switching alongside heavy tab-switching.
 
 ### Understanding "Auto-Check on Re-focus"
 
@@ -63,10 +61,11 @@ When turned **ON**, the script checks the model every time you switch back to th
 
 The script uses Regular Expressions (Regex) to find the model name in the Gemini menu. It is case-insensitive. Just enter the pattern itself (do not enclose in `/ /`).
 
-- `Pro` : Matches any model containing "Pro" (e.g., "Gemini Pro", "Gemini 1.5 Pro").
-- `Advanced` : Matches any model containing "Advanced".
-- `^Gemini Advanced$` : Matches exactly "Gemini Advanced" and nothing else.
-- `Flash` : Automatically selects the Flash model.
+* **Priority Behavior Note**: Gemini lists multiple Flash models (e.g., `3.1 Flash-Lite` and `3.5 Flash`). The script selects the first item that matches your pattern. Therefore, simply typing `Flash` will incorrectly target `3.1 Flash-Lite` because it appears first and contains the word "Flash".
+
+* `Flash$` (Default): Uses the regex anchor (`$`) to ensure it matches exactly at the end of the name. This successfully targets `3.5 Flash` while safely bypassing `3.1 Flash-Lite`.
+* `Pro`: Matches any model containing "Pro".
+* `^3.1 Flash-Lite$`: Uses both start (`^`) and end (`$`) anchors to match exactly "3.1 Flash-Lite" and nothing else.
 
 ---
 

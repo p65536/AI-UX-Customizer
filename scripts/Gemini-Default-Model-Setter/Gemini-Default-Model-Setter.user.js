@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Gemini Default Model Setter
 // @namespace    https://github.com/p65536
-// @version      1.0.1
+// @version      1.1.0
 // @license      MIT
-// @description  Automatically selects a specific model (e.g., "Pro") for Gemini upon page load, URL change, or tab return. The target model name and script state can be easily configured via the extension menu.
+// @description  Automatically selects a specific model and its Thinking Level for Gemini upon page load, URL change, or tab return. The target patterns and script state can be easily configured via the extension menu.
 // @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/icons/gdms.svg
 // @author       p65536
 // @match        https://gemini.google.com/*
@@ -30,17 +30,21 @@
    */
   const CONSTANTS = {
     STORAGE: {
-      SUSPEND_KEY: `${APPID}-suspended-state`,
       VISIBILITY_CHECK_KEY: `${APPID}-visibility-check-state`,
       TARGET_TEXT_KEY: `${APPID}-target-text-state`,
+      TARGET_THINKING_TEXT_KEY: `${APPID}-target-thinking-text-state`,
     },
     SELECTORS: {
       CURRENT_MODE_LABEL: '[data-test-id="logo-pill-label-container"]',
       MENU_BUTTON: '[data-test-id="bard-mode-menu-button"]',
       MENU_ITEMS: '[data-test-id^="bard-mode-option-"]',
+      THINKING_MENU_ITEM: '[value="thinking_level"]',
+      ITEM_LABEL: '.label',
+      THINKING_SUBLABEL: '.sublabel',
       INPUT_TEXT_FIELD_TARGET: 'rich-textarea .ql-editor',
       DISABLED_STATE: ':disabled, [aria-disabled="true"], [class*="disabled"]',
       BUTTON_TAG: 'button',
+      MENU_ITEM_TAG: 'gem-menu-item',
     },
     ATTRIBUTES: {
       ARIA_EXPANDED: 'aria-expanded',
@@ -53,7 +57,12 @@
       FOCUS_POLL_MAX_ATTEMPTS: 20,
       FALLBACK_DELAYS_MS: [300, 800, 1500],
     },
-    TARGET_TEXT: 'Pro',
+    FOCUS_TARGETS: {
+      MODEL: 'model',
+      THINKING: 'thinking',
+    },
+    TARGET_TEXT: 'Flash$',
+    TARGET_THINKING_TEXT: '', // Default is empty (Thinking level check disabled)
   };
 
   /**
@@ -496,14 +505,15 @@
    */
   class AppController {
     #isSetting = false;
-    #isSuspended = false;
     #isVisibilityCheckEnabled = false;
     #setFailedForCurrentContext = false;
     #isSettledForCurrentContext = false;
+    #isThinkingSettledForCurrentContext = false;
     #targetText = CONSTANTS.TARGET_TEXT;
-    #menuCommandId = null;
+    #targetThinkingText = CONSTANTS.TARGET_THINKING_TEXT;
     #visibilityMenuCommandId = null;
     #targetMenuCommandId = null;
+    #thinkingMenuCommandId = null;
     #abortController = null;
     #sentinel = null;
 
@@ -536,6 +546,21 @@
     }
 
     /**
+     * Checks if the given text matches the target thinking level regex pattern (case-insensitive).
+     * @param {string} text
+     * @returns {boolean}
+     */
+    #isThinkingMatch(text) {
+      if (!this.#targetThinkingText) return true;
+      try {
+        const rx = new RegExp(this.#targetThinkingText, 'i');
+        return rx.test(text);
+      } catch {
+        return false;
+      }
+    }
+
+    /**
      * Schedules fallback state checks to handle delayed DOM updates in SPAs.
      */
     #scheduleFallbackChecks() {
@@ -550,25 +575,19 @@
      * Uses Sentinel (CSS Animation) for new elements and Navigation API for URL changes.
      */
     async init() {
-      this.#isSuspended = await GM.getValue(CONSTANTS.STORAGE.SUSPEND_KEY, false);
       this.#isVisibilityCheckEnabled = await GM.getValue(CONSTANTS.STORAGE.VISIBILITY_CHECK_KEY, false);
       this.#targetText = await GM.getValue(CONSTANTS.STORAGE.TARGET_TEXT_KEY, CONSTANTS.TARGET_TEXT);
+      this.#targetThinkingText = await GM.getValue(CONSTANTS.STORAGE.TARGET_THINKING_TEXT_KEY, CONSTANTS.TARGET_THINKING_TEXT);
 
       await this.#updateMenuCommand();
 
       // Initialize Sentinel for DOM insertion detection
       this.#sentinel = new Sentinel(OWNERID);
 
-      if (this.#isSuspended) {
-        this.#sentinel.suspend();
-      }
-
       // Trigger check whenever the mode label is freshly inserted into the DOM
       this.#sentinel.on(CONSTANTS.SELECTORS.CURRENT_MODE_LABEL, () => {
-        if (!this.#isSuspended) {
-          console.debug(`${LOG_PREFIX} Element detected via Sentinel, checking state...`);
-          this.#checkAndEnforce();
-        }
+        console.debug(`${LOG_PREFIX} Element detected via Sentinel, checking state...`);
+        this.#checkAndEnforce();
       });
 
       // Monitor URL changes
@@ -591,123 +610,111 @@
       let currentPath = window.location.pathname;
 
       window.addEventListener('locationchange', () => {
-        if (!this.#isSuspended) {
-          const newPath = window.location.pathname;
-          // Reset settled state and re-check only if the URL path actually changed
-          if (newPath !== currentPath) {
-            currentPath = newPath;
-            this.#isSettledForCurrentContext = false;
-            this.#scheduleFallbackChecks();
-          }
+        const newPath = window.location.pathname;
+        // Reset settled state and re-check only if the URL path actually changed
+        if (newPath !== currentPath) {
+          currentPath = newPath;
+          this.#isSettledForCurrentContext = false;
+          this.#isThinkingSettledForCurrentContext = false;
+          this.#scheduleFallbackChecks();
         }
       });
 
       // Fail-safe: Re-check state when the page is re-focused or becomes visible.
       document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible' && !this.#isSuspended && this.#isVisibilityCheckEnabled) {
+        if (document.visibilityState === 'visible' && this.#isVisibilityCheckEnabled) {
           console.debug(`${LOG_PREFIX} Tab became visible, verifying state...`);
           this.#isSettledForCurrentContext = false;
+          this.#isThinkingSettledForCurrentContext = false;
           this.#scheduleFallbackChecks();
         }
       });
 
-      if (!this.#isSuspended) {
-        this.#checkAndEnforce();
-      }
+      this.#checkAndEnforce();
     }
 
     /**
      * Update the Tampermonkey menu command label based on the current state
      */
     async #updateMenuCommand() {
-      // 1. Main ON/OFF command
-      if (this.#menuCommandId !== null) {
-        await GM.unregisterMenuCommand(this.#menuCommandId);
-      }
-
-      const stateText = this.#isSuspended ? `🔴 Disabled` : `🟢 Enabled`;
-      const tooltipText = this.#isSuspended ? 'Click to enable the function' : 'Click to disable the function';
-
-      this.#menuCommandId = await GM.registerMenuCommand(
-        stateText,
-        async () => {
-          this.#isSuspended = !this.#isSuspended;
-          await GM.setValue(CONSTANTS.STORAGE.SUSPEND_KEY, this.#isSuspended);
-
-          console.info(`${LOG_PREFIX} State changed: ${this.#isSuspended ? 'OFF (Suspended)' : 'ON (Active)'}`);
-
-          await this.#updateMenuCommand();
-
-          if (!this.#isSuspended) {
-            this.#sentinel?.resume();
-            this.#checkAndEnforce();
-          } else {
-            this.#sentinel?.suspend();
-            if (this.#abortController) {
-              this.#abortController.abort();
-            }
-          }
-        },
-        { title: tooltipText }
-      );
-
-      // 2. Target Text settings command
-      if (this.#targetMenuCommandId !== null) {
-        await GM.unregisterMenuCommand(this.#targetMenuCommandId);
-      }
-
-      this.#targetMenuCommandId = await GM.registerMenuCommand(
-        `⚙️ Set Target Model Name: ${this.#targetText}`,
-        () => {
-          this.#showSettingsModal();
-        },
-        { title: 'Set the target model name to fix' }
-      );
-
-      // 3. Visibility check ON/OFF command
-      if (this.#visibilityMenuCommandId !== null) {
-        await GM.unregisterMenuCommand(this.#visibilityMenuCommandId);
-      }
+      // Unregister existing commands concurrently to avoid race conditions and improve performance
+      await Promise.all([
+        this.#targetMenuCommandId !== null ? GM.unregisterMenuCommand(this.#targetMenuCommandId) : Promise.resolve(),
+        this.#thinkingMenuCommandId !== null ? GM.unregisterMenuCommand(this.#thinkingMenuCommandId) : Promise.resolve(),
+        this.#visibilityMenuCommandId !== null ? GM.unregisterMenuCommand(this.#visibilityMenuCommandId) : Promise.resolve(),
+      ]);
 
       const visibilityStateText = this.#isVisibilityCheckEnabled ? `🟢 Auto-Check on Re-focus: ON` : `🔴 Auto-Check on Re-focus: OFF`;
       const visibilityTooltipText = this.#isVisibilityCheckEnabled ? 'Click to disable checking the model when returning to this page' : 'Click to enable checking the model when returning to this page';
 
-      this.#visibilityMenuCommandId = await GM.registerMenuCommand(
-        visibilityStateText,
-        async () => {
-          this.#isVisibilityCheckEnabled = !this.#isVisibilityCheckEnabled;
-          await GM.setValue(CONSTANTS.STORAGE.VISIBILITY_CHECK_KEY, this.#isVisibilityCheckEnabled);
+      // Register all menu commands simultaneously via Promise.all to preserve execution and display order
+      const [targetId, thinkingId, visibilityId] = await Promise.all([
+        GM.registerMenuCommand(
+          `⚙️ Set Target Model Name: ${this.#targetText}`,
+          () => {
+            this.#showSettingsModal(CONSTANTS.FOCUS_TARGETS.MODEL);
+          },
+          { title: 'Set the target model name to fix' }
+        ),
+        GM.registerMenuCommand(
+          `⚙️ Set Thinking Model Name: ${this.#targetThinkingText || '(None)'}`,
+          () => {
+            this.#showSettingsModal(CONSTANTS.FOCUS_TARGETS.THINKING);
+          },
+          { title: 'Set the target thinking level to fix' }
+        ),
+        GM.registerMenuCommand(
+          visibilityStateText,
+          async () => {
+            this.#isVisibilityCheckEnabled = !this.#isVisibilityCheckEnabled;
+            await GM.setValue(CONSTANTS.STORAGE.VISIBILITY_CHECK_KEY, this.#isVisibilityCheckEnabled);
+            console.info(`${LOG_PREFIX} Visibility check state changed: ${this.#isVisibilityCheckEnabled ? 'ON' : 'OFF'}`);
+            await this.#updateMenuCommand();
+          },
+          { title: visibilityTooltipText }
+        ),
+      ]);
 
-          console.info(`${LOG_PREFIX} Visibility check state changed: ${this.#isVisibilityCheckEnabled ? 'ON' : 'OFF'}`);
-
-          await this.#updateMenuCommand();
-        },
-        { title: visibilityTooltipText }
-      );
+      this.#targetMenuCommandId = targetId;
+      this.#thinkingMenuCommandId = thinkingId;
+      this.#visibilityMenuCommandId = visibilityId;
     }
 
     /**
      * Check current state and enforce Pro mode if necessary
      */
     async #checkAndEnforce() {
-      if (this.#isSetting || this.#isSuspended || this.#setFailedForCurrentContext || this.#isSettledForCurrentContext) return;
+      if (this.#isSetting || this.#setFailedForCurrentContext) return;
 
       const currentText = document.querySelector(CONSTANTS.SELECTORS.CURRENT_MODE_LABEL)?.textContent?.trim();
 
       if (!currentText) return;
 
-      if (this.#isMatch(currentText)) {
-        this.#isSettledForCurrentContext = true;
-        return;
+      let needsModelChange = false;
+      if (!this.#isSettledForCurrentContext) {
+        if (this.#isMatch(currentText)) {
+          this.#isSettledForCurrentContext = true;
+        } else {
+          needsModelChange = true;
+        }
       }
 
-      await this.#applyTargetModel();
+      let needsThinkingChange = false;
+      if (this.#targetThinkingText && !this.#isThinkingSettledForCurrentContext) {
+        needsThinkingChange = true;
+      } else {
+        this.#isThinkingSettledForCurrentContext = true;
+      }
+
+      if (needsModelChange || needsThinkingChange) {
+        await this.#applyTargetModel();
+      }
     }
 
     /**
      * Shows a modal to configure the target model name.
      */
-    #showSettingsModal() {
+    #showSettingsModal(focusTarget) {
       const dialog = document.createElement('dialog');
       const style = document.createElement('style');
       style.textContent = `
@@ -721,6 +728,7 @@ cursor: pointer;
 font-family: inherit;
 font-size: 14px;
 transition: background 0.2s;
+flex: 1;
 }
 .${APPID}-modal-btn:hover:not(:disabled) {
 background: ${PALETTE.btn_hover_bg};
@@ -770,7 +778,7 @@ box-shadow: 0 4px 6px rgb(0 0 0 / 0.1);
 font-family: sans-serif;
 background: ${PALETTE.bg};
 color: ${PALETTE.text_primary};
-width: 360px;
+width: 380px;
 `;
 
       const title = document.createElement('h3');
@@ -780,13 +788,20 @@ width: 360px;
 
       const desc = document.createElement('span');
       desc.className = `${APPID}-modal-text-small`;
-      desc.textContent = 'Use Regular Expression (case-insensitive).\nJust enter the pattern itself (do not enclose in "/").\nE.g., "Pro" (partial), "^Pro$" (exact).';
+      desc.textContent = 'Use Regular Expression (case-insensitive).\nJust enter the pattern itself (do not enclose in "/").';
       dialog.appendChild(desc);
 
+      // --- Model ---
       const patternLabel = document.createElement('label');
-      patternLabel.textContent = 'Target Pattern:';
+      patternLabel.textContent = 'Model:';
       patternLabel.style.cssText = 'display:block; font-size:13px; margin-bottom:4px; font-weight:bold;';
       dialog.appendChild(patternLabel);
+
+      const modelDesc = document.createElement('span');
+      modelDesc.className = `${APPID}-modal-text-small`;
+      modelDesc.style.cssText = `font-size: 13px; margin-bottom: 8px;`;
+      modelDesc.textContent = 'e.g., Pro, Flash$';
+      dialog.appendChild(modelDesc);
 
       const input = document.createElement('input');
       input.type = 'text';
@@ -794,16 +809,23 @@ width: 360px;
       input.className = `${APPID}-modal-input`;
       dialog.appendChild(input);
 
-      const testLabel = document.createElement('label');
-      testLabel.textContent = 'Test String (Optional):';
-      testLabel.style.cssText = 'display:block; font-size:13px; margin-bottom:4px; font-weight:bold; margin-top:12px;';
-      dialog.appendChild(testLabel);
+      // --- Thinking Level ---
+      const thinkingPatternLabel = document.createElement('label');
+      thinkingPatternLabel.textContent = 'Thinking Level:';
+      thinkingPatternLabel.style.cssText = 'display:block; font-size:13px; margin-bottom:4px; font-weight:bold; margin-top:12px;';
+      dialog.appendChild(thinkingPatternLabel);
 
-      const testInput = document.createElement('input');
-      testInput.type = 'text';
-      testInput.placeholder = 'e.g., Gemini Advanced';
-      testInput.className = `${APPID}-modal-input`;
-      dialog.appendChild(testInput);
+      const thinkingDesc = document.createElement('span');
+      thinkingDesc.className = `${APPID}-modal-text-small`;
+      thinkingDesc.style.cssText = `font-size: 13px; margin-bottom: 8px;`;
+      thinkingDesc.textContent = 'Leave blank to do nothing and keep current setting unchanged. (e.g., Extended, Deep Think)';
+      dialog.appendChild(thinkingDesc);
+
+      const thinkingInput = document.createElement('input');
+      thinkingInput.type = 'text';
+      thinkingInput.value = this.#targetThinkingText;
+      thinkingInput.className = `${APPID}-modal-input`;
+      dialog.appendChild(thinkingInput);
 
       const statusDisplay = document.createElement('div');
       statusDisplay.className = `${APPID}-modal-status`;
@@ -814,12 +836,6 @@ width: 360px;
 display: flex;
 justify-content: space-between;
 align-items: center;
-`;
-
-      const leftGroup = document.createElement('div');
-      const rightGroup = document.createElement('div');
-      rightGroup.style.cssText = `
-display: flex;
 gap: 8px;
 `;
 
@@ -828,6 +844,7 @@ gap: 8px;
       defaultBtn.className = `${APPID}-modal-btn`;
       defaultBtn.onclick = () => {
         input.value = CONSTANTS.TARGET_TEXT;
+        thinkingInput.value = CONSTANTS.TARGET_THINKING_TEXT;
         updateStatus();
       };
 
@@ -845,16 +862,16 @@ gap: 8px;
 
       const updateStatus = () => {
         const pattern = input.value;
-        const testStr = testInput.value;
+        const thinkingPattern = thinkingInput.value;
 
-        if (pattern.includes('/')) {
+        if (pattern.includes('/') || thinkingPattern.includes('/')) {
           statusDisplay.textContent = '⚠️ Do not use "/"';
           statusDisplay.style.color = PALETTE.danger_text;
           saveBtn.disabled = true;
           return;
         }
 
-        if (!this.#isValidRegex(pattern)) {
+        if (!this.#isValidRegex(pattern) || (thinkingPattern && !this.#isValidRegex(thinkingPattern))) {
           statusDisplay.textContent = '⚠️ Invalid Regex';
           statusDisplay.style.color = PALETTE.danger_text;
           saveBtn.disabled = true;
@@ -862,41 +879,32 @@ gap: 8px;
         }
 
         saveBtn.disabled = false;
-
-        if (testStr.trim() === '') {
-          statusDisplay.textContent = ' ';
-          return;
-        }
-
-        try {
-          const rx = new RegExp(pattern, 'i');
-          if (rx.test(testStr)) {
-            statusDisplay.textContent = '✅ Match';
-            statusDisplay.style.color = PALETTE.success_text;
-          } else {
-            statusDisplay.textContent = '❌ No Match';
-            statusDisplay.style.color = PALETTE.danger_text;
-          }
-        } catch {
-          statusDisplay.textContent = '⚠️ Error';
-        }
+        statusDisplay.textContent = '✅ Valid format';
+        statusDisplay.style.color = PALETTE.success_text;
       };
 
       input.addEventListener('input', updateStatus);
-      testInput.addEventListener('input', updateStatus);
+      thinkingInput.addEventListener('input', updateStatus);
 
       saveBtn.onclick = async () => {
         const newVal = input.value.trim();
-        if (newVal && this.#isValidRegex(newVal)) {
+        const newThinkingVal = thinkingInput.value.trim();
+
+        if (newVal && this.#isValidRegex(newVal) && (!newThinkingVal || this.#isValidRegex(newThinkingVal))) {
           this.#targetText = newVal;
+          this.#targetThinkingText = newThinkingVal;
+
           await GM.setValue(CONSTANTS.STORAGE.TARGET_TEXT_KEY, newVal);
-          console.info(`${LOG_PREFIX} Target model name updated to: ${newVal}`);
+          await GM.setValue(CONSTANTS.STORAGE.TARGET_THINKING_TEXT_KEY, newThinkingVal);
+
+          console.info(`${LOG_PREFIX} Target model name updated to: ${newVal}, Thinking Level to: ${newThinkingVal || '(None)'}`);
+
           this.#setFailedForCurrentContext = false;
           this.#isSettledForCurrentContext = false;
+          this.#isThinkingSettledForCurrentContext = false;
+
           await this.#updateMenuCommand();
-          if (!this.#isSuspended) {
-            this.#checkAndEnforce();
-          }
+          this.#checkAndEnforce();
           dialog.close();
           dialog.remove();
         }
@@ -904,16 +912,22 @@ gap: 8px;
 
       updateStatus();
 
-      leftGroup.appendChild(defaultBtn);
-      rightGroup.appendChild(cancelBtn);
-      rightGroup.appendChild(saveBtn);
-
-      buttonContainer.appendChild(leftGroup);
-      buttonContainer.appendChild(rightGroup);
+      buttonContainer.appendChild(defaultBtn);
+      buttonContainer.appendChild(cancelBtn);
+      buttonContainer.appendChild(saveBtn);
       dialog.appendChild(buttonContainer);
 
       document.body.appendChild(dialog);
       dialog.showModal();
+
+      // Ensure focus on the target input field after the modal is displayed
+      if (focusTarget === CONSTANTS.FOCUS_TARGETS.THINKING) {
+        thinkingInput.focus();
+        thinkingInput.select();
+      } else {
+        input.focus();
+        input.select();
+      }
     }
 
     /**
@@ -938,62 +952,118 @@ gap: 8px;
           return;
         }
 
-        // Open menu only if it's currently closed
-        if (!isMenuOpen(menuButton)) {
-          menuButton.click();
-        }
+        // --- Step 1: Model check and enforce ---
+        if (!this.#isSettledForCurrentContext) {
+          if (!isMenuOpen(menuButton)) {
+            menuButton.click();
+          }
 
-        // Wait for the menu to render ANY items (lazy rendering detection)
-        let items = [];
-        for (let i = 0; i < CONSTANTS.TIMING.MENU_POLL_MAX_ATTEMPTS; i++) {
-          if (signal.aborted) return;
-          // Ensure we only collect items that are physically visible on the DOM
-          items = Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.MENU_ITEMS)).filter((el) => el instanceof HTMLElement && el.offsetParent !== null);
-          if (items.length > 0) break; // Menu has rendered
-          await new Promise((resolve) => setTimeout(resolve, CONSTANTS.TIMING.MENU_POLL_INTERVAL_MS));
-        }
+          // Wait for the menu to render ANY items (lazy rendering detection)
+          let items = [];
+          for (let i = 0; i < CONSTANTS.TIMING.MENU_POLL_MAX_ATTEMPTS; i++) {
+            if (signal.aborted) return;
+            // Ensure we only collect items that are physically visible on the DOM
+            items = Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.MENU_ITEMS)).filter((el) => el instanceof HTMLElement && el.offsetParent !== null);
+            if (items.length > 0) break; // Menu has rendered
+            await new Promise((resolve) => setTimeout(resolve, CONSTANTS.TIMING.MENU_POLL_INTERVAL_MS));
+          }
 
-        // Search for the target model among the rendered items using Regex
-        const targetBtn = items.find((el) => {
-          const labelEl = el.querySelector('.label');
-          const textToMatch = labelEl ? labelEl.textContent : el.textContent;
-          return this.#isMatch(textToMatch.trim());
-        });
+          // Search for the target model among the rendered items using Regex
+          const targetBtn = items.find((el) => {
+            const labelEl = el.querySelector(CONSTANTS.SELECTORS.ITEM_LABEL);
+            const textToMatch = labelEl ? labelEl.textContent : el.textContent;
+            return this.#isMatch(textToMatch.trim());
+          });
 
-        // Fail-safe: If the target model button is not found (either menu didn't render or model doesn't exist),
-        // abort and intentionally leave the menu open as a visual indicator of an invalid target.
-        if (!(targetBtn instanceof HTMLElement)) {
-          console.warn(`${LOG_PREFIX} Target model matching pattern "${this.#targetText}" not found in menu.`);
-          this.#setFailedForCurrentContext = true;
+          // Fail-safe: If the target model button is not found (either menu didn't render or model doesn't exist),
+          // abort and intentionally leave the menu open as a visual indicator of an invalid target.
+          if (!(targetBtn instanceof HTMLElement)) {
+            console.warn(`${LOG_PREFIX} Target model matching pattern "${this.#targetText}" not found in menu.`);
+            this.#setFailedForCurrentContext = true;
+            this.#isSettledForCurrentContext = true;
+            return; // Abort thinking level check if the target model is not found
+          }
+
+          const btn = targetBtn.closest(CONSTANTS.SELECTORS.BUTTON_TAG) ?? targetBtn;
+
+          if (btn instanceof HTMLElement && !btn.matches(CONSTANTS.SELECTORS.DISABLED_STATE)) {
+            btn.click();
+
+            const inputField = await waitForElement(CONSTANTS.SELECTORS.INPUT_TEXT_FIELD_TARGET, CONSTANTS.TIMING.FOCUS_POLL_INTERVAL_MS, CONSTANTS.TIMING.FOCUS_POLL_MAX_ATTEMPTS, signal);
+            if (inputField instanceof HTMLElement && inputField.offsetParent !== null && !signal.aborted) {
+              inputField.focus();
+            }
+
+            // Force re-check because changing the model resets the thinking level to default
+            this.#isThinkingSettledForCurrentContext = false;
+          } else if (btn instanceof HTMLElement) {
+            btn.click(); // Close the menu if already selected
+          }
           this.#isSettledForCurrentContext = true;
-          return;
         }
 
-        const btn = targetBtn.closest(CONSTANTS.SELECTORS.BUTTON_TAG) ?? targetBtn;
+        // --- Step 2: Thinking Level check and enforce ---
+        if (this.#targetThinkingText && !this.#isThinkingSettledForCurrentContext) {
+          if (!isMenuOpen(menuButton)) {
+            menuButton.click();
+          }
 
-        // Skip operation: If the target model button is already disabled (indicating the target mode is currently active),
-        // safely close the menu to prevent unnecessary actions.
-        if (btn instanceof HTMLElement && btn.matches(CONSTANTS.SELECTORS.DISABLED_STATE)) {
-          console.debug(`${LOG_PREFIX} Target model button is disabled.`);
-          // Re-click itself (the currently selected model) to close via the normal flow.
-          btn.click();
-        } else if (btn instanceof HTMLElement) {
-          btn.click();
+          let thinkingItem = null;
+          for (let i = 0; i < CONSTANTS.TIMING.MENU_POLL_MAX_ATTEMPTS; i++) {
+            if (signal.aborted) return;
+            thinkingItem = document.querySelector(CONSTANTS.SELECTORS.THINKING_MENU_ITEM);
+            if (thinkingItem instanceof HTMLElement && thinkingItem.offsetParent !== null) break;
+            await new Promise((resolve) => setTimeout(resolve, CONSTANTS.TIMING.MENU_POLL_INTERVAL_MS));
+          }
+
+          if (thinkingItem instanceof HTMLElement) {
+            const sublabel = thinkingItem.querySelector(CONSTANTS.SELECTORS.THINKING_SUBLABEL);
+            const currentThinking = sublabel ? sublabel.textContent.trim() : '';
+
+            if (this.#isThinkingMatch(currentThinking)) {
+              // Close the menu without expanding further if the current value matches
+              if (isMenuOpen(menuButton)) {
+                menuButton.click();
+              }
+            } else {
+              // Expand the sub-menu if it does not match
+              thinkingItem.click();
+
+              let subItems = [];
+              for (let i = 0; i < CONSTANTS.TIMING.MENU_POLL_MAX_ATTEMPTS; i++) {
+                if (signal.aborted) return;
+                // Search for gem-menu-item excluding the parent (value="thinking_level") to avoid conflicts
+                subItems = Array.from(document.querySelectorAll(`${CONSTANTS.SELECTORS.MENU_ITEM_TAG}:not(${CONSTANTS.SELECTORS.THINKING_MENU_ITEM})`)).filter((el) => {
+                  if (!(el instanceof HTMLElement) || el.offsetParent === null) return false;
+                  const labelEl = el.querySelector(CONSTANTS.SELECTORS.ITEM_LABEL);
+                  const textToMatch = labelEl ? labelEl.textContent.trim() : el.textContent.trim();
+                  return this.#isThinkingMatch(textToMatch);
+                });
+                if (subItems.length > 0) break;
+                await new Promise((resolve) => setTimeout(resolve, CONSTANTS.TIMING.MENU_POLL_INTERVAL_MS));
+              }
+
+              if (subItems.length > 0) {
+                const targetSubBtn = subItems[0].closest(CONSTANTS.SELECTORS.BUTTON_TAG) ?? subItems[0];
+                if (targetSubBtn instanceof HTMLElement) {
+                  targetSubBtn.click();
+
+                  const inputField = await waitForElement(CONSTANTS.SELECTORS.INPUT_TEXT_FIELD_TARGET, CONSTANTS.TIMING.FOCUS_POLL_INTERVAL_MS, CONSTANTS.TIMING.FOCUS_POLL_MAX_ATTEMPTS, signal);
+                  if (inputField instanceof HTMLElement && inputField.offsetParent !== null && !signal.aborted) {
+                    inputField.focus();
+                  }
+                }
+              } else {
+                console.warn(`${LOG_PREFIX} Target thinking level matching pattern "${this.#targetThinkingText}" not found in sub-menu.`);
+                // Close the menu if the target is not found
+                if (isMenuOpen(menuButton)) {
+                  menuButton.click();
+                }
+              }
+            }
+          }
+          this.#isThinkingSettledForCurrentContext = true;
         }
-
-        // Wait for the input field to become focusable
-        const inputField = await waitForElement(CONSTANTS.SELECTORS.INPUT_TEXT_FIELD_TARGET, CONSTANTS.TIMING.FOCUS_POLL_INTERVAL_MS, CONSTANTS.TIMING.FOCUS_POLL_MAX_ATTEMPTS, signal);
-
-        // Ensure safe focus: Verify the input field is successfully found, physically visible on the DOM (offsetParent !== null),
-        // and no abort signal was triggered during the wait before applying focus.
-        if (inputField instanceof HTMLElement && inputField.offsetParent !== null && !signal.aborted) {
-          inputField.focus();
-        } else {
-          console.warn(`${LOG_PREFIX} Input text field not focusable or not found.`);
-        }
-
-        // Mark as settled to avoid infinite loops on manual DOM changes
-        this.#isSettledForCurrentContext = true;
       } finally {
         // Cleanup: Always release the fixing lock (#isFixing) and clear the AbortController,
         // regardless of whether the operation succeeded, failed, or threw an exception, to allow future executions.
