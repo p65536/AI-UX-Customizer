@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.3.2
+// @version      1.3.3
 // @license      MIT
 // @description  Fully customize the chat UI of [ChatGPT/Gemini]. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://cdn.jsdelivr.net/gh/p65536/p65536@main/images/icons/aiuxc.svg
@@ -3305,6 +3305,7 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
       this.cache = new Map();
       this.MAX_CACHE_SIZE = 10000;
       this.isInitialized = false;
+      this.streamingState = null; // Reference to shared streaming state
     }
 
     /**
@@ -4995,8 +4996,8 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
       }
 
       _wrappedFetch(input, init) {
-        // Pass-through immediately if interception is disabled to avoid interfering with site logic.
-        if (!this.isInterceptionEnabled) return this.originalFetch(input, init);
+        // Pass-through immediately if interception is disabled or streaming is active.
+        if (!this.isInterceptionEnabled || this.streamingState?.isActive) return this.originalFetch(input, init);
 
         // Only intercept GET requests. Pass-through POST (chat generation) to prevent UI freezing
         // caused by buffering heavy streaming responses like Thinking models.
@@ -20836,6 +20837,9 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       // Shared state for streaming status
       // Store as instance property to access within AppController (e.g. for Heartbeat guard)
       this.streamingState = { isActive: false };
+
+      // Inject streaming state reference into the API message adapter
+      PlatformAdapters.ApiMessage.streamingState = this.streamingState;
 
       // --- Manager Instantiation ---
       // Create managers that other managers depend on

@@ -3,6 +3,12 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.3.3] - 2026-05-21
+- **Bug Fixes**
+  - **[ChatGPT]** Resolved intermittent connection drops and "streaming interrupted" errors that occurred during long assistant generations or complex thinking model responses by pausing background data processing.
+- **Core Changes**
+  - Enhanced communication layer stability by syncing the network interceptor with the main interface's live streaming detection state.
+
 ## [1.3.2] - 2026-05-20
 - **Compatibility**
   - Added a fallback for older browsers that lack Temporal API support. While this project officially targets modern browser environments, this accommodation ensures users on legacy setups can still save settings and properly use the UI.

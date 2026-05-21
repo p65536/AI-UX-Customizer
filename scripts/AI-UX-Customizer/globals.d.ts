@@ -664,6 +664,7 @@ interface ApiMessageAdapter {
     addMessageData(id: string, node: MessageNode): void;
     getMessageData(id: string): MessageNode | undefined;
     getAllMessageData(): MessageNode[];
+    streamingState: { isActive: boolean } | null;
 }
 
 interface UIManagerAdapter {
