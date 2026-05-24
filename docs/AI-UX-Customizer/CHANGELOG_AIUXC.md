@@ -1,7 +1,14 @@
 # Changelog
 
-### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
--  AIUXC v1.0.0-b489+ with QTB v3.1.2+
+### **[IMPORTANT] Compatibility**: Due to updates in `NavigationMonitor`, if using this script with my other scripts, strict version matching is required:
+- AI UX Customizer (AIUXC): v1.4.1+
+- Quick Text Buttons (QTB): v3.3.1+
+- Gemini Default Model Setter (GDMS): v1.2.1+
+
+## [1.4.1] - 2026-05-24
+- **Fixed & Optimized**
+  - [LifecycleManager] Disabled URL hash tracking (`trackHash: false`) to prevent redundant app re-initialization cycles triggered by intra-page modal interactions (e.g., `#settings`).
+  - [LifecycleManager] Adapted to the updated `NavigationMonitor` API by utilizing the functional unsubscription token returned by `on()` for reliable lifecycle resource management.
 
 ## [1.4.0] - 2026-05-24
 - **Core Changes**
