@@ -1,5 +1,15 @@
 # Changelog
 
+### **[IMPORTANT] Compatibility**: Due to updates in `NavigationMonitor`, if using this script with my other scripts, strict version matching is required:
+- AI UX Customizer (AIUXC): v1.4.1+
+- Quick Text Buttons (QTB): v3.3.1+
+- Gemini Default Model Setter (GDMS): v1.2.1+
+
+## [1.2.1] - 2026-05-24
+- **Fixed & Optimized**
+  - [AppController] Disabled URL hash tracking (`trackHash: false`) to prevent unnecessary model and thinking level enforcement cycles triggered by intra-page updates.
+  - [AppController] Adapted to the updated `NavigationMonitor` API by leveraging the functional unsubscription token returned by `on()` for reliable lifecycle resource management.
+
 ## [1.2.0] - 2026-05-24
 - **Core Changes**
   - Optimized the underlying model switching flow to ensure smoother selection updates.

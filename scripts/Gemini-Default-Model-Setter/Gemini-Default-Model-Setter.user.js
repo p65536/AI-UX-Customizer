@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini Default Model Setter
 // @namespace    https://github.com/p65536
-// @version      1.2.0
+// @version      1.2.1
 // @license      MIT
 // @description  Automatically selects a specific model and its additional settings for Gemini upon page load, URL change, or tab return. The target patterns and script state can be easily configured via the extension menu.
 // @icon         https://cdn.jsdelivr.net/gh/p65536/p65536@main/images/icons/gdms.svg
@@ -840,7 +840,7 @@
    * * [USAGE NOTES]
    * - **Singleton Coordination**: This class acts as a centralized Singleton coordinator per `ownerId` to multiplex navigation events across multiple script instances seamlessly.
    * - **Persistent Hooking**: For cross-script stability, this coordinator does not implement a `destroy` or history restoration mechanism. The History API hooks remain active permanently.
-   * - **Listener Lifecycle**: Always pair your `on` subscription with a corresponding `off(onNavStart, onNavSettled)` call to safely remove the script's listeners from the shared coordinator.
+   * - **Listener Lifecycle**: Invoke the unsubscription token function returned by the `on()` method to safely remove the script's listeners from the shared coordinator.
    */
   class NavigationMonitor {
     static POST_NAVIGATION_DOM_SETTLE = 200;
@@ -872,24 +872,32 @@
     /**
      * @param {Function} onNavStart
      * @param {Function} onNavSettled
+     * @param {Object} options - Configuration parameters for the navigation subscription.
+     * @param {boolean} options.trackHash - Specifies whether the subscriber triggers on location.hash modifications.
+     * @returns {() => void} A function to unsubscribe this listener pair.
      */
-    on(onNavStart, onNavSettled) {
+    on(onNavStart, onNavSettled, options) {
       /** @type {Window & { __global_nav_coordinators__?: Record<string, any> }} */
       const globalScope = window;
       const coordinator = globalScope.__global_nav_coordinators__[this.ownerId];
-      if (!coordinator) return;
+      if (!coordinator) return () => {};
 
       // Prevent duplicate registrations of the same onNavStart callback.
       // This ensures idempotency when the script is re-injected or on() is called multiple times.
       for (const pair of coordinator.listeners) {
-        if (pair.onNavStart === onNavStart) return;
+        if (pair.onNavStart === onNavStart) return () => {};
       }
 
+      // Configure hash-tracking behavior based on the explicit subscription option.
+      const trackHash = options.trackHash;
+      const initialPath = trackHash ? location.pathname + location.search + location.hash : location.pathname + location.search;
+
       // Bundle the start callback and its corresponding debounced settled callback.
-      // The onNavStart reference acts as the lookup key during unsubscription in off().
       const listenerPair = {
         onNavStart,
         debouncedNavigation: debounce(onNavSettled, NavigationMonitor.POST_NAVIGATION_DOM_SETTLE, true),
+        trackHash,
+        lastPath: initialPath,
       };
 
       coordinator.listeners.add(listenerPair);
@@ -898,13 +906,18 @@
         coordinator.lastPath = location.pathname + location.search + location.hash;
 
         coordinator._boundHandleCustomNavEvent = () => {
-          const currentPath = location.pathname + location.search + location.hash;
-          if (currentPath === coordinator.lastPath) return;
-          coordinator.lastPath = currentPath;
+          const fullPath = location.pathname + location.search + location.hash;
+          if (fullPath === coordinator.lastPath) return;
+          coordinator.lastPath = fullPath;
 
           for (const pair of coordinator.listeners) {
-            pair.onNavStart();
-            pair.debouncedNavigation();
+            const currentPath = pair.trackHash ? fullPath : location.pathname + location.search;
+
+            if (currentPath !== pair.lastPath) {
+              pair.lastPath = currentPath;
+              pair.onNavStart();
+              pair.debouncedNavigation();
+            }
           }
         };
 
@@ -916,32 +929,12 @@
         globalScope.addEventListener(`${this.ownerId}:locationchange`, coordinator._boundHandleCustomNavEvent);
         globalScope.addEventListener('popstate', coordinator._boundHandlePopState);
       }
-    }
 
-    /**
-     * @param {Function} onNavStart
-     * @param {Function} onNavSettled
-     */
-    off(onNavStart, onNavSettled) {
-      /** @type {Window & { __global_nav_coordinators__?: Record<string, any> }} */
-      const globalScope = window;
-      const coordinator = globalScope.__global_nav_coordinators__[this.ownerId];
-      if (!coordinator) return;
-
-      let targetPair = null;
-      for (const pair of coordinator.listeners) {
-        // [DO NOT REFACTOR] Basic closure identification
-        // Finding the matching pair by checking the original onNavStart reference.
-        if (pair.onNavStart === onNavStart) {
-          targetPair = pair;
-          break;
-        }
-      }
-
-      if (targetPair) {
-        targetPair.debouncedNavigation.cancel();
-        coordinator.listeners.delete(targetPair);
-      }
+      // Return the unsubscription token closure directly.
+      return () => {
+        listenerPair.debouncedNavigation.cancel();
+        coordinator.listeners.delete(listenerPair);
+      };
     }
 
     /**
@@ -1866,8 +1859,7 @@
         this.#scheduleFallbackChecks();
       };
 
-      this.#navigationMonitor.on(onNavStart, onNavSettled);
-      this.addDisposable(() => this.#navigationMonitor.off(onNavStart, onNavSettled));
+      this.addDisposable(this.#navigationMonitor.on(onNavStart, onNavSettled, { trackHash: false }));
 
       const visibilityListener = () => {
         if (document.visibilityState === 'visible' && this.#isVisibilityCheckEnabled) {
