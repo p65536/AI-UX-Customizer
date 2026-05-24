@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.3.3
+// @version      1.4.0
 // @license      MIT
 // @description  Fully customize the chat UI of [ChatGPT/Gemini]. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://cdn.jsdelivr.net/gh/p65536/p65536@main/images/icons/aiuxc.svg
@@ -9960,93 +9960,150 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
   // Description: Centralizes URL change detection via history API hooks and popstate events.
   // =================================================================================
 
+  /**
+   * @class NavigationMonitor
+   * @description A shared, safe History API wrapper to detect SPA navigations. Prevents infinite nesting and conflicts across multiple userscripts.
+   * * [USAGE NOTES]
+   * - **Singleton Coordination**: This class acts as a centralized Singleton coordinator per `ownerId` to multiplex navigation events across multiple script instances seamlessly.
+   * - **Persistent Hooking**: For cross-script stability, this coordinator does not implement a `destroy` or history restoration mechanism. The History API hooks remain active permanently.
+   * - **Listener Lifecycle**: Always pair your `on` subscription with a corresponding `off(onNavStart, onNavSettled)` call to safely remove the script's listeners from the shared coordinator.
+   */
   class NavigationMonitor {
-    constructor() {
+    static POST_NAVIGATION_DOM_SETTLE = 200;
+
+    /**
+     * @param {string} ownerId - Unique identifier to share the hook ecosystem.
+     */
+    constructor(ownerId) {
+      this.ownerId = ownerId;
+
+      /** @type {Window & { __global_nav_coordinators__?: Record<string, any> }} */
+      const globalScope = window;
+      globalScope.__global_nav_coordinators__ ??= {};
+      if (globalScope.__global_nav_coordinators__[ownerId]) {
+        return globalScope.__global_nav_coordinators__[ownerId];
+      }
+
+      this.listeners = new Set();
       this.originalHistoryMethods = { pushState: null, replaceState: null };
       this._historyWrappers = {};
-      this.isInitialized = false;
+      this.isHooked = false;
+      this._boundHandlePopState = null;
+      this._boundHandleCustomNavEvent = null;
       this.lastPath = null;
-      this._handlePopState = this._handlePopState.bind(this);
 
-      // Debounce the navigation event to allow the DOM to settle and prevent duplicate events
-      this.debouncedNavigation = debounce(
-        () => {
-          EventBus.publish(EVENTS.NAVIGATION);
-        },
-        CONSTANTS.TIMING.TIMEOUTS.POST_NAVIGATION_DOM_SETTLE,
-        true
-      );
+      globalScope.__global_nav_coordinators__[ownerId] = this;
     }
 
-    init() {
-      if (this.isInitialized) return;
-      this.isInitialized = true;
-      // Capture initial path
-      this.lastPath = location.pathname + location.search;
-      this._hookHistory();
-      window.addEventListener('popstate', this._handlePopState);
-    }
+    /**
+     * @param {Function} onNavStart
+     * @param {Function} onNavSettled
+     */
+    on(onNavStart, onNavSettled) {
+      /** @type {Window & { __global_nav_coordinators__?: Record<string, any> }} */
+      const globalScope = window;
+      const coordinator = globalScope.__global_nav_coordinators__[this.ownerId];
+      if (!coordinator) return;
 
-    destroy() {
-      if (!this.isInitialized) return;
-      this._restoreHistory();
-      window.removeEventListener('popstate', this._handlePopState);
-      this.debouncedNavigation.cancel();
-      this.isInitialized = false;
-    }
+      // Prevent duplicate registrations of the same onNavStart callback.
+      // This ensures idempotency when the script is re-injected or on() is called multiple times.
+      for (const pair of coordinator.listeners) {
+        if (pair.onNavStart === onNavStart) return;
+      }
 
-    _hookHistory() {
-      // Capture the instance for use in the wrapper
-      const instance = this;
+      // Bundle the start callback and its corresponding debounced settled callback.
+      // The onNavStart reference acts as the lookup key during unsubscription in off().
+      const listenerPair = {
+        onNavStart,
+        debouncedNavigation: debounce(onNavSettled, NavigationMonitor.POST_NAVIGATION_DOM_SETTLE, true),
+      };
 
-      for (const m of ['pushState', 'replaceState']) {
-        const orig = history[m];
-        this.originalHistoryMethods[m] = orig;
+      coordinator.listeners.add(listenerPair);
 
-        // [DO NOT REFACTOR] `wrapper` must remain a standard function to safely capture
-        // the execution-time `this` (which could be a Proxy object).
-        // `const instance = this;` is intentionally used to access the class scope safely.
-        /** @this {History} */
-        const wrapper = function (...args) {
-          const result = orig.apply(this, args);
-          instance._onUrlChange();
-          return result;
+      if (!coordinator.isHooked) {
+        coordinator.lastPath = location.pathname + location.search + location.hash;
+
+        coordinator._boundHandleCustomNavEvent = () => {
+          const currentPath = location.pathname + location.search + location.hash;
+          if (currentPath === coordinator.lastPath) return;
+          coordinator.lastPath = currentPath;
+
+          for (const pair of coordinator.listeners) {
+            pair.onNavStart();
+            pair.debouncedNavigation();
+          }
         };
 
-        this._historyWrappers[m] = wrapper;
-        history[m] = wrapper;
+        coordinator._boundHandlePopState = () => {
+          globalScope.dispatchEvent(new CustomEvent(`${this.ownerId}:locationchange`));
+        };
+
+        this._hookHistory(coordinator);
+        globalScope.addEventListener(`${this.ownerId}:locationchange`, coordinator._boundHandleCustomNavEvent);
+        globalScope.addEventListener('popstate', coordinator._boundHandlePopState);
       }
     }
 
-    _restoreHistory() {
-      for (const m of ['pushState', 'replaceState']) {
-        if (this.originalHistoryMethods[m]) {
-          if (history[m] === this._historyWrappers[m]) {
-            history[m] = this.originalHistoryMethods[m];
-          } else {
-            Logger.warn('HISTORY HOOK', LOG_STYLES.YELLOW, `history.${m} has been wrapped by another script. Skipping restoration to prevent breaking the chain.`);
-          }
-          this.originalHistoryMethods[m] = null;
+    /**
+     * @param {Function} onNavStart
+     * @param {Function} onNavSettled
+     */
+    off(onNavStart, onNavSettled) {
+      /** @type {Window & { __global_nav_coordinators__?: Record<string, any> }} */
+      const globalScope = window;
+      const coordinator = globalScope.__global_nav_coordinators__[this.ownerId];
+      if (!coordinator) return;
+
+      let targetPair = null;
+      for (const pair of coordinator.listeners) {
+        // [DO NOT REFACTOR] Basic closure identification
+        // Finding the matching pair by checking the original onNavStart reference.
+        if (pair.onNavStart === onNavStart) {
+          targetPair = pair;
+          break;
         }
       }
-      this._historyWrappers = {};
-    }
 
-    _handlePopState() {
-      this._onUrlChange();
-    }
-
-    _onUrlChange() {
-      const currentPath = location.pathname + location.search;
-
-      // Prevent re-triggers if the path hasn't actually changed
-      if (currentPath === this.lastPath) {
-        return;
+      if (targetPair) {
+        targetPair.debouncedNavigation.cancel();
+        coordinator.listeners.delete(targetPair);
       }
-      this.lastPath = currentPath;
+    }
 
-      EventBus.publish(EVENTS.NAVIGATION_START);
-      this.debouncedNavigation();
+    /**
+     * @private
+     * @param {Object} coordinator
+     */
+    _hookHistory(coordinator) {
+      const hookFlag = `__${this.ownerId}_HISTORY_HOOKED__`;
+      /** @type {Window & { __global_nav_coordinators__?: Record<string, any> }} */
+      const globalScope = window;
+
+      if (!coordinator.isHooked && !globalScope[hookFlag]) {
+        globalScope[hookFlag] = true;
+        coordinator.isHooked = true;
+        const ownerId = this.ownerId;
+
+        for (const m of ['pushState', 'replaceState']) {
+          const orig = history[m];
+          coordinator.originalHistoryMethods[m] = orig;
+
+          // [DO NOT REFACTOR] `wrapper` must remain a standard function to safely capture the execution-time `this`.
+          /** @this {History} */
+          const wrapper = function (...args) {
+            try {
+              return orig.apply(this, args);
+            } finally {
+              // Always dispatch the event via 'finally' to ensure navigation state changes
+              // are broadcasted, even if the native history method or another hooked wrapper throws an error.
+              globalScope.dispatchEvent(new CustomEvent(`${ownerId}:locationchange`));
+            }
+          };
+
+          coordinator._historyWrappers[m] = wrapper;
+          history[m] = wrapper;
+        }
+      }
     }
   }
 
@@ -20251,24 +20308,50 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
         /** @type {HTMLStyleElement} */
         const styleNode = this.styleElement;
+
+        let pollCount = 0;
+        const maxPolls = 60;
+        const pollInterval = 50; // pollInterval * maxPolls = 3000ms (3 seconds)
+
         const pollExisting = () => {
           if (this.isDestroyed) return;
+          if (!styleNode.isConnected) return;
+          if (styleNode.sheet) {
+            this.sheet = styleNode.sheet;
+            this._flushPendingRules();
+          } else if (pollCount < maxPolls) {
+            pollCount++;
+            console.debug(`[Sentinel] Polling existing sheet (Attempt ${pollCount}/${maxPolls}). requestAnimationFrame check was insufficient.`);
+            setTimeout(pollExisting, pollInterval);
+          } else {
+            console.error('[Sentinel] Polling existing sheet timed out after 3 seconds.');
+          }
+        };
+
+        const checkFrameExisting = () => {
+          if (this.isDestroyed) return;
+          if (!styleNode.isConnected) return;
           if (styleNode.sheet) {
             this.sheet = styleNode.sheet;
             this._flushPendingRules();
           } else {
-            // Poll infinitely until sheet is ready
-            setTimeout(pollExisting, 50);
+            setTimeout(pollExisting, pollInterval);
           }
         };
-        pollExisting();
+
+        if (styleNode.sheet) {
+          this.sheet = styleNode.sheet;
+          this._flushPendingRules();
+        } else {
+          requestAnimationFrame(checkFrameExisting);
+        }
         return;
       }
 
       // Create empty style element
-      this.styleElement = h('style', {
-        id: this.styleId,
-      });
+      this.styleElement = document.createElement('style');
+      this.styleElement.id = this.styleId;
+
       // CSP Fix: Try to fetch a valid nonce from existing scripts/styles
       // "nonce" property exists on HTMLScriptElement/HTMLStyleElement, not basic Element.
       let nonce;
@@ -20311,19 +20394,51 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         if (this.styleElement instanceof HTMLStyleElement) {
           /** @type {HTMLStyleElement} */
           const styleNode = this.styleElement;
-          if (styleNode.sheet) {
+
+          const setupSheet = () => {
             this.sheet = styleNode.sheet;
             // Insert the shared keyframes rule at index 0.
             try {
               const keyframes = `@keyframes ${this.animationName} { from { outline: 1px solid transparent;} to { outline: 0px solid transparent; } }`;
               this.sheet.insertRule(keyframes, 0);
             } catch (e) {
-              Logger.error('SENTINEL', LOG_STYLES.RED, 'Failed to insert keyframes rule:', e);
+              console.error('[Sentinel] Failed to insert keyframes rule:', e);
             }
             this._flushPendingRules();
+          };
+
+          let pollCount = 0;
+          const maxPolls = 60;
+          const pollInterval = 50; // pollInterval * maxPolls = 3000ms (3 seconds)
+
+          const pollInit = () => {
+            if (this.isDestroyed) return;
+            if (!styleNode.isConnected) return;
+            if (styleNode.sheet) {
+              setupSheet();
+            } else if (pollCount < maxPolls) {
+              pollCount++;
+              console.debug(`[Sentinel] Polling new sheet (Attempt ${pollCount}/${maxPolls}). requestAnimationFrame check was insufficient.`);
+              setTimeout(pollInit, pollInterval);
+            } else {
+              console.error('[Sentinel] Polling new sheet timed out after 3 seconds.');
+            }
+          };
+
+          const checkFrameInit = () => {
+            if (this.isDestroyed) return;
+            if (!styleNode.isConnected) return;
+            if (styleNode.sheet) {
+              setupSheet();
+            } else {
+              setTimeout(pollInit, pollInterval);
+            }
+          };
+
+          if (styleNode.sheet) {
+            setupSheet();
           } else {
-            // Poll infinitely until sheet is ready
-            setTimeout(initSheet, 50);
+            requestAnimationFrame(checkFrameInit);
           }
         }
       };
@@ -20351,6 +20466,20 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
      * Ensures the style element is connected to the DOM and restores rules if it was removed.
      */
     _ensureStyleGuard() {
+      // Lazy Recovery: If the style element is connected but the stylesheet reference (this.sheet) was missed due to a timeout caused by a long task, recover it immediately here.
+      if (this.styleElement instanceof HTMLStyleElement && this.styleElement.isConnected && !this.sheet && this.styleElement.sheet) {
+        this.styleElement.disabled = this.isSuspended;
+        this.sheet = this.styleElement.sheet;
+
+        try {
+          this._ensureKeyframesRule();
+        } catch (e) {
+          console.error('[Sentinel] Failed to restore base rules during lazy recovery:', e);
+        }
+
+        this._flushPendingRules();
+      }
+
       if (this.styleElement && !this.styleElement.isConnected) {
         const target = document.head || document.documentElement;
         if (target) {
@@ -20360,13 +20489,19 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
             this.sheet = this.styleElement.sheet;
 
             try {
-              while (this.sheet.cssRules.length > 0) {
-                this.sheet.deleteRule(0);
+              // Non-destructive cleanup: scan and remove only rules belonging to this instance's active selectors
+              for (let i = this.sheet.cssRules.length - 1; i >= 0; i--) {
+                const rule = this.sheet.cssRules[i];
+                const recordedSelector = this.ruleSelectors.get(rule);
+                if (this.rules.has(recordedSelector) || (rule instanceof CSSStyleRule && this.rules.has(rule.selectorText))) {
+                  this.sheet.deleteRule(i);
+                }
               }
-              const keyframes = `@keyframes ${this.animationName} { from { outline: 1px solid transparent; } to { outline: 0px solid transparent; } }`;
-              this.sheet.insertRule(keyframes, 0);
+
+              // Non-destructive keyframes validation
+              this._ensureKeyframesRule();
             } catch (e) {
-              Logger.error('SENTINEL', LOG_STYLES.RED, 'Failed to clear or restore base rules:', e);
+              console.error('[Sentinel] Failed to clear or restore base rules:', e);
             }
 
             this.pendingRules = [];
@@ -20390,6 +20525,24 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     }
 
     /**
+     * Ensures the shared keyframes rule exists in the stylesheet.
+     */
+    _ensureKeyframesRule() {
+      let hasKeyframes = false;
+      for (let i = 0; i < this.sheet.cssRules.length; i++) {
+        const rule = this.sheet.cssRules[i];
+        if (rule instanceof CSSKeyframesRule && rule.name === this.animationName) {
+          hasKeyframes = true;
+          break;
+        }
+      }
+      if (!hasKeyframes) {
+        const keyframes = `@keyframes ${this.animationName} { from { outline: 1px solid transparent; } to { outline: 0px solid transparent; } }`;
+        this.sheet.insertRule(keyframes, 0);
+      }
+    }
+
+    /**
      * Helper to insert a single rule into the stylesheet
      * @param {string} selector
      */
@@ -20405,7 +20558,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
           this.ruleSelectors.set(insertedRule, selector);
         }
       } catch (e) {
-        Logger.error('SENTINEL', LOG_STYLES.RED, `Failed to insert rule for selector "${selector}":`, e);
+        console.error(`[Sentinel] Failed to insert rule for selector "${selector}":`, e);
       }
     }
 
@@ -20428,7 +20581,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
             try {
               cb(target);
             } catch (e) {
-              Logger.error('SENTINEL', LOG_STYLES.RED, `Listener error for selector "${selector}":`, e);
+              console.error(`[Sentinel] Listener error for selector "${selector}":`, e);
             }
           });
         }
@@ -20480,6 +20633,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         // Remove listener and rule
         this.listeners.delete(selector);
         this.rules.delete(selector);
+        this.pendingRules = this.pendingRules.filter((r) => r !== selector);
 
         if (this.sheet) {
           // Iterate backwards to avoid index shifting issues during deletion
@@ -20491,7 +20645,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
               try {
                 this.sheet.deleteRule(i);
               } catch (e) {
-                Logger.error('SENTINEL', LOG_STYLES.RED, `Failed to delete rule for selector "${selector}":`, e);
+                console.error(`[Sentinel] Failed to delete rule for selector "${selector}":`, e);
               }
               // We assume one rule per selector, so we can break after deletion
               break;
@@ -20502,21 +20656,21 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     }
 
     suspend() {
-      if (this.isDestroyed) return;
+      if (this.isDestroyed || this.isSuspended) return;
       this.isSuspended = true;
       if (this.styleElement instanceof HTMLStyleElement) {
         this.styleElement.disabled = true;
       }
-      Logger.debug('SENTINEL', LOG_STYLES.CYAN, 'Suspended.');
+      console.debug('[Sentinel] Suspended.');
     }
 
     resume() {
-      if (this.isDestroyed) return;
+      if (this.isDestroyed || !this.isSuspended) return;
       this.isSuspended = false;
       if (this.styleElement instanceof HTMLStyleElement) {
         this.styleElement.disabled = false;
       }
-      Logger.debug('SENTINEL', LOG_STYLES.CYAN, 'Resumed.');
+      console.debug('[Sentinel] Resumed.');
     }
   }
 
@@ -21367,11 +21521,16 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     }
 
     async _onInit() {
-      // Initialize NavigationMonitor as a managed resource
-      this.manageFactory(CONSTANTS.RESOURCE_KEYS.NAVIGATION_MONITOR, () => {
-        const monitor = new NavigationMonitor();
-        monitor.init();
-        return monitor;
+      // Initialize NavigationMonitor and register events
+      const monitor = new NavigationMonitor(OWNERID);
+      const onNavStart = () => EventBus.publish(EVENTS.NAVIGATION_START);
+      const onNavSettled = () => EventBus.publish(EVENTS.NAVIGATION);
+
+      monitor.on(onNavStart, onNavSettled);
+
+      // Register cleanup to remove listeners on destroy
+      this.manageResource(CONSTANTS.RESOURCE_KEYS.NAVIGATION_MONITOR, () => {
+        monitor.off(onNavStart, onNavSettled);
       });
 
       // Check for exclusion immediately when navigation starts to stop processes early

@@ -3,6 +3,14 @@
 ### **[IMPORTANT] Compatibility**: Due to updates in the DOM observation engine (Sentinel), if using this script with **Quick Text Buttons (QTB)**, strict version matching is required:
 -  AIUXC v1.0.0-b489+ with QTB v3.1.2+
 
+## [1.4.0] - 2026-05-24
+- **Core Changes**
+  - [NavigationMonitor] Stabilized concurrent execution of multiple scripts under the same owner ID, eliminating missed page navigation triggers.
+  - [NavigationMonitor] Added full support for single-page applications utilizing hash-based (`#`) routing pipelines.
+  - [Sentinel] Enhanced multi-script safety to prevent layout and style conflicts when multiple instances run simultaneously on the same page.
+  - [Sentinel] Implemented safe frame synchronization and polling limits to eliminate browser freeze risks during delayed loading.
+  - [Sentinel] Introduced a lazy recovery mechanism to robustly handle initialization timeouts caused by external long tasks without disrupting multi-script environments.
+
 ## [1.3.3] - 2026-05-21
 - **Bug Fixes**
   - **[ChatGPT]** Resolved intermittent connection drops and "streaming interrupted" errors that occurred during long assistant generations or complex thinking model responses by pausing background data processing.
