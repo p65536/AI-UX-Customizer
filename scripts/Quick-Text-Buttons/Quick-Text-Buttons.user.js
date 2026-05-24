@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         Quick-Text-Buttons
 // @namespace    https://github.com/p65536
-// @version      3.2.0
+// @version      3.3.0
 // @license      MIT
 // @description  Adds customizable text buttons to paste frequently used prompts into [ChatGPT/Gemini/Claude] inputs.
-// @icon         https://raw.githubusercontent.com/p65536/p65536/main/images/qtb.svg
+// @icon         https://cdn.jsdelivr.net/gh/p65536/p65536@main/images/icons/qtb.svg
 // @author       p65536
 // @match        https://chatgpt.com/*
 // @match        https://gemini.google.com/*
@@ -274,7 +274,7 @@
      * Sets the flag indicating the script has now been executed.
      */
     static setExecuted() {
-      window[this.#GUARD_KEY] = window[this.#GUARD_KEY] || {};
+      window[this.#GUARD_KEY] ??= {};
       window[this.#GUARD_KEY][this.#APP_KEY] = true;
     }
   }
@@ -352,6 +352,11 @@
     MODAL_TYPES: {
       JSON: 'json',
       TEXT_EDITOR: 'textEditor',
+    },
+    RESOURCE_KEYS: {
+      PAGE_OBSERVERS: 'page_observers',
+      MODAL: 'modal',
+      UI_RENDER_CYCLE: 'ui_render_cycle',
     },
   };
 
@@ -2472,20 +2477,24 @@ font-size: 0.95em;
    * @returns {() => void} A function to cancel the scheduled task.
    */
   function runWhenIdle(callback, timeout) {
+    const FALLBACK_DELAY_MS = 1;
+    const SIMULATED_TIME_REMAINING_MS = 50;
+
     if ('requestIdleCallback' in window) {
       const id = window.requestIdleCallback(callback, { timeout });
       return () => window.cancelIdleCallback(id);
     } else {
-      // Fallback: Execute almost immediately (1ms) to avoid blocking.
-      // This satisfies the "run by timeout" contract trivially since 1ms < timeout.
+      // Fallback: Execute almost immediately to avoid blocking.
+      // This satisfies the "run by timeout" contract trivially.
       const id = setTimeout(() => {
+        // [DO NOT REFACTOR] Duck Typing for API Compatibility
         // Provide a minimal IdleDeadline-like object.
-        // timeRemaining() returns 50ms to simulate a fresh frame.
+        // Do not simplify or remove this object structure, as callers expect the `timeRemaining` method.
         callback({
           didTimeout: false,
-          timeRemaining: () => 50,
+          timeRemaining: () => SIMULATED_TIME_REMAINING_MS,
         });
-      }, 1);
+      }, FALLBACK_DELAY_MS);
 
       return () => clearTimeout(id);
     }
@@ -2495,7 +2504,7 @@ font-size: 0.95em;
    * @param {Function} func
    * @param {number} delay
    * @param {boolean} useIdle
-   * @returns {((...args: any[]) => void) & { cancel: () => void }}
+   * @returns {((...args: unknown[]) => void) & { cancel: () => void }}
    */
   function debounce(func, delay, useIdle) {
     let timerId = null;
@@ -2512,6 +2521,9 @@ font-size: 0.95em;
       }
     };
 
+    // [DO NOT REFACTOR] Must remain a standard function, not an arrow function.
+    // This ensures the dynamic `this` context from the caller is correctly captured
+    // and propagated to the target function via `func.apply(this, args)`.
     /** @this {any} */
     const debounced = function (...args) {
       cancel();
@@ -2649,29 +2661,30 @@ font-size: 0.95em;
    * @template T
    */
   function withLayoutCycle({ measure, mutate }) {
-    return new Promise((resolve, reject) => {
-      let measuredData;
+    const { promise, resolve, reject } = Promise.withResolvers();
+    let measuredData;
 
-      // Phase 1: Synchronously read all required layout properties from the DOM.
+    // Phase 1: Synchronously read all required layout properties from the DOM.
+    try {
+      measuredData = measure();
+    } catch (e) {
+      Logger.error('LAYOUT ERROR', LOG_STYLES.RED, 'Error during measure phase:', e);
+      reject(e);
+      return promise;
+    }
+
+    // Phase 2: Schedule the DOM mutations to run in the next animation frame.
+    requestAnimationFrame(() => {
       try {
-        measuredData = measure();
+        mutate(measuredData);
+        resolve();
       } catch (e) {
-        Logger.error('LAYOUT ERROR', LOG_STYLES.RED, 'Error during measure phase:', e);
+        Logger.error('LAYOUT ERROR', LOG_STYLES.RED, 'Error during mutate phase:', e);
         reject(e);
-        return;
       }
-
-      // Phase 2: Schedule the DOM mutations to run in the next animation frame.
-      requestAnimationFrame(() => {
-        try {
-          mutate(measuredData);
-          resolve();
-        } catch (e) {
-          Logger.error('LAYOUT ERROR', LOG_STYLES.RED, 'Error during mutate phase:', e);
-          reject(e);
-        }
-      });
     });
+
+    return promise;
   }
 
   /**
@@ -2888,39 +2901,76 @@ font-size: 0.95em;
    * @class BaseManager
    * @description Provides common lifecycle and event subscription management capabilities.
    * Implements the Template Method pattern for init/destroy cycles.
+   * Manages all resources in a unified Set to ensure strict LIFO disposal and prevent memory leaks.
    */
   class BaseManager {
     constructor() {
-      /** @type {Array<{event: string, key: string}>} */
-      this.subscriptions = [];
+      /**
+       * @type {Set<AppDisposable>}
+       * Unified storage for all resources. Set preserves insertion order.
+       */
+      this._disposables = new Set();
+
+      /**
+       * @type {Map<string, () => void>}
+       * Map to store dispose functions for keyed resources, allowing replacement by key.
+       */
+      this._keyedDisposables = new Map();
+
       this.isInitialized = false;
       this.isDestroyed = false;
       /** @type {Promise<void>|null} */
       this._initPromise = null;
+      /** @type {AbortController} */
+      this._abortController = new AbortController();
+    }
+
+    /**
+     * Gets the AbortSignal associated with this manager's lifecycle.
+     * Aborted when the manager is destroyed.
+     * @returns {AbortSignal}
+     */
+    get signal() {
+      return this._abortController.signal;
+    }
+
+    /**
+     * Registers a resource to be disposed of when the manager is destroyed.
+     * @param {AppDisposable} disposable A function or object with dispose/disconnect/abort/destroy method.
+     * @returns {() => void} A function to dispose of the resource early.
+     */
+    addDisposable(disposable) {
+      return this._registerDisposable(disposable);
     }
 
     /**
      * Initializes the manager.
      * Prevents double initialization and supports async hooks.
-     * @param {...any} args Arguments to pass to the hook method.
+     * @param {...unknown} args Arguments to pass to the hook method.
      * @returns {Promise<void>}
      */
     async init(...args) {
       if (this.isInitialized) return;
 
-      // Guard against concurrent initialization
       if (this._initPromise) {
         await this._initPromise;
         return;
       }
 
       this.isDestroyed = false;
+      if (this._abortController.signal.aborted) {
+        this._abortController = new AbortController();
+      }
 
       this._initPromise = (async () => {
-        await this._onInit(...args);
-        // Check if destroyed during async init
-        if (!this.isDestroyed) {
-          this.isInitialized = true;
+        try {
+          await this._onInit(...args);
+          if (!this.isDestroyed) {
+            this.isInitialized = true;
+          }
+        } catch (e) {
+          this.destroy();
+          throw e;
         }
       })();
 
@@ -2940,46 +2990,122 @@ font-size: 0.95em;
       this.isDestroyed = true;
       this.isInitialized = false;
 
-      // 1. Hook for subclass specific cleanup
-      this._onDestroy();
+      this._abortController.abort();
 
-      // 2. Unsubscribe from all events
-      // Create a snapshot to safely iterate even if unsubscribing modifies the original array
-      const subsToUnsubscribe = [...this.subscriptions];
-      // Immediately clear the array to prevent re-entry or access during cleanup
-      this.subscriptions = [];
+      // 1. Hook for subclass specific cleanup (protected by try-catch)
+      try {
+        this._onDestroy();
+      } catch (e) {
+        Logger.error('BaseManager', '', 'Error in _onDestroy:', e);
+      }
 
-      // Iterate in reverse order (LIFO) to respect dependencies
-      for (let i = subsToUnsubscribe.length - 1; i >= 0; i--) {
-        const { event, key } = subsToUnsubscribe[i];
-        EventBus.unsubscribe(event, key);
+      // 2. Dispose all resources in LIFO order
+      // Convert Set to Array and reverse to ensure correct dependency teardown order.
+      const disposables = Array.from(this._disposables).reverse();
+      this._disposables.clear(); // Clear immediately to prevent double disposal
+      this._keyedDisposables.clear(); // Clear keyed map
+
+      for (const resource of disposables) {
+        this._disposeResource(resource);
       }
     }
 
     /**
      * Registers a platform-specific listener.
-     * Exposes subscription capability to adapters safely.
      * @param {string} event
      * @param {Function} callback
+     * @returns {() => void} A function to unsubscribe.
      */
     registerPlatformListener(event, callback) {
-      this._subscribe(event, callback);
+      return this._subscribe(event, callback);
     }
 
     /**
      * Registers a one-time platform-specific listener.
-     * Exposes single subscription capability to adapters safely.
      * @param {string} event
      * @param {Function} callback
+     * @returns {() => void} A function to unsubscribe (if not already fired).
      */
     registerPlatformListenerOnce(event, callback) {
-      this._subscribeOnce(event, callback);
+      return this._subscribeOnce(event, callback);
+    }
+
+    /**
+     * Manages a dynamic resource by key.
+     * Replaces any existing resource registered with the same key.
+     * If null is passed as the resource, the existing resource (if any) is disposed and the key is removed; no new resource is registered.
+     * @param {string} key Unique identifier.
+     * @param {AppDisposable | null} resource The new resource. Pass null to remove existing without replacing.
+     * @returns {() => void} A function to dispose of the resource early.
+     */
+    manageResource(key, resource) {
+      // 1. Dispose of existing resource with the same key, if any
+      if (this._keyedDisposables.has(key)) {
+        const oldDispose = this._keyedDisposables.get(key);
+        if (oldDispose) oldDispose();
+        // Ensure it's removed (oldDispose should handle it via wrapper, but for safety)
+        this._keyedDisposables.delete(key);
+      }
+
+      // 2. Register new resource
+      if (resource) {
+        // Register with the main set to handle LIFO disposal on destroy
+        const actualDispose = this._registerDisposable(resource);
+
+        // Create a wrapper that removes the entry from the map when disposed
+        const wrappedDispose = () => {
+          if (this._keyedDisposables.get(key) === wrappedDispose) {
+            this._keyedDisposables.delete(key);
+          }
+          actualDispose();
+        };
+
+        this._keyedDisposables.set(key, wrappedDispose);
+        return wrappedDispose;
+      }
+      return () => {};
+    }
+
+    /**
+     * Manages a dynamic resource created by a factory function.
+     * @template {AppDisposable} T
+     * @param {string} key Unique identifier for the resource.
+     * @param {() => T} factory A function that returns the resource.
+     * @returns {T | null} The created resource, or null if destroyed.
+     * @throws {Error} Propagates any error thrown by the factory function.
+     */
+    manageFactory(key, factory) {
+      if (!this.isDestroyed) {
+        // 1. Dispose of existing resource with the same key
+        if (this._keyedDisposables.has(key)) {
+          const oldDispose = this._keyedDisposables.get(key);
+          if (oldDispose) oldDispose();
+          this._keyedDisposables.delete(key);
+        }
+
+        const resource = factory();
+        if (resource) {
+          const actualDispose = this._registerDisposable(resource);
+
+          const wrappedDispose = () => {
+            if (this._keyedDisposables.get(key) === wrappedDispose) {
+              this._keyedDisposables.delete(key);
+            }
+            actualDispose();
+          };
+
+          this._keyedDisposables.set(key, wrappedDispose);
+          return resource;
+        }
+      }
+      return null;
     }
 
     /**
      * Hook method for initialization logic.
      * @protected
-     * @param {...any} args
+     * @param {...unknown} args
+     * @returns {void | Promise<void>}
      */
     _onInit(...args) {
       // To be implemented by subclasses
@@ -2994,75 +3120,168 @@ font-size: 0.95em;
     }
 
     /**
-     * Helper to subscribe to EventBus and track the subscription for cleanup.
-     * Appends the listener name and a unique suffix to the key to avoid conflicts.
+     * Helper to subscribe to EventBus.
      * @protected
      * @param {string} event
      * @param {Function} listener
+     * @returns {() => void} A function to unsubscribe.
      */
     _subscribe(event, listener) {
+      if (this.isDestroyed) return () => {};
+
+      // Wrap listener to guard against execution after destruction
+      const guardedListener = (...args) => {
+        if (this.isDestroyed) return;
+        return listener(...args);
+      };
+
       const baseKey = createEventKey(this, event);
-      // Use function name for debugging aid, fallback to 'anonymous'
       const listenerName = listener.name || 'anonymous';
-      // Generate a short random suffix to guarantee uniqueness even for anonymous functions
       const uniqueSuffix = Math.random().toString(36).substring(2, 7);
       const key = `${baseKey}_${listenerName}_${uniqueSuffix}`;
 
-      EventBus.subscribe(event, listener, key);
-      this.subscriptions.push({ event, key });
+      EventBus.subscribe(event, guardedListener, key);
+
+      // Create a cleanup task
+      const cleanup = () => EventBus.unsubscribe(event, key);
+      return this._registerDisposable(cleanup);
     }
 
     /**
-     * Helper to subscribe to EventBus once and track the subscription for cleanup.
-     * Appends the listener name and a unique suffix to the key to avoid conflicts.
+     * Helper to subscribe to EventBus once.
      * @protected
      * @param {string} event
      * @param {Function} listener
+     * @returns {() => void} A function to unsubscribe.
      */
     _subscribeOnce(event, listener) {
+      if (this.isDestroyed) return () => {};
+
+      // Wrap listener to guard against execution after destruction
+      const guardedListener = (...args) => {
+        if (this.isDestroyed) return;
+        return listener(...args);
+      };
+
       const baseKey = createEventKey(this, event);
-      // Use function name for debugging aid, fallback to 'anonymous'
       const listenerName = listener.name || 'anonymous';
-      // Generate a short random suffix to guarantee uniqueness even for anonymous functions
       const uniqueSuffix = Math.random().toString(36).substring(2, 7);
       const key = `${baseKey}_${listenerName}_${uniqueSuffix}`;
 
-      // Wrapper to cleanup the subscription record after firing
+      // Define cleanup first to establish dependency chain
+      const cleanup = () => EventBus.unsubscribe(event, key);
+
+      // Register disposable immediately to allow using 'const' and avoid TDZ
+      const disposeFn = this._registerDisposable(cleanup);
+
+      // Self-cleaning listener wrapper
       const wrappedListener = (...args) => {
-        this._removeSubscriptionRecord(key);
-        listener(...args);
+        // Execute dispose to remove from manager and avoid memory leaks
+        disposeFn();
+        return guardedListener(...args);
       };
 
       EventBus.once(event, wrappedListener, key);
-      this.subscriptions.push({ event, key });
+
+      return disposeFn;
     }
 
     /**
-     * Helper to unsubscribe from specific events dynamically.
-     * @protected
-     * @param {string} event The event name.
-     * @param {string} [keyPrefix] Optional prefix to filter specific listeners (e.g. 'ClassName.purpose').
-     */
-    _unsubscribe(event, keyPrefix) {
-      const fullKeyPrefix = keyPrefix || createEventKey(this, event);
-
-      // Find matching subscriptions
-      const toRemove = this.subscriptions.filter((sub) => sub.event === event && sub.key.startsWith(fullKeyPrefix));
-
-      // Unsubscribe and remove from list
-      toRemove.forEach((sub) => {
-        EventBus.unsubscribe(sub.event, sub.key);
-        this._removeSubscriptionRecord(sub.key);
-      });
-    }
-
-    /**
-     * Internal helper to remove a subscription record from the array by key.
+     * Internal helper to register a resource into the Set and return a safe dispose function.
      * @private
-     * @param {string} key
+     * @param {AppDisposable} resource
+     * @returns {() => void} A function that disposes the resource and removes it from the manager.
      */
-    _removeSubscriptionRecord(key) {
-      this.subscriptions = this.subscriptions.filter((sub) => sub.key !== key);
+    _registerDisposable(resource) {
+      if (!resource) return () => {};
+
+      // If already destroyed, dispose immediately and return no-op
+      if (this.isDestroyed) {
+        this._disposeResource(resource);
+        return () => {};
+      }
+
+      this._disposables.add(resource);
+
+      let disposed = false;
+      // Return an idempotent dispose function
+      return () => {
+        if (disposed) return;
+        disposed = true;
+        if (this._disposables.has(resource)) {
+          this._disposables.delete(resource);
+          this._disposeResource(resource);
+        }
+      };
+    }
+
+    /**
+     * Helper to safely dispose a resource of various types.
+     * Execution priority:
+     * 1. Function call
+     * 2. AbortController.abort()
+     * 3. Observer.disconnect() (Mutation/Resize/Intersection)
+     * 4. object.dispose()
+     * 5. object.disconnect()
+     * 6. object.abort()
+     * 7. object.destroy()
+     * @private
+     * @param {AppDisposable} disposable
+     */
+    _disposeResource(disposable) {
+      try {
+        if (typeof disposable === 'function') {
+          disposable();
+        } else if (disposable instanceof AbortController) {
+          disposable.abort();
+        } else if (disposable instanceof MutationObserver || disposable instanceof ResizeObserver || (typeof IntersectionObserver !== 'undefined' && disposable instanceof IntersectionObserver)) {
+          disposable.disconnect();
+        } else if (this._isDisposableObj(disposable)) {
+          disposable.dispose();
+        } else if (this._isDisconnectableObj(disposable)) {
+          disposable.disconnect();
+        } else if (this._isAbortableObj(disposable)) {
+          disposable.abort();
+        } else if (this._isDestructibleObj(disposable)) {
+          disposable.destroy();
+        }
+      } catch (e) {
+        Logger.warn('BaseManager', '', 'Error disposing resource type:', e);
+      }
+    }
+
+    // --- Type Guards ---
+
+    /**
+     * @param {unknown} obj
+     * @returns {obj is AppDestructibleObj}
+     */
+    _isDestructibleObj(obj) {
+      return typeof obj === 'object' && obj !== null && 'destroy' in obj && typeof (/** @type {{ destroy: unknown }} */ (obj).destroy) === 'function';
+    }
+
+    /**
+     * @param {unknown} obj
+     * @returns {obj is AppDisposableObj}
+     */
+    _isDisposableObj(obj) {
+      return typeof obj === 'object' && obj !== null && 'dispose' in obj && typeof (/** @type {{ dispose: unknown }} */ (obj).dispose) === 'function';
+    }
+
+    /**
+     * @param {unknown} obj
+     * @returns {obj is AppDisconnectableObj}
+     */
+    _isDisconnectableObj(obj) {
+      return typeof obj === 'object' && obj !== null && 'disconnect' in obj && typeof (/** @type {{ disconnect: unknown }} */ (obj).disconnect) === 'function';
+    }
+
+    /**
+     * @param {unknown} obj
+     * @returns {obj is AppAbortableObj}
+     */
+    _isAbortableObj(obj) {
+      return typeof obj === 'object' && obj !== null && 'abort' in obj && typeof (/** @type {{ abort: unknown }} */ (obj).abort) === 'function';
     }
   }
 
@@ -3081,7 +3300,15 @@ font-size: 0.95em;
       super();
       this.callbacks = callbacks;
       this.element = null;
-      this.storeSubscriptions = [];
+    }
+
+    /**
+     * Hook method for initialization logic.
+     * @protected
+     * @override
+     */
+    _onInit() {
+      super._onInit();
     }
 
     /**
@@ -3098,18 +3325,7 @@ font-size: 0.95em;
      * @param {() => void} unsub - The unsubscribe function returned by store.subscribe.
      */
     addStoreSubscription(unsub) {
-      if (typeof unsub === 'function') {
-        this.storeSubscriptions.push(unsub);
-      }
-    }
-
-    /**
-     * Executes all registered store subscription handles and clears the list.
-     * Can be called manually (e.g. on modal close) or automatically on destroy.
-     */
-    clearStoreSubscriptions() {
-      this.storeSubscriptions.forEach((unsub) => unsub());
-      this.storeSubscriptions = [];
+      this.addDisposable(unsub);
     }
 
     /**
@@ -3119,9 +3335,9 @@ font-size: 0.95em;
      * @override
      */
     _onDestroy() {
-      this.clearStoreSubscriptions();
       this.element?.remove();
       this.element = null;
+      super._onDestroy();
     }
   }
 
@@ -3332,9 +3548,8 @@ font-size: 0.95em;
 
     /**
      * @private
-     * Binds an input element to the store key.
      * @param {HTMLElement} element - The container element.
-     * @param {HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement} input - The input element.
+     * @param {Element} input - The input element.
      * @param {string} key - Store key.
      * @param {object} options - Transform options.
      */
@@ -3363,7 +3578,7 @@ font-size: 0.95em;
 
         if (input instanceof HTMLInputElement && input.type === 'checkbox') {
           input.checked = !!uiValue;
-        } else if (input.value !== String(uiValue ?? '')) {
+        } else if ((input instanceof HTMLInputElement || input instanceof HTMLSelectElement || input instanceof HTMLTextAreaElement) && input.value !== String(uiValue ?? '')) {
           // Avoid resetting cursor position if value is effectively same
           input.value = String(uiValue ?? '');
         }
@@ -3384,8 +3599,10 @@ font-size: 0.95em;
         let value;
         if (input instanceof HTMLInputElement && input.type === 'checkbox') {
           value = input.checked;
-        } else {
+        } else if (input instanceof HTMLInputElement || input instanceof HTMLSelectElement || input instanceof HTMLTextAreaElement) {
           value = input.value;
+        } else {
+          value = '';
         }
 
         if (input instanceof HTMLInputElement && (input.type === 'number' || input.type === 'range')) {
@@ -3805,6 +4022,24 @@ font-size: 0.95em;
     }
 
     /**
+     * Hook method for initialization logic.
+     * @protected
+     * @override
+     */
+    _onInit() {
+      super._onInit();
+    }
+
+    /**
+     * Lifecycle hook for cleanup.
+     * @protected
+     * @override
+     */
+    _onDestroy() {
+      super._onDestroy();
+    }
+
+    /**
      * @returns {object|null} The current configuration object.
      */
     get() {
@@ -3816,6 +4051,10 @@ font-size: 0.95em;
      */
     async load() {
       const raw = await GM.getValue(this.CONFIG_KEY);
+
+      // Cancel subsequent processing if the manager was destroyed during the async storage read
+      if (this.signal.aborted) return;
+
       let userConfig = null;
       if (raw) {
         try {
@@ -4077,7 +4316,13 @@ font-size: 0.95em;
       this._handleConfigUpdate = this._handleConfigUpdate.bind(this);
     }
 
+    /**
+     * Hook method for initialization logic.
+     * @protected
+     * @override
+     */
     _onInit() {
+      super._onInit();
       this._subscribe(EVENTS.CONFIG_UPDATED, this._handleConfigUpdate);
     }
 
@@ -4146,6 +4391,9 @@ font-size: 0.95em;
       if (this.isOpen()) return; // Prevent re-entry
 
       await this.populateForm();
+
+      if (this.signal.aborted) return;
+
       const anchorRect = this.callbacks.getAnchorElement().getBoundingClientRect();
 
       let top = anchorRect.bottom + 4;
@@ -4218,8 +4466,6 @@ font-size: 0.95em;
       this.styleHandle = null;
       this.commonStyleHandle = null;
       this.warningState = null;
-      /** @type {Array<() => void>} */
-      this._uiSubscriptions = []; // Transient subscriptions for the current render cycle
 
       // Delegate subscription management to the base class
       this.addStoreSubscription(
@@ -4255,8 +4501,8 @@ font-size: 0.95em;
      * @protected
      */
     _onDestroy() {
-      this._uiSubscriptions.forEach((unsub) => unsub());
-      this._uiSubscriptions = [];
+      this.hide();
+      this.debouncedSave.cancel();
       super._onDestroy();
     }
 
@@ -4282,6 +4528,10 @@ font-size: 0.95em;
      */
     async populateForm(config) {
       const currentConfig = config || (await this.callbacks.getCurrentConfig());
+
+      // Cancel subsequent rendering if the component was destroyed during the async config retrieval
+      if (this.signal.aborted) return;
+
       if (!currentConfig || !currentConfig.options) return;
 
       this.isPopulating = true;
@@ -4304,8 +4554,7 @@ font-size: 0.95em;
       }
 
       // Clean up previous render's resources
-      this._uiSubscriptions.forEach((unsub) => unsub());
-      this._uiSubscriptions = [];
+      this.manageResource(CONSTANTS.RESOURCE_KEYS.UI_RENDER_CYCLE, null);
 
       if (this.formContainer) {
         this.formContainer.replaceChildren();
@@ -4322,10 +4571,11 @@ font-size: 0.95em;
     _renderContent() {
       const cls = { ...this.commonStyleHandle.classes, ...this.styleHandle.classes };
       const context = { styles: cls, store: this.store };
+      const cleanups = [];
 
       const uiDisposer = (unsub) => {
         if (typeof unsub === 'function') {
-          this._uiSubscriptions.push(unsub);
+          cleanups.push(unsub);
         }
       };
       const ui = new UIBuilder(this.store, context, uiDisposer);
@@ -4532,6 +4782,10 @@ font-size: 0.95em;
       fragment.appendChild(optionsGroup);
 
       this.formContainer.appendChild(fragment);
+
+      this.manageResource(CONSTANTS.RESOURCE_KEYS.UI_RENDER_CYCLE, () => {
+        cleanups.forEach((unsub) => unsub());
+      });
     }
 
     async _collectDataFromForm() {
@@ -4555,11 +4809,15 @@ font-size: 0.95em;
       this.cachedConfig = null; // Config cache for Store synchronization
       this.styleHandle = null;
       this.commonStyleHandle = null;
-      /** @type {Array<() => void>} */
-      this._uiSubscriptions = []; // Transient subscriptions for the current render cycle
     }
 
+    /**
+     * Hook method for initialization logic.
+     * @protected
+     * @override
+     */
     _onInit() {
+      super._onInit();
       // Subscribe to size exceeded event to show error in footer
       this._subscribe(EVENTS.CONFIG_SIZE_EXCEEDED, ({ message }) => {
         const footerMessage = this.modal?.dom?.footerMessage;
@@ -4579,6 +4837,14 @@ font-size: 0.95em;
       });
     }
 
+    /**
+     * @override
+     * @protected
+     */
+    _onDestroy() {
+      super._onDestroy();
+    }
+
     _checkConfigSize() {
       if (!this.cachedConfig || !this.modal?.dom?.footerMessage) return;
 
@@ -4589,17 +4855,6 @@ font-size: 0.95em;
         footerMessage.textContent = validation.message;
         footerMessage.style.color = `var(${StyleDefinitions.VARS.TEXT_DANGER})`;
       }
-    }
-
-    /**
-     * @override
-     * @protected
-     */
-    _onDestroy() {
-      this._uiSubscriptions.forEach((unsub) => unsub());
-      this._uiSubscriptions = [];
-      this.modal?.destroy();
-      super._onDestroy();
     }
 
     render() {
@@ -4620,6 +4875,9 @@ font-size: 0.95em;
 
         // Load and cache initial config
         const globalConfig = await this.callbacks.getCurrentConfig();
+
+        if (this.signal.aborted) return;
+
         this.cachedConfig = deepClone(globalConfig);
 
         if (!this.cachedConfig || !this.cachedConfig.texts) return;
@@ -4654,7 +4912,10 @@ font-size: 0.95em;
           },
         });
 
-        this.modal = new CustomModal({
+        // Clean up previous render's resources before creating a new view cycle
+        this.manageResource(CONSTANTS.RESOURCE_KEYS.UI_RENDER_CYCLE, null);
+
+        const modal = new CustomModal({
           title: `${APPNAME} - Settings`,
           width: 'min(880px, 95vw)',
           closeOnBackdropClick: false,
@@ -4677,13 +4938,14 @@ font-size: 0.95em;
           },
           onDestroy: () => {
             this.callbacks.onModalOpenStateChange?.(false);
-            this._uiSubscriptions.forEach((unsub) => unsub());
-            this._uiSubscriptions = [];
             this.store = null;
             this.modal = null;
             this.cachedConfig = null;
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.MODAL, null);
           },
         });
+        this.manageResource(CONSTANTS.RESOURCE_KEYS.MODAL, modal);
+        this.modal = modal;
 
         // Render UI content using UIBuilder
         const content = this._renderEditorUI();
@@ -4728,10 +4990,11 @@ font-size: 0.95em;
     _renderEditorUI() {
       const cls = { ...this.commonStyleHandle.classes, ...this.styleHandle.classes };
       const context = { styles: cls, store: this.store };
+      const cleanups = [];
 
       const uiDisposer = (unsub) => {
         if (typeof unsub === 'function') {
-          this._uiSubscriptions.push(unsub);
+          cleanups.push(unsub);
         }
       };
       const ui = new UIBuilder(this.store, context, uiDisposer);
@@ -4752,6 +5015,11 @@ font-size: 0.95em;
         { className: 'modalContent' } // Mapped to cls.modalContent
       );
       container.appendChild(contentArea);
+
+      // Register cleanups to the base manager for automated lifecycle release
+      this.manageResource(CONSTANTS.RESOURCE_KEYS.UI_RENDER_CYCLE, () => {
+        cleanups.forEach((unsub) => unsub());
+      });
 
       return container;
     }
@@ -4774,6 +5042,8 @@ font-size: 0.95em;
         const renameInput = ui.create('input', { type: 'text', id: `${APPID}-${type}-rename-input`, className: cls.selectInput, style: { display: 'none' } });
         inputArea.append(select, renameInput);
         row.appendChild(inputArea);
+
+        if (!(select instanceof HTMLSelectElement) || !(renameInput instanceof HTMLInputElement)) return row;
 
         // Container 3: Action Buttons
         const actionArea = ui.create('div', { className: cls.actionArea });
@@ -4866,7 +5136,7 @@ font-size: 0.95em;
             const index = keys.indexOf(activeKey);
             const setDisabled = (id, disabled) => {
               const btn = row.querySelector(`#${id}`);
-              if (btn) btn.disabled = disabled;
+              if (btn instanceof HTMLButtonElement) btn.disabled = disabled;
             };
 
             setDisabled(`${APPID}-${type}-up-btn`, isAnyActionInProgress || index <= 0);
@@ -4900,7 +5170,7 @@ font-size: 0.95em;
 
         const setDisabled = (selector) => {
           const el = modalElement.querySelector(selector);
-          if (el) el.disabled = isAnyActionInProgress;
+          if (el instanceof HTMLButtonElement) el.disabled = isAnyActionInProgress;
         };
         setDisabled(`#${APPID}-text-new-btn`);
         setDisabled(`#${APPID}-editor-modal-apply-btn`);
@@ -4935,10 +5205,14 @@ font-size: 0.95em;
             value: text, // Initial value
           });
 
+          if (!(textarea instanceof HTMLTextAreaElement)) return;
+
           // Input Handler: Update Store WITHOUT triggering Fingerprint update
           textarea.addEventListener('input', (e) => {
-            this._handleTextPixelInput(index, e.target.value);
-            this._autoResizeTextarea(e.target);
+            if (e.target instanceof HTMLTextAreaElement) {
+              this._handleTextPixelInput(index, e.target.value);
+              this._autoResizeTextarea(e.target);
+            }
           });
 
           // Focus Handler: Track insertion point
@@ -4962,11 +5236,13 @@ font-size: 0.95em;
 
         // Post-render Layout & Focus restoration
         requestAnimationFrame(() => {
-          container.querySelectorAll('textarea').forEach((ta) => this._autoResizeTextarea(ta));
+          container.querySelectorAll('textarea').forEach((ta) => {
+            if (ta instanceof HTMLTextAreaElement) this._autoResizeTextarea(ta);
+          });
 
           if (focusedIndex >= 0 && focusedIndex < currentTexts.length) {
             const target = container.querySelector(`textarea[data-index="${focusedIndex}"]`);
-            if (target) {
+            if (target instanceof HTMLTextAreaElement) {
               target.focus();
               const len = target.value.length;
               target.setSelectionRange(len, len);
@@ -4984,14 +5260,17 @@ font-size: 0.95em;
       const cls = this.styleHandle.classes;
 
       modalElement.addEventListener('click', (e) => {
+        if (!(e.target instanceof HTMLElement)) return;
         const target = e.target.closest('button');
         if (!target) return;
 
         const textItemControls = target.closest(`.${cls.itemControls}`);
         if (textItemControls) {
           const textItem = textItemControls.closest(`.${cls.textItem}`);
+          if (!(textItem instanceof HTMLElement)) return;
           const textarea = textItem.querySelector('textarea');
-          const index = parseInt(textarea.dataset.index, 10);
+          if (!(textarea instanceof HTMLTextAreaElement)) return;
+          const index = parseInt(textarea.dataset.index || '0', 10);
 
           if (target.classList.contains('move-up-btn')) this._handleTextMove(index, -1, 'up');
           if (target.classList.contains('move-down-btn')) this._handleTextMove(index, 1, 'down');
@@ -5031,9 +5310,12 @@ font-size: 0.95em;
 
       // Reflect values directly to Store (With Two-Step Commit)
       modalElement.addEventListener('change', async (e) => {
+        if (!(e.target instanceof HTMLElement)) return;
         if (e.target.matches(`#${APPID}-profile-select`)) {
+          const target = e.target;
+          if (!(target instanceof HTMLSelectElement)) return;
           // 1. Prepare new state
-          const newProfileName = e.target.value;
+          const newProfileName = target.value;
           const profiles = this.cachedConfig.texts || [];
           const activeProfileObj = profiles.find((p) => p.name === newProfileName);
           const newCategory = activeProfileObj?.categories[0]?.name || null;
@@ -5043,8 +5325,10 @@ font-size: 0.95em;
           this.store.set('editor.activeCategory', newCategory);
           this._loadStateFromConfig(newProfileName, newCategory);
         } else if (e.target.matches(`#${APPID}-category-select`)) {
+          const target = e.target;
+          if (!(target instanceof HTMLSelectElement)) return;
           // 1. Update Store & Load new data
-          const newCategory = e.target.value;
+          const newCategory = target.value;
           this.store.set('editor.activeCategory', newCategory);
           this._loadStateFromConfig(this.store.get('editor.activeProfile'), newCategory);
         }
@@ -5053,7 +5337,9 @@ font-size: 0.95em;
       // Input handling for validation visual cues
       modalElement.addEventListener('input', (e) => {
         const target = e.target;
+        if (!(target instanceof HTMLElement)) return;
         if (target.matches('textarea')) {
+          if (!(target instanceof HTMLTextAreaElement)) return;
           target.classList.toggle('is-invalid', target.value.trim() === '');
           const footerMessage = this.modal?.dom?.footerMessage;
           if (footerMessage && footerMessage.textContent) {
@@ -5070,6 +5356,8 @@ font-size: 0.95em;
       });
 
       modalElement.addEventListener('keydown', (e) => {
+        if (!(e instanceof KeyboardEvent)) return;
+        if (!(e.target instanceof HTMLElement)) return;
         if (e.target.matches('input[type="text"]')) {
           if (e.key === 'Enter') {
             e.preventDefault();
@@ -5084,14 +5372,15 @@ font-size: 0.95em;
       const getScrollArea = () => modalElement.querySelector(`.${cls.scrollableArea}`);
 
       modalElement.addEventListener('dragstart', (e) => {
+        if (!(e.target instanceof HTMLElement)) return;
         const scrollArea = getScrollArea();
         if (!scrollArea) return;
 
         const handle = e.target.closest(`.${cls.dragHandle}`);
         if (handle) {
           const target = handle.closest(`.${cls.textItem}`);
-          if (target && scrollArea.contains(target)) {
-            this.draggedIndex = parseInt(target.dataset.index, 10);
+          if (target instanceof HTMLElement && scrollArea.contains(target)) {
+            this.draggedIndex = parseInt(target.dataset.index || '0', 10);
             setTimeout(() => target.classList.add('dragging'), 0);
           }
         }
@@ -5107,6 +5396,8 @@ font-size: 0.95em;
       });
 
       modalElement.addEventListener('dragover', (e) => {
+        if (!(e instanceof DragEvent)) return;
+        if (!(e.target instanceof Node)) return;
         const scrollArea = getScrollArea();
         if (!scrollArea || !scrollArea.contains(e.target)) return;
 
@@ -5118,21 +5409,24 @@ font-size: 0.95em;
           el.classList.remove('drag-over-top', 'drag-over-bottom');
         });
 
+        if (!(e.target instanceof HTMLElement)) return;
         const target = e.target.closest(`.${cls.textItem}`);
-        if (target && target !== draggingElement) {
+        if (target instanceof HTMLElement && target !== draggingElement) {
           const box = target.getBoundingClientRect();
           const isAfter = e.clientY > box.top + box.height / 2;
           target.classList.toggle('drag-over-bottom', isAfter);
           target.classList.toggle('drag-over-top', !isAfter);
         } else if (!target) {
           const lastElement = scrollArea.querySelector(`.${cls.textItem}:last-child:not(.dragging)`);
-          if (lastElement) {
+          if (lastElement instanceof HTMLElement) {
             lastElement.classList.add('drag-over-bottom');
           }
         }
       });
 
       modalElement.addEventListener('drop', (e) => {
+        if (!(e instanceof DragEvent)) return;
+        if (!(e.target instanceof Node)) return;
         const scrollArea = getScrollArea();
         if (!scrollArea || !scrollArea.contains(e.target)) return;
 
@@ -5143,8 +5437,8 @@ font-size: 0.95em;
         // Calculate drop index
         let dropIndex = -1;
 
-        if (dropTarget) {
-          const targetIndex = parseInt(dropTarget.dataset.index, 10);
+        if (dropTarget instanceof HTMLElement) {
+          const targetIndex = parseInt(dropTarget.dataset.index || '0', 10);
           if (dropTarget.classList.contains('drag-over-bottom')) {
             dropIndex = targetIndex + 1;
           } else {
@@ -5157,7 +5451,7 @@ font-size: 0.95em;
         } else {
           // Check if dropped at the end
           const lastElement = scrollArea.querySelector(`.${cls.textItem}:last-child:not(.dragging)`);
-          if (lastElement && lastElement.classList.contains('drag-over-bottom')) {
+          if (lastElement instanceof HTMLElement && lastElement.classList.contains('drag-over-bottom')) {
             dropIndex = this.store.get('editor.currentTexts').length - 1;
           }
         }
@@ -5231,7 +5525,7 @@ font-size: 0.95em;
 
       if (this.modal) {
         const input = this.modal.element.querySelector(`#${APPID}-${type}-rename-input`);
-        if (input) {
+        if (input instanceof HTMLInputElement) {
           input.value = ''; // Clear value to prevent flashing on next open
           input.classList.remove('is-invalid');
         }
@@ -5335,7 +5629,7 @@ font-size: 0.95em;
         if (targetRow) {
           const selector = btnType === 'up' ? '.move-up-btn' : '.move-down-btn';
           const btn = targetRow.querySelector(selector);
-          if (btn && !btn.disabled) {
+          if (btn instanceof HTMLButtonElement && !btn.disabled) {
             btn.focus();
           }
         }
@@ -5622,7 +5916,7 @@ font-size: 0.95em;
       requestAnimationFrame(() => {
         if (this.modal) {
           const input = this.modal.element.querySelector(`#${APPID}-${type}-rename-input`);
-          if (input) {
+          if (input instanceof HTMLInputElement) {
             input.value = currentValue || ''; // Force update to current selection
             input.focus();
             input.select();
@@ -5652,6 +5946,7 @@ font-size: 0.95em;
     async _handleRenameConfirm(type) {
       const footerMessage = this.modal?.dom?.footerMessage;
       const input = this.modal.element.querySelector(`#${APPID}-${type}-rename-input`);
+      if (!(input instanceof HTMLInputElement)) return;
       const newName = input.value.trim();
       const oldName = type === 'profile' ? this.store.get('editor.activeProfile') : this.store.get('editor.activeCategory');
 
@@ -5742,8 +6037,25 @@ font-size: 0.95em;
       this.styleHandle = null;
       this.commonStyleHandle = null;
       this.debouncedUpdateSize = debounce((text) => this._updateSizeDisplay(text), 300, true);
-      /** @type {Array<() => void>} */
-      this._uiSubscriptions = []; // Transient subscriptions for the current render cycle
+    }
+
+    /**
+     * Hook method for initialization logic.
+     * @protected
+     * @override
+     */
+    _onInit() {
+      super._onInit();
+    }
+
+    /**
+     * @override
+     * @protected
+     */
+    _onDestroy() {
+      this.debouncedUpdateSize.cancel();
+      this.store = null;
+      super._onDestroy();
     }
 
     render() {
@@ -5764,7 +6076,7 @@ font-size: 0.95em;
         const cls = this.styleHandle.classes;
         const commonCls = this.commonStyleHandle.classes;
 
-        this.modal = new CustomModal({
+        const modal = new CustomModal({
           title: `${APPNAME} Settings`,
           width: 'min(440px, 95vw)',
           closeOnBackdropClick: true,
@@ -5776,15 +6088,15 @@ font-size: 0.95em;
           ],
           onDestroy: () => {
             this.debouncedUpdateSize.cancel();
-            // Clean up UI subscriptions
-            this._uiSubscriptions.forEach((unsub) => unsub());
-            this._uiSubscriptions = [];
 
             this.callbacks.onModalOpenStateChange?.(false);
             this.store = null;
             this.modal = null;
+            this.manageResource(CONSTANTS.RESOURCE_KEYS.MODAL, null);
           },
         });
+        this.manageResource(CONSTANTS.RESOURCE_KEYS.MODAL, modal);
+        this.modal = modal;
 
         // Apply scoped root class to prevent style leak
         this.modal.element.classList.add(cls.modalRoot);
@@ -5801,6 +6113,9 @@ font-size: 0.95em;
           },
         });
 
+        // Clean up previous render's resources before creating a new view cycle
+        this.manageResource(CONSTANTS.RESOURCE_KEYS.UI_RENDER_CYCLE, null);
+
         // Render content using UIBuilder
         const content = this._renderJsonContent();
         this.modal.setContent(content);
@@ -5808,6 +6123,9 @@ font-size: 0.95em;
         this.callbacks.onModalOpen?.(); // Notify UIManager
 
         const config = await this.callbacks.getCurrentConfig();
+
+        if (this.signal.aborted) return;
+
         const initialText = JSON.stringify(config, null, 2);
         this.store.set('json.editor', initialText);
         this._updateSizeDisplay(initialText);
@@ -5817,11 +6135,12 @@ font-size: 0.95em;
         // Defer focus and scroll adjustment until the modal is visible
         requestAnimationFrame(() => {
           const textarea = this.modal.getContentContainer().querySelector(`textarea`);
-          if (!textarea) return;
-          textarea.focus();
-          textarea.scrollTop = 0;
-          textarea.selectionStart = 0;
-          textarea.selectionEnd = 0;
+          if (textarea instanceof HTMLTextAreaElement) {
+            textarea.focus();
+            textarea.scrollTop = 0;
+            textarea.selectionStart = 0;
+            textarea.selectionEnd = 0;
+          }
         });
       } finally {
         this.isOpening = false;
@@ -5834,26 +6153,15 @@ font-size: 0.95em;
       }
     }
 
-    /**
-     * @override
-     * @protected
-     */
-    _onDestroy() {
-      this.debouncedUpdateSize.cancel();
-      this._uiSubscriptions.forEach((unsub) => unsub());
-      this._uiSubscriptions = [];
-      this.store = null;
-      this.modal?.destroy();
-      super._onDestroy();
-    }
-
     _renderJsonContent() {
       const cls = { ...this.commonStyleHandle.classes, ...this.styleHandle.classes };
 
       const context = { styles: cls, store: this.store };
+      const cleanups = [];
+
       const uiDisposer = (unsub) => {
         if (typeof unsub === 'function') {
-          this._uiSubscriptions.push(unsub);
+          cleanups.push(unsub);
         }
       };
       const ui = new UIBuilder(this.store, context, uiDisposer);
@@ -5914,6 +6222,11 @@ font-size: 0.95em;
 
       const statusRow = ui.container([statusMsg, sizeInfo], { className: 'statusRow' }); // Mapped to cls.statusRow
       container.appendChild(statusRow);
+
+      // Register cleanups to the base manager for automated lifecycle release
+      this.manageResource(CONSTANTS.RESOURCE_KEYS.UI_RENDER_CYCLE, () => {
+        cleanups.forEach((unsub) => unsub());
+      });
 
       return container;
     }
@@ -6093,6 +6406,23 @@ font-size: 0.95em;
       this.styleHandle = null;
     }
 
+    /**
+     * Hook method for initialization logic.
+     * @protected
+     * @override
+     */
+    _onInit() {
+      super._onInit();
+    }
+
+    /**
+     * @override
+     * @protected
+     */
+    _onDestroy() {
+      super._onDestroy();
+    }
+
     render() {
       this.styleHandle = StyleManager.request(StyleDefinitions.getShortcutModal);
     }
@@ -6106,15 +6436,18 @@ font-size: 0.95em;
       const cls = this.styleHandle.classes;
       const commonCls = StyleManager.request(StyleDefinitions.getCommon).classes;
 
-      this.modal = new CustomModal({
+      const modal = new CustomModal({
         title: `${APPNAME} Keyboard Shortcuts`,
         width: 'min(400px, 95vw)',
         closeOnBackdropClick: true,
         buttons: [{ text: 'Close', id: `${APPID}-shortcut-close-btn`, className: commonCls.primaryBtn, onClick: () => this.close() }],
         onDestroy: () => {
           this.modal = null;
+          this.manageResource(CONSTANTS.RESOURCE_KEYS.MODAL, null);
         },
       });
+      this.manageResource(CONSTANTS.RESOURCE_KEYS.MODAL, modal);
+      this.modal = modal;
 
       // Helper to create grid rows
       const createRow = (keys, desc, separator = ' + ') => {
@@ -6151,16 +6484,9 @@ font-size: 0.95em;
     }
 
     close() {
-      this.modal?.close();
-    }
-
-    /**
-     * @override
-     * @protected
-     */
-    _onDestroy() {
-      this.close();
-      super._onDestroy();
+      if (this.modal) {
+        this.modal.close();
+      }
     }
   }
 
@@ -6169,6 +6495,24 @@ font-size: 0.95em;
       super(callbacks);
       this.options = options;
       this.styleHandle = null;
+    }
+
+    /**
+     * Hook method for initialization logic.
+     * @protected
+     * @override
+     */
+    _onInit() {
+      super._onInit();
+    }
+
+    /**
+     * Lifecycle hook for cleanup.
+     * @protected
+     * @override
+     */
+    _onDestroy() {
+      super._onDestroy();
     }
 
     /**
@@ -6237,6 +6581,15 @@ font-size: 0.95em;
         tabsContainer: null,
         optionsContainer: null,
       };
+    }
+
+    /**
+     * Hook method for initialization logic.
+     * @protected
+     * @override
+     */
+    _onInit() {
+      super._onInit();
     }
 
     /**
@@ -6487,6 +6840,7 @@ font-size: 0.95em;
           this.components.shortcutModal.open(this.components.insertBtn.element);
         },
       });
+      this.addDisposable(this.components.settingsPanel);
 
       this.components.insertBtn = new InsertButtonComponent(
         {
@@ -6532,6 +6886,7 @@ font-size: 0.95em;
           title: 'Add quick text',
         }
       );
+      this.addDisposable(this.components.insertBtn);
 
       this.components.textList = new TextListComponent(
         {
@@ -6567,8 +6922,11 @@ font-size: 0.95em;
           id: `${CONSTANTS.ID_PREFIX}text-list`,
         }
       );
+      this.addDisposable(this.components.textList);
 
       this.components.jsonModal = new JsonModalComponent(modalCallbacks);
+      this.addDisposable(this.components.jsonModal);
+
       this.components.textEditorModal = new TextEditorModalComponent({
         ...modalCallbacks,
         onShowJsonModal: () => {
@@ -6576,10 +6934,19 @@ font-size: 0.95em;
           this.components.jsonModal.open(this.components.insertBtn.element);
         },
       });
+      this.addDisposable(this.components.textEditorModal);
+
       this.components.shortcutModal = new ShortcutModalComponent(modalCallbacks);
+      this.addDisposable(this.components.shortcutModal);
     }
 
+    /**
+     * Hook method for initialization logic.
+     * @protected
+     * @override
+     */
     async _onInit() {
+      await super._onInit();
       // Explicitly render components that require it
       this.components.insertBtn?.render();
       this.components.textList?.render();
@@ -6610,10 +6977,13 @@ font-size: 0.95em;
 
       // Register global key listener for shortcuts (Alt+Q)
       document.addEventListener('keydown', this._handlers.globalKeydown);
+      this.addDisposable(() => document.removeEventListener('keydown', this._handlers.globalKeydown));
 
       if (this.components.settingsPanel) {
         await this.components.settingsPanel.init();
       }
+      if (this.signal.aborted) return;
+
       if (this.components.textEditorModal) {
         await this.components.textEditorModal.init();
       }
@@ -6626,14 +6996,6 @@ font-size: 0.95em;
     _onDestroy() {
       this._hideTextList();
       clearTimeout(this.hideTimeoutId);
-
-      // Remove global listeners
-      document.removeEventListener('keydown', this._handlers.globalKeydown);
-      document.removeEventListener('click', this._handlers.globalClick); // Ensure click listener is also removed
-
-      for (const key in this.components) {
-        this.components[key]?.destroy();
-      }
       super._onDestroy();
     }
 
@@ -7007,12 +7369,17 @@ font-size: 0.95em;
       }
     }
 
+    /**
+     * @param {MouseEvent} e
+     */
     _handleGlobalClick(e) {
       const listEl = this.components.textList.element;
       const btnEl = this.components.insertBtn.element;
 
       // If closed, do nothing (though listener should be removed)
-      if (listEl.style.display === 'none') return;
+      if (!listEl || listEl.style.display === 'none') return;
+
+      if (!(e.target instanceof Node)) return;
 
       // Ignore clicks inside the list or on the toggle button
       if (listEl.contains(e.target) || btnEl.contains(e.target)) {
@@ -7039,6 +7406,9 @@ font-size: 0.95em;
       return modals.some((comp) => comp?.modal?.element?.open);
     }
 
+    /**
+     * @param {KeyboardEvent} e
+     */
     _handleGlobalKeydown(e) {
       // 1. Global Toggle (Alt+Q)
       // Use code 'KeyQ' for physical key position independence, or 'q' key property.
@@ -7206,22 +7576,21 @@ font-size: 0.95em;
     }
 
     _onInit() {
-      this.remoteChangeListenerId = GM_addValueChangeListener(this.app.configKey, async (name, oldValue, newValue, remote) => {
+      super._onInit();
+      const id = GM_addValueChangeListener(this.app.configKey, async (name, oldValue, newValue, remote) => {
         if (remote) {
           await this._handleRemoteChange(newValue);
         }
       });
+      this.addDisposable(() => GM_removeValueChangeListener(id));
     }
 
     /**
-     * @override
+     * Lifecycle hook for cleanup.
      * @protected
+     * @override
      */
     _onDestroy() {
-      if (this.remoteChangeListenerId !== null) {
-        GM_removeValueChangeListener(this.remoteChangeListenerId);
-        this.remoteChangeListenerId = null;
-      }
       super._onDestroy();
     }
 
@@ -7314,90 +7683,150 @@ font-size: 0.95em;
   // Description: Centralizes URL change detection via history API hooks and popstate events.
   // =================================================================================
 
+  /**
+   * @class NavigationMonitor
+   * @description A shared, safe History API wrapper to detect SPA navigations. Prevents infinite nesting and conflicts across multiple userscripts.
+   * * [USAGE NOTES]
+   * - **Singleton Coordination**: This class acts as a centralized Singleton coordinator per `ownerId` to multiplex navigation events across multiple script instances seamlessly.
+   * - **Persistent Hooking**: For cross-script stability, this coordinator does not implement a `destroy` or history restoration mechanism. The History API hooks remain active permanently.
+   * - **Listener Lifecycle**: Always pair your `on` subscription with a corresponding `off(onNavStart, onNavSettled)` call to safely remove the script's listeners from the shared coordinator.
+   */
   class NavigationMonitor {
-    constructor() {
+    static POST_NAVIGATION_DOM_SETTLE = 200;
+
+    /**
+     * @param {string} ownerId - Unique identifier to share the hook ecosystem.
+     */
+    constructor(ownerId) {
+      this.ownerId = ownerId;
+
+      /** @type {Window & { __global_nav_coordinators__?: Record<string, any> }} */
+      const globalScope = window;
+      globalScope.__global_nav_coordinators__ ??= {};
+      if (globalScope.__global_nav_coordinators__[ownerId]) {
+        return globalScope.__global_nav_coordinators__[ownerId];
+      }
+
+      this.listeners = new Set();
       this.originalHistoryMethods = { pushState: null, replaceState: null };
       this._historyWrappers = {};
-      this.isInitialized = false;
+      this.isHooked = false;
+      this._boundHandlePopState = null;
+      this._boundHandleCustomNavEvent = null;
       this.lastPath = null;
-      this._handlePopState = this._handlePopState.bind(this);
 
-      // Debounce the navigation event to allow the DOM to settle and prevent duplicate events
-      this.debouncedNavigation = debounce(
-        () => {
-          EventBus.publish(EVENTS.NAVIGATION);
-        },
-        CONSTANTS.TIMING.TIMEOUTS.POST_NAVIGATION_DOM_SETTLE,
-        true
-      );
+      globalScope.__global_nav_coordinators__[ownerId] = this;
     }
 
-    init() {
-      if (this.isInitialized) return;
-      this.isInitialized = true;
-      // Capture initial path
-      this.lastPath = location.pathname + location.search;
-      this._hookHistory();
-      window.addEventListener('popstate', this._handlePopState);
-    }
+    /**
+     * @param {Function} onNavStart
+     * @param {Function} onNavSettled
+     */
+    on(onNavStart, onNavSettled) {
+      /** @type {Window & { __global_nav_coordinators__?: Record<string, any> }} */
+      const globalScope = window;
+      const coordinator = globalScope.__global_nav_coordinators__[this.ownerId];
+      if (!coordinator) return;
 
-    destroy() {
-      if (!this.isInitialized) return;
-      this._restoreHistory();
-      window.removeEventListener('popstate', this._handlePopState);
-      this.debouncedNavigation.cancel();
-      this.isInitialized = false;
-    }
+      // Prevent duplicate registrations of the same onNavStart callback.
+      // This ensures idempotency when the script is re-injected or on() is called multiple times.
+      for (const pair of coordinator.listeners) {
+        if (pair.onNavStart === onNavStart) return;
+      }
 
-    _hookHistory() {
-      // Capture the instance for use in the wrapper
-      const instance = this;
+      // Bundle the start callback and its corresponding debounced settled callback.
+      // The onNavStart reference acts as the lookup key during unsubscription in off().
+      const listenerPair = {
+        onNavStart,
+        debouncedNavigation: debounce(onNavSettled, NavigationMonitor.POST_NAVIGATION_DOM_SETTLE, true),
+      };
 
-      for (const m of ['pushState', 'replaceState']) {
-        const orig = history[m];
-        this.originalHistoryMethods[m] = orig;
+      coordinator.listeners.add(listenerPair);
 
-        /** @this {History} */
-        const wrapper = function (...args) {
-          const result = orig.apply(this, args);
-          instance._onUrlChange();
-          return result;
+      if (!coordinator.isHooked) {
+        coordinator.lastPath = location.pathname + location.search + location.hash;
+
+        coordinator._boundHandleCustomNavEvent = () => {
+          const currentPath = location.pathname + location.search + location.hash;
+          if (currentPath === coordinator.lastPath) return;
+          coordinator.lastPath = currentPath;
+
+          for (const pair of coordinator.listeners) {
+            pair.onNavStart();
+            pair.debouncedNavigation();
+          }
         };
 
-        this._historyWrappers[m] = wrapper;
-        history[m] = wrapper;
+        coordinator._boundHandlePopState = () => {
+          globalScope.dispatchEvent(new CustomEvent(`${this.ownerId}:locationchange`));
+        };
+
+        this._hookHistory(coordinator);
+        globalScope.addEventListener(`${this.ownerId}:locationchange`, coordinator._boundHandleCustomNavEvent);
+        globalScope.addEventListener('popstate', coordinator._boundHandlePopState);
       }
     }
 
-    _restoreHistory() {
-      for (const m of ['pushState', 'replaceState']) {
-        if (this.originalHistoryMethods[m]) {
-          if (history[m] === this._historyWrappers[m]) {
-            history[m] = this.originalHistoryMethods[m];
-          } else {
-            Logger.warn('HISTORY HOOK', LOG_STYLES.YELLOW, `history.${m} has been wrapped by another script. Skipping restoration to prevent breaking the chain.`);
-          }
-          this.originalHistoryMethods[m] = null;
+    /**
+     * @param {Function} onNavStart
+     * @param {Function} onNavSettled
+     */
+    off(onNavStart, onNavSettled) {
+      /** @type {Window & { __global_nav_coordinators__?: Record<string, any> }} */
+      const globalScope = window;
+      const coordinator = globalScope.__global_nav_coordinators__[this.ownerId];
+      if (!coordinator) return;
+
+      let targetPair = null;
+      for (const pair of coordinator.listeners) {
+        // [DO NOT REFACTOR] Basic closure identification
+        // Finding the matching pair by checking the original onNavStart reference.
+        if (pair.onNavStart === onNavStart) {
+          targetPair = pair;
+          break;
         }
       }
-      this._historyWrappers = {};
-    }
 
-    _handlePopState() {
-      this._onUrlChange();
-    }
-
-    _onUrlChange() {
-      const currentPath = location.pathname + location.search;
-
-      // Prevent re-triggers if the path hasn't actually changed
-      if (currentPath === this.lastPath) {
-        return;
+      if (targetPair) {
+        targetPair.debouncedNavigation.cancel();
+        coordinator.listeners.delete(targetPair);
       }
-      this.lastPath = currentPath;
+    }
 
-      EventBus.publish(EVENTS.NAVIGATION_START);
-      this.debouncedNavigation();
+    /**
+     * @private
+     * @param {Object} coordinator
+     */
+    _hookHistory(coordinator) {
+      const hookFlag = `__${this.ownerId}_HISTORY_HOOKED__`;
+      /** @type {Window & { __global_nav_coordinators__?: Record<string, any> }} */
+      const globalScope = window;
+
+      if (!coordinator.isHooked && !globalScope[hookFlag]) {
+        globalScope[hookFlag] = true;
+        coordinator.isHooked = true;
+        const ownerId = this.ownerId;
+
+        for (const m of ['pushState', 'replaceState']) {
+          const orig = history[m];
+          coordinator.originalHistoryMethods[m] = orig;
+
+          // [DO NOT REFACTOR] `wrapper` must remain a standard function to safely capture the execution-time `this`.
+          /** @this {History} */
+          const wrapper = function (...args) {
+            try {
+              return orig.apply(this, args);
+            } finally {
+              // Always dispatch the event via 'finally' to ensure navigation state changes
+              // are broadcasted, even if the native history method or another hooked wrapper throws an error.
+              globalScope.dispatchEvent(new CustomEvent(`${ownerId}:locationchange`));
+            }
+          };
+
+          coordinator._historyWrappers[m] = wrapper;
+          history[m] = wrapper;
+        }
+      }
     }
   }
 
@@ -7408,7 +7837,17 @@ font-size: 0.95em;
   class ObserverManager extends BaseManager {
     constructor() {
       super();
-      this.activePageObservers = []; // To store cleanup functions
+    }
+
+    /**
+     * Hook method for initialization logic.
+     * @protected
+     * @override
+     */
+    _onInit() {
+      super._onInit();
+      // Subscribe to navigation events to handle page changes
+      this._subscribe(EVENTS.NAVIGATION, () => this._onNavigation());
     }
 
     /**
@@ -7416,20 +7855,16 @@ font-size: 0.95em;
      * from the PlatformAdapter.
      */
     start() {
-      // Subscribe to navigation events to handle page changes
-      this._subscribe(EVENTS.NAVIGATION, () => this._onNavigation());
-
       // Perform initial setup by publishing the navigation event.
       EventBus.publish(EVENTS.NAVIGATION);
     }
 
     /**
-     * @override
+     * Lifecycle hook for cleanup.
      * @protected
+     * @override
      */
     _onDestroy() {
-      this.activePageObservers.forEach((cleanup) => cleanup());
-      this.activePageObservers = [];
       super._onDestroy();
     }
 
@@ -7443,17 +7878,24 @@ font-size: 0.95em;
         Logger.debug('NAVIGATOR', LOG_STYLES.CYAN, 'Navigation detected. Starting lifecycle...');
 
         // 1. Cleanup previous page resources
-        this.activePageObservers.forEach((cleanup) => cleanup());
-        this.activePageObservers = [];
+        this.manageResource(CONSTANTS.RESOURCE_KEYS.PAGE_OBSERVERS, null);
 
         // 2. Initialize Page-Specific Observers
         const observerStarters = PlatformAdapters.Observer.getInitializers();
+        const cleanups = [];
+
         for (const startObserver of observerStarters) {
           // Ensure the context of 'this' is the ObserverManager instance
           const cleanup = startObserver.call(this, {});
           if (typeof cleanup === 'function') {
-            this.activePageObservers.push(cleanup);
+            cleanups.push(cleanup);
           }
+        }
+
+        if (cleanups.length > 0) {
+          this.manageResource(CONSTANTS.RESOURCE_KEYS.PAGE_OBSERVERS, () => {
+            cleanups.forEach((cb) => cb());
+          });
         }
       } catch (e) {
         Logger.error('NAV_HANDLER_ERROR', LOG_STYLES.RED, 'Error during navigation handling:', e);
@@ -7560,24 +8002,50 @@ font-size: 0.95em;
 
         /** @type {HTMLStyleElement} */
         const styleNode = this.styleElement;
+
+        let pollCount = 0;
+        const maxPolls = 60;
+        const pollInterval = 50; // pollInterval * maxPolls = 3000ms (3 seconds)
+
         const pollExisting = () => {
           if (this.isDestroyed) return;
+          if (!styleNode.isConnected) return;
+          if (styleNode.sheet) {
+            this.sheet = styleNode.sheet;
+            this._flushPendingRules();
+          } else if (pollCount < maxPolls) {
+            pollCount++;
+            console.debug(`[Sentinel] Polling existing sheet (Attempt ${pollCount}/${maxPolls}). requestAnimationFrame check was insufficient.`);
+            setTimeout(pollExisting, pollInterval);
+          } else {
+            console.error('[Sentinel] Polling existing sheet timed out after 3 seconds.');
+          }
+        };
+
+        const checkFrameExisting = () => {
+          if (this.isDestroyed) return;
+          if (!styleNode.isConnected) return;
           if (styleNode.sheet) {
             this.sheet = styleNode.sheet;
             this._flushPendingRules();
           } else {
-            // Poll infinitely until sheet is ready
-            setTimeout(pollExisting, 50);
+            setTimeout(pollExisting, pollInterval);
           }
         };
-        pollExisting();
+
+        if (styleNode.sheet) {
+          this.sheet = styleNode.sheet;
+          this._flushPendingRules();
+        } else {
+          requestAnimationFrame(checkFrameExisting);
+        }
         return;
       }
 
       // Create empty style element
-      this.styleElement = h('style', {
-        id: this.styleId,
-      });
+      this.styleElement = document.createElement('style');
+      this.styleElement.id = this.styleId;
+
       // CSP Fix: Try to fetch a valid nonce from existing scripts/styles
       // "nonce" property exists on HTMLScriptElement/HTMLStyleElement, not basic Element.
       let nonce;
@@ -7620,19 +8088,51 @@ font-size: 0.95em;
         if (this.styleElement instanceof HTMLStyleElement) {
           /** @type {HTMLStyleElement} */
           const styleNode = this.styleElement;
-          if (styleNode.sheet) {
+
+          const setupSheet = () => {
             this.sheet = styleNode.sheet;
             // Insert the shared keyframes rule at index 0.
             try {
               const keyframes = `@keyframes ${this.animationName} { from { outline: 1px solid transparent;} to { outline: 0px solid transparent; } }`;
               this.sheet.insertRule(keyframes, 0);
             } catch (e) {
-              Logger.error('SENTINEL', LOG_STYLES.RED, 'Failed to insert keyframes rule:', e);
+              console.error('[Sentinel] Failed to insert keyframes rule:', e);
             }
             this._flushPendingRules();
+          };
+
+          let pollCount = 0;
+          const maxPolls = 60;
+          const pollInterval = 50; // pollInterval * maxPolls = 3000ms (3 seconds)
+
+          const pollInit = () => {
+            if (this.isDestroyed) return;
+            if (!styleNode.isConnected) return;
+            if (styleNode.sheet) {
+              setupSheet();
+            } else if (pollCount < maxPolls) {
+              pollCount++;
+              console.debug(`[Sentinel] Polling new sheet (Attempt ${pollCount}/${maxPolls}). requestAnimationFrame check was insufficient.`);
+              setTimeout(pollInit, pollInterval);
+            } else {
+              console.error('[Sentinel] Polling new sheet timed out after 3 seconds.');
+            }
+          };
+
+          const checkFrameInit = () => {
+            if (this.isDestroyed) return;
+            if (!styleNode.isConnected) return;
+            if (styleNode.sheet) {
+              setupSheet();
+            } else {
+              setTimeout(pollInit, pollInterval);
+            }
+          };
+
+          if (styleNode.sheet) {
+            setupSheet();
           } else {
-            // Poll infinitely until sheet is ready
-            setTimeout(initSheet, 50);
+            requestAnimationFrame(checkFrameInit);
           }
         }
       };
@@ -7660,6 +8160,20 @@ font-size: 0.95em;
      * Ensures the style element is connected to the DOM and restores rules if it was removed.
      */
     _ensureStyleGuard() {
+      // Lazy Recovery: If the style element is connected but the stylesheet reference (this.sheet) was missed due to a timeout caused by a long task, recover it immediately here.
+      if (this.styleElement instanceof HTMLStyleElement && this.styleElement.isConnected && !this.sheet && this.styleElement.sheet) {
+        this.styleElement.disabled = this.isSuspended;
+        this.sheet = this.styleElement.sheet;
+
+        try {
+          this._ensureKeyframesRule();
+        } catch (e) {
+          console.error('[Sentinel] Failed to restore base rules during lazy recovery:', e);
+        }
+
+        this._flushPendingRules();
+      }
+
       if (this.styleElement && !this.styleElement.isConnected) {
         const target = document.head || document.documentElement;
         if (target) {
@@ -7669,13 +8183,19 @@ font-size: 0.95em;
             this.sheet = this.styleElement.sheet;
 
             try {
-              while (this.sheet.cssRules.length > 0) {
-                this.sheet.deleteRule(0);
+              // Non-destructive cleanup: scan and remove only rules belonging to this instance's active selectors
+              for (let i = this.sheet.cssRules.length - 1; i >= 0; i--) {
+                const rule = this.sheet.cssRules[i];
+                const recordedSelector = this.ruleSelectors.get(rule);
+                if (this.rules.has(recordedSelector) || (rule instanceof CSSStyleRule && this.rules.has(rule.selectorText))) {
+                  this.sheet.deleteRule(i);
+                }
               }
-              const keyframes = `@keyframes ${this.animationName} { from { outline: 1px solid transparent; } to { outline: 0px solid transparent; } }`;
-              this.sheet.insertRule(keyframes, 0);
+
+              // Non-destructive keyframes validation
+              this._ensureKeyframesRule();
             } catch (e) {
-              Logger.error('SENTINEL', LOG_STYLES.RED, 'Failed to clear or restore base rules:', e);
+              console.error('[Sentinel] Failed to clear or restore base rules:', e);
             }
 
             this.pendingRules = [];
@@ -7699,6 +8219,24 @@ font-size: 0.95em;
     }
 
     /**
+     * Ensures the shared keyframes rule exists in the stylesheet.
+     */
+    _ensureKeyframesRule() {
+      let hasKeyframes = false;
+      for (let i = 0; i < this.sheet.cssRules.length; i++) {
+        const rule = this.sheet.cssRules[i];
+        if (rule instanceof CSSKeyframesRule && rule.name === this.animationName) {
+          hasKeyframes = true;
+          break;
+        }
+      }
+      if (!hasKeyframes) {
+        const keyframes = `@keyframes ${this.animationName} { from { outline: 1px solid transparent; } to { outline: 0px solid transparent; } }`;
+        this.sheet.insertRule(keyframes, 0);
+      }
+    }
+
+    /**
      * Helper to insert a single rule into the stylesheet
      * @param {string} selector
      */
@@ -7714,7 +8252,7 @@ font-size: 0.95em;
           this.ruleSelectors.set(insertedRule, selector);
         }
       } catch (e) {
-        Logger.error('SENTINEL', LOG_STYLES.RED, `Failed to insert rule for selector "${selector}":`, e);
+        console.error(`[Sentinel] Failed to insert rule for selector "${selector}":`, e);
       }
     }
 
@@ -7737,7 +8275,7 @@ font-size: 0.95em;
             try {
               cb(target);
             } catch (e) {
-              Logger.error('SENTINEL', LOG_STYLES.RED, `Listener error for selector "${selector}":`, e);
+              console.error(`[Sentinel] Listener error for selector "${selector}":`, e);
             }
           });
         }
@@ -7789,6 +8327,7 @@ font-size: 0.95em;
         // Remove listener and rule
         this.listeners.delete(selector);
         this.rules.delete(selector);
+        this.pendingRules = this.pendingRules.filter((r) => r !== selector);
 
         if (this.sheet) {
           // Iterate backwards to avoid index shifting issues during deletion
@@ -7800,7 +8339,7 @@ font-size: 0.95em;
               try {
                 this.sheet.deleteRule(i);
               } catch (e) {
-                Logger.error('SENTINEL', LOG_STYLES.RED, `Failed to delete rule for selector "${selector}":`, e);
+                console.error(`[Sentinel] Failed to delete rule for selector "${selector}":`, e);
               }
               // We assume one rule per selector, so we can break after deletion
               break;
@@ -7811,21 +8350,21 @@ font-size: 0.95em;
     }
 
     suspend() {
-      if (this.isDestroyed) return;
+      if (this.isDestroyed || this.isSuspended) return;
       this.isSuspended = true;
       if (this.styleElement instanceof HTMLStyleElement) {
         this.styleElement.disabled = true;
       }
-      Logger.debug('SENTINEL', LOG_STYLES.CYAN, 'Suspended.');
+      console.debug('[Sentinel] Suspended.');
     }
 
     resume() {
-      if (this.isDestroyed) return;
+      if (this.isDestroyed || !this.isSuspended) return;
       this.isSuspended = false;
       if (this.styleElement instanceof HTMLStyleElement) {
         this.styleElement.disabled = false;
       }
-      Logger.debug('SENTINEL', LOG_STYLES.CYAN, 'Resumed.');
+      console.debug('[Sentinel] Resumed.');
     }
   }
 
@@ -7843,17 +8382,27 @@ font-size: 0.95em;
       this.observerManager = new ObserverManager();
     }
 
+    /**
+     * Hook method for initialization logic.
+     * @protected
+     * @override
+     */
     async _onInit() {
+      await super._onInit();
       // Inject platform-specific CSS variables immediately
       StyleManager.injectPlatformVariables(this.platformDetails.platformId);
 
       this.configManager = new ConfigManager();
+      this.addDisposable(this.configManager);
       await this.configManager.load();
+
+      if (this.signal.aborted) return;
 
       // Set logger level from config immediately after loading
       Logger.setLevel(this.configManager.get().developer.logger_level);
 
       this.syncManager = new SyncManager(this);
+      this.addDisposable(this.syncManager);
 
       this.uiManager = new UIManager(
         this.configManager.get(),
@@ -7862,10 +8411,19 @@ font-size: 0.95em;
         () => this.syncManager.onModalClose(),
         (conf) => this.configManager.validateConfigSize(conf) // Pass size validator
       );
-      await this.uiManager.init();
-      await this.syncManager.init();
+      this.addDisposable(this.uiManager);
 
-      this.observerManager.init();
+      this.addDisposable(this.observerManager);
+
+      await this.uiManager.init();
+      if (this.signal.aborted) return;
+
+      await this.syncManager.init();
+      if (this.signal.aborted) return;
+
+      await this.observerManager.init();
+      if (this.signal.aborted) return;
+
       this.observerManager.start();
     }
 
@@ -7874,13 +8432,8 @@ font-size: 0.95em;
      * @protected
      */
     _onDestroy() {
-      // Do not destroy navigationMonitor to keep history hooks active for recovery
-      this.uiManager?.destroy();
-      this.observerManager?.destroy();
-      this.configManager?.destroy();
-      this.syncManager?.destroy();
-      super._onDestroy();
       Logger.debug('SHUTDOWN', LOG_STYLES.GRAY, 'AppController destroyed (suspended).');
+      super._onDestroy();
     }
 
     // Method required by the SyncManager's interface for silent updates
@@ -7948,7 +8501,9 @@ font-size: 0.95em;
       super();
       this.platformDetails = platformDetails;
       this.app = new AppController(platformDetails);
-      this.navMonitor = new NavigationMonitor();
+      this.navMonitor = new NavigationMonitor(OWNERID);
+      this._boundNavStart = () => EventBus.publish(EVENTS.NAVIGATION_START);
+      this._boundNavSettled = () => EventBus.publish(EVENTS.NAVIGATION);
       this._boundUpdateState = this._updateState.bind(this);
     }
 
@@ -7957,11 +8512,16 @@ font-size: 0.95em;
      * @override
      */
     _onInit() {
+      super._onInit();
+      this.addDisposable(this.app);
+
       // Start navigation monitoring
-      this.navMonitor.init();
+      this.navMonitor.on(this._boundNavStart, this._boundNavSettled);
+      this.addDisposable(() => this.navMonitor.off(this._boundNavStart, this._boundNavSettled));
 
       // Trigger 1: DOM Detection
       sentinel.on(this.platformDetails.selectors.INPUT_TARGET, this._boundUpdateState);
+      this.addDisposable(() => sentinel.off(this.platformDetails.selectors.INPUT_TARGET, this._boundUpdateState));
 
       // Trigger 2: Navigation
       this._subscribe(EVENTS.NAVIGATION, this._boundUpdateState);
@@ -7971,20 +8531,11 @@ font-size: 0.95em;
     }
 
     /**
+     * Lifecycle hook for cleanup.
      * @protected
      * @override
      */
     _onDestroy() {
-      // Stop navigation monitoring
-      this.navMonitor.destroy();
-
-      // Cleanup Sentinel listener
-      sentinel.off(this.platformDetails.selectors.INPUT_TARGET, this._boundUpdateState);
-
-      // Ensure AppController is destroyed
-      if (this.app.isInitialized) {
-        this.app.destroy();
-      }
       super._onDestroy();
     }
 
