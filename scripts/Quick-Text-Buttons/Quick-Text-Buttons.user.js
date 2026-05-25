@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Quick-Text-Buttons
 // @namespace    https://github.com/p65536
-// @version      3.3.1
+// @version      3.3.2
 // @license      MIT
 // @description  Adds customizable text buttons to paste frequently used prompts into [ChatGPT/Gemini/Claude] inputs.
 // @icon         https://cdn.jsdelivr.net/gh/p65536/p65536@main/images/icons/qtb.svg
@@ -7903,14 +7903,18 @@ font-size: 0.95em;
   /**
    * @class Sentinel
    * @description Detects DOM node insertion using a shared, prefixed CSS animation trick.
+   * Designed as a persistent singleton per project prefix.
+   * This class does not support explicit lifecycle destruction (no destroy method), as instances are intended to live indefinitely to ensure continuous DOM monitoring across scripts.
    * @property {Map<string, Set<(element: Element) => void>>} listeners
    * @property {Set<string>} rules
    * @property {HTMLElement | null} styleElement
    * @property {CSSStyleSheet | null} sheet
-   * @property {string[]} pendingRules
    * @property {WeakMap<CSSRule, string>} ruleSelectors
    */
   class Sentinel {
+    static MAX_POLLS = 60;
+    static POLL_INTERVAL = 50;
+
     /**
      * @param {string} prefix - A unique identifier for this Sentinel instance to avoid CSS conflicts. Required.
      */
@@ -7935,9 +7939,7 @@ font-size: 0.95em;
       }
 
       this.prefix = prefix;
-      this.isDestroyed = false;
       this.isSuspended = false;
-      this._initObserver = null;
 
       // Use a unique, prefixed animation name shared by all scripts in a project.
       this.animationName = `${prefix}-global-sentinel-animation`;
@@ -7946,9 +7948,10 @@ font-size: 0.95em;
       this.rules = new Set(); // Tracks all active selectors
       this.styleElement = null; // Holds the reference to the single style element
       this.sheet = null; // Cache the CSSStyleSheet reference
-      this.pendingRules = []; // Queue for rules requested before sheet is ready
       /** @type {WeakMap<CSSRule, string>} */
       this.ruleSelectors = new WeakMap(); // Tracks selector strings associated with CSSRule objects
+      /** @type {Map<string, string>} */
+      this.normalizedSelectors = new Map(); // Maps original selectors to browser-normalized selectors
 
       this._boundHandleAnimationStart = this._handleAnimationStart.bind(this);
 
@@ -7958,80 +7961,13 @@ font-size: 0.95em;
       globalScope.__global_sentinel_instances__[prefix] = this;
     }
 
-    destroy() {
-      if (this.isDestroyed) return;
-      this.isDestroyed = true;
-
-      document.removeEventListener('animationstart', this._boundHandleAnimationStart, true);
-
-      if (this._initObserver) {
-        this._initObserver.disconnect();
-        this._initObserver = null;
-      }
-
-      if (this.styleElement) {
-        this.styleElement.remove();
-        this.styleElement = null;
-      }
-
-      this.sheet = null;
-      this.listeners.clear();
-      this.rules.clear();
-      this.pendingRules = [];
-
-      /** @type {Window & { __global_sentinel_instances__?: Record<string, Sentinel> }} */
-      const globalScope = window;
-      if (globalScope.__global_sentinel_instances__) {
-        delete globalScope.__global_sentinel_instances__[this.prefix];
-      }
-    }
-
     _injectStyleElement() {
       // Ensure the style element is injected only once per project prefix.
       this.styleElement = document.getElementById(this.styleId);
 
       if (this.styleElement instanceof HTMLStyleElement) {
         this.styleElement.disabled = this.isSuspended;
-
-        /** @type {HTMLStyleElement} */
-        const styleNode = this.styleElement;
-
-        let pollCount = 0;
-        const maxPolls = 60;
-        const pollInterval = 50; // pollInterval * maxPolls = 3000ms (3 seconds)
-
-        const pollExisting = () => {
-          if (this.isDestroyed) return;
-          if (!styleNode.isConnected) return;
-          if (styleNode.sheet) {
-            this.sheet = styleNode.sheet;
-            this._flushPendingRules();
-          } else if (pollCount < maxPolls) {
-            pollCount++;
-            console.debug(`[Sentinel] Polling existing sheet (Attempt ${pollCount}/${maxPolls}). requestAnimationFrame check was insufficient.`);
-            setTimeout(pollExisting, pollInterval);
-          } else {
-            console.error('[Sentinel] Polling existing sheet timed out after 3 seconds.');
-          }
-        };
-
-        const checkFrameExisting = () => {
-          if (this.isDestroyed) return;
-          if (!styleNode.isConnected) return;
-          if (styleNode.sheet) {
-            this.sheet = styleNode.sheet;
-            this._flushPendingRules();
-          } else {
-            setTimeout(pollExisting, pollInterval);
-          }
-        };
-
-        if (styleNode.sheet) {
-          this.sheet = styleNode.sheet;
-          this._flushPendingRules();
-        } else {
-          requestAnimationFrame(checkFrameExisting);
-        }
+        this._waitForStylesheet();
         return;
       }
 
@@ -8076,76 +8012,20 @@ font-size: 0.95em;
       // If the document is not yet ready (e.g. extremely early document-start), wait for the root element.
       const target = document.head || document.documentElement;
 
-      const initSheet = () => {
-        if (this.isDestroyed) return;
-        if (this.styleElement instanceof HTMLStyleElement) {
-          /** @type {HTMLStyleElement} */
-          const styleNode = this.styleElement;
-
-          const setupSheet = () => {
-            this.sheet = styleNode.sheet;
-            // Insert the shared keyframes rule at index 0.
-            try {
-              const keyframes = `@keyframes ${this.animationName} { from { outline: 1px solid transparent;} to { outline: 0px solid transparent; } }`;
-              this.sheet.insertRule(keyframes, 0);
-            } catch (e) {
-              console.error('[Sentinel] Failed to insert keyframes rule:', e);
-            }
-            this._flushPendingRules();
-          };
-
-          let pollCount = 0;
-          const maxPolls = 60;
-          const pollInterval = 50; // pollInterval * maxPolls = 3000ms (3 seconds)
-
-          const pollInit = () => {
-            if (this.isDestroyed) return;
-            if (!styleNode.isConnected) return;
-            if (styleNode.sheet) {
-              setupSheet();
-            } else if (pollCount < maxPolls) {
-              pollCount++;
-              console.debug(`[Sentinel] Polling new sheet (Attempt ${pollCount}/${maxPolls}). requestAnimationFrame check was insufficient.`);
-              setTimeout(pollInit, pollInterval);
-            } else {
-              console.error('[Sentinel] Polling new sheet timed out after 3 seconds.');
-            }
-          };
-
-          const checkFrameInit = () => {
-            if (this.isDestroyed) return;
-            if (!styleNode.isConnected) return;
-            if (styleNode.sheet) {
-              setupSheet();
-            } else {
-              setTimeout(pollInit, pollInterval);
-            }
-          };
-
-          if (styleNode.sheet) {
-            setupSheet();
-          } else {
-            requestAnimationFrame(checkFrameInit);
-          }
-        }
-      };
-
       if (target) {
         target.appendChild(this.styleElement);
-        initSheet();
+        this._waitForStylesheet();
       } else {
-        this._initObserver = new MutationObserver(() => {
-          if (this.isDestroyed) return;
+        const initObserver = new MutationObserver(() => {
           const retryTarget = document.head || document.documentElement;
           if (retryTarget) {
-            this._initObserver.disconnect();
-            this._initObserver = null;
+            initObserver.disconnect();
 
             retryTarget.appendChild(this.styleElement);
-            initSheet();
+            this._waitForStylesheet();
           }
         });
-        this._initObserver.observe(document, { childList: true });
+        initObserver.observe(document, { childList: true });
       }
     }
 
@@ -8155,59 +8035,91 @@ font-size: 0.95em;
     _ensureStyleGuard() {
       // Lazy Recovery: If the style element is connected but the stylesheet reference (this.sheet) was missed due to a timeout caused by a long task, recover it immediately here.
       if (this.styleElement instanceof HTMLStyleElement && this.styleElement.isConnected && !this.sheet && this.styleElement.sheet) {
-        this.styleElement.disabled = this.isSuspended;
-        this.sheet = this.styleElement.sheet;
-
-        try {
-          this._ensureKeyframesRule();
-        } catch (e) {
-          console.error('[Sentinel] Failed to restore base rules during lazy recovery:', e);
-        }
-
-        this._flushPendingRules();
+        this._syncStylesheetRules();
       }
 
       if (this.styleElement && !this.styleElement.isConnected) {
         const target = document.head || document.documentElement;
         if (target) {
+          this.sheet = null; // Clear stale stylesheet reference before reconnecting
           target.appendChild(this.styleElement);
-          if (this.styleElement instanceof HTMLStyleElement && this.styleElement.sheet) {
-            this.styleElement.disabled = this.isSuspended;
-            this.sheet = this.styleElement.sheet;
-
-            try {
-              // Non-destructive cleanup: scan and remove only rules belonging to this instance's active selectors
-              for (let i = this.sheet.cssRules.length - 1; i >= 0; i--) {
-                const rule = this.sheet.cssRules[i];
-                const recordedSelector = this.ruleSelectors.get(rule);
-                if (this.rules.has(recordedSelector) || (rule instanceof CSSStyleRule && this.rules.has(rule.selectorText))) {
-                  this.sheet.deleteRule(i);
-                }
-              }
-
-              // Non-destructive keyframes validation
-              this._ensureKeyframesRule();
-            } catch (e) {
-              console.error('[Sentinel] Failed to clear or restore base rules:', e);
-            }
-
-            this.pendingRules = [];
-
-            this.rules.forEach((selector) => {
-              this._insertRule(selector);
-            });
-          }
+          this._waitForStylesheet();
         }
       }
     }
 
-    _flushPendingRules() {
-      if (!this.sheet || this.pendingRules.length === 0) return;
-      const rulesToInsert = [...this.pendingRules];
-      this.pendingRules = [];
+    /**
+     * Periodically checks for stylesheet availability and triggers full synchronization.
+     * @private
+     */
+    _waitForStylesheet() {
+      if (!(this.styleElement instanceof HTMLStyleElement) || !this.styleElement.isConnected) return;
 
-      rulesToInsert.forEach((selector) => {
-        this._insertRule(selector);
+      const styleNode = this.styleElement;
+      let pollCount = 0;
+
+      const poll = () => {
+        if (!styleNode.isConnected) return;
+        if (styleNode.sheet) {
+          this._syncStylesheetRules();
+        } else if (pollCount < Sentinel.MAX_POLLS) {
+          pollCount++;
+          console.debug(`[Sentinel] Polling sheet (Attempt ${pollCount}/${Sentinel.MAX_POLLS}). requestAnimationFrame check was insufficient.`);
+          setTimeout(poll, Sentinel.POLL_INTERVAL);
+        } else {
+          // Calculate timeout in seconds dynamically based on constants
+          const timeoutSeconds = (Sentinel.MAX_POLLS * Sentinel.POLL_INTERVAL) / 1000;
+          console.error(`[Sentinel] Polling sheet timed out after ${timeoutSeconds} seconds.`);
+        }
+      };
+
+      if (styleNode.sheet) {
+        this._syncStylesheetRules();
+      } else {
+        requestAnimationFrame(() => {
+          if (!styleNode.isConnected) return;
+          if (styleNode.sheet) {
+            this._syncStylesheetRules();
+          } else {
+            setTimeout(poll, Sentinel.POLL_INTERVAL);
+          }
+        });
+      }
+    }
+
+    /**
+     * Synchronizes all active rules directly onto the connected stylesheet.
+     * @private
+     */
+    _syncStylesheetRules() {
+      if (!(this.styleElement instanceof HTMLStyleElement) || !this.styleElement.isConnected || !this.styleElement.sheet) return;
+
+      this.styleElement.disabled = this.isSuspended;
+      this.sheet = this.styleElement.sheet;
+
+      try {
+        // Non-destructive cleanup: scan and remove only rules belonging to this instance's active selectors
+        for (let i = this.sheet.cssRules.length - 1; i >= 0; i--) {
+          const rule = this.sheet.cssRules[i];
+          const recordedSelector = this.ruleSelectors.get(rule);
+          if (this.rules.has(recordedSelector) || (rule instanceof CSSStyleRule && (this.rules.has(rule.selectorText) || [...this.rules].some((sel) => rule.selectorText === this.normalizedSelectors.get(sel))))) {
+            this.sheet.deleteRule(i);
+          }
+        }
+
+        // Non-destructive keyframes validation
+        this._ensureKeyframesRule();
+      } catch (e) {
+        console.error('[Sentinel] Failed to clear or restore base rules:', e);
+      }
+
+      this.rules.forEach((selector) => {
+        const success = this._insertRule(selector);
+        if (!success) {
+          // Rollback invalid selector to prevent infinite error loops on subsequent syncs
+          this.rules.delete(selector);
+          this.listeners.delete(selector);
+        }
       });
     }
 
@@ -8232,6 +8144,7 @@ font-size: 0.95em;
     /**
      * Helper to insert a single rule into the stylesheet
      * @param {string} selector
+     * @returns {boolean} True if insertion was successful, false otherwise
      */
     _insertRule(selector) {
       try {
@@ -8243,14 +8156,19 @@ font-size: 0.95em;
         const insertedRule = this.sheet.cssRules[index];
         if (insertedRule) {
           this.ruleSelectors.set(insertedRule, selector);
+          if (insertedRule instanceof CSSStyleRule) {
+            this.normalizedSelectors.set(selector, insertedRule.selectorText);
+          }
         }
+        return true;
       } catch (e) {
-        console.error(`[Sentinel] Failed to insert rule for selector "${selector}":`, e);
+        console.error(`[Sentinel] Rule insertion failed for selector "${selector}". The listener has been rejected and removed:`, e);
+        return false;
       }
     }
 
     _handleAnimationStart(event) {
-      if (this.isDestroyed) return;
+      if (this.isSuspended) return;
 
       // Check if the animation is the one we're listening for.
       if (event.animationName !== this.animationName) return;
@@ -8280,7 +8198,6 @@ font-size: 0.95em;
      * @param {(element: Element) => void} callback
      */
     on(selector, callback) {
-      if (this.isDestroyed) return;
       this._ensureStyleGuard();
 
       // Add callback to listeners
@@ -8295,9 +8212,12 @@ font-size: 0.95em;
 
       // Apply rule
       if (this.sheet) {
-        this._insertRule(selector);
-      } else {
-        this.pendingRules.push(selector);
+        const success = this._insertRule(selector);
+        if (!success) {
+          // Rollback on immediate insertion failure
+          this.listeners.delete(selector);
+          this.rules.delete(selector);
+        }
       }
     }
 
@@ -8306,7 +8226,6 @@ font-size: 0.95em;
      * @param {(element: Element) => void} callback
      */
     off(selector, callback) {
-      if (this.isDestroyed) return;
       const callbacks = this.listeners.get(selector);
       if (!callbacks) return;
 
@@ -8320,7 +8239,6 @@ font-size: 0.95em;
         // Remove listener and rule
         this.listeners.delete(selector);
         this.rules.delete(selector);
-        this.pendingRules = this.pendingRules.filter((r) => r !== selector);
 
         if (this.sheet) {
           // Iterate backwards to avoid index shifting issues during deletion
@@ -8328,7 +8246,7 @@ font-size: 0.95em;
             const rule = this.sheet.cssRules[i];
             // Check for recorded selector via WeakMap or fallback to selectorText match
             const recordedSelector = this.ruleSelectors.get(rule);
-            if (recordedSelector === selector || (rule instanceof CSSStyleRule && rule.selectorText === selector)) {
+            if (recordedSelector === selector || (rule instanceof CSSStyleRule && (rule.selectorText === selector || rule.selectorText === this.normalizedSelectors.get(selector)))) {
               try {
                 this.sheet.deleteRule(i);
               } catch (e) {
@@ -8343,7 +8261,7 @@ font-size: 0.95em;
     }
 
     suspend() {
-      if (this.isDestroyed || this.isSuspended) return;
+      if (this.isSuspended) return;
       this.isSuspended = true;
       if (this.styleElement instanceof HTMLStyleElement) {
         this.styleElement.disabled = true;
@@ -8352,7 +8270,7 @@ font-size: 0.95em;
     }
 
     resume() {
-      if (this.isDestroyed || !this.isSuspended) return;
+      if (!this.isSuspended) return;
       this.isSuspended = false;
       if (this.styleElement instanceof HTMLStyleElement) {
         this.styleElement.disabled = false;
