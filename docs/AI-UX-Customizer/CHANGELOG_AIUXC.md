@@ -1,9 +1,15 @@
 # Changelog
 
-### **[IMPORTANT] Compatibility**: Due to updates in `NavigationMonitor`, if using this script with my other scripts, strict version matching is required:
-- AI UX Customizer (AIUXC): v1.4.1+
-- Quick Text Buttons (QTB): v3.3.1+
-- Gemini Default Model Setter (GDMS): v1.2.1+
+### **[IMPORTANT] Compatibility**
+Due to updates to the internal monitoring and coordination mechanisms, strict version matching is required when using this script together with my other scripts:
+- AI UX Customizer (AIUXC): v1.4.2+
+- Quick Text Buttons (QTB): v3.3.2+
+- Gemini Default Model Setter (GDMS): v1.2.2+
+
+## [1.4.2] - 2026-05-25
+- **Core Changes**
+  - [Sentinel] Enhanced internal handling to ensure continuous and reliable node detection even on websites with unique or complex page update processes.
+  - [Sentinel] Optimized background event handling while the monitor is suspended, reducing the overall performance impact on the browser.
 
 ## [1.4.1] - 2026-05-24
 - **Fixed & Optimized**
