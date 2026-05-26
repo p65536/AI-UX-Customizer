@@ -2,9 +2,24 @@
 
 ### **[IMPORTANT] Compatibility**
 Due to updates to the internal monitoring and coordination mechanisms, strict version matching is required when using this script together with my other scripts:
-- AI UX Customizer (AIUXC): v1.4.2+
-- Quick Text Buttons (QTB): v3.3.2+
-- Gemini Default Model Setter (GDMS): v1.2.2+
+- AI UX Customizer (AIUXC): v1.4.3+
+- Quick Text Buttons (QTB): v3.3.3+
+- Gemini Default Model Setter (GDMS): v1.2.3+
+
+## [3.3.5] - 2026-05-26
+- **Fixed & Optimized**
+  - [TextEditor] Fixed a bug where icon-only buttons (move up/down, delete) inside the text editor modal were completely unresponsive when clicked.
+  - [TextEditor] Restored full functionality to the drag-and-drop text item reordering mechanism.
+
+## [3.3.4] - 2026-05-26
+- **Core Changes**
+  - [UI] Optimized modal window creation to prevent double-rendering and ensure smoother interface transitions.
+  - [Code Quality] Cleaned up redundant background initialization tasks to streamline internal lifecycle management.
+
+## [3.3.3] - 2026-05-26
+- **Core Changes**
+  - [Navigation] Upgraded the page navigation monitor to support co-existing scripts, preventing event interference on shared pages.
+  - [Navigation] Improved stability and performance during rapid page transitions by ensuring obsolete background tasks are immediately cancelled.
 
 ## [3.3.2] - 2026-05-25
 - **Core Changes**

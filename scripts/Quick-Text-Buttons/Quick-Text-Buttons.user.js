@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Quick-Text-Buttons
 // @namespace    https://github.com/p65536
-// @version      3.3.2
+// @version      3.3.5
 // @license      MIT
 // @description  Adds customizable text buttons to paste frequently used prompts into [ChatGPT/Gemini/Claude] inputs.
 // @icon         https://cdn.jsdelivr.net/gh/p65536/p65536@main/images/icons/qtb.svg
@@ -357,6 +357,9 @@
       PAGE_OBSERVERS: 'page_observers',
       MODAL: 'modal',
       UI_RENDER_CYCLE: 'ui_render_cycle',
+    },
+    NAV_PURPOSE: {
+      LIFECYCLE: 'lifecycle',
     },
   };
 
@@ -2463,6 +2466,15 @@ font-size: 0.95em;
     return `${contextName}.${purpose}`;
   }
 
+  /**
+   * Creates a unique consistent subscriber key for NavigationMonitor.
+   * @param {string} purpose - The purpose identifier from CONSTANTS.NAV_PURPOSE.
+   * @returns {string} A key in the format '${APPID}-purpose'.
+   */
+  function createSubscriberKey(purpose) {
+    return `${APPID}-${purpose}`;
+  }
+
   // =================================================================================
   // SECTION: Utility Functions
   // =================================================================================
@@ -4553,9 +4565,6 @@ font-size: 0.95em;
         return;
       }
 
-      // Clean up previous render's resources
-      this.manageResource(CONSTANTS.RESOURCE_KEYS.UI_RENDER_CYCLE, null);
-
       if (this.formContainer) {
         this.formContainer.replaceChildren();
         this._renderContent();
@@ -4912,40 +4921,39 @@ font-size: 0.95em;
           },
         });
 
-        // Clean up previous render's resources before creating a new view cycle
-        this.manageResource(CONSTANTS.RESOURCE_KEYS.UI_RENDER_CYCLE, null);
-
-        const modal = new CustomModal({
-          title: `${APPNAME} - Settings`,
-          width: 'min(880px, 95vw)',
-          closeOnBackdropClick: false,
-          buttons: [
-            { text: 'Cancel', id: `${APPID}-editor-modal-cancel-btn`, className: '', title: 'Discard changes and close the modal.', onClick: () => this.close() },
-            { text: 'Apply', id: `${APPID}-editor-modal-apply-btn`, className: '', title: 'Save changes and keep the modal open.', onClick: () => this._handleSaveAction(false) },
-            { text: 'Save', id: `${APPID}-editor-modal-save-btn`, className: commonCls.primaryBtn, title: 'Save changes and close the modal.', onClick: () => this._handleSaveAction(true) },
-          ],
-          onCancel: (e) => {
-            const mode = this.store.get('editor.mode');
-            if (mode === 'rename') {
-              // In rename mode, ESC should only cancel the rename, not close the modal.
-              e.preventDefault();
-              this._exitRenameMode(true);
-            } else if (mode === 'delete_confirm') {
-              // In delete confirm mode, ESC should only cancel the confirmation.
-              e.preventDefault();
-              this._exitDeleteConfirmationMode();
-            }
-          },
-          onDestroy: () => {
-            this.callbacks.onModalOpenStateChange?.(false);
-            this.store = null;
-            this.modal = null;
-            this.cachedConfig = null;
-            this.manageResource(CONSTANTS.RESOURCE_KEYS.MODAL, null);
-          },
-        });
-        this.manageResource(CONSTANTS.RESOURCE_KEYS.MODAL, modal);
-        this.modal = modal;
+        this.modal = this.manageFactory(
+          CONSTANTS.RESOURCE_KEYS.MODAL,
+          () =>
+            new CustomModal({
+              title: `${APPNAME} - Settings`,
+              width: 'min(880px, 95vw)',
+              closeOnBackdropClick: false,
+              buttons: [
+                { text: 'Cancel', id: `${APPID}-editor-modal-cancel-btn`, className: '', title: 'Discard changes and close the modal.', onClick: () => this.close() },
+                { text: 'Apply', id: `${APPID}-editor-modal-apply-btn`, className: '', title: 'Save changes and keep the modal open.', onClick: () => this._handleSaveAction(false) },
+                { text: 'Save', id: `${APPID}-editor-modal-save-btn`, className: commonCls.primaryBtn, title: 'Save changes and close the modal.', onClick: () => this._handleSaveAction(true) },
+              ],
+              onCancel: (e) => {
+                const mode = this.store.get('editor.mode');
+                if (mode === 'rename') {
+                  // In rename mode, ESC should only cancel the rename, not close the modal.
+                  e.preventDefault();
+                  this._exitRenameMode(true);
+                } else if (mode === 'delete_confirm') {
+                  // In delete confirm mode, ESC should only cancel the confirmation.
+                  e.preventDefault();
+                  this._exitDeleteConfirmationMode();
+                }
+              },
+              onDestroy: () => {
+                this.callbacks.onModalOpenStateChange?.(false);
+                this.store = null;
+                this.modal = null;
+                this.cachedConfig = null;
+                this.manageResource(CONSTANTS.RESOURCE_KEYS.MODAL, null);
+              },
+            })
+        );
 
         // Render UI content using UIBuilder
         const content = this._renderEditorUI();
@@ -5260,7 +5268,7 @@ font-size: 0.95em;
       const cls = this.styleHandle.classes;
 
       modalElement.addEventListener('click', (e) => {
-        if (!(e.target instanceof HTMLElement)) return;
+        if (!(e.target instanceof Element)) return;
         const target = e.target.closest('button');
         if (!target) return;
 
@@ -5372,7 +5380,7 @@ font-size: 0.95em;
       const getScrollArea = () => modalElement.querySelector(`.${cls.scrollableArea}`);
 
       modalElement.addEventListener('dragstart', (e) => {
-        if (!(e.target instanceof HTMLElement)) return;
+        if (!(e.target instanceof Element)) return;
         const scrollArea = getScrollArea();
         if (!scrollArea) return;
 
@@ -5409,7 +5417,7 @@ font-size: 0.95em;
           el.classList.remove('drag-over-top', 'drag-over-bottom');
         });
 
-        if (!(e.target instanceof HTMLElement)) return;
+        if (!(e.target instanceof Element)) return;
         const target = e.target.closest(`.${cls.textItem}`);
         if (target instanceof HTMLElement && target !== draggingElement) {
           const box = target.getBoundingClientRect();
@@ -6076,27 +6084,29 @@ font-size: 0.95em;
         const cls = this.styleHandle.classes;
         const commonCls = this.commonStyleHandle.classes;
 
-        const modal = new CustomModal({
-          title: `${APPNAME} Settings`,
-          width: 'min(440px, 95vw)',
-          closeOnBackdropClick: true,
-          buttons: [
-            { text: 'Export', id: `${APPID}-json-modal-export-btn`, className: '', onClick: () => this._handleExport() },
-            { text: 'Import', id: `${APPID}-json-modal-import-btn`, className: '', onClick: () => this._handleImport() },
-            { text: 'Cancel', id: `${APPID}-json-modal-cancel-btn`, className: commonCls.pushRightBtn, onClick: () => this.close() },
-            { text: 'Save', id: `${APPID}-json-modal-save-btn`, className: commonCls.primaryBtn, onClick: () => this._handleSave() },
-          ],
-          onDestroy: () => {
-            this.debouncedUpdateSize.cancel();
+        this.modal = this.manageFactory(
+          CONSTANTS.RESOURCE_KEYS.MODAL,
+          () =>
+            new CustomModal({
+              title: `${APPNAME} Settings`,
+              width: 'min(440px, 95vw)',
+              closeOnBackdropClick: true,
+              buttons: [
+                { text: 'Export', id: `${APPID}-json-modal-export-btn`, className: '', onClick: () => this._handleExport() },
+                { text: 'Import', id: `${APPID}-json-modal-import-btn`, className: '', onClick: () => this._handleImport() },
+                { text: 'Cancel', id: `${APPID}-json-modal-cancel-btn`, className: commonCls.pushRightBtn, onClick: () => this.close() },
+                { text: 'Save', id: `${APPID}-json-modal-save-btn`, className: commonCls.primaryBtn, onClick: () => this._handleSave() },
+              ],
+              onDestroy: () => {
+                this.debouncedUpdateSize.cancel();
 
-            this.callbacks.onModalOpenStateChange?.(false);
-            this.store = null;
-            this.modal = null;
-            this.manageResource(CONSTANTS.RESOURCE_KEYS.MODAL, null);
-          },
-        });
-        this.manageResource(CONSTANTS.RESOURCE_KEYS.MODAL, modal);
-        this.modal = modal;
+                this.callbacks.onModalOpenStateChange?.(false);
+                this.store = null;
+                this.modal = null;
+                this.manageResource(CONSTANTS.RESOURCE_KEYS.MODAL, null);
+              },
+            })
+        );
 
         // Apply scoped root class to prevent style leak
         this.modal.element.classList.add(cls.modalRoot);
@@ -6112,9 +6122,6 @@ font-size: 0.95em;
             sizeInfo: { text: 'Checking size...' },
           },
         });
-
-        // Clean up previous render's resources before creating a new view cycle
-        this.manageResource(CONSTANTS.RESOURCE_KEYS.UI_RENDER_CYCLE, null);
 
         // Render content using UIBuilder
         const content = this._renderJsonContent();
@@ -6436,18 +6443,20 @@ font-size: 0.95em;
       const cls = this.styleHandle.classes;
       const commonCls = StyleManager.request(StyleDefinitions.getCommon).classes;
 
-      const modal = new CustomModal({
-        title: `${APPNAME} Keyboard Shortcuts`,
-        width: 'min(400px, 95vw)',
-        closeOnBackdropClick: true,
-        buttons: [{ text: 'Close', id: `${APPID}-shortcut-close-btn`, className: commonCls.primaryBtn, onClick: () => this.close() }],
-        onDestroy: () => {
-          this.modal = null;
-          this.manageResource(CONSTANTS.RESOURCE_KEYS.MODAL, null);
-        },
-      });
-      this.manageResource(CONSTANTS.RESOURCE_KEYS.MODAL, modal);
-      this.modal = modal;
+      this.modal = this.manageFactory(
+        CONSTANTS.RESOURCE_KEYS.MODAL,
+        () =>
+          new CustomModal({
+            title: `${APPNAME} Keyboard Shortcuts`,
+            width: 'min(400px, 95vw)',
+            closeOnBackdropClick: true,
+            buttons: [{ text: 'Close', id: `${APPID}-shortcut-close-btn`, className: commonCls.primaryBtn, onClick: () => this.close() }],
+            onDestroy: () => {
+              this.modal = null;
+              this.manageResource(CONSTANTS.RESOURCE_KEYS.MODAL, null);
+            },
+          })
+      );
 
       // Helper to create grid rows
       const createRow = (keys, desc, separator = ' + ') => {
@@ -7688,6 +7697,7 @@ font-size: 0.95em;
    * @description A shared, safe History API wrapper to detect SPA navigations. Prevents infinite nesting and conflicts across multiple userscripts.
    * * [USAGE NOTES]
    * - **Singleton Coordination**: This class acts as a centralized Singleton coordinator per `ownerId` to multiplex navigation events across multiple script instances seamlessly.
+   * - **Subscriber-Based Idempotency**: Subscriptions are uniquely identified via a `subscriberId`. Registering a subscriber with an existing ID will safely cancel its pending debounced execution and overwrite it with the new configuration.
    * - **Persistent Hooking**: For cross-script stability, this coordinator does not implement a `destroy` or history restoration mechanism. The History API hooks remain active permanently.
    * - **Listener Lifecycle**: Invoke the unsubscription token function returned by the `on()` method to safely remove the script's listeners from the shared coordinator.
    */
@@ -7707,7 +7717,7 @@ font-size: 0.95em;
         return globalScope.__global_nav_coordinators__[ownerId];
       }
 
-      this.listeners = new Set();
+      this.listeners = new Map();
       this.originalHistoryMethods = { pushState: null, replaceState: null };
       this._historyWrappers = {};
       this.isHooked = false;
@@ -7719,22 +7729,24 @@ font-size: 0.95em;
     }
 
     /**
+     * @param {string} subscriberId - Unique key to identify the subscriber and prevent duplicates.
      * @param {Function} onNavStart
      * @param {Function} onNavSettled
      * @param {Object} options - Configuration parameters for the navigation subscription.
      * @param {boolean} options.trackHash - Specifies whether the subscriber triggers on location.hash modifications.
      * @returns {() => void} A function to unsubscribe this listener pair.
      */
-    on(onNavStart, onNavSettled, options) {
+    on(subscriberId, onNavStart, onNavSettled, options) {
       /** @type {Window & { __global_nav_coordinators__?: Record<string, any> }} */
       const globalScope = window;
       const coordinator = globalScope.__global_nav_coordinators__[this.ownerId];
       if (!coordinator) return () => {};
 
-      // Prevent duplicate registrations of the same onNavStart callback.
-      // This ensures idempotency when the script is re-injected or on() is called multiple times.
-      for (const pair of coordinator.listeners) {
-        if (pair.onNavStart === onNavStart) return () => {};
+      // If a subscriber with the same subscriberId already exists, cancel its debounce and overwrite it safely.
+      if (coordinator.listeners.has(subscriberId)) {
+        const existingPair = coordinator.listeners.get(subscriberId);
+        existingPair.debouncedNavigation.cancel();
+        coordinator.listeners.delete(subscriberId);
       }
 
       // Configure hash-tracking behavior based on the explicit subscription option.
@@ -7749,7 +7761,7 @@ font-size: 0.95em;
         lastPath: initialPath,
       };
 
-      coordinator.listeners.add(listenerPair);
+      coordinator.listeners.set(subscriberId, listenerPair);
 
       if (!coordinator.isHooked) {
         coordinator.lastPath = location.pathname + location.search + location.hash;
@@ -7759,7 +7771,7 @@ font-size: 0.95em;
           if (fullPath === coordinator.lastPath) return;
           coordinator.lastPath = fullPath;
 
-          for (const pair of coordinator.listeners) {
+          for (const pair of coordinator.listeners.values()) {
             const currentPath = pair.trackHash ? fullPath : location.pathname + location.search;
 
             if (currentPath !== pair.lastPath) {
@@ -7777,12 +7789,16 @@ font-size: 0.95em;
         this._hookHistory(coordinator);
         globalScope.addEventListener(`${this.ownerId}:locationchange`, coordinator._boundHandleCustomNavEvent);
         globalScope.addEventListener('popstate', coordinator._boundHandlePopState);
+        globalScope.addEventListener('hashchange', coordinator._boundHandlePopState);
       }
 
       // Return the unsubscription token closure directly.
       return () => {
         listenerPair.debouncedNavigation.cancel();
-        coordinator.listeners.delete(listenerPair);
+        // Only remove from coordinator if this specific listener instance is still active
+        if (coordinator.listeners.get(subscriberId) === listenerPair) {
+          coordinator.listeners.delete(subscriberId);
+        }
       };
     }
 
@@ -8427,7 +8443,7 @@ font-size: 0.95em;
       this.addDisposable(this.app);
 
       // Start navigation monitoring
-      this.addDisposable(this.navMonitor.on(this._boundNavStart, this._boundNavSettled, { trackHash: false }));
+      this.addDisposable(this.navMonitor.on(createSubscriberKey(CONSTANTS.NAV_PURPOSE.LIFECYCLE), this._boundNavStart, this._boundNavSettled, { trackHash: false }));
 
       // Trigger 1: DOM Detection
       sentinel.on(this.platformDetails.selectors.INPUT_TARGET, this._boundUpdateState);
