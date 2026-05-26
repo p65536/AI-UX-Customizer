@@ -818,6 +818,7 @@ interface PlatformConstants {
         AUTO_SCROLL_MANAGER: string;
         LAYOUT_RESIZE_OBSERVER: string;
         INTEGRITY_SCAN: string;
+        PAGE_SCOPE: string;
         BATCH_TASK: string;
         BATCH_TASK_TURN: string;
         ZERO_MSG_TIMER: string;
@@ -829,6 +830,10 @@ interface PlatformConstants {
         HEARTBEAT_TIMER: string;
         SELF_HEAL_TASK: string;
     };
+    NAV_PURPOSE: {
+        LIFECYCLE: string;
+    };
+
     // Platform specific additions
     OBSERVER_OPTIONS?: MutationObserverInit;
     ATTRIBUTES?: Record<string, string>;

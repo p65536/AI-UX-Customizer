@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.4.2
+// @version      1.4.5
 // @license      MIT
 // @description  Fully customize the chat UI of [ChatGPT/Gemini]. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://cdn.jsdelivr.net/gh/p65536/p65536@main/images/icons/aiuxc.svg
@@ -363,6 +363,7 @@
       // Observer Resources
       LAYOUT_RESIZE_OBSERVER: 'layoutResizeObserver',
       INTEGRITY_SCAN: 'integrityScan',
+      PAGE_SCOPE: 'pageScope',
 
       // Task Resources
       BATCH_TASK: 'batchTask',
@@ -381,6 +382,9 @@
       // System Resources
       HEARTBEAT_TIMER: 'heartbeatTimer',
       SELF_HEAL_TASK: 'selfHealTask',
+    },
+    NAV_PURPOSE: {
+      LIFECYCLE: 'lifecycle',
     },
   };
 
@@ -3608,7 +3612,11 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
       isNewChatPage() {
         const path = window.location.pathname;
         // Main new chat page or GPT/Project top page (no conversation ID)
-        return path === '/' || (path.startsWith('/g/') && !path.includes('/c/'));
+        if (!(path === '/' || (path.startsWith('/g/') && !path.includes('/c/')))) {
+          return false;
+        }
+        // Check if there are active temporary chat messages in the DOM
+        return !document.querySelector(CONSTANTS.SELECTORS.MESSAGE_ROOT_NODE);
       }
 
       /** @override */
@@ -5612,7 +5620,11 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
         // 1. /app (Standard New Chat)
         // 2. /gems/view (Gems List)
         // 3. /gem/[GemID] (Gem Top - no ChatID)
-        return /^\/app\/?$/.test(path) || /^\/gems\/view\/?$/.test(path) || /^\/gem\/[^/]+\/?$/.test(path);
+        if (!(/^\/app\/?$/.test(path) || /^\/gems\/view\/?$/.test(path) || /^\/gem\/[^/]+\/?$/.test(path))) {
+          return false;
+        }
+        // Check if there are active temporary chat messages in the DOM
+        return !document.querySelector(CONSTANTS.SELECTORS.MESSAGE_ROOT_NODE);
       }
 
       /** @override */
@@ -7154,6 +7166,15 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       contextName = context.constructor.name;
     }
     return `${contextName}.${purpose}`;
+  }
+
+  /**
+   * Creates a unique consistent subscriber key for NavigationMonitor.
+   * @param {string} purpose - The purpose identifier from CONSTANTS.NAV_PURPOSE.
+   * @returns {string} A key in the format '${APPID}-purpose'.
+   */
+  function createSubscriberKey(purpose) {
+    return `${APPID}-${purpose}`;
   }
 
   // =================================================================================
@@ -9965,6 +9986,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
    * @description A shared, safe History API wrapper to detect SPA navigations. Prevents infinite nesting and conflicts across multiple userscripts.
    * * [USAGE NOTES]
    * - **Singleton Coordination**: This class acts as a centralized Singleton coordinator per `ownerId` to multiplex navigation events across multiple script instances seamlessly.
+   * - **Subscriber-Based Idempotency**: Subscriptions are uniquely identified via a `subscriberId`. Registering a subscriber with an existing ID will safely cancel its pending debounced execution and overwrite it with the new configuration.
    * - **Persistent Hooking**: For cross-script stability, this coordinator does not implement a `destroy` or history restoration mechanism. The History API hooks remain active permanently.
    * - **Listener Lifecycle**: Invoke the unsubscription token function returned by the `on()` method to safely remove the script's listeners from the shared coordinator.
    */
@@ -9984,7 +10006,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         return globalScope.__global_nav_coordinators__[ownerId];
       }
 
-      this.listeners = new Set();
+      this.listeners = new Map();
       this.originalHistoryMethods = { pushState: null, replaceState: null };
       this._historyWrappers = {};
       this.isHooked = false;
@@ -9996,22 +10018,24 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     }
 
     /**
+     * @param {string} subscriberId - Unique key to identify the subscriber and prevent duplicates.
      * @param {Function} onNavStart
      * @param {Function} onNavSettled
      * @param {Object} options - Configuration parameters for the navigation subscription.
      * @param {boolean} options.trackHash - Specifies whether the subscriber triggers on location.hash modifications.
      * @returns {() => void} A function to unsubscribe this listener pair.
      */
-    on(onNavStart, onNavSettled, options) {
+    on(subscriberId, onNavStart, onNavSettled, options) {
       /** @type {Window & { __global_nav_coordinators__?: Record<string, any> }} */
       const globalScope = window;
       const coordinator = globalScope.__global_nav_coordinators__[this.ownerId];
       if (!coordinator) return () => {};
 
-      // Prevent duplicate registrations of the same onNavStart callback.
-      // This ensures idempotency when the script is re-injected or on() is called multiple times.
-      for (const pair of coordinator.listeners) {
-        if (pair.onNavStart === onNavStart) return () => {};
+      // If a subscriber with the same subscriberId already exists, cancel its debounce and overwrite it safely.
+      if (coordinator.listeners.has(subscriberId)) {
+        const existingPair = coordinator.listeners.get(subscriberId);
+        existingPair.debouncedNavigation.cancel();
+        coordinator.listeners.delete(subscriberId);
       }
 
       // Configure hash-tracking behavior based on the explicit subscription option.
@@ -10026,7 +10050,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         lastPath: initialPath,
       };
 
-      coordinator.listeners.add(listenerPair);
+      coordinator.listeners.set(subscriberId, listenerPair);
 
       if (!coordinator.isHooked) {
         coordinator.lastPath = location.pathname + location.search + location.hash;
@@ -10036,7 +10060,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
           if (fullPath === coordinator.lastPath) return;
           coordinator.lastPath = fullPath;
 
-          for (const pair of coordinator.listeners) {
+          for (const pair of coordinator.listeners.values()) {
             const currentPath = pair.trackHash ? fullPath : location.pathname + location.search;
 
             if (currentPath !== pair.lastPath) {
@@ -10054,12 +10078,16 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         this._hookHistory(coordinator);
         globalScope.addEventListener(`${this.ownerId}:locationchange`, coordinator._boundHandleCustomNavEvent);
         globalScope.addEventListener('popstate', coordinator._boundHandlePopState);
+        globalScope.addEventListener('hashchange', coordinator._boundHandlePopState);
       }
 
       // Return the unsubscription token closure directly.
       return () => {
         listenerPair.debouncedNavigation.cancel();
-        coordinator.listeners.delete(listenerPair);
+        // Only remove from coordinator if this specific listener instance is still active
+        if (coordinator.listeners.get(subscriberId) === listenerPair) {
+          coordinator.listeners.delete(subscriberId);
+        }
       };
     }
 
@@ -11089,7 +11117,6 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       /** @type {Map<HTMLElement, { observer: MutationObserver, cancel: () => void }>} */
       this.mutationTurnObservers = new Map();
       this.debouncedCacheUpdate = debounce(this._publishCacheUpdate.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.CACHE_UPDATE, true);
-      this.pageScopeCleaner = null;
       this.streamingState = streamingState;
 
       // The debounced visibility check
@@ -11431,19 +11458,12 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
           }
         }
 
-        // Clean up all resources from the previous page using the scope cleaner.
-        // This disposes the previous PageObserverScope and removes it from BaseManager.
-        if (this.pageScopeCleaner) {
-          this.pageScopeCleaner();
-          this.pageScopeCleaner = null;
-        }
-
         this.manageResource(CONSTANTS.RESOURCE_KEYS.ZERO_MSG_TIMER, null); // Stop any pending 0-message timers
 
         // Create a new scope for the current page
         const scope = new PageObserverScope();
-        // Register the scope with BaseManager (auto-cleanup on destroy) and keep the cleaner
-        this.pageScopeCleaner = this.addDisposable(scope);
+        // Register the scope with BaseManager (auto-cleanup on navigation/destroy)
+        this.manageResource(CONSTANTS.RESOURCE_KEYS.PAGE_SCOPE, scope);
 
         // Clean up any lingering turn completion listeners from the previous page.
         for (const [selector, callback] of this.sentinelTurnListeners.values()) {
@@ -21437,7 +21457,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       const onNavStart = () => EventBus.publish(EVENTS.NAVIGATION_START);
       const onNavSettled = () => EventBus.publish(EVENTS.NAVIGATION);
 
-      const unsubscribe = monitor.on(onNavStart, onNavSettled, { trackHash: false });
+      const subscriberId = createSubscriberKey(CONSTANTS.NAV_PURPOSE.LIFECYCLE);
+      const unsubscribe = monitor.on(subscriberId, onNavStart, onNavSettled, { trackHash: false });
 
       // Register cleanup to remove listeners on destroy
       this.manageResource(CONSTANTS.RESOURCE_KEYS.NAVIGATION_MONITOR, { destroy: unsubscribe });
