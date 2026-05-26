@@ -2,9 +2,19 @@
 
 ### **[IMPORTANT] Compatibility**
 Due to updates to the internal monitoring and coordination mechanisms, strict version matching is required when using this script together with my other scripts:
-- AI UX Customizer (AIUXC): v1.4.2+
-- Quick Text Buttons (QTB): v3.3.2+
-- Gemini Default Model Setter (GDMS): v1.2.2+
+- AI UX Customizer (AIUXC): v1.4.3+
+- Quick Text Buttons (QTB): v3.3.3+
+- Gemini Default Model Setter (GDMS): v1.2.3+
+
+## [1.2.4] - 2026-05-26
+- **Core Changes**
+  - [Menu] Automated the removal of stale extension menu commands to prevent options from lingering after updates.
+  - [Menu] Streamlined component cleanup logic for reduced memory usage and enhanced extension reliability.
+
+## [1.2.3] - 2026-05-26
+- **Core Changes**
+  - [Navigation] Upgraded the page navigation monitor to support co-existing scripts, preventing event interference on shared pages.
+  - [Navigation] Improved stability and performance during rapid page transitions by ensuring obsolete background tasks are immediately cancelled.
 
 ## [1.2.2] - 2026-05-25
 - **Core Changes**

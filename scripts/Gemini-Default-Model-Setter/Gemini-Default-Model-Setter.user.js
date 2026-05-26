@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini Default Model Setter
 // @namespace    https://github.com/p65536
-// @version      1.2.2
+// @version      1.2.4
 // @license      MIT
 // @description  Automatically selects a specific model and its additional settings for Gemini upon page load, URL change, or tab return. The target patterns and script state can be easily configured via the extension menu.
 // @icon         https://cdn.jsdelivr.net/gh/p65536/p65536@main/images/icons/gdms.svg
@@ -35,6 +35,9 @@
       FOCUS_POLL_INTERVAL_MS: 60,
       FOCUS_POLL_MAX_ATTEMPTS: 20,
       FALLBACK_DELAYS_MS: [300, 800, 1500, 3000],
+    },
+    NAV_PURPOSE: {
+      LIFECYCLE: 'lifecycle',
     },
   };
 
@@ -299,6 +302,15 @@
       contextName = context.constructor.name;
     }
     return `${contextName}.${purpose}`;
+  }
+
+  /**
+   * Creates a unique consistent subscriber key for NavigationMonitor.
+   * @param {string} purpose - The purpose identifier from CONSTANTS.NAV_PURPOSE.
+   * @returns {string} A key in the format '${APPID}-purpose'.
+   */
+  function createSubscriberKey(purpose) {
+    return `${APPID}-${purpose}`;
   }
 
   // =================================================================================
@@ -839,6 +851,7 @@
    * @description A shared, safe History API wrapper to detect SPA navigations. Prevents infinite nesting and conflicts across multiple userscripts.
    * * [USAGE NOTES]
    * - **Singleton Coordination**: This class acts as a centralized Singleton coordinator per `ownerId` to multiplex navigation events across multiple script instances seamlessly.
+   * - **Subscriber-Based Idempotency**: Subscriptions are uniquely identified via a `subscriberId`. Registering a subscriber with an existing ID will safely cancel its pending debounced execution and overwrite it with the new configuration.
    * - **Persistent Hooking**: For cross-script stability, this coordinator does not implement a `destroy` or history restoration mechanism. The History API hooks remain active permanently.
    * - **Listener Lifecycle**: Invoke the unsubscription token function returned by the `on()` method to safely remove the script's listeners from the shared coordinator.
    */
@@ -858,7 +871,7 @@
         return globalScope.__global_nav_coordinators__[ownerId];
       }
 
-      this.listeners = new Set();
+      this.listeners = new Map();
       this.originalHistoryMethods = { pushState: null, replaceState: null };
       this._historyWrappers = {};
       this.isHooked = false;
@@ -870,22 +883,24 @@
     }
 
     /**
+     * @param {string} subscriberId - Unique key to identify the subscriber and prevent duplicates.
      * @param {Function} onNavStart
      * @param {Function} onNavSettled
      * @param {Object} options - Configuration parameters for the navigation subscription.
      * @param {boolean} options.trackHash - Specifies whether the subscriber triggers on location.hash modifications.
      * @returns {() => void} A function to unsubscribe this listener pair.
      */
-    on(onNavStart, onNavSettled, options) {
+    on(subscriberId, onNavStart, onNavSettled, options) {
       /** @type {Window & { __global_nav_coordinators__?: Record<string, any> }} */
       const globalScope = window;
       const coordinator = globalScope.__global_nav_coordinators__[this.ownerId];
       if (!coordinator) return () => {};
 
-      // Prevent duplicate registrations of the same onNavStart callback.
-      // This ensures idempotency when the script is re-injected or on() is called multiple times.
-      for (const pair of coordinator.listeners) {
-        if (pair.onNavStart === onNavStart) return () => {};
+      // If a subscriber with the same subscriberId already exists, cancel its debounce and overwrite it safely.
+      if (coordinator.listeners.has(subscriberId)) {
+        const existingPair = coordinator.listeners.get(subscriberId);
+        existingPair.debouncedNavigation.cancel();
+        coordinator.listeners.delete(subscriberId);
       }
 
       // Configure hash-tracking behavior based on the explicit subscription option.
@@ -900,7 +915,7 @@
         lastPath: initialPath,
       };
 
-      coordinator.listeners.add(listenerPair);
+      coordinator.listeners.set(subscriberId, listenerPair);
 
       if (!coordinator.isHooked) {
         coordinator.lastPath = location.pathname + location.search + location.hash;
@@ -910,7 +925,7 @@
           if (fullPath === coordinator.lastPath) return;
           coordinator.lastPath = fullPath;
 
-          for (const pair of coordinator.listeners) {
+          for (const pair of coordinator.listeners.values()) {
             const currentPath = pair.trackHash ? fullPath : location.pathname + location.search;
 
             if (currentPath !== pair.lastPath) {
@@ -928,12 +943,16 @@
         this._hookHistory(coordinator);
         globalScope.addEventListener(`${this.ownerId}:locationchange`, coordinator._boundHandleCustomNavEvent);
         globalScope.addEventListener('popstate', coordinator._boundHandlePopState);
+        globalScope.addEventListener('hashchange', coordinator._boundHandlePopState);
       }
 
       // Return the unsubscription token closure directly.
       return () => {
         listenerPair.debouncedNavigation.cancel();
-        coordinator.listeners.delete(listenerPair);
+        // Only remove from coordinator if this specific listener instance is still active
+        if (coordinator.listeners.get(subscriberId) === listenerPair) {
+          coordinator.listeners.delete(subscriberId);
+        }
       };
     }
 
@@ -1653,9 +1672,6 @@
     #isThinkingSettledForCurrentContext = false;
     #targetText = '';
     #targetThinkingText = '';
-    #visibilityMenuCommandId = null;
-    #targetMenuCommandId = null;
-    #thinkingMenuCommandId = null;
     #abortController = null;
     #sentinel = null;
     #adapter = null;
@@ -1777,7 +1793,7 @@
         this.#scheduleFallbackChecks();
       };
 
-      this.addDisposable(this.#navigationMonitor.on(onNavStart, onNavSettled, { trackHash: false }));
+      this.addDisposable(this.#navigationMonitor.on(createSubscriberKey(this.#constants.NAV_PURPOSE.LIFECYCLE), onNavStart, onNavSettled, { trackHash: false }));
 
       const visibilityListener = () => {
         if (document.visibilityState === 'visible' && this.#isVisibilityCheckEnabled) {
@@ -1809,12 +1825,6 @@
      * Update the Tampermonkey menu command label based on the current state
      */
     async #updateMenuCommand() {
-      await Promise.all([
-        this.#targetMenuCommandId !== null ? GM.unregisterMenuCommand(this.#targetMenuCommandId) : Promise.resolve(),
-        this.#thinkingMenuCommandId !== null ? GM.unregisterMenuCommand(this.#thinkingMenuCommandId) : Promise.resolve(),
-        this.#visibilityMenuCommandId !== null ? GM.unregisterMenuCommand(this.#visibilityMenuCommandId) : Promise.resolve(),
-      ]);
-
       const visibilityStateText = this.#isVisibilityCheckEnabled ? `🟢 Auto-Check on Re-focus: ON` : `🔴 Auto-Check on Re-focus: OFF`;
       const visibilityTooltipText = this.#isVisibilityCheckEnabled ? 'Click to disable checking the model when returning to this page' : 'Click to enable checking the model when returning to this page';
 
@@ -1837,9 +1847,10 @@
         ),
       ]);
 
-      this.#targetMenuCommandId = targetId;
-      this.#thinkingMenuCommandId = thinkingId;
-      this.#visibilityMenuCommandId = visibilityId;
+      // Manage menu command registrations dynamically using the resource manager to ensure proper unregistration.
+      this.manageResource('menu_target', () => GM.unregisterMenuCommand(targetId));
+      this.manageResource('menu_thinking', () => GM.unregisterMenuCommand(thinkingId));
+      this.manageResource('menu_visibility', () => GM.unregisterMenuCommand(visibilityId));
     }
 
     /**
