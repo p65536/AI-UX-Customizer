@@ -6,6 +6,10 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [3.3.6] - 2026-05-30
+- **Core Changes**
+  - [EventBus] Enhanced event dispatch stability in debug mode when subscribers unsubscribe themselves dynamically.
+
 ## [3.3.5] - 2026-05-26
 - **Fixed & Optimized**
   - [TextEditor] Fixed a bug where icon-only buttons (move up/down, delete) inside the text editor modal were completely unresponsive when clicked.
