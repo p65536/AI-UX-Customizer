@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini Default Model Setter
 // @namespace    https://github.com/p65536
-// @version      1.2.5
+// @version      1.2.6
 // @license      MIT
 // @description  Automatically selects a specific model and its additional settings for Gemini upon page load, URL change, or tab return. The target patterns and script state can be easily configured via the extension menu.
 // @icon         https://cdn.jsdelivr.net/gh/p65536/p65536@main/images/icons/gdms.svg
@@ -1332,6 +1332,7 @@
         // Remove listener and rule
         this.listeners.delete(selector);
         this.rules.delete(selector);
+        this.normalizedSelectors.delete(selector);
 
         if (this.sheet) {
           // Iterate backwards to avoid index shifting issues during deletion
