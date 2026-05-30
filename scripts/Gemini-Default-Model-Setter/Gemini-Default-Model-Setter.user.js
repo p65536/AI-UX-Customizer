@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini Default Model Setter
 // @namespace    https://github.com/p65536
-// @version      1.2.4
+// @version      1.2.5
 // @license      MIT
 // @description  Automatically selects a specific model and its additional settings for Gemini upon page load, URL change, or tab return. The target patterns and script state can be easily configured via the extension menu.
 // @icon         https://cdn.jsdelivr.net/gh/p65536/p65536@main/images/icons/gdms.svg
@@ -208,7 +208,7 @@
         }
 
         // Iterate with keys for better logging
-        this.events[event].forEach((listener, key) => {
+        for (const [key, listener] of [...this.events[event].entries()]) {
           try {
             // Log which specific subscriber is being executed
             console.debug(`${this.logPrefix} [EventBus] -> Executing: ${key}`);
@@ -222,7 +222,7 @@
             // Enhance error logging with the specific subscriber key
             console.error(`${this.logPrefix} [LISTENER ERROR] Listener "${key}" failed for event "${event}":`, e);
           }
-        });
+        }
 
         console.groupEnd();
       } else {
