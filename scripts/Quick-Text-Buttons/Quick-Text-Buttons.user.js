@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Quick-Text-Buttons
 // @namespace    https://github.com/p65536
-// @version      3.3.6
+// @version      3.3.7
 // @license      MIT
 // @description  Adds customizable text buttons to paste frequently used prompts into [ChatGPT/Gemini/Claude] inputs.
 // @icon         https://cdn.jsdelivr.net/gh/p65536/p65536@main/images/icons/qtb.svg
@@ -8255,6 +8255,7 @@ font-size: 0.95em;
         // Remove listener and rule
         this.listeners.delete(selector);
         this.rules.delete(selector);
+        this.normalizedSelectors.delete(selector);
 
         if (this.sheet) {
           // Iterate backwards to avoid index shifting issues during deletion
