@@ -6,6 +6,10 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.4.6] - 2026-05-30
+- **Core Changes**
+  - [EventBus] Enhanced event dispatch stability in debug mode when subscribers unsubscribe themselves dynamically.
+
 ## [1.4.5] - 2026-05-26
 - **Core Changes**
   - [Refactor] Standardized page-specific resource tracking using the automated lifecycle manager to improve script stability during chat navigation.
