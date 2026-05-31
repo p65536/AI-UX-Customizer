@@ -6,6 +6,13 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.3.0] - 2026-05-31
+- **Core Changes**
+  - [Observer] Transitioned from CSS animation triggers (`Sentinel`) to a debounced `MutationObserver`. This embodies the core design philosophy of waiting for DOM stabilization before scanning the state, improving the reliability of model adjustments during heavy initial page loads and reloads.
+  - [Observer] Increased the maximum DOM stabilization timeout from 3 seconds to 10 seconds. This provides a resilient safety margin for low-spec devices or sluggish networks without adding any operational overhead, as the observer disconnects immediately once state configuration is settled.
+  - [Internal] Optimized internal resource management and standardized lifecycle tokens to improve script stability.
+  - [Internal] Removed the unused code.
+
 ## [1.2.6] - 2026-05-30
 - **Core Changes**
   - [Sentinel] Fixed a potential memory leak by ensuring normalized selector cache is cleared when removing the last listener for a selector.

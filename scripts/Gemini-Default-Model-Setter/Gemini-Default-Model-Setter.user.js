@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini Default Model Setter
 // @namespace    https://github.com/p65536
-// @version      1.2.6
+// @version      1.3.0
 // @license      MIT
 // @description  Automatically selects a specific model and its additional settings for Gemini upon page load, URL change, or tab return. The target patterns and script state can be easily configured via the extension menu.
 // @icon         https://cdn.jsdelivr.net/gh/p65536/p65536@main/images/icons/gdms.svg
@@ -34,10 +34,20 @@
       MENU_POLL_MAX_ATTEMPTS: 15,
       FOCUS_POLL_INTERVAL_MS: 60,
       FOCUS_POLL_MAX_ATTEMPTS: 20,
-      FALLBACK_DELAYS_MS: [300, 800, 1500, 3000],
+      DOM_STABILIZATION_DEBOUNCE_MS: 200,
+      DOM_STABILIZATION_TIMEOUT_MS: 10000,
     },
     NAV_PURPOSE: {
       LIFECYCLE: 'lifecycle',
+    },
+    RESOURCE_KEYS: {
+      MENU_TARGET: 'menu_target',
+      MENU_THINKING: 'menu_thinking',
+      MENU_VISIBILITY: 'menu_visibility',
+      DOM_OBSERVER: 'dom_observer',
+      OBSERVER_TIMEOUT: 'observer_timeout',
+      OBSERVER_DEBOUNCE: 'observer_debounce',
+      APPLY_SIGNAL: 'apply_signal',
     },
   };
 
@@ -873,7 +883,6 @@
 
       this.listeners = new Map();
       this.originalHistoryMethods = { pushState: null, replaceState: null };
-      this._historyWrappers = {};
       this.isHooked = false;
       this._boundHandlePopState = null;
       this._boundHandleCustomNavEvent = null;
@@ -986,390 +995,9 @@
             }
           };
 
-          coordinator._historyWrappers[m] = wrapper;
           history[m] = wrapper;
         }
       }
-    }
-  }
-
-  /**
-   * @class Sentinel
-   * @description Detects DOM node insertion using a shared, prefixed CSS animation trick.
-   * Designed as a persistent singleton per project prefix.
-   * This class does not support explicit lifecycle destruction (no destroy method), as instances are intended to live indefinitely to ensure continuous DOM monitoring across scripts.
-   * @property {Map<string, Set<(element: Element) => void>>} listeners
-   * @property {Set<string>} rules
-   * @property {HTMLElement | null} styleElement
-   * @property {CSSStyleSheet | null} sheet
-   * @property {WeakMap<CSSRule, string>} ruleSelectors
-   */
-  class Sentinel {
-    static MAX_POLLS = 60;
-    static POLL_INTERVAL = 50;
-
-    /**
-     * @param {string} prefix - A unique identifier for this Sentinel instance to avoid CSS conflicts. Required.
-     */
-    constructor(prefix) {
-      if (!prefix) {
-        throw new Error('[Sentinel] "prefix" argument is required to avoid CSS conflicts.');
-      }
-
-      // Validate prefix for CSS compatibility
-      // 1. Must contain only alphanumeric characters, hyphens, or underscores.
-      // 2. Cannot start with a digit.
-      // 3. Cannot start with a hyphen followed by a digit.
-      if (!/^[a-zA-Z0-9_-]+$/.test(prefix) || /^[0-9]|^-[0-9]/.test(prefix)) {
-        throw new Error(`[Sentinel] Prefix "${prefix}" is invalid. It must contain only alphanumeric characters, hyphens, or underscores, and cannot start with a digit or a hyphen followed by a digit.`);
-      }
-
-      /** @type {Window & { __global_sentinel_instances__?: Record<string, Sentinel> }} */
-      const globalScope = window;
-      globalScope.__global_sentinel_instances__ ??= {};
-      if (globalScope.__global_sentinel_instances__[prefix]) {
-        return globalScope.__global_sentinel_instances__[prefix];
-      }
-
-      this.prefix = prefix;
-      this.isSuspended = false;
-
-      // Use a unique, prefixed animation name shared by all scripts in a project.
-      this.animationName = `${prefix}-global-sentinel-animation`;
-      this.styleId = `${prefix}-sentinel-global-rules`; // A single, unified style element
-      this.listeners = new Map();
-      this.rules = new Set(); // Tracks all active selectors
-      this.styleElement = null; // Holds the reference to the single style element
-      this.sheet = null; // Cache the CSSStyleSheet reference
-      /** @type {WeakMap<CSSRule, string>} */
-      this.ruleSelectors = new WeakMap(); // Tracks selector strings associated with CSSRule objects
-      /** @type {Map<string, string>} */
-      this.normalizedSelectors = new Map(); // Maps original selectors to browser-normalized selectors
-
-      this._boundHandleAnimationStart = this._handleAnimationStart.bind(this);
-
-      this._injectStyleElement();
-      document.addEventListener('animationstart', this._boundHandleAnimationStart, true);
-
-      globalScope.__global_sentinel_instances__[prefix] = this;
-    }
-
-    _injectStyleElement() {
-      // Ensure the style element is injected only once per project prefix.
-      this.styleElement = document.getElementById(this.styleId);
-
-      if (this.styleElement instanceof HTMLStyleElement) {
-        this.styleElement.disabled = this.isSuspended;
-        this._waitForStylesheet();
-        return;
-      }
-
-      // Create empty style element
-      this.styleElement = document.createElement('style');
-      this.styleElement.id = this.styleId;
-
-      // CSP Fix: Try to fetch a valid nonce from existing scripts/styles
-      // "nonce" property exists on HTMLScriptElement/HTMLStyleElement, not basic Element.
-      let nonce;
-
-      // 1. Try to get nonce from scripts collection
-      const scripts = document.scripts;
-      for (let i = 0; i < scripts.length; i++) {
-        if (scripts[i].nonce) {
-          nonce = scripts[i].nonce;
-          break;
-        }
-      }
-
-      // 2. Fallback: Using querySelector (content attribute)
-      if (!nonce) {
-        const style = document.querySelector('style[nonce]');
-        const script = document.querySelector('script[nonce]');
-
-        if (style instanceof HTMLStyleElement && style.nonce) {
-          nonce = style.nonce;
-        } else if (script instanceof HTMLScriptElement && script.nonce) {
-          nonce = script.nonce;
-        }
-      }
-
-      if (nonce) {
-        this.styleElement.nonce = nonce;
-      }
-
-      if (this.styleElement instanceof HTMLStyleElement) {
-        this.styleElement.disabled = this.isSuspended;
-      }
-
-      // Try to inject immediately.
-      // If the document is not yet ready (e.g. extremely early document-start), wait for the root element.
-      const target = document.head || document.documentElement;
-
-      if (target) {
-        target.appendChild(this.styleElement);
-        this._waitForStylesheet();
-      } else {
-        const initObserver = new MutationObserver(() => {
-          const retryTarget = document.head || document.documentElement;
-          if (retryTarget) {
-            initObserver.disconnect();
-
-            retryTarget.appendChild(this.styleElement);
-            this._waitForStylesheet();
-          }
-        });
-        initObserver.observe(document, { childList: true });
-      }
-    }
-
-    /**
-     * Ensures the style element is connected to the DOM and restores rules if it was removed.
-     */
-    _ensureStyleGuard() {
-      // Lazy Recovery: If the style element is connected but the stylesheet reference (this.sheet) was missed due to a timeout caused by a long task, recover it immediately here.
-      if (this.styleElement instanceof HTMLStyleElement && this.styleElement.isConnected && !this.sheet && this.styleElement.sheet) {
-        this._syncStylesheetRules();
-      }
-
-      if (this.styleElement && !this.styleElement.isConnected) {
-        const target = document.head || document.documentElement;
-        if (target) {
-          this.sheet = null; // Clear stale stylesheet reference before reconnecting
-          target.appendChild(this.styleElement);
-          this._waitForStylesheet();
-        }
-      }
-    }
-
-    /**
-     * Periodically checks for stylesheet availability and triggers full synchronization.
-     * @private
-     */
-    _waitForStylesheet() {
-      if (!(this.styleElement instanceof HTMLStyleElement) || !this.styleElement.isConnected) return;
-
-      const styleNode = this.styleElement;
-      let pollCount = 0;
-
-      const poll = () => {
-        if (!styleNode.isConnected) return;
-        if (styleNode.sheet) {
-          this._syncStylesheetRules();
-        } else if (pollCount < Sentinel.MAX_POLLS) {
-          pollCount++;
-          console.debug(`[Sentinel] Polling sheet (Attempt ${pollCount}/${Sentinel.MAX_POLLS}). requestAnimationFrame check was insufficient.`);
-          setTimeout(poll, Sentinel.POLL_INTERVAL);
-        } else {
-          // Calculate timeout in seconds dynamically based on constants
-          const timeoutSeconds = (Sentinel.MAX_POLLS * Sentinel.POLL_INTERVAL) / 1000;
-          console.error(`[Sentinel] Polling sheet timed out after ${timeoutSeconds} seconds.`);
-        }
-      };
-
-      if (styleNode.sheet) {
-        this._syncStylesheetRules();
-      } else {
-        requestAnimationFrame(() => {
-          if (!styleNode.isConnected) return;
-          if (styleNode.sheet) {
-            this._syncStylesheetRules();
-          } else {
-            setTimeout(poll, Sentinel.POLL_INTERVAL);
-          }
-        });
-      }
-    }
-
-    /**
-     * Synchronizes all active rules directly onto the connected stylesheet.
-     * @private
-     */
-    _syncStylesheetRules() {
-      if (!(this.styleElement instanceof HTMLStyleElement) || !this.styleElement.isConnected || !this.styleElement.sheet) return;
-
-      this.styleElement.disabled = this.isSuspended;
-      this.sheet = this.styleElement.sheet;
-
-      try {
-        // Non-destructive cleanup: scan and remove only rules belonging to this instance's active selectors
-        for (let i = this.sheet.cssRules.length - 1; i >= 0; i--) {
-          const rule = this.sheet.cssRules[i];
-          const recordedSelector = this.ruleSelectors.get(rule);
-          if (this.rules.has(recordedSelector) || (rule instanceof CSSStyleRule && (this.rules.has(rule.selectorText) || [...this.rules].some((sel) => rule.selectorText === this.normalizedSelectors.get(sel))))) {
-            this.sheet.deleteRule(i);
-          }
-        }
-
-        // Non-destructive keyframes validation
-        this._ensureKeyframesRule();
-      } catch (e) {
-        console.error('[Sentinel] Failed to clear or restore base rules:', e);
-      }
-
-      this.rules.forEach((selector) => {
-        const success = this._insertRule(selector);
-        if (!success) {
-          // Rollback invalid selector to prevent infinite error loops on subsequent syncs
-          this.rules.delete(selector);
-          this.listeners.delete(selector);
-        }
-      });
-    }
-
-    /**
-     * Ensures the shared keyframes rule exists in the stylesheet.
-     */
-    _ensureKeyframesRule() {
-      let hasKeyframes = false;
-      for (let i = 0; i < this.sheet.cssRules.length; i++) {
-        const rule = this.sheet.cssRules[i];
-        if (rule instanceof CSSKeyframesRule && rule.name === this.animationName) {
-          hasKeyframes = true;
-          break;
-        }
-      }
-      if (!hasKeyframes) {
-        const keyframes = `@keyframes ${this.animationName} { from { outline: 1px solid transparent; } to { outline: 0px solid transparent; } }`;
-        this.sheet.insertRule(keyframes, 0);
-      }
-    }
-
-    /**
-     * Helper to insert a single rule into the stylesheet
-     * @param {string} selector
-     * @returns {boolean} True if insertion was successful, false otherwise
-     */
-    _insertRule(selector) {
-      try {
-        const index = this.sheet.cssRules.length;
-        const ruleText = `${selector} { animation-duration: 0.001s; animation-name: ${this.animationName}; }`;
-        this.sheet.insertRule(ruleText, index);
-        // Associate the inserted rule with the selector via WeakMap for safer removal later.
-        // This mimics sentinel.js behavior to handle index shifts and selector normalization.
-        const insertedRule = this.sheet.cssRules[index];
-        if (insertedRule) {
-          this.ruleSelectors.set(insertedRule, selector);
-          if (insertedRule instanceof CSSStyleRule) {
-            this.normalizedSelectors.set(selector, insertedRule.selectorText);
-          }
-        }
-        return true;
-      } catch (e) {
-        console.error(`[Sentinel] Rule insertion failed for selector "${selector}". The listener has been rejected and removed:`, e);
-        return false;
-      }
-    }
-
-    _handleAnimationStart(event) {
-      if (this.isSuspended) return;
-
-      // Check if the animation is the one we're listening for.
-      if (event.animationName !== this.animationName) return;
-
-      const target = event.target;
-      if (!(target instanceof Element)) {
-        return;
-      }
-
-      // Check if the target element matches any of this instance's selectors.
-      for (const [selector, callbacks] of this.listeners.entries()) {
-        if (target.matches(selector)) {
-          // Use a copy of the callbacks Set in case a callback removes itself.
-          [...callbacks].forEach((cb) => {
-            try {
-              cb(target);
-            } catch (e) {
-              console.error(`[Sentinel] Listener error for selector "${selector}":`, e);
-            }
-          });
-        }
-      }
-    }
-
-    /**
-     * @param {string} selector
-     * @param {(element: Element) => void} callback
-     */
-    on(selector, callback) {
-      this._ensureStyleGuard();
-
-      // Add callback to listeners
-
-      if (!this.listeners.has(selector)) {
-        this.listeners.set(selector, new Set());
-      }
-      this.listeners.get(selector).add(callback);
-      // If selector is already registered in rules, do nothing
-      if (this.rules.has(selector)) return;
-      this.rules.add(selector);
-
-      // Apply rule
-      if (this.sheet) {
-        const success = this._insertRule(selector);
-        if (!success) {
-          // Rollback on immediate insertion failure
-          this.listeners.delete(selector);
-          this.rules.delete(selector);
-        }
-      }
-    }
-
-    /**
-     * @param {string} selector
-     * @param {(element: Element) => void} callback
-     */
-    off(selector, callback) {
-      const callbacks = this.listeners.get(selector);
-      if (!callbacks) return;
-
-      const wasDeleted = callbacks.delete(callback);
-      if (!wasDeleted) {
-        return;
-        // Callback not found, do nothing.
-      }
-
-      if (callbacks.size === 0) {
-        // Remove listener and rule
-        this.listeners.delete(selector);
-        this.rules.delete(selector);
-        this.normalizedSelectors.delete(selector);
-
-        if (this.sheet) {
-          // Iterate backwards to avoid index shifting issues during deletion
-          for (let i = this.sheet.cssRules.length - 1; i >= 0; i--) {
-            const rule = this.sheet.cssRules[i];
-            // Check for recorded selector via WeakMap or fallback to selectorText match
-            const recordedSelector = this.ruleSelectors.get(rule);
-            if (recordedSelector === selector || (rule instanceof CSSStyleRule && (rule.selectorText === selector || rule.selectorText === this.normalizedSelectors.get(selector)))) {
-              try {
-                this.sheet.deleteRule(i);
-              } catch (e) {
-                console.error(`[Sentinel] Failed to delete rule for selector "${selector}":`, e);
-              }
-              // We assume one rule per selector, so we can break after deletion
-              break;
-            }
-          }
-        }
-      }
-    }
-
-    suspend() {
-      if (this.isSuspended) return;
-      this.isSuspended = true;
-      if (this.styleElement instanceof HTMLStyleElement) {
-        this.styleElement.disabled = true;
-      }
-      console.debug('[Sentinel] Suspended.');
-    }
-
-    resume() {
-      if (!this.isSuspended) return;
-      this.isSuspended = false;
-      if (this.styleElement instanceof HTMLStyleElement) {
-        this.styleElement.disabled = false;
-      }
-      console.debug('[Sentinel] Resumed.');
     }
   }
 
@@ -1673,8 +1301,6 @@
     #isThinkingSettledForCurrentContext = false;
     #targetText = '';
     #targetThinkingText = '';
-    #abortController = null;
-    #sentinel = null;
     #adapter = null;
     #constants = null;
     #palette = null;
@@ -1741,17 +1367,54 @@
     }
 
     /**
-     * Schedules fallback state checks to handle delayed DOM updates in SPAs.
+     * Starts a transient MutationObserver to detect DOM stabilization.
+     * Automatically disconnects once the state is settled or after a timeout.
      */
-    #scheduleFallbackChecks() {
+    #startObserver() {
       this.#setFailedForCurrentContext = false;
-      const delays = this.#constants.TIMING.FALLBACK_DELAYS_MS;
-      delays.forEach((delay) => {
-        setTimeout(() => {
-          if (this.signal.aborted) return;
+
+      if (this._keyedDisposables.has(this.#constants.RESOURCE_KEYS.DOM_OBSERVER)) {
+        console.debug(`${LOG_PREFIX} [Observer] Cleared previous active monitoring before restart.`);
+        this.manageResource(this.#constants.RESOURCE_KEYS.DOM_OBSERVER, null);
+      }
+      this.manageResource(this.#constants.RESOURCE_KEYS.OBSERVER_TIMEOUT, null);
+      this.manageResource(this.#constants.RESOURCE_KEYS.OBSERVER_DEBOUNCE, null);
+
+      if (this.signal.aborted) return;
+
+      this.#checkAndEnforce();
+
+      if (this.#isSettledForCurrentContext && this.#isThinkingSettledForCurrentContext) {
+        console.debug(`${LOG_PREFIX} [Observer] Active state already settled. Skipping DOM monitoring.`);
+        return;
+      }
+
+      console.debug(`${LOG_PREFIX} [Observer] Started DOM monitoring (Max timeout: ${this.#constants.TIMING.DOM_STABILIZATION_TIMEOUT_MS}ms).`);
+
+      const observer = new MutationObserver(() => {
+        this.manageResource(this.#constants.RESOURCE_KEYS.OBSERVER_DEBOUNCE, null);
+        const debounceId = setTimeout(() => {
           this.#checkAndEnforce();
-        }, delay);
+        }, this.#constants.TIMING.DOM_STABILIZATION_DEBOUNCE_MS);
+        this.manageResource(this.#constants.RESOURCE_KEYS.OBSERVER_DEBOUNCE, () => clearTimeout(debounceId));
       });
+
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+      });
+
+      this.manageResource(this.#constants.RESOURCE_KEYS.DOM_OBSERVER, observer);
+
+      const timeoutId = setTimeout(() => {
+        if (this._keyedDisposables.has(this.#constants.RESOURCE_KEYS.DOM_OBSERVER)) {
+          console.warn(`${LOG_PREFIX} [Observer] DOM did not stabilize within timeout. Forcing disconnect.`);
+          this.manageResource(this.#constants.RESOURCE_KEYS.DOM_OBSERVER, null);
+          this.#checkAndEnforce();
+        }
+        this.manageResource(this.#constants.RESOURCE_KEYS.OBSERVER_DEBOUNCE, null);
+      }, this.#constants.TIMING.DOM_STABILIZATION_TIMEOUT_MS);
+      this.manageResource(this.#constants.RESOURCE_KEYS.OBSERVER_TIMEOUT, () => clearTimeout(timeoutId));
     }
 
     /**
@@ -1770,28 +1433,16 @@
 
       await this.#updateMenuCommand();
 
-      this.#sentinel = new Sentinel(OWNERID);
-
-      const sentinelSelector = this.#adapter.getSentinelSelector();
-      if (sentinelSelector) {
-        const callback = () => {
-          console.debug(`${LOG_PREFIX} Element detected via Sentinel, checking state...`);
-          this.#checkAndEnforce();
-        };
-        this.#sentinel.on(sentinelSelector, callback);
-        this.addDisposable(() => this.#sentinel.off(sentinelSelector, callback));
-      }
-
       // Initialize navigation monitor to safely detect SPA URL/history changes
       this.#navigationMonitor = new NavigationMonitor(OWNERID);
 
       const onNavStart = () => {
         this.#isSettledForCurrentContext = false;
         this.#isThinkingSettledForCurrentContext = false;
-        this.#abortController?.abort();
+        this.manageResource(this.#constants.RESOURCE_KEYS.APPLY_SIGNAL, null);
       };
       const onNavSettled = () => {
-        this.#scheduleFallbackChecks();
+        this.#startObserver();
       };
 
       this.addDisposable(this.#navigationMonitor.on(createSubscriberKey(this.#constants.NAV_PURPOSE.LIFECYCLE), onNavStart, onNavSettled, { trackHash: false }));
@@ -1801,14 +1452,13 @@
           console.debug(`${LOG_PREFIX} Tab became visible, verifying state...`);
           this.#isSettledForCurrentContext = false;
           this.#isThinkingSettledForCurrentContext = false;
-          this.#scheduleFallbackChecks();
+          this.#startObserver();
         }
       };
       document.addEventListener('visibilitychange', visibilityListener);
       this.addDisposable(() => document.removeEventListener('visibilitychange', visibilityListener));
 
-      this.#checkAndEnforce();
-      this.#scheduleFallbackChecks();
+      this.#startObserver();
     }
 
     /**
@@ -1817,8 +1467,6 @@
      * @override
      */
     _onDestroy() {
-      // Abort any ongoing asynchronous model selection flows immediately to prevent memory leaks.
-      this.#abortController?.abort();
       super._onDestroy();
     }
 
@@ -1849,9 +1497,9 @@
       ]);
 
       // Manage menu command registrations dynamically using the resource manager to ensure proper unregistration.
-      this.manageResource('menu_target', () => GM.unregisterMenuCommand(targetId));
-      this.manageResource('menu_thinking', () => GM.unregisterMenuCommand(thinkingId));
-      this.manageResource('menu_visibility', () => GM.unregisterMenuCommand(visibilityId));
+      this.manageResource(this.#constants.RESOURCE_KEYS.MENU_TARGET, () => GM.unregisterMenuCommand(targetId));
+      this.manageResource(this.#constants.RESOURCE_KEYS.MENU_THINKING, () => GM.unregisterMenuCommand(thinkingId));
+      this.manageResource(this.#constants.RESOURCE_KEYS.MENU_VISIBILITY, () => GM.unregisterMenuCommand(visibilityId));
     }
 
     /**
@@ -1887,6 +1535,15 @@
 
       if (needsModelChange || needsThinkingChange) {
         await this.#applyTargetModel();
+      }
+
+      if (this.#isSettledForCurrentContext && this.#isThinkingSettledForCurrentContext) {
+        if (this._keyedDisposables.has(this.#constants.RESOURCE_KEYS.DOM_OBSERVER)) {
+          console.debug(`${LOG_PREFIX} [Observer] Target setup verified/settled. Disconnected monitoring.`);
+          this.manageResource(this.#constants.RESOURCE_KEYS.DOM_OBSERVER, null);
+        }
+        this.manageResource(this.#constants.RESOURCE_KEYS.OBSERVER_TIMEOUT, null);
+        this.manageResource(this.#constants.RESOURCE_KEYS.OBSERVER_DEBOUNCE, null);
       }
     }
 
@@ -2110,8 +1767,9 @@ margin: 0 !important;
       if (this.#isSetting) return;
 
       this.#isSetting = true;
-      this.#abortController = new AbortController();
-      const signal = this.#abortController.signal;
+      const controller = new AbortController();
+      this.manageResource(this.#constants.RESOURCE_KEYS.APPLY_SIGNAL, controller);
+      const signal = controller.signal;
 
       try {
         const result = await this.#adapter.executeApplicationFlow(
@@ -2135,7 +1793,7 @@ margin: 0 !important;
         // Cleanup: Always release the fixing lock (#isFixing) and clear the AbortController,
         // regardless of whether the operation succeeded, failed, or threw an exception, to allow future executions.
         this.#isSetting = false;
-        this.#abortController = null;
+        this.manageResource(this.#constants.RESOURCE_KEYS.APPLY_SIGNAL, null);
       }
     }
   }
