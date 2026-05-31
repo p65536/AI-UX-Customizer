@@ -906,3 +906,7 @@ interface JumpListContext {
 interface DataConverter {
     imageToOptimizedDataUrl(file: File, options: { maxWidth?: number; maxHeight?: number; quality: number }): Promise<string>;
 }
+
+interface Window {
+    __remixContext?: any;
+}

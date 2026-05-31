@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.4.8
+// @version      1.4.9
 // @license      MIT
 // @description  Fully customize the chat UI of [ChatGPT/Gemini]. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://cdn.jsdelivr.net/gh/p65536/p65536@main/images/icons/aiuxc.svg
@@ -205,6 +205,7 @@
       SCROLL_CORRECTION_MAX_MS: 300,
       SCROLL_CORRECTION_STABLE_FRAMES: 3,
       PROGRESSIVE_SCROLL_LIMIT: 20,
+      SHARED_CHAT_FETCH_LIMIT: 2,
     },
     IMAGE_PROCESSING: {
       QUALITY: 0.85,
@@ -3393,6 +3394,10 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
         TIMESTAMP: true,
         API_MESSAGE: true,
       },
+      PATHS: {
+        CHAT: '/c/',
+        SHARE: '/share/',
+      },
       UI_SPECS: {
         ...SHARED_CONSTANTS.UI_SPECS,
         HEADER_POSITION_MIN_WIDTH: 960,
@@ -3522,7 +3527,7 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
       },
       URL_PATTERNS: {
         EXCLUDED: [/^\/library/, /^\/codex/, /^\/gpts/, /^\/images/, /^\/apps/],
-        CONVERSATION_ENDPOINTS: ['/backend-api/conversation', '/backend-api/shared_conversation'],
+        CONVERSATION_ENDPOINTS: ['/backend-api/conversation', '/backend-api/share'],
       },
       STRINGS: {
         PAGE_TITLE_PREFIX: 'ChatGPT - ',
@@ -3621,9 +3626,9 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
 
       /** @override */
       isChatPage() {
-        // Any URL containing '/c/' or '/share/' is a conversation page
+        // Any URL containing CHAT or SHARE constants is a conversation page
         const path = window.location.pathname;
-        return path.includes('/c/') || path.includes('/share/');
+        return path.includes(CONSTANTS.PATHS.CHAT) || path.includes(CONSTANTS.PATHS.SHARE);
       }
 
       /** @override */
@@ -4728,6 +4733,7 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
 
       /** @override */
       isTurnComplete(turnNode) {
+        if (window.location.pathname.startsWith(CONSTANTS.PATHS.SHARE)) return true;
         // A turn is complete if it's an assistant message that has rendered its action buttons.
         // User message turns are handled implicitly and don't trigger this "complete" state in the context of streaming.
         const assistantActions = turnNode.querySelector(CONSTANTS.SELECTORS.TURN_COMPLETE_SELECTOR);
@@ -4892,6 +4898,88 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
         this.parentMap = new Map(); // Mapping from node ID to parent node ID
         /** @type {Map<string, string>} Mapping from chatId to its current leaf message ID */
         this.chatLeafMap = new Map();
+        /** @type {Map<string, number>} Track fetch error counts per shared chatId (cleared on navigation) */
+        this._shareFetchErrors = new Map();
+        /** @type {Set<string>} Track permanent failures per shared chatId (persisted across navigation) */
+        this._permanentShareErrors = new Set();
+      }
+
+      /**
+       * Actively triggers a fetch for shared chats to synchronize the message cache.
+       * @private
+       */
+      _triggerSharedChatFetch() {
+        if (!window.location.pathname.startsWith(CONSTANTS.PATHS.SHARE)) return;
+
+        const chatId = this._getChatIdFromCurrentUrl();
+        if (!chatId) return;
+
+        // Abort if this shared chat is marked as permanently failed
+        if (this._permanentShareErrors.has(chatId)) return;
+
+        // Abort if the temporary error limit for this shared chat has been reached
+        const errorCount = this._shareFetchErrors.get(chatId) || 0;
+        if (errorCount >= CONSTANTS.RETRY.SHARED_CHAT_FETCH_LIMIT) return;
+
+        if (this._lastProcessedShareId === chatId) return;
+        this._lastProcessedShareId = chatId;
+
+        let token = null;
+        try {
+          const globalContext = typeof unsafeWindow !== 'undefined' ? unsafeWindow.__remixContext : window.__remixContext;
+          token = globalContext?.state?.loaderData?.root?.clientBootstrap?.session?.accessToken;
+        } catch {
+          // Fallback to tokenless fetch
+        }
+
+        const headers = token
+          ? {
+              Authorization: `Bearer ${token}`,
+              'X-Authorization': `Bearer ${token}`,
+            }
+          : {};
+
+        const shareEndpoint = CONSTANTS.URL_PATTERNS.CONVERSATION_ENDPOINTS.find((path) => path.includes('share'));
+        const targetUrl = `${window.location.origin}${shareEndpoint}/${chatId}`;
+        const normalizedUrl = `${shareEndpoint}/${chatId}`;
+
+        const handlePermanentFailure = (status) => {
+          this._permanentShareErrors.add(chatId);
+          Logger.error('API_MESSAGE', LOG_STYLES.RED, `Permanent sync failure for shared chat ${chatId} (HTTP ${status}). Synchronization stopped.`);
+        };
+
+        const handleTemporaryFailure = () => {
+          const currentErrors = (this._shareFetchErrors.get(chatId) || 0) + 1;
+          this._shareFetchErrors.set(chatId, currentErrors);
+
+          if (currentErrors < CONSTANTS.RETRY.SHARED_CHAT_FETCH_LIMIT) {
+            this._lastProcessedShareId = null;
+          } else {
+            Logger.debug('API_MESSAGE', LOG_STYLES.ORANGE, `Retry limit reached (${currentErrors}/${CONSTANTS.RETRY.SHARED_CHAT_FETCH_LIMIT}) for shared chat ${chatId}. Temporary sync suspended.`);
+          }
+        };
+
+        this.originalFetch(targetUrl, { method: 'GET', headers })
+          .then((response) => {
+            if (response.ok) {
+              return this._processIntercentedResponse(targetUrl, normalizedUrl, response).then((success) => {
+                if (success) {
+                  this._shareFetchErrors.delete(chatId);
+                } else {
+                  handleTemporaryFailure();
+                }
+              });
+            } else {
+              if (response.status === 404 || response.status === 410) {
+                handlePermanentFailure(response.status);
+              } else {
+                handleTemporaryFailure();
+              }
+            }
+          })
+          .catch(() => {
+            handleTemporaryFailure();
+          });
       }
 
       /** @override */
@@ -4925,12 +5013,14 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
             EVENTS.NAVIGATION_START,
             () => {
               this.clearDomReferences();
+              this._triggerSharedChatFetch();
             },
             'ChatGPTApiMessageAdapter.clearDomReferences'
           );
 
           this.isInitialized = true;
           Logger.debug('API_MESSAGE', LOG_STYLES.TEAL, 'Successfully intercepted unsafeWindow.fetch');
+          this._triggerSharedChatFetch();
         } catch (e) {
           Logger.error('FETCH WRAP FAILED', LOG_STYLES.RED, 'Could not wrap fetch:', e);
           // Attempt to restore if partially failed
@@ -5066,16 +5156,17 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
        * @param {string} url
        * @param {string} normalizedUrl
        * @param {Response} response
+       * @returns {Promise<boolean>} True if successfully processed and cached, false otherwise.
        */
       async _processIntercentedResponse(url, normalizedUrl, response) {
-        if (!this.isInterceptionEnabled) return;
+        if (!this.isInterceptionEnabled) return false;
 
         // Get ID from URL (Since we only intercept GET requests, the ID should always be in the URL)
         const chatId = this._getChatIdFromUrl(normalizedUrl);
 
         // This acts as a filter to ensure we are processing actual chat data,
         // not other endpoints like /conversations (history list) or malformed URLs.
-        if (!chatId) return;
+        if (!chatId) return false;
 
         Logger.debug('FETCH', LOG_STYLES.ORANGE, 'Target API URL intercepted:', url);
 
@@ -5083,7 +5174,7 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
           const data = await response.json();
 
           // Added strict null check for 'data' to prevent TypeError if site polyfills or backend returns null
-          if (!data) return;
+          if (!data) return false;
 
           // Parse the JSON data and pass chatId
           const messagesMap = this._extractMessages(data, chatId);
@@ -5105,9 +5196,12 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
             messagesMap.forEach((node, id) => this.addMessageData(id, node));
             // Publish event
             EventBus.publish(EVENTS.API_MESSAGES_LOADED, { messages: messagesMap });
+            return true;
           }
+          return false;
         } catch (e) {
           Logger.error('API_MESSAGE ERROR', LOG_STYLES.RED, 'Failed to parse conversation JSON:', e);
+          return false;
         }
       }
 
@@ -5167,6 +5261,10 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
           node.element = null;
           node.turnElement = null;
         }
+        // Reset share ID lock on navigation to allow re-fetching during SPA transitions
+        this._lastProcessedShareId = null;
+        // Reset temporary fetch error counter on navigation to allow retries on URL change
+        this._shareFetchErrors.clear();
         Logger.debug('API_MESSAGE', LOG_STYLES.TEAL, 'Cleared DOM references from API cache to prevent memory leaks.');
       }
 

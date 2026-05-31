@@ -6,6 +6,14 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.4.9] - 2026-05-31
+- **Core Changes**
+  - [ChatGPT] Fixed an issue where message history and counters did not function properly (frozen at 1/1) on shared chat pages.
+  - [ChatGPT] Enabled full message counter tracking for shared chat links by introducing an automatic background data synchronization mechanism.
+  - [ChatGPT] Hardened connection resilience to prevent unnecessary background network requests when encountering communication errors or broken links.
+  - [ChatGPT] Optimized internal page processing on static shared pages to improve overall stability.
+  - [ChatGPT] Cleaned up obsolete internal API endpoints and refactored background sync URL generation to dynamically resolve paths, eliminating magic strings.
+
 ## [1.4.8] - 2026-05-31
 - **Core Changes**
   - [Internal] Removed the unused code.
