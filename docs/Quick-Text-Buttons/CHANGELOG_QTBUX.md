@@ -6,6 +6,10 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [3.3.8] - 2026-05-31
+- **Core Changes**
+  - [Internal] Removed the unused code.
+
 ## [3.3.7] - 2026-05-30
 - **Core Changes**
   - [Sentinel] Fixed a potential memory leak by ensuring normalized selector cache is cleared when removing the last listener for a selector.
