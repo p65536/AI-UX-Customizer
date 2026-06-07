@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.4.9
+// @version      1.4.10
 // @license      MIT
 // @description  Fully customize the chat UI of [ChatGPT/Gemini]. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         https://cdn.jsdelivr.net/gh/p65536/p65536@main/images/icons/aiuxc.svg
@@ -6226,13 +6226,31 @@ mask-image: none !important;
             if (progressBarDisappeared) {
               Logger.debug('AUTOSCROLL', LOG_STYLES.CYAN, 'Progress bar disappeared.');
               clearTimeout(this.disappearTimeout); // Cancel the "stuck" timer
+
+              // Fire-and-forget: Deliberately invoked without 'await' to allow the async routine
+              // to defer execution until the rendering pipeline has stabilized.
               this._triggerScroll(); // Trigger the next scroll
             }
           }
 
-          // Scrolls the container to the top and sets a timeout to check if loading has started.
-          _triggerScroll() {
+          /**
+           * Scrolls the container to the top and sets a timeout to check if loading has started.
+           * Yields to the render pipeline to ensure the framework has stabilized its scroll adjustments.
+           * @private
+           */
+          async _triggerScroll() {
             if (!this.isScrolling || !this.scrollContainer) return;
+
+            // --- Yield to Render Pipeline for UI Stabilization ---
+            // Wait for the framework to finish adjusting the scroll position after DOM mutations
+            // before we force it back to the top. This prevents the framework from overriding our scroll.
+            await new Promise((r) => requestAnimationFrame(r));
+            await new Promise((r) => setTimeout(r, 0));
+            await new Promise((r) => requestAnimationFrame(r));
+
+            // Final check to ensure the state hasn't changed during the async yield
+            if (!this.isScrolling || !this.scrollContainer) return;
+
             this.scrollContainer.scrollTop = 0;
 
             // Set a timeout to detect the end of the history. If the progress bar

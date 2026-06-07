@@ -6,6 +6,10 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.4.10] - 2026-06-08
+- **Core Changes**
+  - [Gemini] Fixed a bug where the automatic history scrolling feature would stop after loading the first batch of messages.
+
 ## [1.4.9] - 2026-05-31
 - **Core Changes**
   - [ChatGPT] Fixed an issue where message history and counters did not function properly (frozen at 1/1) on shared chat pages.
