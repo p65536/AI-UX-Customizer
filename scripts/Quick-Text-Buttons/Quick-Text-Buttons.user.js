@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Quick-Text-Buttons
 // @namespace    https://github.com/p65536
-// @version      3.3.8
+// @version      3.3.9
 // @license      MIT
 // @description  Adds customizable text buttons to paste frequently used prompts into [ChatGPT/Gemini/Claude] inputs.
 // @icon         https://cdn.jsdelivr.net/gh/p65536/p65536@main/images/icons/qtb.svg
@@ -341,7 +341,7 @@
       },
       claude: {
         // Reference element for button positioning - Toolbar left container
-        INSERTION_ANCHOR: 'fieldset:has([data-testid="chat-input"]) div.flex.w-full.items-center > div.flex-1.flex.items-center',
+        INSERTION_ANCHOR: 'fieldset:has([data-testid="chat-input"]) div.relative.flex.gap-2.w-full.items-center > div.flex-row',
         // Actual input element for text insertion
         INPUT_TARGET: 'div.ProseMirror[data-testid="chat-input"]',
         // Settings for layout strategy

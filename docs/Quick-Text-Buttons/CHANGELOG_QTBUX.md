@@ -6,6 +6,9 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [3.3.9] - 2026-06-10
+  - [Claude] Fixed an issue where buttons were hidden in the chat input area.
+
 ## [3.3.8] - 2026-05-31
 - **Core Changes**
   - [Internal] Removed the unused code.
