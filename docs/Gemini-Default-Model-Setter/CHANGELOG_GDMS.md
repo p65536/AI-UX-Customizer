@@ -6,6 +6,21 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.4.0] - 2026-06-12
+- **Added**
+  - A new option to automatically re-apply your preferred thinking level when manually switching models.
+  - A toggle checkbox in the settings modal and a companion shortcut entry in the extension menu.
+  - A robust real-time DOM auditing defense mechanism that silently detects and overrides site-driven model resets (e.g., past chat loading or initial hydration).
+  - High-precision interaction tracking utilizing the modern Temporal API (with a backward-compatible polyfill fallback).
+- **Fixed & Improved**
+  - Resolved an issue where an invalid or missing thinking level caused the selection menu to repeatedly open and close.
+  - Prevented the script from misidentifying its own asynchronous rendering changes as unauthorized site overrides by implementing a synchronized timestamp update layer.
+  - Improved selection tracking accuracy by explicitly isolating the target sub-menu via native ARIA attributes.
+  - Eliminated configuration modal duplications and memory leaks by binding clean resource disposal directly to native dialog close events.
+  - Guarded against rapid double-clicks on the save button to block concurrent duplicate menu command generation.
+  - Stabilized the sequential layout display order of extension menu commands.
+  - Updated the placeholder description to explicitly clarify that blank inputs defer to the site's default behavior.
+
 ## [1.3.0] - 2026-05-31
 - **Core Changes**
   - [Observer] Transitioned from CSS animation triggers (`Sentinel`) to a debounced `MutationObserver`. This embodies the core design philosophy of waiting for DOM stabilization before scanning the state, improving the reliability of model adjustments during heavy initial page loads and reloads.
