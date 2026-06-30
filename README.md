@@ -15,9 +15,9 @@
 - [About This Project](#about-this-project)
 - [Recent Updates](#recent-updates)
 - **[Scripts in This Project](#scripts-in-this-project)**
-  - <img src="https://cdn.jsdelivr.net/gh/p65536/p65536@main/images/icons/aiuxc.svg" width="18" height="18" align="center"> [1. AI UX Customizer (AIUXC)](#1-ai-ux-customizer-aiuxc)
-  - <img src="https://cdn.jsdelivr.net/gh/p65536/p65536@main/images/icons/qtb.svg" width="18" height="18" align="center"> [2. Quick Text Buttons (QTB)](#2-quick-text-buttons-qtb)
-  - <img src="https://cdn.jsdelivr.net/gh/p65536/p65536@main/images/icons/gdms.svg" width="18" height="18" align="center"> [3. Gemini Default Model Setter (GDMS)](#3-gemini-default-model-setter-gdms)
+  - <img src="https://p65536.github.io/p65536/images/icons/aiuxc.svg" width="18" height="18" align="center"> [1. AI UX Customizer (AIUXC)](#1-ai-ux-customizer-aiuxc)
+  - <img src="https://p65536.github.io/p65536/images/icons/qtb.svg" width="18" height="18" align="center"> [2. Quick Text Buttons (QTB)](#2-quick-text-buttons-qtb)
+  - <img src="https://p65536.github.io/p65536/images/icons/gdms.svg" width="18" height="18" align="center"> [3. Gemini Default Model Setter (GDMS)](#3-gemini-default-model-setter-gdms)
 - [Installation](#installation)
 - [Updating](#updating)
 - [Tested Environment](#tested-environment)
@@ -33,14 +33,16 @@ It integrates powerful theme and navigation features into a single codebase, all
 
 ## Recent Updates
 
+### 2026-06-30
+- Updated `AI UX Customizer` (1.4.10 -> 1.4.11)
+- Updated `Quick Text Buttons` (3.3.9 -> 3.3.10)
+- Updated `Gemini Default Model Setter` (1.4.0 -> 1.4.1)
+
 ### 2026-06-12
 - Updated `Gemini Default Model Setter` (1.3.0 -> 1.4.0)
 
 ### 2026-06-10
 - Updated `Quick Text Buttons` (3.3.8 -> 3.3.9)
-
-### 2026-06-08
-- Updated `AI UX Customizer` (1.4.9 -> 1.4.10)
 
 ---
 
@@ -58,7 +60,7 @@ A userscript that adds powerful **theming**, **UI customization**, and **advance
 
 | Platform | GitHub | Greasy Fork | Version | Last Updated | Changelog |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **ChatGPT**<br>**Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/AI-UX-Customizer/AI-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/570496-ai-ux-customizer) | 1.4.10 | 2026-06-08 | [View](./docs/AI-UX-Customizer/CHANGELOG_AIUXC.md) |
+| **ChatGPT**<br>**Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/AI-UX-Customizer/AI-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/570496-ai-ux-customizer) | 1.4.11 | 2026-06-30 | [View](./docs/AI-UX-Customizer/CHANGELOG_AIUXC.md) |
 
 **[View Detailed Features & Manual for AI UX Customizer](./docs/AI-UX-Customizer/README.md)**
 
@@ -75,7 +77,7 @@ Adds customizable text buttons to paste frequently used prompts into [ChatGPT/Ge
 
 | Platform | GitHub | Greasy Fork | Version | Last Updated | Changelog |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **ChatGPT**<br>**Gemini**<br>**Claude** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/Quick-Text-Buttons/Quick-Text-Buttons.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/544699-quick-text-buttons) | 3.3.9 | 2026-06-10 | [View](./docs/Quick-Text-Buttons/CHANGELOG_QTBUX.md) |
+| **ChatGPT**<br>**Gemini**<br>**Claude** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/Quick-Text-Buttons/Quick-Text-Buttons.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/544699-quick-text-buttons) | 3.3.10 | 2026-06-30 | [View](./docs/Quick-Text-Buttons/CHANGELOG_QTBUX.md) |
 
 **[View Detailed Features & Manual for Quick Text Buttons](./docs/Quick-Text-Buttons/README.md)**
 
@@ -89,7 +91,7 @@ Automatically forces Google Gemini to use your preferred model (e.g., "Flash" or
 
 | Platform | GitHub | Greasy Fork | Version | Last Updated | Changelog |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/Gemini-Default-Model-Setter/Gemini-Default-Model-Setter.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/578088-gemini-default-model-setter) | 1.4.0 | 2026-06-12 | [View](./docs/Gemini-Default-Model-Setter/CHANGELOG_GDMS.md) |
+| **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/Gemini-Default-Model-Setter/Gemini-Default-Model-Setter.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/578088-gemini-default-model-setter) | 1.4.1 | 2026-06-30 | [View](./docs/Gemini-Default-Model-Setter/CHANGELOG_GDMS.md) |
 
 **[View Detailed Features & Manual for Gemini Default Model Setter](./docs/Gemini-Default-Model-Setter/README.md)**
 
