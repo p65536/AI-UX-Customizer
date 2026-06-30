@@ -6,6 +6,10 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.4.11] - 2026-06-30
+- **Core Changes**
+  - [Icon] Embedded the script icon as an inline Data URI to guarantee asset rendering and eliminate external network dependencies.
+
 ## [1.4.10] - 2026-06-08
 - **Core Changes**
   - [Gemini] Fixed a bug where the automatic history scrolling feature would stop after loading the first batch of messages.
