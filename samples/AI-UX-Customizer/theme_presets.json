@@ -168,7 +168,7 @@
       },
       "window": {
         "backgroundColor": "rgb(21 26 33)",
-        "backgroundImageUrl": "https://raw.githubusercontent.com/p65536/p65536/main/images/sample_bg_001.webp",
+        "backgroundImageUrl": "https://p65536.github.io/p65536/images/sample_bg_001.webp",
         "backgroundSize": "cover",
         "backgroundPosition": "center center",
         "backgroundRepeat": "no-repeat"
@@ -209,7 +209,7 @@
       },
       "window": {
         "backgroundColor": "rgb(24 26 28)",
-        "backgroundImageUrl": "https://raw.githubusercontent.com/p65536/p65536/main/images/sample_bg_002.webp",
+        "backgroundImageUrl": "https://p65536.github.io/p65536/images/sample_bg_002.webp",
         "backgroundSize": "cover",
         "backgroundPosition": "center center",
         "backgroundRepeat": "no-repeat"
@@ -228,29 +228,29 @@
       },
       "assistant": {
         "name": "Game Master",
-        "icon": "https://raw.githubusercontent.com/p65536/p65536/main/images/sample_icon_dice.webp",
+        "icon": "https://p65536.github.io/p65536/images/sample_icon_dice.webp",
         "textColor": "rgb(175 195 222)",
         "font": "'Segoe UI', 'Yu Gothic UI', 'Meiryo', sans-serif",
         "bubbleBackgroundColor": "rgb(35 34 28 / 0.7)",
         "bubblePadding": 8,
         "bubbleBorderRadius": 16,
         "bubbleMaxWidth": 100,
-        "standingImageUrl": "https://raw.githubusercontent.com/p65536/p65536/main/images/sample_standing_wizard.webp"
+        "standingImageUrl": "https://p65536.github.io/p65536/images/sample_standing_wizard.webp"
       },
       "user": {
         "name": "Player",
-        "icon": "https://raw.githubusercontent.com/p65536/p65536/main/images/sample_icon_fighter.webp",
+        "icon": "https://p65536.github.io/p65536/images/sample_icon_fighter.webp",
         "textColor": "rgb(240 184 17)",
         "font": "'Meiryo', 'Yu Gothic UI', 'Segoe UI', sans-serif",
         "bubbleBackgroundColor": "rgb(53 51 44 / 0.7)",
         "bubblePadding": 8,
         "bubbleBorderRadius": 16,
         "bubbleMaxWidth": 70,
-        "standingImageUrl": "https://raw.githubusercontent.com/p65536/p65536/main/images/sample_standing_sword.webp"
+        "standingImageUrl": "https://p65536.github.io/p65536/images/sample_standing_sword.webp"
       },
       "window": {
         "backgroundColor": "rgb(33 31 27)",
-        "backgroundImageUrl": "https://raw.githubusercontent.com/p65536/p65536/main/images/sample_bg_003.webp",
+        "backgroundImageUrl": "https://p65536.github.io/p65536/images/sample_bg_003.webp",
         "backgroundSize": "cover",
         "backgroundPosition": "center center",
         "backgroundRepeat": "no-repeat"
