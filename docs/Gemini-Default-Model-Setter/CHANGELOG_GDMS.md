@@ -6,6 +6,13 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.5.0] - 2026-07-09
+- **Core Changes**
+  - Adapted to Gemini's new model selector design and native thinking state retention behavior.
+  - Replaced the complex text-regex settings with a simple ON/OFF toggle in the userscript manager menu.
+  - Automated option selection using interface structures, ensuring seamless operation regardless of the language setting.
+  - Fixed a random bug where the script's menu commands would occasionally swap display order.
+
 ## [1.4.1] - 2026-06-30
 - **Core Changes**
   - [Icon] Embedded the script icon as an inline Data URI to guarantee asset rendering and eliminate external network dependencies.

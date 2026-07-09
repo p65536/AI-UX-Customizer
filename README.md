@@ -33,6 +33,9 @@ It integrates powerful theme and navigation features into a single codebase, all
 
 ## Recent Updates
 
+### 2026-07-09
+- Updated `Gemini Default Model Setter` (1.4.1 -> 1.5.0)
+
 ### 2026-06-30
 - Updated `AI UX Customizer` (1.4.10 -> 1.4.11)
 - Updated `Quick Text Buttons` (3.3.9 -> 3.3.10)
@@ -40,9 +43,6 @@ It integrates powerful theme and navigation features into a single codebase, all
 
 ### 2026-06-12
 - Updated `Gemini Default Model Setter` (1.3.0 -> 1.4.0)
-
-### 2026-06-10
-- Updated `Quick Text Buttons` (3.3.8 -> 3.3.9)
 
 ---
 
@@ -87,11 +87,11 @@ Adds customizable text buttons to paste frequently used prompts into [ChatGPT/Ge
 
 ### 3. Gemini Default Model Setter (GDMS)
 
-Automatically forces Google Gemini to use your preferred model (e.g., "Flash" or "Pro") and its Thinking Level (e.g., "Standard" or "Extended") upon page load, URL change, or tab return. Sets the initial state but allows you to seamlessly switch models or settings manually if needed mid-task.
+Automatically forces Google Gemini to use your preferred model (e.g., "Flash" or "Pro") and your preferred Extended Thinking state (ON/OFF) upon page load, URL change, or tab return. Sets the initial state but allows you to seamlessly switch models or toggle settings manually if needed mid-task.
 
 | Platform | GitHub | Greasy Fork | Version | Last Updated | Changelog |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/Gemini-Default-Model-Setter/Gemini-Default-Model-Setter.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/578088-gemini-default-model-setter) | 1.4.1 | 2026-06-30 | [View](./docs/Gemini-Default-Model-Setter/CHANGELOG_GDMS.md) |
+| **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/Gemini-Default-Model-Setter/Gemini-Default-Model-Setter.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/578088-gemini-default-model-setter) | 1.5.0 | 2026-07-09 | [View](./docs/Gemini-Default-Model-Setter/CHANGELOG_GDMS.md) |
 
 **[View Detailed Features & Manual for Gemini Default Model Setter](./docs/Gemini-Default-Model-Setter/README.md)**
 

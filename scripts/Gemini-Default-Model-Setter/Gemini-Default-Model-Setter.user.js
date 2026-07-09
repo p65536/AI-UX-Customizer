@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini Default Model Setter
 // @namespace    https://github.com/p65536
-// @version      1.4.1
+// @version      1.5.0
 // @license      MIT
 // @description  Automatically selects a specific model and its additional settings for Gemini upon page load, URL change, or tab return. The target patterns and script state can be easily configured via the extension menu.
 // @icon         data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' height='24px' viewBox='0 -960 960 960' width='24px' fill='%235985E1'%3E%3Cpath d='M240-880h480L600-712v512L480-80 360-200v-512L240-880Zm200 320h80v-176l40-64H400l40 64v176Zm80 80h-80v80h80v-80Zm0 240v-80h-80v80l40 40 40-40Zm-40-320Zm0 160Zm0-160Zm0 80Zm0 160Z'/%3E%3C/svg%3E
@@ -62,7 +62,6 @@
   const SHARED_CONSTANTS = {
     FOCUS_TARGETS: {
       MODEL: 'model',
-      THINKING: 'thinking',
     },
     TIMING: {
       MENU_POLL_INTERVAL_MS: 120,
@@ -82,9 +81,8 @@
     },
     RESOURCE_KEYS: {
       MENU_TARGET: 'menu_target',
-      MENU_THINKING: 'menu_thinking',
+      MENU_EXTENDED_THINKING: 'menu_extended_thinking',
       MENU_VISIBILITY: 'menu_visibility',
-      MENU_KEEP_THINKING: 'menu_keep_thinking',
       DOM_OBSERVER: 'dom_observer',
       MODEL_SWITCH_OBSERVER: 'model_switch_observer',
       OBSERVER_TIMEOUT: 'observer_timeout',
@@ -1072,13 +1070,12 @@
      * Executes the platform-specific model and settings application flow.
      * @param {Object} context
      * @param {string} context.targetText
-     * @param {string} context.targetThinkingText
      * @param {function(string): boolean} context.isMatch
-     * @param {function(string): boolean} context.isThinkingMatch
      * @param {boolean} context.isSettled
      * @param {boolean} context.isThinkingSettled
+     * @param {boolean} context.shouldEnableExtendedThinking
      * @param {AbortSignal} signal
-     * @returns {Promise<{ isSettled: boolean, isThinkingSettled: boolean, setFailed: boolean }>}
+     * @returns {Promise<{ isSettled: boolean, isThinkingSettled: boolean, setFailed: boolean, thinkingFailed: boolean, modelChanged: boolean }>}
      */
     async executeApplicationFlow(context, signal) {
       throw new Error('Not implemented');
@@ -1106,18 +1103,13 @@
     const CONSTANTS = {
       ...SHARED_CONSTANTS,
       TARGET_TEXT: 'Flash$',
-      TARGET_THINKING_TEXT: '',
       MODEL_NAME: 'Model',
       MODEL_EXAMPLES: 'e.g., Flash, Pro',
-      SUB_SETTING_NAME: 'Thinking Level',
-      SUB_SETTING_EXAMPLES: 'Leave blank to use site default. (e.g., Standard, Extended)',
       SELECTORS: {
         CURRENT_MODE_LABEL: '[data-test-id="logo-pill-label-container"]',
         MENU_BUTTON: '[data-test-id="bard-mode-menu-button"]',
-        MENU_ITEMS: '[data-test-id^="bard-mode-option-"]',
-        THINKING_MENU_ITEM: '[value="thinking_level"]',
+        MENU_ITEMS: 'gem-menu-item',
         ITEM_LABEL: '.label',
-        THINKING_SUBLABEL: '.sublabel',
         INPUT_TEXT_FIELD_TARGET: 'rich-textarea .ql-editor',
         DISABLED_STATE: ':disabled, [aria-disabled="true"], [class*="disabled"]',
         BUTTON_TAG: 'button',
@@ -1176,7 +1168,7 @@
       }
 
       isTargetSelected(btn) {
-        return btn.matches(CONSTANTS.SELECTORS.DISABLED_STATE);
+        return btn.matches(CONSTANTS.SELECTORS.DISABLED_STATE) || btn.classList.contains('selected');
       }
 
       closeMenu() {
@@ -1225,11 +1217,10 @@
        * Executes the platform-specific model and settings application flow.
        * @param {Object} context
        * @param {string} context.targetText
-       * @param {string} context.targetThinkingText
        * @param {function(string): boolean} context.isMatch
-       * @param {function(string): boolean} context.isThinkingMatch
        * @param {boolean} context.isSettled
        * @param {boolean} context.isThinkingSettled
+       * @param {boolean} context.shouldEnableExtendedThinking
        * @param {AbortSignal} signal
        * @returns {Promise<{ isSettled: boolean, isThinkingSettled: boolean, setFailed: boolean, thinkingFailed: boolean, modelChanged: boolean }>}
        */
@@ -1255,9 +1246,9 @@
           isSettled = true;
         }
 
-        // --- Step 2: Thinking Level check and enforce ---
-        if (context.targetThinkingText && !isThinkingSettled) {
-          const result = await this.applyAdditionalSettings(signal, context.targetThinkingText, context.isThinkingMatch);
+        // --- Step 2: Extended Thinking check and enforce ---
+        if (!isThinkingSettled) {
+          const result = await this.applyAdditionalSettings(signal, context.shouldEnableExtendedThinking);
           if (result.success) {
             isThinkingSettled = true;
           } else if (result.fatal) {
@@ -1280,13 +1271,12 @@
       }
 
       /**
-       * Applies the preferred thinking level settings from the sub-menu.
+       * Applies the preferred extended thinking toggle directly from the flat main menu.
        * @param {AbortSignal} signal
-       * @param {string} targetThinkingText
-       * @param {function(string): boolean} isThinkingMatch
+       * @param {boolean} shouldEnableExtendedThinking
        * @returns {Promise<{ success: boolean, fatal: boolean }>} Resolves with status indicating success and fatality.
        */
-      async applyAdditionalSettings(signal, targetThinkingText, isThinkingMatch) {
+      async applyAdditionalSettings(signal, shouldEnableExtendedThinking) {
         const menuButton = document.querySelector(CONSTANTS.SELECTORS.MENU_BUTTON);
         if (!(menuButton instanceof HTMLElement)) return { success: false, fatal: false };
 
@@ -1295,82 +1285,39 @@
           menuButton.click();
         }
 
-        let thinkingItem = null;
-        for (let i = 0; i < CONSTANTS.TIMING.MENU_POLL_MAX_ATTEMPTS; i++) {
+        let items = [];
+        const maxAttempts = CONSTANTS.TIMING.MENU_POLL_MAX_ATTEMPTS;
+        const intervalMs = CONSTANTS.TIMING.MENU_POLL_INTERVAL_MS;
+        for (let i = 0; i < maxAttempts; i++) {
           if (signal.aborted) return { success: false, fatal: false };
-          thinkingItem = document.querySelector(CONSTANTS.SELECTORS.THINKING_MENU_ITEM);
-          if (thinkingItem instanceof HTMLElement && thinkingItem.offsetParent !== null) break;
-          // Shortcut: If menu items are loaded but thinking option is missing, it's an unsupported model
-          if (document.querySelector(CONSTANTS.SELECTORS.MENU_ITEMS) !== null) {
-            if (isMenuOpen(menuButton)) {
-              menuButton.click();
-            }
-            return { success: false, fatal: true };
-          }
-          await new Promise((resolve) => setTimeout(resolve, CONSTANTS.TIMING.MENU_POLL_INTERVAL_MS));
+          items = this.getMenuItems();
+          if (items.length > 0) break;
+          await new Promise((resolve) => setTimeout(resolve, intervalMs));
         }
 
-        if (!(thinkingItem instanceof HTMLElement)) {
-          if (isMenuOpen(menuButton)) {
-            menuButton.click();
-          }
-          return { success: false, fatal: false };
+        // Identify the extended thinking toggle item which lacks a 'data-test-id' attribute
+        const targetBtn = items.find((el) => !el.hasAttribute('data-test-id'));
+        if (!(targetBtn instanceof HTMLElement)) {
+          console.warn(`${LOG_PREFIX} Target extended thinking item not found in menu.`);
+          this.closeMenu();
+          return { success: false, fatal: true };
         }
 
-        const sublabel = thinkingItem.querySelector(CONSTANTS.SELECTORS.THINKING_SUBLABEL);
-        const currentThinking = sublabel ? sublabel.textContent.trim() : '';
-
-        if (isThinkingMatch(currentThinking)) {
-          if (isMenuOpen(menuButton)) {
-            menuButton.click();
-          }
+        const isCurrentlySelected = this.isTargetSelected(targetBtn);
+        if (isCurrentlySelected === shouldEnableExtendedThinking) {
+          this.closeMenu();
           return { success: true, fatal: false };
-        } else {
-          thinkingItem.click();
-
-          let subItems = [];
-          let isSubMenuLoaded = false;
-          for (let i = 0; i < CONSTANTS.TIMING.MENU_POLL_MAX_ATTEMPTS; i++) {
-            if (signal.aborted) return { success: false, fatal: false };
-            const targetMenuId = thinkingItem.getAttribute(CONSTANTS.ATTRIBUTES.ARIA_CONTROLS);
-            const subMenuContainer = targetMenuId ? document.getElementById(targetMenuId) : null;
-            if (subMenuContainer instanceof HTMLElement) {
-              isSubMenuLoaded = true; // Mark container as successfully encountered
-              subItems = Array.from(subMenuContainer.querySelectorAll(CONSTANTS.SELECTORS.MENU_ITEM_TAG)).filter((el) => {
-                if (!(el instanceof HTMLElement) || el.offsetParent === null) return false;
-                const labelEl = el.querySelector(CONSTANTS.SELECTORS.ITEM_LABEL);
-                const textToMatch = labelEl ? labelEl.textContent.trim() : el.textContent.trim();
-                return isThinkingMatch(textToMatch);
-              });
-            }
-
-            if (subItems.length > 0) break;
-            await new Promise((resolve) => setTimeout(resolve, CONSTANTS.TIMING.MENU_POLL_INTERVAL_MS));
-          }
-
-          if (subItems.length > 0) {
-            const targetSubBtn = subItems[0].closest(this.getButtonSelector()) ?? subItems[0];
-            if (targetSubBtn instanceof HTMLElement) {
-              targetSubBtn.click();
-              const inputField = await waitForElement(CONSTANTS.SELECTORS.INPUT_TEXT_FIELD_TARGET, CONSTANTS.TIMING.FOCUS_POLL_INTERVAL_MS, CONSTANTS.TIMING.FOCUS_POLL_MAX_ATTEMPTS, signal);
-              if (inputField instanceof HTMLElement && inputField.offsetParent !== null && !signal.aborted) {
-                inputField.focus();
-              }
-              return { success: true, fatal: false };
-            }
-          }
-
-          // If the sub-menu container was successfully inspected but no match found, it's an invalid configuration (fatal).
-          // If the container never loaded within the timeout, treat it as a transient rendering delay (non-fatal).
-          const isFatal = isSubMenuLoaded;
-          if (isFatal) {
-            console.warn(`${LOG_PREFIX} Target thinking level matching pattern "${targetThinkingText}" not found in sub-menu.`);
-          }
-          if (isMenuOpen(menuButton)) {
-            menuButton.click();
-          }
-          return { success: false, fatal: isFatal };
         }
+
+        const buttonTagSelector = this.getButtonSelector();
+        const btn = targetBtn.closest(buttonTagSelector) ?? targetBtn;
+
+        if (btn instanceof HTMLElement) {
+          btn.click();
+          await this.focusInput(signal);
+        }
+
+        return { success: true, fatal: false };
       }
     }
 
@@ -1381,13 +1328,12 @@
     #isSetting = false;
     #lastManualMenuInteraction = 0;
     #isVisibilityCheckEnabled = false;
-    #isKeepThinkingEnabled = false;
     #setFailedForCurrentContext = false;
     #isSettledForCurrentContext = false;
     #isThinkingSettledForCurrentContext = false;
     #isThinkingApplyFailedForCurrentContext = false;
     #targetText = '';
-    #targetThinkingText = '';
+    #isExtendedThinkingEnabled = false;
     #adapter = null;
     #constants = null;
     #palette = null;
@@ -1403,14 +1349,11 @@
     get #visibilityCheckKey() {
       return `${APPID}-${PLATFORM}-visibility-check-state`;
     }
-    get #keepThinkingCheckKey() {
-      return `${APPID}-${PLATFORM}-keep-thinking-check-state`;
-    }
     get #targetTextKey() {
       return `${APPID}-${PLATFORM}-target-text-state`;
     }
-    get #targetThinkingTextKey() {
-      return `${APPID}-${PLATFORM}-target-thinking-text-state`;
+    get #extendedThinkingKey() {
+      return `${APPID}-${PLATFORM}-extended-thinking-state`;
     }
 
     /**
@@ -1435,21 +1378,6 @@
     #isMatch(text) {
       try {
         const rx = new RegExp(this.#targetText, 'i');
-        return rx.test(text);
-      } catch {
-        return false;
-      }
-    }
-
-    /**
-     * Checks if the given text matches the target thinking level regex pattern (case-insensitive).
-     * @param {string} text
-     * @returns {boolean}
-     */
-    #isThinkingMatch(text) {
-      if (!this.#targetThinkingText) return true;
-      try {
-        const rx = new RegExp(this.#targetThinkingText, 'i');
         return rx.test(text);
       } catch {
         return false;
@@ -1517,10 +1445,9 @@
       super._onInit();
       EventBus.setLogPrefix(LOG_PREFIX);
 
-      this.#isVisibilityCheckEnabled = await GM.getValue(this.#visibilityCheckKey, false);
-      this.#isKeepThinkingEnabled = await GM.getValue(this.#keepThinkingCheckKey, false);
       this.#targetText = await GM.getValue(this.#targetTextKey, this.#constants.TARGET_TEXT);
-      this.#targetThinkingText = await GM.getValue(this.#targetThinkingTextKey, this.#constants.TARGET_THINKING_TEXT);
+      this.#isExtendedThinkingEnabled = await GM.getValue(this.#extendedThinkingKey, false);
+      this.#isVisibilityCheckEnabled = await GM.getValue(this.#visibilityCheckKey, false);
 
       await this.#updateMenuCommand();
 
@@ -1540,6 +1467,7 @@
         document.removeEventListener('click', interactionListener, true);
         document.removeEventListener('keydown', interactionListener, true);
       });
+
       // Initialize navigation monitor to safely detect SPA URL/history changes
       this.#navigationMonitor = new NavigationMonitor(OWNERID);
       const onNavStart = () => {
@@ -1560,6 +1488,7 @@
       };
 
       this.addDisposable(this.#navigationMonitor.on(createSubscriberKey(this.#constants.NAV_PURPOSE.LIFECYCLE), onNavStart, onNavSettled, { trackHash: false }));
+
       const visibilityListener = () => {
         if (document.visibilityState === 'visible' && this.#isVisibilityCheckEnabled) {
           console.debug(`${LOG_PREFIX} Tab became visible, verifying state...`);
@@ -1570,6 +1499,7 @@
       };
       document.addEventListener('visibilitychange', visibilityListener);
       this.addDisposable(() => document.removeEventListener('visibilitychange', visibilityListener));
+
       // Delay the initial observer start to allow the site's hydration and async history fetch to complete
       const initDelayId = setTimeout(() => {
         this.#startObserver();
@@ -1587,77 +1517,56 @@
     }
 
     /**
-     * Update the Tampermonkey menu command label based on the current state
+     * Update the Tampermonkey menu command label based on the current state.
      */
     async #updateMenuCommand() {
       // Clear all existing menu commands first to guarantee sequential re-registration order
       this.manageResource(this.#constants.RESOURCE_KEYS.MENU_TARGET, null);
-      this.manageResource(this.#constants.RESOURCE_KEYS.MENU_THINKING, null);
-      this.manageResource(this.#constants.RESOURCE_KEYS.MENU_KEEP_THINKING, null);
+      this.manageResource(this.#constants.RESOURCE_KEYS.MENU_EXTENDED_THINKING, null);
       this.manageResource(this.#constants.RESOURCE_KEYS.MENU_VISIBILITY, null);
+
+      const thinkingStateText = this.#isExtendedThinkingEnabled ? `🟢 Set Extended Thinking: ON` : `🔴 Set Extended Thinking: OFF`;
+      const thinkingTooltipText = this.#isExtendedThinkingEnabled ? 'Click to disable Extended Thinking globally' : 'Click to enable Extended Thinking globally';
 
       const visibilityStateText = this.#isVisibilityCheckEnabled ? `🟢 Auto-Check on Re-focus: ON` : `🔴 Auto-Check on Re-focus: OFF`;
       const visibilityTooltipText = this.#isVisibilityCheckEnabled ? 'Click to disable checking the model when returning to this page' : 'Click to enable checking the model when returning to this page';
 
-      const menuPromises = [
-        GM.registerMenuCommand(`⚙️ Set Target ${this.#constants.MODEL_NAME} Name: ${this.#targetText}`, () => this.#showSettingsModal(this.#constants.FOCUS_TARGETS.MODEL), {
-          title: `Set the target ${this.#constants.MODEL_NAME.toLowerCase()} name to fix`,
-        }),
-        GM.registerMenuCommand(`⚙️ Set Target ${this.#constants.SUB_SETTING_NAME}: ${this.#targetThinkingText || '(None)'}`, () => this.#showSettingsModal(this.#constants.FOCUS_TARGETS.THINKING), {
-          title: `Set the target ${this.#constants.SUB_SETTING_NAME.toLowerCase()} to fix`,
-        }),
-      ];
+      // Register menu commands strictly sequentially to prevent asynchronous race conditions in the UI order
+      const targetId = await GM.registerMenuCommand(`⚙️ Set Target ${this.#constants.MODEL_NAME} Name: ${this.#targetText}`, () => this.#showSettingsModal(this.#constants.FOCUS_TARGETS.MODEL), {
+        title: `Set the target ${this.#constants.MODEL_NAME.toLowerCase()} name to fix`,
+      });
+      this.manageResource(this.#constants.RESOURCE_KEYS.MENU_TARGET, () => GM.unregisterMenuCommand(targetId));
 
-      let keepThinkingIdx = -1;
-      // Only register keepThinking menu if targetThinkingText is not empty
-      if (this.#targetThinkingText) {
-        const keepThinkingStateText = this.#isKeepThinkingEnabled ? `🟢 Set Thinking Level on Model Switch: ON` : `🔴 Set Thinking Level on Model Switch: OFF`;
-        const keepThinkingTooltipText = this.#isKeepThinkingEnabled ? 'Click to disable setting the thinking level when manually switching models' : 'Click to enable setting the thinking level when manually switching models';
-
-        keepThinkingIdx = menuPromises.length;
-        menuPromises.push(
-          GM.registerMenuCommand(
-            keepThinkingStateText,
-            async () => {
-              this.#isKeepThinkingEnabled = !this.#isKeepThinkingEnabled;
-              await GM.setValue(this.#keepThinkingCheckKey, this.#isKeepThinkingEnabled);
-              console.info(`${LOG_PREFIX} Keep thinking level state changed: ${this.#isKeepThinkingEnabled ? 'ON' : 'OFF'}`);
-              await this.#updateMenuCommand();
-              this.#manageModelSwitchObserver();
-            },
-            { title: keepThinkingTooltipText }
-          )
-        );
-      }
-
-      const visibilityIdx = menuPromises.length;
-      menuPromises.push(
-        GM.registerMenuCommand(
-          visibilityStateText,
-          async () => {
-            this.#isVisibilityCheckEnabled = !this.#isVisibilityCheckEnabled;
-            await GM.setValue(this.#visibilityCheckKey, this.#isVisibilityCheckEnabled);
-            console.info(`${LOG_PREFIX} Visibility check state changed: ${this.#isVisibilityCheckEnabled ? 'ON' : 'OFF'}`);
-            await this.#updateMenuCommand();
-          },
-          { title: visibilityTooltipText }
-        )
+      const thinkingId = await GM.registerMenuCommand(
+        thinkingStateText,
+        async () => {
+          this.#isExtendedThinkingEnabled = !this.#isExtendedThinkingEnabled;
+          await GM.setValue(this.#extendedThinkingKey, this.#isExtendedThinkingEnabled);
+          console.info(`${LOG_PREFIX} Extended Thinking state changed: ${this.#isExtendedThinkingEnabled ? 'ON' : 'OFF'}`);
+          this.#isThinkingSettledForCurrentContext = false;
+          await this.#updateMenuCommand();
+          this.#manageModelSwitchObserver();
+          this.#checkAndEnforce();
+        },
+        { title: thinkingTooltipText }
       );
+      this.manageResource(this.#constants.RESOURCE_KEYS.MENU_EXTENDED_THINKING, () => GM.unregisterMenuCommand(thinkingId));
 
-      const registeredIds = await Promise.all(menuPromises);
-
-      // Manage menu command registrations dynamically using the resource manager to ensure proper unregistration.
-      this.manageResource(this.#constants.RESOURCE_KEYS.MENU_TARGET, () => GM.unregisterMenuCommand(registeredIds[0]));
-      this.manageResource(this.#constants.RESOURCE_KEYS.MENU_THINKING, () => GM.unregisterMenuCommand(registeredIds[1]));
-      this.manageResource(this.#constants.RESOURCE_KEYS.MENU_VISIBILITY, () => GM.unregisterMenuCommand(registeredIds[visibilityIdx]));
-
-      if (keepThinkingIdx !== -1) {
-        this.manageResource(this.#constants.RESOURCE_KEYS.MENU_KEEP_THINKING, () => GM.unregisterMenuCommand(registeredIds[keepThinkingIdx]));
-      }
+      const visibilityId = await GM.registerMenuCommand(
+        visibilityStateText,
+        async () => {
+          this.#isVisibilityCheckEnabled = !this.#isVisibilityCheckEnabled;
+          await GM.setValue(this.#visibilityCheckKey, this.#isVisibilityCheckEnabled);
+          console.info(`${LOG_PREFIX} Visibility check state changed: ${this.#isVisibilityCheckEnabled ? 'ON' : 'OFF'}`);
+          await this.#updateMenuCommand();
+        },
+        { title: visibilityTooltipText }
+      );
+      this.manageResource(this.#constants.RESOURCE_KEYS.MENU_VISIBILITY, () => GM.unregisterMenuCommand(visibilityId));
     }
 
     /**
-     * Check current state and enforce target model and thinking level if necessary.
+     * Check current state and enforce target model and extended thinking if necessary.
      * Implements dynamic real-time auditing against the outer DOM text to safely catch
      * and overwrite delayed site history auto-overrides during initial loads or SPA navigations.
      */
@@ -1677,34 +1586,31 @@
         // a genuine manual user change and a delayed asynchronous site auto-override.
         const timeSinceLastInteraction = Temporal.Now.instant().epochMilliseconds - this.#lastManualMenuInteraction;
         const isSiteAutoOverride = timeSinceLastInteraction > this.#constants.TIMING.SITE_AUTO_OVERRIDE_EXPIRY_MS;
-
         if (isSiteAutoOverride) {
           // A delayed site override occurred (e.g., during SPA history loading).
           // Forcefully drop the settled flag to trigger a re-enforcement rewrite.
           this.#isSettledForCurrentContext = false;
           needsModelChange = true;
         } else {
-          // A genuine manual model switch took place. Respect it and treat it as settled
+          // A genuine manual model switch took place.
+          // Respect it and treat it as settled
           // within this main context to prevent the script from overriding user intent.
           this.#isSettledForCurrentContext = true;
         }
       }
 
-      // --- Check thinking level state ---
-      if (this.#targetThinkingText && !this.#isThinkingSettledForCurrentContext) {
-        if (this.#isThinkingApplyFailedForCurrentContext) {
-          // Treated as settled to stop retrying the invalid configuration, keeping the main flow unblocked
+      // --- Check extended thinking state ---
+      if (this.#isThinkingApplyFailedForCurrentContext) {
+        // Treated as settled to stop retrying the invalid configuration, keeping the main flow unblocked
+        this.#isThinkingSettledForCurrentContext = true;
+      } else {
+        const currentSubText = this.#adapter.getCurrentSubSettingText();
+        const hasExtensionActive = currentSubText.length > 0;
+        if (hasExtensionActive === this.#isExtendedThinkingEnabled) {
           this.#isThinkingSettledForCurrentContext = true;
         } else {
-          const currentSubText = this.#adapter.getCurrentSubSettingText();
-          if (this.#isThinkingMatch(currentSubText)) {
-            this.#isThinkingSettledForCurrentContext = true;
-          } else {
-            needsThinkingChange = true;
-          }
+          needsThinkingChange = true;
         }
-      } else {
-        this.#isThinkingSettledForCurrentContext = true;
       }
 
       if (needsModelChange || needsThinkingChange) {
@@ -1724,8 +1630,7 @@
     }
 
     /**
-     * Manages the lightweight observer that detects manual model switching.
-     * Starts only if Keep Thinking Level is enabled; otherwise stops completely.
+     * Manages the lightweight observer that detects automatic site history over-writes.
      */
     #manageModelSwitchObserver() {
       // Always clear the previous observer first to ensure we re-bind to the latest DOM element
@@ -1779,40 +1684,12 @@
             // Clear current observer immediately to avoid conflicting triggers before restarting the main flow
             this.manageResource(this.#constants.RESOURCE_KEYS.MODEL_SWITCH_OBSERVER, null);
             this.#startObserver();
-          } else if (this.#isKeepThinkingEnabled && this.#targetThinkingText) {
-            // Pattern 1: Manual model switch detected and current thinking level does not match target setting. Enforce it.
-            // Pattern 2 & 3: Model changed but already matches setting, or only thinking level changed. Do nothing.
-            if (modelChanged && !this.#isThinkingMatch(currentSecondary)) {
-              console.debug(`${LOG_PREFIX} [Observer] Manual model switch detected and thinking level needs enforcement. Waiting for menu items to disappear...`);
-              // Disconnect immediately to prevent multiple triggers during the menu closing transition
-              this.manageResource(this.#constants.RESOURCE_KEYS.MODEL_SWITCH_OBSERVER, null);
-              this.#isSettledForCurrentContext = true;
-              // Lock model to maintain manual change
-              this.#isThinkingSettledForCurrentContext = false;
-              let attempts = 0;
-              const checkMenuClosed = () => {
-                if (this.isDestroyed) return;
-                // Check if menu options are completely removed from the DOM to ensure the closing transition has fully settled
-                const hasMenuItems = document.querySelector(this.#constants.SELECTORS.MENU_ITEMS) !== null;
-                attempts++;
-
-                if (!hasMenuItems || attempts > this.#constants.TIMING.SWITCH_POLL_MAX_ATTEMPTS) {
-                  // Poll up to ~450ms then fallback safely
-                  this.manageResource(this.#constants.RESOURCE_KEYS.SWITCH_POLL_TIMEOUT, null);
-                  this.#startObserver();
-                } else {
-                  const timeoutId = setTimeout(checkMenuClosed, this.#constants.TIMING.SWITCH_POLL_INTERVAL_MS);
-                  // Track the polling timer to allow disposal during navigation or state changes.
-                  this.manageResource(this.#constants.RESOURCE_KEYS.SWITCH_POLL_TIMEOUT, () => clearTimeout(timeoutId));
-                }
-              };
-              checkMenuClosed();
-            }
           }
           lastPrimaryText = currentPrimary;
           lastSecondaryText = currentSecondary;
         }
       });
+
       // Observe the parent element to catch replacement or detachment of the target label node itself
       observer.observe(targetNode.parentElement ?? targetNode, {
         childList: true,
@@ -1820,7 +1697,7 @@
         characterData: true,
       });
       this.manageResource(this.#constants.RESOURCE_KEYS.MODEL_SWITCH_OBSERVER, observer);
-      console.debug(`${LOG_PREFIX} [Observer] Started lightweight model switch monitoring.`);
+      console.debug(`${LOG_PREFIX} [Observer] Started lightweight site auto-override monitoring.`);
     }
 
     /**
@@ -1926,38 +1803,13 @@ margin: 0 !important;
       input.className = `${APPID}-modal-input`;
       dialog.appendChild(input);
 
-      const thinkingPatternLabel = document.createElement('label');
-      thinkingPatternLabel.textContent = `${this.#constants.SUB_SETTING_NAME}:`;
-      thinkingPatternLabel.style.cssText = 'display:block; font-size:13px; margin-bottom:4px; font-weight:bold; margin-top:12px;';
-      dialog.appendChild(thinkingPatternLabel);
-
-      const thinkingDesc = document.createElement('span');
-      thinkingDesc.className = `${APPID}-modal-text-small`;
-      thinkingDesc.style.cssText = 'font-size: 13px; margin-bottom: 8px; display: block;';
-      thinkingDesc.textContent = this.#constants.SUB_SETTING_EXAMPLES;
-      dialog.appendChild(thinkingDesc);
-
-      const thinkingInput = document.createElement('input');
-      thinkingInput.type = 'text';
-      thinkingInput.value = this.#targetThinkingText;
-      thinkingInput.className = `${APPID}-modal-input`;
-      dialog.appendChild(thinkingInput);
-
-      const keepThinkingLabel = document.createElement('label');
-      keepThinkingLabel.style.cssText = 'display:flex; align-items:center; font-size:13px; margin-bottom:16px; margin-top:8px; transition: opacity 0.2s;';
-      const keepThinkingCheckbox = document.createElement('input');
-      keepThinkingCheckbox.type = 'checkbox';
-      keepThinkingCheckbox.checked = this.#isKeepThinkingEnabled;
-      keepThinkingCheckbox.style.marginRight = '8px';
-      keepThinkingLabel.appendChild(keepThinkingCheckbox);
-      keepThinkingLabel.appendChild(document.createTextNode('Set Thinking Level on Model Switch'));
-      dialog.appendChild(keepThinkingLabel);
-
       const statusDisplay = document.createElement('div');
       statusDisplay.className = `${APPID}-modal-status`;
       dialog.appendChild(statusDisplay);
+
       const buttonContainer = document.createElement('div');
       buttonContainer.style.cssText = 'display: flex; justify-content: space-between; align-items: center; gap: 8px;';
+
       // Register to manager and obtain a self-disposing function
       const disposeDialog = this.manageResource(this.#constants.RESOURCE_KEYS.SETTING_MODAL, () => {
         if (dialog.open) {
@@ -1967,13 +1819,12 @@ margin: 0 !important;
           dialog.remove();
         }
       });
+
       const defaultBtn = document.createElement('button');
       defaultBtn.textContent = 'Default';
       defaultBtn.className = `${APPID}-modal-btn`;
       defaultBtn.onclick = () => {
         input.value = this.#constants.TARGET_TEXT;
-        thinkingInput.value = this.#constants.TARGET_THINKING_TEXT;
-        keepThinkingCheckbox.checked = false;
         updateStatus();
       };
 
@@ -1990,24 +1841,14 @@ margin: 0 !important;
 
       const updateStatus = () => {
         const pattern = input.value;
-        const thinkingPattern = thinkingInput.value;
 
-        // Disable checkbox if target thinking level is empty
-        keepThinkingCheckbox.disabled = !thinkingPattern.trim();
-        // Adjust label style based on disabled state to reflect it visually
-        keepThinkingLabel.style.opacity = keepThinkingCheckbox.disabled ? '0.5' : '1';
-        keepThinkingLabel.style.cursor = keepThinkingCheckbox.disabled ? 'not-allowed' : 'pointer';
-        // Uncheck if the checkbox becomes disabled to prevent inconsistent states
-        if (keepThinkingCheckbox.disabled) {
-          keepThinkingCheckbox.checked = false;
-        }
-        if (pattern.includes('/') || thinkingPattern.includes('/')) {
+        if (pattern.includes('/')) {
           statusDisplay.textContent = '⚠️ Do not use "/"';
           statusDisplay.style.color = this.#palette.danger_text;
           saveBtn.disabled = true;
           return;
         }
-        if (!this.#isValidRegex(pattern) || (thinkingPattern && !this.#isValidRegex(thinkingPattern))) {
+        if (!this.#isValidRegex(pattern)) {
           statusDisplay.textContent = '⚠️ Invalid Regex';
           statusDisplay.style.color = this.#palette.danger_text;
           saveBtn.disabled = true;
@@ -2020,27 +1861,19 @@ margin: 0 !important;
       };
 
       input.addEventListener('input', updateStatus);
-      thinkingInput.addEventListener('input', updateStatus);
+
       saveBtn.onclick = async () => {
         const newVal = input.value.trim();
-        const newThinkingVal = thinkingInput.value.trim();
-        const newKeepThinkingVal = keepThinkingCheckbox.checked;
 
-        if (newVal && this.#isValidRegex(newVal) && (!newThinkingVal || this.#isValidRegex(newThinkingVal))) {
+        if (newVal && this.#isValidRegex(newVal)) {
           // Guard against multiple non-atomic invocations via rapid clicks
           saveBtn.disabled = true;
           this.#targetText = newVal;
-          this.#targetThinkingText = newThinkingVal;
-          this.#isKeepThinkingEnabled = newKeepThinkingVal;
 
           await GM.setValue(this.#targetTextKey, newVal);
-          await GM.setValue(this.#targetThinkingTextKey, newThinkingVal);
-          await GM.setValue(this.#keepThinkingCheckKey, newKeepThinkingVal);
-          console.info(`${LOG_PREFIX} Target ${this.#constants.MODEL_NAME.toLowerCase()} name updated to: ${newVal}, ${this.#constants.SUB_SETTING_NAME} to: ${newThinkingVal || '(None)'}`);
+          console.info(`${LOG_PREFIX} Target ${this.#constants.MODEL_NAME.toLowerCase()} name updated to: ${newVal}`);
           this.#setFailedForCurrentContext = false;
           this.#isSettledForCurrentContext = false;
-          this.#isThinkingSettledForCurrentContext = false;
-          this.#isThinkingApplyFailedForCurrentContext = false;
 
           await this.#updateMenuCommand();
           this.#manageModelSwitchObserver();
@@ -2062,13 +1895,8 @@ margin: 0 !important;
       });
       dialog.showModal();
 
-      if (focusTarget === this.#constants.FOCUS_TARGETS.THINKING) {
-        thinkingInput.focus();
-        thinkingInput.select();
-      } else {
-        input.focus();
-        input.select();
-      }
+      input.focus();
+      input.select();
     }
 
     /**
@@ -2086,11 +1914,10 @@ margin: 0 !important;
         const result = await this.#adapter.executeApplicationFlow(
           {
             targetText: this.#targetText,
-            targetThinkingText: this.#targetThinkingText,
             isMatch: (text) => this.#isMatch(text),
-            isThinkingMatch: (text) => this.#isThinkingMatch(text),
             isSettled: this.#isSettledForCurrentContext,
             isThinkingSettled: this.#isThinkingSettledForCurrentContext,
+            shouldEnableExtendedThinking: this.#isExtendedThinkingEnabled,
           },
           signal
         );
@@ -2104,7 +1931,7 @@ margin: 0 !important;
         // Log the failure but allow future retries upon subsequent DOM mutations to ensure self-healing
         console.error(`${LOG_PREFIX} Failed to apply target model or settings:`, e);
       } finally {
-        // Cleanup: Always release the fixing lock (#isFixing) and clear the AbortController,
+        // Cleanup: Always release the fixing lock (#isSetting) and clear the AbortController,
         // regardless of whether the operation succeeded, failed, or threw an exception, to allow future executions.
         this.#isSetting = false;
         this.manageResource(this.#constants.RESOURCE_KEYS.APPLY_SIGNAL, null);
