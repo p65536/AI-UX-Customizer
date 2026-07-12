@@ -6,6 +6,10 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.4.12] - 2026-07-12
+- **Core Changes**
+  - [ChatGPT] Fixed background image positioning and scrolling bugs in ChatGPT's new "Work" mode.
+
 ## [1.4.11] - 2026-06-30
 - **Core Changes**
   - [Icon] Embedded the script icon as an inline Data URI to guarantee asset rendering and eliminate external network dependencies.
