@@ -31,6 +31,16 @@ It integrates powerful theme and navigation features into a single codebase, all
 
 ---
 
+## Temporary notice
+
+> (2026-07-13)  
+> Due to recent ChatGPT site changes, AI-UX-Customizer may not currently work properly.  
+> Please consider temporarily disabling AI-UX-Customizer if you experience problems.  
+> I plan to investigate and update the script, but the fix may take some time.  
+> Thanks for your patience.  
+
+---
+
 ## Recent Updates
 
 ### 2026-07-12
