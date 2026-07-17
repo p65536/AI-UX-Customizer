@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.4.12
+// @version      1.5.0
 // @license      MIT
 // @description  Fully customize the chat UI of [ChatGPT/Gemini]. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' height='24px' viewBox='0 -960 960 960' width='24px' fill='%235985E1'%3E%3Cpath d='M480-80q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 32.5-156t88-127Q256-817 330-848.5T488-880q80 0 151 27.5t124.5 76q53.5 48.5 85 115T880-518q0 115-70 176.5T640-280h-74q-9 0-12.5 5t-3.5 11q0 12 15 34.5t15 51.5q0 50-27.5 74T480-80Zm0-400Zm-220 40q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm120-160q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm200 0q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm120 160q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17ZM480-160q9 0 14.5-5t5.5-13q0-14-15-33t-15-57q0-42 29-67t71-25h70q66 0 113-38.5T800-518q0-121-92.5-201.5T488-800q-136 0-232 93t-96 227q0 133 93.5 226.5T480-160Z'/%3E%3C/svg%3E
@@ -2553,13 +2553,13 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
     }
 
     /**
-     * Checks if the current page URL indicates a page where the script should be disabled.
-     * @returns {boolean} True if the page should be excluded, default is false.
+     * Checks if the current page URL indicates a page where the script should execute.
+     * @returns {boolean} True if the page is a target page, default is false.
      */
-    isExcludedPage() {
-      const excludedPatterns = CONSTANTS.URL_PATTERNS.EXCLUDED;
+    isTargetPage() {
+      const allowedRoutes = CONSTANTS.URL_PATTERNS.ALLOWED_ROUTES;
       const pathname = window.location.pathname;
-      return excludedPatterns.some((pattern) => pattern.test(pathname));
+      return allowedRoutes.some((pattern) => pattern.test(pathname));
     }
 
     /**
@@ -3369,7 +3369,7 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
      * @param {CustomSettingsButton} settingsButton The button component.
      */
     ensureButtonPlacement(settingsButton) {
-      ensureSettingsButtonPlacement(settingsButton, CONSTANTS.SELECTORS.INSERTION_ANCHOR, PlatformAdapters.General.isExcludedPage);
+      ensureSettingsButtonPlacement(settingsButton, CONSTANTS.SELECTORS.INSERTION_ANCHOR, PlatformAdapters.General.isTargetPage);
     }
   }
 
@@ -3454,6 +3454,7 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
         ASSISTANT_TEXT_CONTENT: '.markdown',
 
         // --- Input area ---
+        THREAD_BOTTOM_CONTAINER: ':is(#thread-bottom-container, div[class*="threadFooterContentFade"])',
         INPUT_AREA_BG_TARGET: 'form[data-type="unified-composer"] div[style*="border-radius"]',
         INPUT_TEXT_FIELD_TARGET: 'div.ProseMirror#prompt-textarea',
         INPUT_RESIZE_TARGET: 'form[data-type="unified-composer"]',
@@ -3482,6 +3483,7 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
         SCROLL_TO_BOTTOM_BUTTON: 'button[class*="absolute"]:has(svg > use[href*="sprites-core"])',
 
         // --- Site Specific Selectors ---
+        DISCLAIMER: '[data-testid="thread-disclaimer"]',
         BUTTON_SHARE_CHAT: '[data-testid="share-chat-button"]',
         PAGE_HEADER: '#page-header',
         TITLE_OBSERVER_TARGET: 'title',
@@ -3526,7 +3528,7 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
         NEW_CHAT_INTRO_CONTAINER: 'main .composer-parent > .relative > .flex.h-full.items-center.justify-center',
       },
       URL_PATTERNS: {
-        EXCLUDED: [/^\/library/, /^\/codex/, /^\/gpts/, /^\/images/, /^\/apps/],
+        ALLOWED_ROUTES: [/^\/$/, /^\/c\//, /^\/g\//, /^\/share\//],
         CONVERSATION_ENDPOINTS: ['/backend-api/conversation', '/backend-api/share'],
       },
       STRINGS: {
@@ -4153,6 +4155,16 @@ background-color: var(--interactive-bg-secondary-hover);
 .content-fade::after {
 background: none !important;
 }
+/* (2026/07/14) Remove bottom container gradient/shadows to reveal theme background */
+${CONSTANTS.SELECTORS.THREAD_BOTTOM_CONTAINER},
+${CONSTANTS.SELECTORS.THREAD_BOTTOM_CONTAINER}::before,
+${CONSTANTS.SELECTORS.THREAD_BOTTOM_CONTAINER}::after {
+background: none !important;
+background-image: none !important;
+box-shadow: none !important;
+mask-image: none !important;
+-webkit-mask-image: none !important;
+}
 /* (2025/12/06) Project page top fade fix: Remove top gradient and mask only for project headers. */
 main ${CONSTANTS.SELECTORS.CONTENT_FADE_TOP}.${CONSTANTS.SELECTORS.PROJECT_PAGE_CLASS},
 main ${CONSTANTS.SELECTORS.CONTENT_FADE_TOP}.${CONSTANTS.SELECTORS.PROJECT_PAGE_CLASS}::before,
@@ -4165,12 +4177,14 @@ mask-image: none !important;
 body.${cls.maxWidthActive} main ${CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH} {
 max-width: var(${CSS_VARS.CHAT_CONTENT_MAX_WIDTH}) !important;
 }
-
 /* Hide default scroll-to-bottom button */
 ${CONSTANTS.SELECTORS.SCROLL_TO_BOTTOM_BUTTON} {
 display: none !important;
 }
-
+/* (2026/07/14) Hide disclaimer text to prevent overlap with Nav Console */
+${CONSTANTS.SELECTORS.DISCLAIMER} {
+display: none !important;
+}
 /* Make new chat introduction area transparent to reveal theme background */
 ${CONSTANTS.SELECTORS.NEW_CHAT_INTRO_CONTAINER} {
 background-color: transparent !important;
@@ -5631,7 +5645,7 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
         CHAT_HISTORY_SCROLLER: 'infinite-scroller.chat-history',
       },
       URL_PATTERNS: {
-        EXCLUDED: [],
+        ALLOWED_ROUTES: [/^\/app/, /^\/gem/, /^\/gems\/view/, /^\/notebook/, /^\/notebooks\/view/],
       },
       STRINGS: {
         INTERNAL_ID_PREFIX: 'gemini-msg-',
@@ -5702,6 +5716,14 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
     // =================================================================================
 
     class GeminiGeneralAdapter extends BaseGeneralAdapter {
+      /** @override */
+      isTargetPage() {
+        // Handle Gemini shared domain routing bypass dynamically
+        if (window.location.hostname === 'share.gemini.google') {
+          return true;
+        }
+        return super.isTargetPage();
+      }
       /** @override */
       isCanvasModeActive() {
         return !!document.querySelector(CONSTANTS.SELECTORS.CANVAS_CONTAINER);
@@ -9233,9 +9255,9 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
    * @description Ensures the settings button is correctly placed.
    * @param {object} settingsButton The settings button component instance.
    * @param {string} anchorSelector The CSS selector for the anchor element.
-   * @param {() => boolean} isExcludedPageFn A function that returns true if the current page should be excluded.
+   * @param {() => boolean} isTargetPageFn A function that returns true if the current page is a target page.
    */
-  function ensureSettingsButtonPlacement(settingsButton, anchorSelector, isExcludedPageFn) {
+  function ensureSettingsButtonPlacement(settingsButton, anchorSelector, isTargetPageFn) {
     if (!settingsButton?.element) return;
 
     withLayoutCycle({
@@ -9264,11 +9286,11 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         // Guard: Check if the component was destroyed pending the animation frame
         if (!settingsButton.element) return;
 
-        // Guard: Check for excluded page immediately to prevent zombie UI.
-        if (isExcludedPageFn()) {
+        // Guard: Check for non-target page immediately to prevent zombie UI.
+        if (!isTargetPageFn()) {
           if (settingsButton.element.isConnected) {
             settingsButton.element.remove();
-            Logger.debug('UI GUARD', LOG_STYLES.CYAN, 'Excluded page detected during UI update. Button removed.');
+            Logger.debug('UI GUARD', LOG_STYLES.CYAN, 'Non-target page detected during UI update. Button removed.');
           }
           return;
         }
@@ -10930,7 +10952,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       const currentThemeSet = PlatformAdapters.ThemeManager.selectThemeForUpdate(this, config, urlChanged, titleChanged);
 
       // If the adapter returns null, it signals that the theme update should be deferred.
-      // This is used to wait for a final page title after navigating from an excluded page.
+      // This is used to wait for a final page title after navigating from a non-target page.
       if (currentThemeSet === null) {
         Logger.debug('THEME CHECK', LOG_STYLES.CYAN, 'Theme update deferred by platform adapter.');
         return;
@@ -21593,14 +21615,14 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     }
 
     _handleNavigationStart() {
-      if (PlatformAdapters.General.isExcludedPage()) {
-        Logger.log('EXCLUDED URL', LOG_STYLES.YELLOW, 'Excluded URL detected. Suspending script functions.');
+      if (!PlatformAdapters.General.isTargetPage()) {
+        Logger.log('NON-TARGET URL', LOG_STYLES.YELLOW, 'Non-target URL detected. Suspending script functions.');
         this._shutdown();
       }
     }
 
     _handleNavigation() {
-      if (PlatformAdapters.General.isExcludedPage()) {
+      if (!PlatformAdapters.General.isTargetPage()) {
         // Ensure shutdown if not caught by start event (redundant safety)
         this._shutdown();
       } else {
@@ -21620,8 +21642,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       } else {
         // Define the listener logic
         const listener = () => {
-          // Double check exclusion in case URL changed while waiting
-          if (!PlatformAdapters.General.isExcludedPage()) {
+          // Double check target page in case URL changed while waiting
+          if (PlatformAdapters.General.isTargetPage()) {
             this._launchApp();
           }
         };
@@ -21659,7 +21681,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       this.manageResource(CONSTANTS.RESOURCE_KEYS.ANCHOR_LISTENER, null);
 
       if (this.appController) {
-        Logger.log('LIFECYCLE', LOG_STYLES.YELLOW, 'Shutting down AppController (Excluded Page).');
+        Logger.log('LIFECYCLE', LOG_STYLES.YELLOW, 'Shutting down AppController (Non-Target Page).');
         // Dispose the resource (calls destroy())
         this.manageResource(CONSTANTS.RESOURCE_KEYS.APP_CONTROLLER, null);
         // Explicitly clear reference to prevent double-launch issues

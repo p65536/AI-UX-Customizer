@@ -542,7 +542,7 @@ declare class ReactiveStore<T> {
 
 interface GeneralAdapter {
     isCanvasModeActive(): boolean;
-    isExcludedPage(): boolean;
+    isTargetPage(): boolean;
     isFilePanelActive(): boolean;
     isNewChatPage(): boolean;
     isChatPage(): boolean;
@@ -839,7 +839,7 @@ interface PlatformConstants {
     ATTRIBUTES?: Record<string, string>;
     SELECTORS: Record<string, string | null>;
     URL_PATTERNS: {
-        EXCLUDED: RegExp[];
+        ALLOWED_ROUTES: RegExp[];
     };
 }
 

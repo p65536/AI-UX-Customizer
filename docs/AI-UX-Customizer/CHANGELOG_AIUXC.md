@@ -6,6 +6,12 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.5.0] - 2026-07-17
+- **Core Changes**
+  - Changed routing to use a whitelist of chat-related pages, improving stability when supported sites frequently change their structure.
+  - [ChatGPT] Adapted styling to recent ChatGPT UI modifications, restoring visibility of custom backgrounds by neutralizing the new bottom gradient overlay.
+  - [ChatGPT] Hid the bottom disclaimer text to resolve overlapping visual noise with the Nav Console.
+
 ## [1.4.12] - 2026-07-12
 - **Core Changes**
   - [ChatGPT] Fixed background image positioning and scrolling bugs in ChatGPT's new "Work" mode.
