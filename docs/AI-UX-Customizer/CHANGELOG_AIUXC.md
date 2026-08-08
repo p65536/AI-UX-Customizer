@@ -6,6 +6,10 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.5.1] - 2026-08-08
+- **Bug Fixes**
+  - [ChatGPT] Fixed an issue where clicking anywhere inside the prompt input box inadvertently triggered the settings menu due to recent UI updates on ChatGPT.
+
 ## [1.5.0] - 2026-07-17
 - **Core Changes**
   - Changed routing to use a whitelist of chat-related pages, improving stability when supported sites frequently change their structure.
