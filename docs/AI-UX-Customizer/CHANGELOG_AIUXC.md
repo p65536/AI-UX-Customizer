@@ -6,6 +6,10 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.5.2] - 2026-08-18
+- **Fixes & Improvements**
+  - [Gemini] Fixed an issue where markdown tables in assistant responses were constrained to a narrow/fixed width, allowing them to expand and utilize the full width of the chat container.
+
 ## [1.5.1] - 2026-08-08
 - **Bug Fixes**
   - [ChatGPT] Fixed an issue where clicking anywhere inside the prompt input box inadvertently triggered the settings menu due to recent UI updates on ChatGPT.
