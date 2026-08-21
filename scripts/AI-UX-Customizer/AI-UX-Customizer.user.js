@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.5.2
+// @version      1.5.3
 // @license      MIT
 // @description  Fully customize the chat UI of [ChatGPT/Gemini]. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' height='24px' viewBox='0 -960 960 960' width='24px' fill='%235985E1'%3E%3Cpath d='M480-80q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 32.5-156t88-127Q256-817 330-848.5T488-880q80 0 151 27.5t124.5 76q53.5 48.5 85 115T880-518q0 115-70 176.5T640-280h-74q-9 0-12.5 5t-3.5 11q0 12 15 34.5t15 51.5q0 50-27.5 74T480-80Zm0-400Zm-220 40q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm120-160q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm200 0q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm120 160q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17ZM480-160q9 0 14.5-5t5.5-13q0-14-15-33t-15-57q0-42 29-67t71-25h70q66 0 113-38.5T800-518q0-121-92.5-201.5T488-800q-136 0-232 93t-96 227q0 133 93.5 226.5T480-160Z'/%3E%3C/svg%3E
@@ -780,7 +780,10 @@
       },
       'features.fixed_nav_console.enabled': {
         type: 'toggle',
-        ui: { label: 'Navigation console', title: 'When enabled, a navigation console with message counters will be displayed.' },
+        ui: {
+          label: 'Navigation console',
+          title: 'When enabled, a navigation console with message counters will be displayed.\n\nNote (ChatGPT): For long chats, load full history (via Auto-scroll) first for accurate message jumping.',
+        },
       },
       'features.fixed_nav_console.keyboard_shortcuts.enabled': {
         type: 'toggle',
@@ -810,11 +813,8 @@
       'features.load_full_history_on_chat_load.enabled': {
         type: 'toggle',
         ui: {
-          label: PLATFORM === PLATFORM_DEFS.CHATGPT.NAME ? 'Scan layout on chat load' : 'Load full history on chat load',
-          title:
-            PLATFORM === PLATFORM_DEFS.CHATGPT.NAME
-              ? 'When enabled, automatically scans the layout of all messages when a chat is opened. This prevents layout shifts from images loading later.'
-              : 'When enabled, automatically scrolls back through the history when a chat is opened to load all messages.',
+          label: 'Load full history on chat load',
+          title: 'When enabled, automatically scrolls back through the history when a chat is opened to load all messages.\nRequired for message jumping on long chats.',
         },
       },
     },
@@ -2068,10 +2068,12 @@ align-items: center;
 gap: 15px;
 font-size: 1.1em;
 font-weight: bold;
+line-height: 1.4;
 opacity: 0;
 transition: opacity 0.4s ease, transform 0.4s ease;
 pointer-events: none;
-white-space: nowrap;
+white-space: pre-line;
+text-align: left;
 }
 ${root}.${cls.visible} {
 opacity: 1;
@@ -3203,7 +3205,13 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
      * @param {number} previousTotalMessages Previous count of messages.
      */
     handleInfiniteScroll(manager, highlightedMessage, previousTotalMessages) {
-      // No-op by default
+      const currentTotalMessages = manager.messageCacheManager.getTotalMessages().length;
+
+      // If new messages have been loaded (scrolled up/paginated), and a message is currently highlighted.
+      if (currentTotalMessages > previousTotalMessages && highlightedMessage) {
+        // Re-calculate the indices based on the updated (larger) message cache.
+        manager.setHighlightAndIndices(highlightedMessage);
+      }
     }
 
     /**
@@ -3323,6 +3331,14 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
      * Initializes API interception logic.
      */
     init() {
+      // No-op by default
+    }
+
+    /**
+     * Actively triggers a fetch for conversation messages.
+     * @returns {Promise<void>}
+     */
+    async triggerChatFetch() {
       // No-op by default
     }
 
@@ -3493,6 +3509,8 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
         BUTTON_SHARE_CHAT: '[data-testid="share-chat-button"]',
         PAGE_HEADER: '#page-header',
         TITLE_OBSERVER_TARGET: 'title',
+        PAGINATION_SENTINEL: '[data-testid="conversation-pagination-sentinel"]',
+        TOC_ITEM: 'button[data-toc-item-index]',
 
         // --- Header Integration Selectors ---
         HEADER_ACTIONS: '#conversation-header-actions',
@@ -3857,16 +3875,18 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
         if (hasApi && apiAdapter.chatLeafMap && apiAdapter.parentMap) {
           const leafId = apiAdapter.chatLeafMap.get(currentChatId);
           if (leafId) {
+            const visited = new Set();
             let currId = leafId;
-            while (currId) {
+            while (currId && !visited.has(currId)) {
+              visited.add(currId);
               activePathIds.unshift(currId);
               currId = apiAdapter.parentMap.get(currId);
             }
           }
         }
 
-        // Fallback: Use DOM order if API path is unavailable
-        if (activePathIds.length === 0) {
+        // Fallback: Use DOM order if API path is unavailable or incomplete compared to DOM elements
+        if (activePathIds.length === 0 || (activeIdsFromDom.length > 0 && activePathIds.length < activeIdsFromDom.length)) {
           activePathIds = activeIdsFromDom;
         }
 
@@ -4036,6 +4056,12 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
 
       /** @override */
       onNavigationEnd(lifecycleManager) {
+        // Trigger active fetch for conversation to ensure full message cache
+        const apiAdapter = PlatformAdapters.ApiMessage;
+        if (apiAdapter && typeof apiAdapter.triggerChatFetch === 'function') {
+          apiAdapter.triggerChatFetch();
+        }
+
         // Schedule integrity scan for all browsers on existing chat pages.
         if (!isNewChatPage()) {
           Logger.log('', '', 'Scheduling integrity scan to capture any missed messages.');
@@ -4059,10 +4085,16 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
         const myScrollId = Symbol();
         this._activeScrollId = myScrollId;
 
-        // Dispatch a synthetic wheel event to trick ChatGPT's internal state into releasing its scroll lock.
-        // This prevents the site's React Scroll Restoration from snapping the view back to the previous position.
-        const wheelEvent = new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: 1 });
-        scrollContainer.dispatchEvent(wheelEvent);
+        // Cancel correction loop on manual user interaction
+        const cancelUserScroll = () => {
+          if (this._activeScrollId === myScrollId) {
+            this._activeScrollId = null;
+          }
+          window.removeEventListener('wheel', cancelUserScroll, { capture: true });
+          window.removeEventListener('touchmove', cancelUserScroll, { capture: true });
+        };
+        window.addEventListener('wheel', cancelUserScroll, { capture: true, passive: true, once: true });
+        window.addEventListener('touchmove', cancelUserScroll, { capture: true, passive: true, once: true });
 
         // Initial scroll position calculation and execution (behavior: 'auto' for instant move)
         const calculateTargetTop = () => {
@@ -4078,7 +4110,7 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
         let stableFrames = 0;
 
         const adjustScroll = () => {
-          // Exclusive control: stop current loop if a new scrollTo is called
+          // Exclusive control: stop current loop if a new scrollTo is called or user scrolled manually
           if (this._activeScrollId !== myScrollId) return;
 
           // Abort correction loop immediately if target is detached from DOM
@@ -4336,12 +4368,290 @@ ${CONSTANTS.SELECTORS.USER_MESSAGE} .${cls.collapsibleBtn} {right: 4px;}
     class ChatGPTToastAdapter extends BaseToastAdapter {
       /** @override */
       getAutoScrollMessage() {
-        return 'Scanning layout to prevent scroll issues...';
+        return 'Loading full conversation history...\nYou can either wait for it to complete\nor interrupt the process and scroll manually.';
       }
     }
 
     class ChatGPTAppControllerAdapter extends BaseAppControllerAdapter {
-      // No-op adapter, inherits defaults
+      /** @override */
+      initializePlatformManagers(controller) {
+        // =================================================================================
+        // SECTION: Auto Scroll Manager (ChatGPT)
+        // Description: Manages the auto-scrolling feature to load the entire chat history.
+        // =================================================================================
+
+        /**
+         * @class AutoScrollManager
+         * @extends BaseAutoScrollManager
+         */
+        class AutoScrollManager extends BaseAutoScrollManager {
+          static CONFIG = {
+            // The minimum number of messages required to trigger the auto-scroll feature.
+            MESSAGE_THRESHOLD: 10,
+            // The interval (in ms) between progressive scroll attempts.
+            SCROLL_STEP_INTERVAL_MS: 200,
+            // The maximum time (in ms) to wait without newly mounted messages before assuming load is complete.
+            SETTLE_TIMEOUT_MS: 3000,
+          };
+
+          /**
+           * @param {ConfigManager} configManager
+           * @param {MessageCacheManager} messageCacheManager
+           * @param {ToastManager} toastManager
+           */
+          constructor(configManager, messageCacheManager, toastManager) {
+            super(configManager, messageCacheManager);
+            this.toastManager = toastManager;
+            this.scrollContainer = null;
+            this.toastShown = false;
+            this.isInitialScrollCheckDone = false;
+            this.boundStop = null;
+            this.settleTimeout = null;
+            this.stepTimer = null;
+            this.overlayElement = null;
+          }
+
+          /** @override */
+          _onInit() {
+            super._onInit();
+            const config = this.configManager.get();
+            const enabled = config?.platforms?.[PLATFORM]?.features?.load_full_history_on_chat_load?.enabled;
+            if (typeof enabled === 'boolean') {
+              this.isEnabled = enabled;
+            }
+            this._subscribe(EVENTS.STREAMING_START, () => this._onStreamingStart());
+            this.isInitialScrollCheckDone = false;
+          }
+
+          /**
+           * Checks whether the full conversation history has been loaded.
+           * Verified by the appearance of the native TOC or disappearance of the pagination sentinel.
+           * @private
+           * @returns {boolean}
+           */
+          _isHistoryFullyLoaded() {
+            const hasToc = !!document.querySelector(CONSTANTS.SELECTORS.TOC_ITEM);
+            const hasSentinel = !!document.querySelector(CONSTANTS.SELECTORS.PAGINATION_SENTINEL);
+            return hasToc || !hasSentinel;
+          }
+
+          /**
+           * Creates and shows a full-screen overlay to hide visual glitches during fast auto-scrolling
+           * without setting opacity: 0 on the scroll container (which breaks IntersectionObserver).
+           * @private
+           */
+          _createOverlay() {
+            if (this.overlayElement) return;
+
+            const toastZIndex = typeof SITE_STYLES.Z_INDICES.TOAST === 'number' ? SITE_STYLES.Z_INDICES.TOAST - 1 : 19999;
+            const overlay = h('div', {
+              style: {
+                position: 'fixed',
+                inset: '0',
+                zIndex: String(toastZIndex),
+                backgroundColor: SITE_STYLES.PALETTE.bg || 'var(--main-surface-primary, #212121)',
+                pointerEvents: 'none',
+                transition: 'opacity 0.2s ease',
+                opacity: '0.7',
+              },
+            });
+
+            if (overlay instanceof HTMLElement) {
+              document.body.appendChild(overlay);
+              this.overlayElement = overlay;
+            }
+          }
+
+          /**
+           * Removes the loading overlay.
+           * @private
+           */
+          _removeOverlay() {
+            if (this.overlayElement) {
+              this.overlayElement.remove();
+              this.overlayElement = null;
+            }
+          }
+
+          async start() {
+            if (this.isScrolling) return;
+
+            // Check if full history is already loaded
+            if (this._isHistoryFullyLoaded()) {
+              Logger.log('', '', 'AutoScrollManager: Full history is already loaded. Auto-scroll not needed.');
+              return;
+            }
+
+            this.isScrolling = true;
+
+            const scrollContainerSelector = CONSTANTS.SELECTORS.SCROLL_CONTAINER;
+            const scrollContainer = scrollContainerSelector ? document.querySelector(scrollContainerSelector) : null;
+
+            if (!(scrollContainer instanceof HTMLElement)) {
+              Logger.warn('AUTOSCROLL WARN', LOG_STYLES.YELLOW, 'Could not find scroll container.');
+              this.isInitialScrollCheckDone = false;
+              this.isScrolling = false;
+              return;
+            }
+
+            this.scrollContainer = scrollContainer;
+
+            Logger.log('', '', 'AutoScrollManager: Starting auto-scroll for ChatGPT.');
+            this.toastShown = false;
+
+            EventBus.publish(EVENTS.SUSPEND_OBSERVERS);
+
+            // Show visual overlay covering the chat area to prevent flickering without hiding the container from IntersectionObserver
+            this._createOverlay();
+
+            this.boundStop = () => this.stop(false);
+            this.scrollContainer.addEventListener('wheel', this.boundStop, { passive: true, once: true });
+            this.scrollContainer.addEventListener('touchmove', this.boundStop, { passive: true, once: true });
+
+            if (!this.toastShown) {
+              EventBus.publish(EVENTS.AUTO_SCROLL_START);
+              this.toastShown = true;
+            }
+
+            this._startScrollLoop();
+          }
+
+          _startScrollLoop() {
+            this._resetSettleTimeout();
+
+            const executeStep = () => {
+              if (!this.isScrolling) return;
+
+              if (this._isHistoryFullyLoaded()) {
+                Logger.log('', '', 'AutoScrollManager: Full history loaded (Sentinel gone or TOC found). Auto-scroll complete.');
+                this.stop(false);
+                return;
+              }
+
+              this._triggerScroll();
+              this._resetSettleTimeout();
+              this.stepTimer = setTimeout(executeStep, AutoScrollManager.CONFIG.SCROLL_STEP_INTERVAL_MS);
+            };
+
+            // Listen for cache updates to check completion status
+            this.registerPlatformListener(EVENTS.CACHE_UPDATED, () => {
+              if (!this.isScrolling) return;
+
+              if (this._isHistoryFullyLoaded()) {
+                Logger.log('', '', 'AutoScrollManager: Full history loaded on cache update. Auto-scroll complete.');
+                this.stop(false);
+                return;
+              }
+
+              this._resetSettleTimeout();
+            });
+
+            executeStep();
+          }
+
+          _resetSettleTimeout() {
+            clearTimeout(this.settleTimeout);
+            this.settleTimeout = setTimeout(() => {
+              Logger.log('', '', 'AutoScrollManager: Settle timeout reached. Assuming scroll is complete.');
+              this.stop(false);
+            }, AutoScrollManager.CONFIG.SETTLE_TIMEOUT_MS);
+          }
+
+          async _triggerScroll() {
+            if (!this.isScrolling || !this.scrollContainer) return;
+
+            await new Promise((r) => requestAnimationFrame(r));
+            await new Promise((r) => setTimeout(r, 0));
+            await new Promise((r) => requestAnimationFrame(r));
+
+            if (!this.isScrolling || !this.scrollContainer) return;
+
+            this.scrollContainer.scrollTop = 0;
+
+            const sentinel = document.querySelector(CONSTANTS.SELECTORS.PAGINATION_SENTINEL);
+            if (sentinel instanceof HTMLElement && sentinel.isConnected) {
+              sentinel.scrollIntoView({ behavior: 'auto', block: 'start' });
+            }
+          }
+
+          stop(isNavigation) {
+            if (!this.isScrolling) return;
+
+            Logger.log('', '', 'AutoScrollManager: Stopping auto-scroll.');
+            this.isScrolling = false;
+            this.toastShown = false;
+
+            clearTimeout(this.stepTimer);
+            this.stepTimer = null;
+            clearTimeout(this.settleTimeout);
+            this.settleTimeout = null;
+
+            // Remove visual overlay
+            this._removeOverlay();
+
+            if (this.boundStop) {
+              this.scrollContainer?.removeEventListener('wheel', this.boundStop);
+              this.scrollContainer?.removeEventListener('touchmove', this.boundStop);
+              this.boundStop = null;
+            }
+
+            this.scrollContainer = null;
+
+            EventBus.publish(EVENTS.AUTO_SCROLL_COMPLETE);
+
+            if (!isNavigation) {
+              EventBus.publish(EVENTS.RESUME_OBSERVERS);
+              EventBus.publish(EVENTS.THEME_UPDATE);
+            }
+          }
+
+          /** @override */
+          _onCacheUpdated() {
+            if (!this.isEnabled || this.isInitialScrollCheckDone) {
+              return;
+            }
+
+            const messageCount = this.messageCacheManager.getTotalMessages().length;
+            // Wait until chat messages (API/DOM) are loaded before performing the threshold check
+            if (messageCount === 0) return;
+
+            this.isInitialScrollCheckDone = true;
+
+            if (messageCount >= AutoScrollManager.CONFIG.MESSAGE_THRESHOLD) {
+              Logger.log('', '', `AutoScrollManager: ${messageCount} messages found. Triggering auto-scroll.`);
+              EventBus.publish(EVENTS.AUTO_SCROLL_REQUEST);
+            } else {
+              Logger.log('', '', `AutoScrollManager: ${messageCount} messages found (below threshold). Auto-scroll skipped.`);
+            }
+          }
+
+          _onStreamingStart() {
+            if (!this.isInitialScrollCheckDone) {
+              Logger.log('', '', 'AutoScrollManager: Streaming detected. Disabling initial auto-scroll check.');
+              this.isInitialScrollCheckDone = true;
+            }
+          }
+
+          /** @override */
+          _onNavigation() {
+            if (this.isScrolling) {
+              this.stop(true);
+            }
+            this.isInitialScrollCheckDone = false;
+          }
+        }
+
+        controller.autoScrollManager = controller.manageFactory(CONSTANTS.RESOURCE_KEYS.AUTO_SCROLL_MANAGER, () => new AutoScrollManager(controller.configManager, controller.messageCacheManager, controller.toastManager));
+      }
+
+      /** @override */
+      applyPlatformSpecificUiUpdates(controller, newConfig) {
+        if (newConfig.platforms[PLATFORM].features.load_full_history_on_chat_load.enabled) {
+          controller.autoScrollManager?.enable();
+        } else {
+          controller.autoScrollManager?.disable();
+        }
+      }
     }
 
     class ChatGPTAvatarAdapter extends BaseAvatarAdapter {
@@ -4764,7 +5074,7 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
     class ChatGPTSettingsPanelAdapter extends BaseSettingsPanelAdapter {
       /** @override */
       getPlatformSpecificFeatureToggles() {
-        return [{ configKey: 'features.timestamp.enabled' }, { configKey: 'features.collapsible_button.auto_collapse_user_message.enabled' }];
+        return [{ configKey: 'features.timestamp.enabled' }, { configKey: 'features.collapsible_button.auto_collapse_user_message.enabled' }, { configKey: 'features.load_full_history_on_chat_load.enabled' }];
       }
     }
 
@@ -4792,9 +5102,13 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
       }
 
       /** @override */
-      handleInfiniteScroll(fixedNavManagerInstance, highlightedMessage, previousTotalMessages) {
-        // No-op for ChatGPT as it does not use infinite scrolling for chat history.
-        // This method exists to maintain architectural consistency with the Gemini version.
+      isAutoScrollSupported() {
+        return true;
+      }
+
+      /** @override */
+      getAutoScrollTooltip(isAutoScrolling) {
+        return isAutoScrolling ? 'Auto-scrolling to load older messages... (Click to cancel)' : 'Auto-scroll to top and load full history (Required for message jumping on long chats)';
       }
 
       /** @override */
@@ -4817,92 +5131,36 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
       }
 
       /** @override */
-      getAutoScrollTooltip(isAutoScrolling) {
-        return 'Auto-scroll is not required on ChatGPT.';
-      }
-
-      /** @override */
       getShiftActionText() {
         return '\n[Shift] Auto-scroll';
       }
 
       /** @override */
       handleScrollToMessage(node, manager) {
-        const attemptScroll = () => {
-          if (manager.isDestroyed) return false;
-
-          // If message bubble is connected, scroll to it directly (Final target reached)
-          if (node.element && node.element.isConnected) {
-            PlatformAdapters.General.scrollTo(node.element);
-            return true;
-          }
-
-          // If bubble is unmounted but persistent turn container is connected, scroll to the container
-          if (node.turnElement && node.turnElement.isConnected) {
-            PlatformAdapters.General.scrollTo(node.turnElement);
-            // Return false to keep progressive scroll active, waiting for the real element to mount
-            return false;
-          }
-
-          // Fallback: search closest mounted element in cache
-          const targetToScroll = manager.messageCacheManager.getScrollTarget(node);
-          if (targetToScroll) {
-            PlatformAdapters.General.scrollTo(targetToScroll);
-          }
-          return false;
-        };
-
-        const reached = attemptScroll();
-
-        if (!reached) {
-          const limit = CONSTANTS.RETRY.PROGRESSIVE_SCROLL_LIMIT || 20;
-          const timeout = CONSTANTS.TIMING.TIMEOUTS.PROGRESSIVE_SCROLL_TIMEOUT || 5000;
-          let attempts = 0;
-
-          const timerKey = generateUniqueId('progScrollTimer');
-          let isCleanedUp = false;
-
-          const cleanup = () => {
-            if (isCleanedUp) return;
-            isCleanedUp = true;
-            if (typeof unsubscribe === 'function') unsubscribe();
-            clearTimeout(timerId);
-            manager.manageResource(timerKey, null);
-          };
-
-          // Use persistent listener instead of one-time listener to ensure all retry frames are captured
-          const unsubscribe = manager.registerPlatformListener(EVENTS.CACHE_UPDATED, processUpdate);
-
-          function processUpdate() {
-            if (manager.isDestroyed) {
-              cleanup();
-              return;
-            }
-            attempts++;
-
-            const isFinalTargetReached = node.element && node.element.isConnected;
-
-            if (isFinalTargetReached) {
-              // Final target reached, stop listening and do precision scroll
-              cleanup();
-              attemptScroll();
-            } else if (attempts < limit) {
-              // Still waiting for real element, try scrolling to placeholder/nearest
-              attemptScroll();
-            } else {
-              // Max attempts reached, cleanup
-              cleanup();
-            }
-          }
-
-          const timerId = setTimeout(() => {
-            cleanup();
-          }, timeout);
-
-          manager.manageResource(timerKey, cleanup);
+        // 1. Direct message element scroll (Target already mounted in DOM)
+        if (node.element && node.element.isConnected) {
+          PlatformAdapters.General.scrollTo(node.element);
+          return true;
         }
 
-        // Return true to indicate the adapter fully handled the scroll
+        // 2. Persistent turn container scroll (Placeholder reached)
+        if (node.turnElement && node.turnElement.isConnected) {
+          PlatformAdapters.General.scrollTo(node.turnElement);
+          return true;
+        }
+
+        // 3. Fallback: Scroll to closest mounted message or scroll container top
+        const targetToScroll = manager.messageCacheManager.getScrollTarget(node);
+        if (targetToScroll) {
+          PlatformAdapters.General.scrollTo(targetToScroll);
+        } else {
+          const scrollContainerSelector = CONSTANTS.SELECTORS.SCROLL_CONTAINER;
+          const scrollContainer = scrollContainerSelector ? document.querySelector(scrollContainerSelector) : null;
+          if (scrollContainer instanceof HTMLElement) {
+            scrollContainer.scrollTo({ top: 0, behavior: 'auto' });
+          }
+        }
+
         return true;
       }
     }
@@ -4925,31 +5183,44 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
       }
 
       /**
-       * Actively triggers a fetch for shared chats to synchronize the message cache.
-       * @private
+       * Actively triggers a fetch for the current conversation to synchronize the message cache.
+       * Supports both standard chats (/c/) and shared chats (/share/).
+       * @returns {Promise<void>}
        */
-      _triggerSharedChatFetch() {
-        if (!window.location.pathname.startsWith(CONSTANTS.PATHS.SHARE)) return;
+      async triggerChatFetch() {
+        const chatInfo = this._getChatInfoFromCurrentUrl();
+        if (!chatInfo || !chatInfo.id) return;
 
-        const chatId = this._getChatIdFromCurrentUrl();
-        if (!chatId) return;
+        const { id: chatId, type } = chatInfo;
 
-        // Abort if this shared chat is marked as permanently failed
+        if (this._lastProcessedChatId === chatId) return;
+        this._lastProcessedChatId = chatId;
+
+        // Abort if marked as permanently failed
         if (this._permanentShareErrors.has(chatId)) return;
 
-        // Abort if the temporary error limit for this shared chat has been reached
+        // Abort if temporary error limit reached
         const errorCount = this._shareFetchErrors.get(chatId) || 0;
         if (errorCount >= CONSTANTS.RETRY.SHARED_CHAT_FETCH_LIMIT) return;
-
-        if (this._lastProcessedShareId === chatId) return;
-        this._lastProcessedShareId = chatId;
 
         let token = null;
         try {
           const globalContext = typeof unsafeWindow !== 'undefined' ? unsafeWindow.__remixContext : window.__remixContext;
           token = globalContext?.state?.loaderData?.root?.clientBootstrap?.session?.accessToken;
         } catch {
-          // Fallback to tokenless fetch
+          // Fallback to session API
+        }
+
+        if (!token) {
+          try {
+            const sessionRes = await this.originalFetch(`${window.location.origin}/api/auth/session`);
+            if (sessionRes.ok) {
+              const sessionData = await sessionRes.json();
+              token = sessionData?.accessToken;
+            }
+          } catch {
+            // Ignore session fetch errors
+          }
         }
 
         const headers = token
@@ -4959,13 +5230,13 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
             }
           : {};
 
-        const shareEndpoint = CONSTANTS.URL_PATTERNS.CONVERSATION_ENDPOINTS.find((path) => path.includes('share'));
-        const targetUrl = `${window.location.origin}${shareEndpoint}/${chatId}`;
-        const normalizedUrl = `${shareEndpoint}/${chatId}`;
+        const endpoint = type === 'share' ? `/backend-api/share/${chatId}` : `/backend-api/conversation/${chatId}`;
+        const targetUrl = `${window.location.origin}${endpoint}`;
+        const normalizedUrl = endpoint;
 
         const handlePermanentFailure = (status) => {
           this._permanentShareErrors.add(chatId);
-          Logger.error('API_MESSAGE', LOG_STYLES.RED, `Permanent sync failure for shared chat ${chatId} (HTTP ${status}). Synchronization stopped.`);
+          Logger.error('API_MESSAGE', LOG_STYLES.RED, `Permanent sync failure for chat ${chatId} (HTTP ${status}). Synchronization stopped.`);
         };
 
         const handleTemporaryFailure = () => {
@@ -4973,9 +5244,9 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
           this._shareFetchErrors.set(chatId, currentErrors);
 
           if (currentErrors < CONSTANTS.RETRY.SHARED_CHAT_FETCH_LIMIT) {
-            this._lastProcessedShareId = null;
+            this._lastProcessedChatId = null;
           } else {
-            Logger.debug('API_MESSAGE', LOG_STYLES.ORANGE, `Retry limit reached (${currentErrors}/${CONSTANTS.RETRY.SHARED_CHAT_FETCH_LIMIT}) for shared chat ${chatId}. Temporary sync suspended.`);
+            Logger.debug('API_MESSAGE', LOG_STYLES.ORANGE, `Retry limit reached (${currentErrors}/${CONSTANTS.RETRY.SHARED_CHAT_FETCH_LIMIT}) for chat ${chatId}. Temporary sync suspended.`);
           }
         };
 
@@ -5033,14 +5304,14 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
             EVENTS.NAVIGATION_START,
             () => {
               this.clearDomReferences();
-              this._triggerSharedChatFetch();
+              this.triggerChatFetch();
             },
             'ChatGPTApiMessageAdapter.clearDomReferences'
           );
 
           this.isInitialized = true;
           Logger.debug('API_MESSAGE', LOG_STYLES.TEAL, 'Successfully intercepted unsafeWindow.fetch');
-          this._triggerSharedChatFetch();
+          this.triggerChatFetch();
         } catch (e) {
           Logger.error('FETCH WRAP FAILED', LOG_STYLES.RED, 'Could not wrap fetch:', e);
           // Attempt to restore if partially failed
@@ -5061,9 +5332,17 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
         // Data cache is preserved (BaseApiMessageAdapter behavior)
       }
 
+      _getChatInfoFromCurrentUrl() {
+        const match = window.location.pathname.match(/\/(?:(c|share)|g\/[a-zA-Z0-9-]+\/c)\/([a-zA-Z0-9-]+)/i);
+        if (!match) return null;
+        const rawType = match[1]?.toLowerCase();
+        const type = rawType === 'share' ? 'share' : 'chat';
+        return { id: match[2], type };
+      }
+
       _getChatIdFromCurrentUrl() {
-        const match = window.location.pathname.match(/\/(?:c|share)\/([a-zA-Z0-9-]+)/i);
-        return match ? match[1] : null;
+        const info = this._getChatInfoFromCurrentUrl();
+        return info ? info.id : null;
       }
 
       /** @override */
@@ -5119,7 +5398,12 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
 
         // Only intercept GET requests. Pass-through POST (chat generation) to prevent UI freezing
         // caused by buffering heavy streaming responses like Thinking models.
-        const method = init && init.method ? init.method.toUpperCase() : 'GET';
+        let method = 'GET';
+        if (init && init.method) {
+          method = init.method.toUpperCase();
+        } else if (typeof Request !== 'undefined' && input instanceof Request) {
+          method = input.method.toUpperCase();
+        }
         if (method !== 'GET') return this.originalFetch(input, init);
 
         const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
@@ -5281,8 +5565,8 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
           node.element = null;
           node.turnElement = null;
         }
-        // Reset share ID lock on navigation to allow re-fetching during SPA transitions
-        this._lastProcessedShareId = null;
+        // Reset processed chat ID lock on navigation to allow fetching new chats
+        this._lastProcessedChatId = null;
         // Reset temporary fetch error counter on navigation to allow retries on URL change
         this._shareFetchErrors.clear();
         Logger.debug('API_MESSAGE', LOG_STYLES.TEAL, 'Cleared DOM references from API cache to prevent memory leaks.');
@@ -5296,6 +5580,16 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
       updateActiveBranch(chatId, domIds) {
         if (!chatId || !domIds || domIds.length === 0) return;
 
+        // Dynamically register missing parent-child relationships using DOM order
+        // Required for fallback caching mechanisms that rely on parentMap traversing
+        for (let i = 1; i < domIds.length; i++) {
+          const childId = domIds[i];
+          const parentId = domIds[i - 1];
+          if (!this.parentMap.has(childId) && childId !== parentId) {
+            this.parentMap.set(childId, parentId);
+          }
+        }
+
         // Determine the deepest mounted message ID (New Leaf)
         const latestIdFromDom = domIds[domIds.length - 1];
         const currentLeafId = this.chatLeafMap.get(chatId); // Old Leaf
@@ -5308,20 +5602,12 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
           return;
         }
 
-        // Dynamically register missing parent-child relationships using DOM order
-        // Required for fallback caching mechanisms that rely on parentMap traversing
-        for (let i = 1; i < domIds.length; i++) {
-          const childId = domIds[i];
-          const parentId = domIds[i - 1];
-          if (!this.parentMap.has(childId)) {
-            this.parentMap.set(childId, parentId);
-          }
-        }
-
         // Check if the new leaf is actually an ancestor of the current leaf (e.g., due to DOM rendering delay of image messages)
         let isAncestor = false;
         let checkId = currentLeafId;
-        while (checkId) {
+        const ancestorVisited = new Set();
+        while (checkId && !ancestorVisited.has(checkId)) {
+          ancestorVisited.add(checkId);
           if (checkId === latestIdFromDom) {
             isAncestor = true;
             break;
@@ -5337,7 +5623,9 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
         // Check if the old leaf is in the ancestry of the new leaf using the robust parentMap
         let isBranchSwitched = true;
         let currId = latestIdFromDom;
-        while (currId) {
+        const branchVisited = new Set();
+        while (currId && !branchVisited.has(currId)) {
+          branchVisited.add(currId);
           if (currId === currentLeafId) {
             isBranchSwitched = false;
             break;
@@ -5365,7 +5653,9 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
         if (!leafId) return true; // Fallback if no leaf is recorded yet
 
         let currId = leafId;
-        while (currId) {
+        const visited = new Set();
+        while (currId && !visited.has(currId)) {
+          visited.add(currId);
           if (currId === nodeId) return true;
           currId = this.parentMap.get(currId);
         }
@@ -5390,7 +5680,7 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
         // 1. Build parent map and initialize active branch for tree tracking
         Object.keys(nodeMap).forEach((nodeId) => {
           const parentId = nodeMap[nodeId]?.parent;
-          if (parentId) {
+          if (parentId && parentId !== nodeId) {
             this.parentMap.set(nodeId, parentId);
           }
         });
@@ -5408,8 +5698,10 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
           if (turnIdCache.has(nodeId)) return turnIdCache.get(nodeId);
 
           const path = [];
+          const visited = new Set();
           let currId = nodeId;
-          while (currId && currId !== 'client-created-root' && !turnIdCache.has(currId)) {
+          while (currId && currId !== 'client-created-root' && !turnIdCache.has(currId) && !visited.has(currId)) {
+            visited.add(currId);
             path.push(currId);
             currId = nodeMap[currId]?.parent;
           }
@@ -6576,17 +6868,6 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         // Target the right section of the top bar actions
         const el = document.querySelector(CONSTANTS.SELECTORS.HEADER_RIGHT_SECTION);
         return el instanceof HTMLElement ? el : null;
-      }
-
-      /** @override */
-      handleInfiniteScroll(fixedNavManagerInstance, highlightedMessage, previousTotalMessages) {
-        const currentTotalMessages = fixedNavManagerInstance.messageCacheManager.getTotalMessages().length;
-
-        // If new messages have been loaded (scrolled up), and a message is currently highlighted.
-        if (currentTotalMessages > previousTotalMessages && highlightedMessage) {
-          // Re-calculate the indices based on the updated (larger) message cache.
-          fixedNavManagerInstance.setHighlightAndIndices(highlightedMessage);
-        }
       }
 
       /** @override */

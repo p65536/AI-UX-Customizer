@@ -175,7 +175,7 @@ Configure ON/OFF and thresholds for convenient UI improvement features.
 
 | Property Name | Description | Example | Notes/Allowed Values |
 | --- | --- | --- | --- |
-| `load_full_history_on_chat_load` | **[Gemini only]**<br>Enables auto-load full chat history on chat load.  | `{ "enabled": true }` | `true`/`false`<br>**[Gemini only]**<br>Automatically loads the entire chat history when opening a chat.  |
+| `load_full_history_on_chat_load` | Enables auto-load full chat history on chat load.  | `{ "enabled": true }` | `true`/`false`<br>Automatically loads the entire chat history when opening a chat.<br>In long chats (especially on ChatGPT), this is required to jump to older unmounted messages via the Jump List.  |
 | `timestamp` | `ChatGPT` **[ChatGPT only]**<br>Displays the creation time for each message. | `{ "enabled": true }` | `true`/`false`<br>`ChatGPT` only.<br>This feature is not available for Gemini to ensure strict compliance with Google's Terms of Service regarding internal API usage. |
 | `collapsible_button` | Displays a button to collapse messages at the top of each message bubble.  | `{ "enabled": true }` | `true`/`false`<br>Displays on the top-left for assistant and top-right for user.<br>Note: For Gemini, user bubbles have a standard collapse button, so this script does not process user bubbles for Gemini.<br>When this feature is enabled, a button to toggle the collapse state of all messages is displayed to the right of the message input field.  |
 | `collapsible_button.`<br>`auto_collapse_user_message` | **[ChatGPT only]**<br>Automatically collapses user messages that exceed the height threshold upon loading. | `{ "enabled": false }` | `true`/`false`<br>Default is `false`.<br>Requires `collapsible_button` to be enabled. |

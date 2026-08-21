@@ -33,7 +33,8 @@ It also includes convenient UI enhancements such as **message collapsing**, **a 
   - **[ChatGPT only] Message Timestamps**: Displays the creation time for each message. It fetches historical timestamps from the API and records new ones in real-time.  
     > (This feature is not available for Gemini to ensure strict compliance with Google's Terms of Service regarding internal API usage.)
   - **Integrated Navigation Console**: A compact UI with message counters and quick navigation buttons. It can be positioned **floating above the input field** or **embedded in the header**.
-  - **Message Jump List with Search**: Instantly jump to any message in the conversation from a list. You can filter messages by plain text or regular expressions.
+  - **Message Jump List with Search**: Instantly jump to any message in the conversation from a list. You can filter messages by plain text or regular expressions.  
+    > (Note for ChatGPT: In long paginated chats, load the full history via Auto-scroll first to jump to older unmounted messages.)
   - **Per-Message Navigation**: Adds buttons to each message to jump to the next/previous message by the same speaker (user/assistant) or scroll to the top of the current message.
   - **Collapsible Messages**: Adds a button to collapse long messages, and includes a "Bulk Collapse/Expand" button in the navigation console.
   - **[ChatGPT only] Auto-collapse User Messages**: Automatically collapses long user queries upon loading to save screen space.
@@ -42,7 +43,7 @@ It also includes convenient UI enhancements such as **message collapsing**, **a 
 - **Utility & Platform-Specific**
   - **Responsive Settings UI**: The Settings Panel and Theme Editor automatically adjust their size and layout to fit smaller screens.
   - **Export/Import Settings**: Easily back up and share your complete configuration as a JSON file.
-  - **[Gemini only] Auto-Load Full Chat History**: Automatically loads the entire chat history when opening a conversation, eliminating the need to manually scroll up.
+  - **Auto-Load Full Chat History**: Automatically loads the entire chat history when opening a conversation, eliminating the need to manually scroll up.
   - **Sample Settings Included**: Get started quickly with pre-built examples.
 
 ---
@@ -103,7 +104,7 @@ The Navigation Console functionality changes when you hold the **[Shift]** key.
 #### Platform-Specific Functions (Left Button in Shift Mode)
 
 - **ChatGPT**:
-  - None (Currently no platform-specific functions are assigned.)
+  - **Load Full History**: Triggers an auto-scroll sequence to load the entire chat history. In long paginated chats, this is required before jumping to older unmounted messages via the Jump List.
 - **Gemini**:
   - **Load Full History**: Triggers an auto-scroll sequence to load the entire chat history. Useful for searching or exporting long conversations.
 
@@ -218,6 +219,10 @@ Use simple icons from sources like Google Fonts (Material Symbols) to create a c
 - **External Image Permissions (`GM_xmlhttpRequest`):**
   - To load images from external URLs (e.g., `https://i.imgur.com/...`), the script requires the `GM_xmlhttpRequest` permission.
   - The *first time* you add an image from a new domain, your userscript manager (Tampermonkey/Violentmonkey) will prompt you to grant access to that specific domain. You must **approve this** for the images to load.
+
+- **ChatGPT Upward Infinite Scroll & Message Jumping:**
+  - Due to ChatGPT's stepwise pagination (virtualized scroll), jumping to older messages that are not yet mounted in the DOM requires loading the conversation history first.
+  - Please use **Auto-scroll** (Shift Mode in the navigation console) or enable **"Load full history on chat load"** in the Settings Panel when navigating long conversations.
 
 - **Site Updates:**
   - This script is tightly coupled to the website's UI structure. If ChatGPT or Gemini releases a major UI update, the script **will likely break** and require an update to function correctly.

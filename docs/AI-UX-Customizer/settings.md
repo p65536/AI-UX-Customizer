@@ -17,7 +17,7 @@ You can access the Settings Panel by clicking the **Settings button** (palette i
 
 | ChatGPT | Gemini |
 | :--- | :--- |
-| ChatGPT specific settings:<ul><li>Show timestamp</li><li>Auto collapse user message</li></ul> | Gemini specific settings:<ul><li>Load full history on chat load</li></ul> |
+| ChatGPT specific settings:<ul><li>Show timestamp</li><li>Auto collapse user message</li></ul> | Gemini specific settings:<ul><li>(none)</li></ul> |
 | ![Settings Panel (ChatGPT)](./images/settings_panel_chatgpt.webp) | ![Settings Panel (Gemini)](./images/settings_panel_gemini.webp) |
 
 | Item | Description |
@@ -28,13 +28,13 @@ You can access the Settings Panel by clicking the **Settings button** (palette i
 | **Icon size** | Changes the size of the user and assistant avatar icons displayed on the left and right sides of the screen. |
 | **Chat content max width** | Adjusts the maximum display width for the entire conversation. Setting it to the far left will use the platform's default width. |
 | **Prevent image/avatar overlap** | When ON, the display area will automatically adjust so that standing images do not overlap avatar icons. |
-| **[Gemini only]**<br>**Load full history on chat load** | **[Gemini only]**<br>Automatically loads the entire chat history when opening a chat.<br>It can also be triggered manually via the "Load full chat history" button (the left end button on navigation console). |
+| **Load full history on chat load** | Automatically loads the entire chat history when opening a chat.<br>In long chats (especially on ChatGPT), this is required to jump to older unmounted messages via the Jump List.<br>It can also be triggered manually via the Auto-scroll button (the left end button on the navigation console in Shift mode). |
 | **[ChatGPT only]**<br>**Show timestamp** | **[ChatGPT only]**<br>Displays the creation time for each message.<br>Note: Enabling this will reload the page.<br>(This feature is not available for Gemini to ensure strict compliance with Google's Terms of Service regarding internal API usage.) |
 | **[ChatGPT only]**<br>**Auto collapse user message** | **[ChatGPT only]**<br>Automatically collapses user messages that exceed the height threshold upon loading.<br>Requires **Collapsible button** to be enabled. |
 | **Collapsible button** | Adds a button to each message to collapse long messages. |
 | **Bubble nav buttons** | Enables navigation buttons (Prev/Next/Top) attached to each message. |
 | **Keyboard shortcuts** | Enables keyboard shortcuts for navigation.<br>**Alt + ↑ / ↓**: Previous / Next message<br>**Alt + Shift + ↑ / ↓**: First / Last message<br>**Alt + J**: Open Jump List<br>**Alt + N**: Input message number<br>Requires **Navigation console** to be enabled. |
-| **Navigation console** | Displays an operation panel above the text input field for quick navigation between messages. |
+| **Navigation console** | Displays an operation panel above the text input field for quick navigation between messages.<br>Note (ChatGPT): For long chats, load full history (via Auto-scroll) first for accurate message jumping. |
 | **Console Position** | Choose where to display the navigation console.<br>**Input Top**: Floating above the input area (Default).<br>**Header**: Embedded in the top toolbar. |
 
 ### 3. Theme Settings Screen Items

@@ -6,6 +6,19 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.5.3] - 2026-08-21
+- **ChatGPT UI Update Compatibility**
+  - Adapted to ChatGPT's new upward infinite scroll (stepwise pagination) and message virtualization.
+- **New Features**
+  - [ChatGPT] Added full history auto-scrolling to automatically load older messages in long paginated conversations.
+  - [ChatGPT] Added proactive conversation sync on page load to ensure complete jump list indexing.
+- **Important Changes & Improvements**
+  - [Navigation] In long chats, jumping to older unmounted messages now requires loading the full conversation history first via AutoScroll (removed unstable automated retry scrolling).
+  - [Navigation] Improved scroll responsiveness by immediately canceling automated adjustments upon manual user scroll.
+  - [UI] Enhanced notification banners and tooltips with multi-line layout support and history loading guidance.
+- **Fixes**
+  - [Stability] Added circular reference guards to prevent potential page freezes during conversation tree parsing.
+
 ## [1.5.2] - 2026-08-18
 - **Fixes & Improvements**
   - [Gemini] Fixed an issue where markdown tables in assistant responses were constrained to a narrow/fixed width, allowing them to expand and utilize the full width of the chat container.
