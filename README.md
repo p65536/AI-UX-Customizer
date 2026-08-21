@@ -31,6 +31,32 @@ It integrates powerful theme and navigation features into a single codebase, all
 
 ---
 
+## Temporary notice
+
+> (2026-08-21)
+> Due to recent changes to the ChatGPT site, AI-UX-Customizer may not currently work properly on ChatGPT.
+> Please consider temporarily disabling AI-UX-Customizer on ChatGPT while I investigate the issue.
+> I plan to update the script once the cause is identified, but the fix may take some time.
+> Thanks for your patience.
+
+The following issues have been confirmed on ChatGPT:
+
+* The navigation console counter and jump list do not work correctly. The jump list only shows the latest message, and the counter remains at `1/1`.
+* After sending a user message, the browser may become unresponsive due to unusually high CPU usage.
+
+Since the latter issue can significantly affect browser usability, temporarily disabling AI-UX-Customizer on ChatGPT is recommended until the issue is resolved.
+
+If you would like to continue using AI-UX-Customizer on Gemini, you can disable it only on ChatGPT using Tampermonkey:
+
+1. Open the Tampermonkey Dashboard.
+2. Open **AI-UX-Customizer** and select the **Settings** tab.
+3. Add the following entry to **User excludes**:
+   `https://chatgpt.com/*`
+
+This keeps AI-UX-Customizer enabled on Gemini while preventing it from running on ChatGPT.
+
+---
+
 ## Recent Updates
 
 ### 2026-08-18
