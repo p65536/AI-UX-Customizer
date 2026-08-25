@@ -6,6 +6,12 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.5.1] - 2026-08-26
+- **Fixes & Improvements**
+  - Fixed an issue where the model selector would freeze or stay open during model/thinking selection on mobile layouts.
+  - Improved model name and thinking state detection across varied UI label structures.
+  - Enhanced popover menu visibility and closing reliability.
+
 ## [1.5.0] - 2026-07-09
 - **Core Changes**
   - Adapted to Gemini's new model selector design and native thinking state retention behavior.

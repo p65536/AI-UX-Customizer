@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini Default Model Setter
 // @namespace    https://github.com/p65536
-// @version      1.5.0
+// @version      1.5.1
 // @license      MIT
 // @description  Automatically selects a specific model and its additional settings for Gemini upon page load, URL change, or tab return. The target patterns and script state can be easily configured via the extension menu.
 // @icon         data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' height='24px' viewBox='0 -960 960 960' width='24px' fill='%235985E1'%3E%3Cpath d='M240-880h480L600-712v512L480-80 360-200v-512L240-880Zm200 320h80v-176l40-64H400l40 64v176Zm80 80h-80v80h80v-80Zm0 240v-80h-80v80l40 40 40-40Zm-40-320Zm0 160Zm0-160Zm0 80Zm0 160Z'/%3E%3C/svg%3E
@@ -1104,10 +1104,12 @@
       ...SHARED_CONSTANTS,
       TARGET_TEXT: 'Flash$',
       MODEL_NAME: 'Model',
+      BRAND_NAME: 'Gemini',
       MODEL_EXAMPLES: 'e.g., Flash, Pro',
       SELECTORS: {
         CURRENT_MODE_LABEL: '[data-test-id="logo-pill-label-container"]',
         MENU_BUTTON: '[data-test-id="bard-mode-menu-button"]',
+        MENU_CONTAINER: 'gem-menu',
         MENU_ITEMS: 'gem-menu-item',
         ITEM_LABEL: '.label',
         INPUT_TEXT_FIELD_TARGET: 'rich-textarea .ql-editor',
@@ -1116,11 +1118,7 @@
         MENU_ITEM_TAG: 'gem-menu-item',
         PICKER_PRIMARY_TEXT: '.picker-primary-text',
         PICKER_SECONDARY_TEXT: '.picker-secondary-text',
-      },
-      ATTRIBUTES: {
-        ARIA_EXPANDED: 'aria-expanded',
-        ARIA_CONTROLS: 'aria-controls',
-        TRUE: 'true',
+        MOBILE_FLAG: '.is-mobile',
       },
     };
 
@@ -1139,24 +1137,69 @@
     };
 
     class GeminiModelSetterAdapter extends BaseModelSetterAdapter {
+      /**
+       * Determines if the current environment is using the mobile UI layout.
+       * @returns {boolean}
+       */
+      isMobile() {
+        const menuButton = document.querySelector(CONSTANTS.SELECTORS.MENU_BUTTON);
+        return menuButton?.matches(CONSTANTS.SELECTORS.MOBILE_FLAG) ?? false;
+      }
+
       getCurrentModelText() {
-        const el = document.querySelector(CONSTANTS.SELECTORS.PICKER_PRIMARY_TEXT);
-        return el ? el.textContent?.trim() : document.querySelector(CONSTANTS.SELECTORS.CURRENT_MODE_LABEL)?.textContent?.trim();
+        const primaryEl = document.querySelector(CONSTANTS.SELECTORS.PICKER_PRIMARY_TEXT);
+        const secondaryEl = document.querySelector(CONSTANTS.SELECTORS.PICKER_SECONDARY_TEXT);
+        const primaryText = primaryEl?.textContent?.trim() || '';
+        const secondaryText = secondaryEl?.textContent?.trim() || '';
+
+        if (this.isMobile()) {
+          // On mobile, if primary text is "Gemini" (thinking OFF), the actual model name is in secondary text.
+          // If thinking is ON, primary text holds the model name (e.g., "Flash") and secondary text holds "Extended".
+          return primaryText === CONSTANTS.BRAND_NAME ? secondaryText : primaryText;
+        }
+
+        return primaryText || document.querySelector(CONSTANTS.SELECTORS.CURRENT_MODE_LABEL)?.textContent?.trim();
       }
 
       getCurrentSubSettingText() {
-        return document.querySelector(CONSTANTS.SELECTORS.PICKER_SECONDARY_TEXT)?.textContent?.trim() || '';
+        const primaryEl = document.querySelector(CONSTANTS.SELECTORS.PICKER_PRIMARY_TEXT);
+        const secondaryEl = document.querySelector(CONSTANTS.SELECTORS.PICKER_SECONDARY_TEXT);
+        const primaryText = primaryEl?.textContent?.trim() || '';
+        const secondaryText = secondaryEl?.textContent?.trim() || '';
+
+        if (this.isMobile()) {
+          // On mobile, if primary text is "Gemini" (thinking OFF), sub-setting is considered empty.
+          // If thinking is ON, secondary text holds the thinking indicator (e.g., "Extended").
+          return primaryText === CONSTANTS.BRAND_NAME ? '' : secondaryText;
+        }
+
+        return secondaryText;
+      }
+
+      /**
+       * Checks whether the mode selector menu is currently open and visible.
+       * @returns {boolean}
+       */
+      isMenuOpen() {
+        const menu = document.querySelector(CONSTANTS.SELECTORS.MENU_CONTAINER);
+        if (!(menu instanceof HTMLElement)) return false;
+        return typeof menu.checkVisibility === 'function' ? menu.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }) : menu.getClientRects().length > 0;
       }
 
       openMenu() {
         const menuButton = document.querySelector(CONSTANTS.SELECTORS.MENU_BUTTON);
-        if (menuButton instanceof HTMLElement && menuButton.getAttribute(CONSTANTS.ATTRIBUTES.ARIA_EXPANDED) !== CONSTANTS.ATTRIBUTES.TRUE) {
+        if (menuButton instanceof HTMLElement && !this.isMenuOpen()) {
           menuButton.click();
         }
       }
 
       getMenuItems() {
-        return /** @type {HTMLElement[]} */ (Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.MENU_ITEMS)).filter((el) => el instanceof HTMLElement && el.offsetParent !== null));
+        return /** @type {HTMLElement[]} */ (
+          Array.from(document.querySelectorAll(CONSTANTS.SELECTORS.MENU_ITEMS)).filter((el) => {
+            if (!(el instanceof HTMLElement)) return false;
+            return typeof el.checkVisibility === 'function' ? el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }) : el.getClientRects().length > 0;
+          })
+        );
       }
 
       findTargetMenuItem(items, isMatch) {
@@ -1173,9 +1216,14 @@
 
       closeMenu() {
         const menuButton = document.querySelector(CONSTANTS.SELECTORS.MENU_BUTTON);
-        if (menuButton instanceof HTMLElement && menuButton.getAttribute(CONSTANTS.ATTRIBUTES.ARIA_EXPANDED) === CONSTANTS.ATTRIBUTES.TRUE) {
+        if (menuButton instanceof HTMLElement && this.isMenuOpen()) {
           // Click only when the menu is actually open to prevent accidental re-opening
           menuButton.click();
+
+          // Fallback for Popover / CDK Overlay on mobile where clicking the trigger does not close it
+          if (this.isMenuOpen()) {
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true }));
+          }
         }
       }
 
@@ -1203,6 +1251,11 @@
         let changed = false;
         if (btn instanceof HTMLElement && !this.isTargetSelected(btn)) {
           btn.click();
+          if (this.isMobile()) {
+            // Allow DOM event queue to settle before explicitly closing the menu on mobile
+            await new Promise((resolve) => setTimeout(resolve, 50));
+            this.closeMenu();
+          }
           await this.focusInput(signal);
           changed = true;
         } else {
@@ -1280,8 +1333,7 @@
         const menuButton = document.querySelector(CONSTANTS.SELECTORS.MENU_BUTTON);
         if (!(menuButton instanceof HTMLElement)) return { success: false, fatal: false };
 
-        const isMenuOpen = (btn) => btn?.getAttribute(CONSTANTS.ATTRIBUTES.ARIA_EXPANDED) === CONSTANTS.ATTRIBUTES.TRUE;
-        if (!isMenuOpen(menuButton)) {
+        if (!this.isMenuOpen()) {
           menuButton.click();
         }
 
@@ -1314,6 +1366,11 @@
 
         if (btn instanceof HTMLElement) {
           btn.click();
+          if (this.isMobile()) {
+            // Allow DOM event queue to settle before explicitly closing the menu on mobile
+            await new Promise((resolve) => setTimeout(resolve, 50));
+            this.closeMenu();
+          }
           await this.focusInput(signal);
         }
 

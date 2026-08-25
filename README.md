@@ -33,14 +33,14 @@ It integrates powerful theme and navigation features into a single codebase, all
 
 ## Recent Updates
 
+### 2026-08-26
+- Updated `Gemini Default Model Setter` (1.5.0 -> 1.5.1)
+
 ### 2026-08-21
 - Updated `AI UX Customizer` (1.5.2 -> 1.5.3)
 
 ### 2026-08-18
 - Updated `AI UX Customizer` (1.5.1 -> 1.5.2)
-
-### 2026-08-08
-- Updated `AI UX Customizer` (1.5.0 -> 1.5.1)
 
 ---
 
@@ -89,7 +89,7 @@ Automatically forces Google Gemini to use your preferred model (e.g., "Flash" or
 
 | Platform | GitHub | Greasy Fork | Version | Last Updated | Changelog |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/Gemini-Default-Model-Setter/Gemini-Default-Model-Setter.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/578088-gemini-default-model-setter) | 1.5.0 | 2026-07-09 | [View](./docs/Gemini-Default-Model-Setter/CHANGELOG_GDMS.md) |
+| **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/Gemini-Default-Model-Setter/Gemini-Default-Model-Setter.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/578088-gemini-default-model-setter) | 1.5.1 | 2026-08-26 | [View](./docs/Gemini-Default-Model-Setter/CHANGELOG_GDMS.md) |
 
 **[View Detailed Features & Manual for Gemini Default Model Setter](./docs/Gemini-Default-Model-Setter/README.md)**
 
