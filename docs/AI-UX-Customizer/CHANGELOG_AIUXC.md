@@ -6,6 +6,10 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.5.5] - 2026-09-07
+- **Fixes**
+  - [Gemini] Fixed an issue where avatar icons and names failed to display on historical messages due to Gemini UI changes.
+
 ## [1.5.4] - 2026-08-28
 - **Fixes**
   - [ChatGPT] Fixed an issue where the native scroll-to-bottom button was no longer hidden due to ChatGPT UI changes.
