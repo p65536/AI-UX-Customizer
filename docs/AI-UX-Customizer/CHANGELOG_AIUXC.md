@@ -6,6 +6,18 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.5.6] - 2026-09-18
+- **Fixes**
+  - [Gemini] Restored assistant content width tracking when a custom **Chat content max width** is configured.
+    - Assistant Markdown content now expands with the configured chat width instead of remaining constrained to Gemini's fixed reading width.
+    - Tables now expand with the configured chat width by removing Gemini's fixed inline content padding.
+    - Gemini's native reading width is preserved when **Chat content max width** is set to Auto.
+    - Follow-up prompts and message action controls retain their native Gemini layout.
+  - [Gemini] Updated Gemini's main answer content selector to match the current `structured-content-container` DOM structure, restoring the intended scoped text extraction path for Jump List entries.
+- **Maintenance**
+  - [Internal] Preserved the original regex parse error as `cause` on rethrow for better debugging.
+  - [Internal] Removed unused variable initializers to comply with the latest ESLint rules. These maintenance changes do not affect runtime behavior.
+
 ## [1.5.5] - 2026-09-07
 - **Fixes**
   - [Gemini] Fixed an issue where avatar icons and names failed to display on historical messages due to Gemini UI changes.

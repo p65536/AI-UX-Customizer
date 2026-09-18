@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.5.5
+// @version      1.5.6
 // @license      MIT
 // @description  Fully customize the chat UI of [ChatGPT/Gemini]. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' height='24px' viewBox='0 -960 960 960' width='24px' fill='%235985E1'%3E%3Cpath d='M480-80q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 32.5-156t88-127Q256-817 330-848.5T488-880q80 0 151 27.5t124.5 76q53.5 48.5 85 115T880-518q0 115-70 176.5T640-280h-74q-9 0-12.5 5t-3.5 11q0 12 15 34.5t15 51.5q0 50-27.5 74T480-80Zm0-400Zm-220 40q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm120-160q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm200 0q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm120 160q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17ZM480-160q9 0 14.5-5t5.5-13q0-14-15-33t-15-57q0-42 29-67t71-25h70q66 0 113-38.5T800-518q0-121-92.5-201.5T488-800q-136 0-232 93t-96 227q0 133 93.5 226.5T480-160Z'/%3E%3C/svg%3E
@@ -5870,7 +5870,7 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
         // --- Text content ---
         USER_TEXT_CONTENT: '.query-text',
         ASSISTANT_TEXT_CONTENT: '.markdown',
-        ASSISTANT_ANSWER_CONTENT: 'message-content.model-response-text',
+        ASSISTANT_ANSWER_CONTENT: 'structured-content-container.model-response-text message-content',
         VISUALLY_HIDDEN_TEXT: '.cdk-visually-hidden',
 
         // --- Input area ---
@@ -6209,6 +6209,20 @@ width: 100% !important;
 max-width: none !important;
 display: flex !important;
 justify-content: flex-end !important;
+}
+
+/* Remove Gemini's fixed reading-width constraints when custom chat width is active. */
+body.${cls.maxWidthActive}
+${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE}
+${CONSTANTS.SELECTORS.ASSISTANT_TEXT_CONTENT}
+:is(p, h1, h2, h3, h4, h5, h6, ul, ol, blockquote) {
+max-width: none !important;
+}
+
+body.${cls.maxWidthActive}
+${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE}
+.table-content.md-content {
+padding-inline: 0 !important;
 }
 
 /* Expand markdown tables to utilize the full available container width */
@@ -9351,7 +9365,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     try {
       return new RegExp(pattern, safeFlags);
     } catch (e) {
-      throw new Error(`Invalid RegExp: "${input}". ${e.message}`);
+      throw new Error(`Invalid RegExp: "${input}". ${e.message}`, { cause: e });
     }
   }
 
@@ -9816,7 +9830,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
               }
             }
             if (localErrors.length > 0) {
-              let finalMessage = '';
+              let finalMessage;
               if (localErrors.length <= 3) {
                 finalMessage = localErrors.join('\n');
               } else {
@@ -10388,7 +10402,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       if (!newValue) return;
 
       let shouldUpdate = false;
-      let newTimestamp = 0;
+      let newTimestamp;
 
       try {
         const manifest = JSON.parse(newValue);
@@ -17752,7 +17766,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     _calculateAndSetSize(text) {
       if (!this.store) return;
 
-      let sizeInBytes = 0;
+      let sizeInBytes;
       let isRaw = false;
 
       try {
