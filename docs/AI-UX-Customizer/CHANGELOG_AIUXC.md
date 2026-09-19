@@ -6,6 +6,13 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.5.7] - 2026-09-19
+- **Fixes**
+  - **[Gemini]** Fixed code blocks not expanding with a custom **Chat content max width**.
+    - Code block containers now follow the configured chat width instead of remaining constrained to Gemini's fixed reading width.
+    - The override is limited to actual code block response elements and preserves Gemini's native internal spacing.
+    - Gemini's default layout remains unchanged when **Chat content max width** is set to Auto.
+
 ## [1.5.6] - 2026-09-18
 - **Fixes**
   - [Gemini] Restored assistant content width tracking when a custom **Chat content max width** is configured.
