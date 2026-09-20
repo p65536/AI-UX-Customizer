@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.5.7
+// @version      1.5.8
 // @license      MIT
 // @description  Fully customize the chat UI of [ChatGPT/Gemini]. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' height='24px' viewBox='0 -960 960 960' width='24px' fill='%235985E1'%3E%3Cpath d='M480-80q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 32.5-156t88-127Q256-817 330-848.5T488-880q80 0 151 27.5t124.5 76q53.5 48.5 85 115T880-518q0 115-70 176.5T640-280h-74q-9 0-12.5 5t-3.5 11q0 12 15 34.5t15 51.5q0 50-27.5 74T480-80Zm0-400Zm-220 40q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm120-160q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm200 0q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm120 160q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17ZM480-160q9 0 14.5-5t5.5-13q0-14-15-33t-15-57q0-42 29-67t71-25h70q66 0 113-38.5T800-518q0-121-92.5-201.5T488-800q-136 0-232 93t-96 227q0 133 93.5 226.5T480-160Z'/%3E%3C/svg%3E
@@ -209,8 +209,10 @@
     },
     IMAGE_PROCESSING: {
       QUALITY: 0.85,
-      MAX_WIDTH_BG: 1920,
-      MAX_HEIGHT_STANDING: 1080,
+      MAX_WIDTH_BG: 3840, // 4K full width
+      MAX_HEIGHT_BG: 2160, // 4K full height
+      MAX_HEIGHT_STANDING: 2160, // 4K full height
+      MAX_ICON_SIZE: 384, // Max avatar size (192px) × 2 for high-DPI displays
     },
     TIMING: {
       DEBOUNCE_DELAYS: {
@@ -8715,156 +8717,185 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
   class DataConverter {
     /**
-     * Converts an image file to an optimized Data URL.
-     * @param {File} file The image file object.
+     * Converts an image Blob to an optimized Data URL.
+     * Uses the modern OffscreenCanvas path when available, with automatic fallback
+     * to the legacy HTMLCanvasElement path if unsupported or processing fails.
+     * @param {Blob} file The image Blob or File object.
      * @param {{ maxWidth?: number, maxHeight?: number, quality: number }} options
      * @returns {Promise<string>} A promise that resolves with the optimized Data URL.
      */
-    imageToOptimizedDataUrl(file, options) {
+    async imageToOptimizedDataUrl(file, options) {
       // Modern Path: Use OffscreenCanvas + createImageBitmap to avoid main thread blocking.
       if (typeof createImageBitmap === 'function' && typeof OffscreenCanvas === 'function') {
-        return (async () => {
-          let bitmap = null;
-          try {
-            // 1. Decode image asynchronously off main thread
-            bitmap = await createImageBitmap(file);
-            let { width, height } = bitmap;
-
-            const needsResize = (options.maxWidth && width > options.maxWidth) || (options.maxHeight && height > options.maxHeight);
-            const isWebP = file.type === 'image/webp';
-
-            // If it's already WebP and fits dimensions, skip re-compression.
-            if (isWebP && !needsResize) {
-              const { promise, resolve, reject } = Promise.withResolvers();
-              const reader = new FileReader();
-              reader.onload = () => {
-                if (typeof reader.result === 'string') resolve(reader.result);
-                else reject(new Error('Failed to read file as a data URL.'));
-              };
-              reader.onerror = () => reject(new Error('Failed to read file.'));
-              reader.readAsDataURL(file);
-              return promise;
-            }
-
-            // 2. Calculate dimensions (Aspect Ratio Logic)
-            if (needsResize) {
-              const ratio = width / height;
-              if (options.maxWidth && width > options.maxWidth) {
-                width = options.maxWidth;
-                height = width / ratio;
-              }
-              if (options.maxHeight && height > options.maxHeight) {
-                height = options.maxHeight;
-                width = height * ratio;
-              }
-            }
-
-            // 3. Draw to OffscreenCanvas
-            const canvas = new OffscreenCanvas(Math.round(width), Math.round(height));
-            const ctx = canvas.getContext('2d');
-            if (!ctx) throw new Error('Failed to get 2D context from OffscreenCanvas.');
-
-            // High quality resizing is handled by the browser's implementation of drawImage with a bitmap
-            ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-
-            // 4. Compress asynchronously off main thread
-            const blob = await canvas.convertToBlob({
-              type: 'image/webp',
-              quality: options.quality || CONSTANTS.IMAGE_PROCESSING.QUALITY,
-            });
-
-            // 5. Convert Blob to Data URL
-            const { promise, resolve, reject } = Promise.withResolvers();
-            const reader = new FileReader();
-            reader.onload = () => {
-              if (typeof reader.result === 'string') resolve(reader.result);
-              else reject(new Error('Failed to convert blob to Data URL.'));
-            };
-            reader.onerror = () => reject(new Error('FileReader error during blob conversion.'));
-            reader.readAsDataURL(blob);
-            return promise;
-          } catch (e) {
-            // Fallback to legacy path if OffscreenCanvas fails
-            Logger.warn('DataConverter', '', 'Modern image processing failed. Falling back to legacy method.', e);
-            return this._imageToDataUrlLegacy(file, options);
-          } finally {
-            // Critical: Release GPU memory associated with the bitmap
-            if (bitmap) {
-              bitmap.close();
-            }
-          }
-        })();
+        try {
+          return await this._imageToDataUrlModern(file, options);
+        } catch (e) {
+          // Log the modern path failure before falling back to the legacy path
+          Logger.warn('DataConverter', '', 'Modern image processing failed. Falling back to legacy method.', e);
+        }
       }
 
-      // Legacy Path: Use FileReader + Image + Canvas (Main Thread)
+      // Legacy Path: Use Image + HTMLCanvasElement on the main thread
       return this._imageToDataUrlLegacy(file, options);
     }
 
     /**
      * @private
-     * Fallback implementation using FileReader + Image + Canvas (Main Thread).
-     * Used when OffscreenCanvas is unavailable or fails.
-     * @param {File} file
-     * @param {object} options
+     * Modern image processing implementation using createImageBitmap and OffscreenCanvas.
+     * @param {Blob} file
+     * @param {{ maxWidth?: number, maxHeight?: number, quality: number }} options
      * @returns {Promise<string>}
      */
-    _imageToDataUrlLegacy(file, options) {
+    async _imageToDataUrlModern(file, options) {
+      let bitmap = null;
+
+      try {
+        // 1. Decode image asynchronously
+        bitmap = await createImageBitmap(file);
+
+        const { width, height, needsResize } = this._calculateTargetDimensions(bitmap.width, bitmap.height, options);
+        const isWebP = file.type === 'image/webp';
+
+        // If it's already WebP and fits dimensions, skip re-compression.
+        if (isWebP && !needsResize) {
+          return this._blobToDataUrl(file);
+        }
+
+        // 2. Draw to OffscreenCanvas
+        const canvas = new OffscreenCanvas(Math.round(width), Math.round(height));
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Failed to get 2D context from OffscreenCanvas.');
+
+        // High quality resizing is handled by the browser's implementation of drawImage with a bitmap
+        ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+
+        // 3. Compress asynchronously
+        const blob = await canvas.convertToBlob({
+          type: 'image/webp',
+          quality: options.quality ?? CONSTANTS.IMAGE_PROCESSING.QUALITY,
+        });
+
+        // 4. Convert Blob to Data URL
+        return this._blobToDataUrl(blob);
+      } finally {
+        // Critical: Release GPU memory associated with the bitmap
+        if (bitmap) {
+          bitmap.close();
+        }
+      }
+    }
+
+    /**
+     * @private
+     * Fallback implementation using Image + HTMLCanvasElement.
+     * Used when OffscreenCanvas is unavailable or the modern path fails.
+     * Canvas rendering occurs on the main thread, while WebP encoding uses
+     * the asynchronous toBlob() API to avoid synchronous toDataURL() encoding.
+     * @param {Blob} file
+     * @param {{ maxWidth?: number, maxHeight?: number, quality: number }} options
+     * @returns {Promise<string>}
+     */
+    async _imageToDataUrlLegacy(file, options) {
+      const sourceDataUrl = await this._blobToDataUrl(file);
+
+      // Decode using the legacy HTMLImageElement path
+      const { promise: imagePromise, resolve: resolveImage, reject: rejectImage } = Promise.withResolvers();
+      const img = new Image();
+
+      img.onload = () => resolveImage(img);
+      img.onerror = () => rejectImage(new Error('Failed to load image.'));
+      img.src = sourceDataUrl;
+
+      await imagePromise;
+
+      const { width, height, needsResize } = this._calculateTargetDimensions(img.width, img.height, options);
+      const isWebP = file.type === 'image/webp';
+
+      // If it's already WebP and fits dimensions, skip re-compression.
+      if (isWebP && !needsResize) {
+        return sourceDataUrl;
+      }
+
+      // Otherwise, proceed with canvas-based resizing and re-compression.
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      if (!ctx) {
+        throw new Error('Failed to get 2D context from canvas.');
+      }
+
+      canvas.width = Math.round(width);
+      canvas.height = Math.round(height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      // Encode asynchronously instead of using the blocking canvas.toDataURL()
+      const { promise: blobPromise, resolve: resolveBlob, reject: rejectBlob } = Promise.withResolvers();
+
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            resolveBlob(blob);
+          } else {
+            rejectBlob(new Error('Failed to convert canvas to blob.'));
+          }
+        },
+        'image/webp',
+        options.quality ?? CONSTANTS.IMAGE_PROCESSING.QUALITY
+      );
+
+      const blob = await blobPromise;
+      return this._blobToDataUrl(blob);
+    }
+
+    /**
+     * @private
+     * Calculates output dimensions while preserving the source aspect ratio.
+     * The image is only resized when it exceeds at least one configured limit.
+     * @param {number} width
+     * @param {number} height
+     * @param {{ maxWidth?: number, maxHeight?: number }} options
+     * @returns {{ width: number, height: number, needsResize: boolean }}
+     */
+    _calculateTargetDimensions(width, height, options) {
+      const needsResize = Boolean((options.maxWidth && width > options.maxWidth) || (options.maxHeight && height > options.maxHeight));
+
+      if (needsResize) {
+        const ratio = width / height;
+
+        if (options.maxWidth && width > options.maxWidth) {
+          width = options.maxWidth;
+          height = width / ratio;
+        }
+
+        if (options.maxHeight && height > options.maxHeight) {
+          height = options.maxHeight;
+          width = height * ratio;
+        }
+      }
+
+      return { width, height, needsResize };
+    }
+
+    /**
+     * @private
+     * Converts a Blob to a Data URL.
+     * @param {Blob} blob
+     * @returns {Promise<string>}
+     */
+    _blobToDataUrl(blob) {
       const { promise, resolve, reject } = Promise.withResolvers();
       const reader = new FileReader();
-      reader.onload = (event) => {
-        const img = new Image();
-        img.onload = () => {
-          // Check if we can skip re-compression
-          const isWebP = file.type === 'image/webp';
-          const needsResize = (options.maxWidth && img.width > options.maxWidth) || (options.maxHeight && img.height > options.maxHeight);
 
-          if (isWebP && !needsResize) {
-            // It's an appropriately sized WebP, so just use the original Data URL.
-            if (event.target && typeof event.target.result === 'string') {
-              resolve(event.target.result);
-            } else {
-              reject(new Error('Failed to read file as a data URL.'));
-            }
-            return;
-          }
-
-          // Otherwise, proceed with canvas-based resizing and re-compression.
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-
-          if (!ctx) {
-            reject(new Error('Failed to get 2D context from canvas.'));
-            return;
-          }
-
-          let { width, height } = img;
-          if (needsResize) {
-            const ratio = width / height;
-            if (options.maxWidth && width > options.maxWidth) {
-              width = options.maxWidth;
-              height = width / ratio;
-            }
-            if (options.maxHeight && height > options.maxHeight) {
-              height = options.maxHeight;
-              width = height * ratio;
-            }
-          }
-
-          canvas.width = Math.round(width);
-          canvas.height = Math.round(height);
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-          resolve(canvas.toDataURL('image/webp', options.quality || CONSTANTS.IMAGE_PROCESSING.QUALITY));
-        };
-        img.onerror = (err) => reject(new Error('Failed to load image.'));
-        if (event.target && typeof event.target.result === 'string') {
-          img.src = event.target.result;
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result);
         } else {
-          reject(new Error('Failed to read file as a data URL.'));
+          reject(new Error('Failed to convert blob to Data URL.'));
         }
       };
-      reader.onerror = (err) => reject(new Error('Failed to read file.'));
-      reader.readAsDataURL(file);
+
+      reader.onerror = () => reject(new Error('FileReader error during blob conversion.'));
+      reader.readAsDataURL(blob);
 
       return promise;
     }
@@ -18774,7 +18805,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
             callbacks.onStart();
           }
 
-          const options = this._getImageOptions(targetKey, this.state.config);
+          const options = this._getImageOptions(targetKey);
           const dataUrl = await this.dataConverter.imageToOptimizedDataUrl(file, options);
 
           // Guard: Check if destroyed or closed after async op
@@ -18803,18 +18834,28 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       }
     }
 
-    _getImageOptions(targetKey, config) {
+    _getImageOptions(targetKey) {
       const quality = CONSTANTS.IMAGE_PROCESSING.QUALITY;
       // targetKey is the full config path string
       if (targetKey.includes('backgroundImageUrl')) {
-        return { maxWidth: CONSTANTS.IMAGE_PROCESSING.MAX_WIDTH_BG, quality };
+        return {
+          maxWidth: CONSTANTS.IMAGE_PROCESSING.MAX_WIDTH_BG,
+          maxHeight: CONSTANTS.IMAGE_PROCESSING.MAX_HEIGHT_BG,
+          quality,
+        };
       }
       if (targetKey.includes('standingImageUrl')) {
-        return { maxHeight: CONSTANTS.IMAGE_PROCESSING.MAX_HEIGHT_STANDING, quality };
+        return {
+          maxHeight: CONSTANTS.IMAGE_PROCESSING.MAX_HEIGHT_STANDING,
+          quality,
+        };
       }
       if (targetKey.includes('icon')) {
-        const iconSize = config?.platforms?.[PLATFORM]?.options?.icon_size ?? CONSTANTS.UI_SPECS.AVATAR.DEFAULT_SIZE;
-        return { maxWidth: iconSize, maxHeight: iconSize, quality };
+        return {
+          maxWidth: CONSTANTS.IMAGE_PROCESSING.MAX_ICON_SIZE,
+          maxHeight: CONSTANTS.IMAGE_PROCESSING.MAX_ICON_SIZE,
+          quality,
+        };
       }
       return { quality };
     }

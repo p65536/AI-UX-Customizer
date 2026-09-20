@@ -6,6 +6,18 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.5.8] - 2026-09-21
+- **Fixes & Improvements**
+  - [Theme] Avatar images are now stored at a fixed maximum resolution of 384px instead of being resized to the current icon display size, preserving image quality when the icon size is increased later.
+  - [Theme] Increased image processing limits for high-resolution displays:
+    - Background images are now constrained to a maximum 3840×2160 bounding area.
+    - Standing images now support heights up to 2160px.
+    - Images already within the configured limits retain their original dimensions.
+  - **Note: Existing locally stored images are not automatically reprocessed. Reselect the original file to take advantage of the new higher-resolution limits.**
+- **Performance & Maintenance**
+  - [Internal] Refactored image conversion to share resize calculations and Blob-to-Data-URL conversion between modern and legacy processing paths.
+  - [Internal] Replaced synchronous legacy `canvas.toDataURL()` encoding with asynchronous `canvas.toBlob()` processing to reduce main-thread blocking for large images.
+
 ## [1.5.7] - 2026-09-19
 - **Fixes**
   - **[Gemini]** Fixed code blocks not expanding with a custom **Chat content max width**.

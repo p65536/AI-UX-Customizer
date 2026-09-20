@@ -703,7 +703,9 @@ interface PlatformConstants {
     IMAGE_PROCESSING: {
         QUALITY: number;
         MAX_WIDTH_BG: number;
+        MAX_HEIGHT_BG: number;
         MAX_HEIGHT_STANDING: number;
+        MAX_ICON_SIZE: number;
     };
     TIMING: {
         DEBOUNCE_DELAYS: Record<string, number>;
