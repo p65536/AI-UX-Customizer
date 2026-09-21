@@ -6,6 +6,16 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.5.9] - 2026-09-21
+- **Fixes**
+  - [ChatGPT] Fixed an opaque sticky composer overlay appearing when scrolling project chat lists, allowing custom theme backgrounds to remain visible.
+  - [ChatGPT] Preserved transparent page headers across Chat and Work views.
+- **Performance & Maintenance**
+  - [ChatGPT] Simplified background and fade overrides to target only the current elements and pseudo-elements responsible for visual overlays.
+  - [Internal] Removed obsolete project-page DOM observation and class injection previously used for project header fade handling.
+  - [Internal] Removed legacy ChatGPT background, border, shadow, and fade overrides that are no longer required by the current UI.
+  - [Internal] Simplified the thread-bottom container selector to the stable `#thread-bottom-container` ID.
+
 ## [1.5.8] - 2026-09-21
 - **Fixes & Improvements**
   - [Theme] Avatar images are now stored at a fixed maximum resolution of 384px instead of being resized to the current icon display size, preserving image quality when the icon size is increased later.

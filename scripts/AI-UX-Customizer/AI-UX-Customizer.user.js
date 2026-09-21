@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.5.8
+// @version      1.5.9
 // @license      MIT
 // @description  Fully customize the chat UI of [ChatGPT/Gemini]. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' height='24px' viewBox='0 -960 960 960' width='24px' fill='%235985E1'%3E%3Cpath d='M480-80q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 32.5-156t88-127Q256-817 330-848.5T488-880q80 0 151 27.5t124.5 76q53.5 48.5 85 115T880-518q0 115-70 176.5T640-280h-74q-9 0-12.5 5t-3.5 11q0 12 15 34.5t15 51.5q0 50-27.5 74T480-80Zm0-400Zm-220 40q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm120-160q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm200 0q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm120 160q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17ZM480-160q9 0 14.5-5t5.5-13q0-14-15-33t-15-57q0-42 29-67t71-25h70q66 0 113-38.5T800-518q0-121-92.5-201.5T488-800q-136 0-232 93t-96 227q0 133 93.5 226.5T480-160Z'/%3E%3C/svg%3E
@@ -3478,7 +3478,7 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
         ASSISTANT_TEXT_CONTENT: '.markdown',
 
         // --- Input area ---
-        THREAD_BOTTOM_CONTAINER: ':is(#thread-bottom-container, div[class*="threadFooterContentFade"])',
+        THREAD_BOTTOM_CONTAINER: '#thread-bottom-container',
         INPUT_AREA_BG_TARGET: 'form[data-type="unified-composer"] div[style*="border-radius"]',
         INPUT_TEXT_FIELD_TARGET: 'div.ProseMirror#prompt-textarea',
         INPUT_RESIZE_TARGET: 'form[data-type="unified-composer"]',
@@ -3541,9 +3541,8 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
         // --- Deep Research ---
         DEEP_RESEARCH_RESULT: '.deep-research-result',
 
-        // --- Style Optimization Selectors (JS-based :has replacement) ---
-        PROJECT_PAGE_CLASS: `${APPID}-project-page`,
-        PROJECT_TITLE_INPUT: '[name="project-title"]',
+        // --- Project Chat List ---
+        PROJECT_CHAT_LIST_CONTAINER: '[data-testid="page-table-background"]',
         CONTENT_FADE_TOP: '.content-fade-top',
 
         // --- Sidebar Active Item (Title Fallback) ---
@@ -4169,49 +4168,22 @@ ${CONSTANTS.SELECTORS.USER_MESSAGE} ${CONSTANTS.SELECTORS.RAW_USER_BUBBLE},
 ${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} ${CONSTANTS.SELECTORS.RAW_ASSISTANT_BUBBLE} {
 box-sizing: border-box;
 }
-/* (2025/12/17 updated) Hide borders, shadows, and backgrounds on the header */
-#page-header {
-background: none !important;
-border: none !important;
-box-shadow: none !important;
-outline: none !important;
-}
-/* Remove pseudo-elements that might create borders or shadows */
-#page-header::after,
-#page-header::before {
-display: none !important;
-}
-/* Remove standalone border elements */
-div[data-edge="true"] {
-display: none !important;
-}
 ${CONSTANTS.SELECTORS.BUTTON_SHARE_CHAT} {
 background: transparent;
 }
 ${CONSTANTS.SELECTORS.BUTTON_SHARE_CHAT}:hover {
 background-color: var(--interactive-bg-secondary-hover);
 }
-/* (2025/07/01) ChatGPT UI change fix: Remove bottom gradient that conflicts with theme backgrounds. */
-.content-fade::after {
-background: none !important;
+/* (2026/09/21) Keep the page header transparent so custom theme backgrounds remain visible. */
+${CONSTANTS.SELECTORS.PAGE_HEADER} {
+background-color: transparent !important;
 }
-/* (2026/07/14) Remove bottom container gradient/shadows to reveal theme background */
-${CONSTANTS.SELECTORS.THREAD_BOTTOM_CONTAINER},
-${CONSTANTS.SELECTORS.THREAD_BOTTOM_CONTAINER}::before,
+/* (2026/09/21) Remove fade overlays that obscure custom theme backgrounds. */
 ${CONSTANTS.SELECTORS.THREAD_BOTTOM_CONTAINER}::after {
-background: none !important;
-background-image: none !important;
-box-shadow: none !important;
-mask-image: none !important;
--webkit-mask-image: none !important;
+background-color: transparent !important;
 }
-/* (2025/12/06) Project page top fade fix: Remove top gradient and mask only for project headers. */
-main ${CONSTANTS.SELECTORS.CONTENT_FADE_TOP}.${CONSTANTS.SELECTORS.PROJECT_PAGE_CLASS},
-main ${CONSTANTS.SELECTORS.CONTENT_FADE_TOP}.${CONSTANTS.SELECTORS.PROJECT_PAGE_CLASS}::before,
-main ${CONSTANTS.SELECTORS.CONTENT_FADE_TOP}.${CONSTANTS.SELECTORS.PROJECT_PAGE_CLASS}::after {
-background: none !important;
-mask-image: none !important;
--webkit-mask-image: none !important;
+${CONSTANTS.SELECTORS.PROJECT_CHAT_LIST_CONTAINER} ${CONSTANTS.SELECTORS.CONTENT_FADE_TOP}::after {
+background-image: none !important;
 }
 /* This rule is now conditional on a body class and scoped to the scroll container to avoid affecting other elements. */
 body.${cls.maxWidthActive} main ${CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH} {
@@ -5002,45 +4974,6 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
         };
       }
 
-      /**
-       * @private
-       * @description Optimizes style application by detecting DOM elements via JS instead of using expensive CSS :has().
-       * Specifically handles the Project Page top gradient removal by adding a class to the container when the project title input is present.
-       * @param {object} dependencies
-       * @returns {() => void} A cleanup function.
-       */
-      startStyleOptimizationObserver(dependencies) {
-        const triggerSelector = CONSTANTS.SELECTORS.PROJECT_TITLE_INPUT;
-        const targetSelector = CONSTANTS.SELECTORS.CONTENT_FADE_TOP;
-        const className = CONSTANTS.SELECTORS.PROJECT_PAGE_CLASS;
-
-        const listener = (element) => {
-          // Find the parent/ancestor container to apply the class to
-          const target = element.closest(targetSelector);
-          if (target instanceof HTMLElement) {
-            target.classList.add(className);
-          }
-        };
-
-        // Use Sentinel to efficiently detect the input element
-        sentinel.on(triggerSelector, listener);
-
-        // Initial check in case it's already present
-        const existing = document.querySelector(triggerSelector);
-        if (existing) {
-          listener(existing);
-        }
-
-        return () => {
-          sentinel.off(triggerSelector, listener);
-          // Clean up the applied class from any existing targets to prevent styling leaks on navigation
-          const affectedElements = document.querySelectorAll(`.${className}`);
-          for (let i = 0; i < affectedElements.length; i++) {
-            affectedElements[i].classList.remove(className);
-          }
-        };
-      }
-
       /** @override */
       getTurnCompletionConfig() {
         return {
@@ -5059,7 +4992,6 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
           this.startRightSidebarObserver.bind(this),
           this.startResearchPanelObserver.bind(this),
           this.startInputAreaObserver.bind(this),
-          this.startStyleOptimizationObserver.bind(this),
         ];
       }
 
