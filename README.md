@@ -50,12 +50,6 @@ It integrates powerful theme and navigation features into a single codebase, all
 
 A userscript that adds powerful **theming**, **UI customization**, and **advanced navigation** features to AI chat UIs.
 
-> [!IMPORTANT]
-> **Migration Notice for Old Script Users**  
-> If you are currently using the standalone `ChatGPT UX Customizer (GPTUX)` or `Gemini UX Customizer (GGGUX)`, you must disable or delete them to prevent conflicts. Your current settings can be safely transferred to this new unified version.
-> 
-> **[Please read the Migration Guide before installing](./docs/AI-UX-Customizer/MIGRATION.md)**
-
 | Platform | GitHub | Greasy Fork | Version | Last Updated | Changelog |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **ChatGPT**<br>**Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/AI-UX-Customizer/AI-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/570496-ai-ux-customizer) | 1.5.9 | 2026-09-21 | [View](./docs/AI-UX-Customizer/CHANGELOG_AIUXC.md) |
