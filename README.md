@@ -10,6 +10,17 @@
 
 ---
 
+> [!IMPORTANT]
+> **Temporary compatibility issue with the new ChatGPT UI** (2026-09-25)
+>
+> ChatGPT is currently undergoing a major UI update. AI-UX-Customizer / Quick Text Buttons do not currently work on accounts using the new UI.
+>
+> At the moment, the new UI has been observed on paid accounts such as ChatGPT Plus, while Free accounts may still use the previous UI. The scripts continue to work with the previous UI.
+>
+> Support for the new UI is planned, but adapting to these changes may take some time. Thank you for your patience.
+
+---
+
 ## Table of Contents
 
 - [About This Project](#about-this-project)
