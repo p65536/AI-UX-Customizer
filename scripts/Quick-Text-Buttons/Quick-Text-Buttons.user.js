@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Quick-Text-Buttons
 // @namespace    https://github.com/p65536
-// @version      3.3.11
+// @version      3.4.0
 // @license      MIT
 // @description  Adds customizable text buttons to paste frequently used prompts into [ChatGPT/Gemini/Claude] inputs.
 // @icon         data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' height='24px' viewBox='0 -960 960 960' width='24px' fill='%235985E1'%3E%3Cpath d='m499-287 335-335-52-52-335 335 52 52Zm-261 87q-100-5-149-42T40-349q0-65 53.5-105.5T242-503q39-3 58.5-12.5T320-542q0-26-29.5-39T193-600l7-80q103 8 151.5 41.5T400-542q0 53-38.5 83T248-423q-64 5-96 23.5T120-349q0 35 28 50.5t94 18.5l-4 80Zm280 7L353-358l382-382q20-20 47.5-20t47.5 20l70 70q20 20 20 47.5T900-575L518-193Zm-159 33q-17 4-30-9t-9-30l33-159 165 165-159 33Z'/%3E%3C/svg%3E
@@ -322,9 +322,10 @@
     SELECTORS: {
       chatgpt: {
         // Reference element for button positioning (Parent container)
-        INSERTION_ANCHOR: 'form[data-type="unified-composer"] div[class*="[grid-area:leading]"]',
+        INSERTION_ANCHOR:
+          ':is(form[data-type="unified-composer"] div[class*="[grid-area:leading]"], form[data-chatgpt-composer] [data-composer-footer-responsive] div.flex.min-w-0.items-center:has(button[data-composer-navigation-target="add-context"]))',
         // Actual input element for text insertion
-        INPUT_TARGET: 'div.ProseMirror#prompt-textarea',
+        INPUT_TARGET: ':is(div.ProseMirror#prompt-textarea, div[data-composer-markdown])',
         // Explicit settings for layout strategy
         ANCHOR_PADDING_LEFT: null, // No padding adjustment needed
         INSERT_METHOD: 'prepend',
@@ -527,48 +528,49 @@
 
     static PLATFORM_THEMES = {
       chatgpt: {
-        [this.VARS.MODAL_BG]: 'var(--main-surface-primary)',
-        [this.VARS.PANEL_BG]: 'var(--sidebar-surface-primary)',
-        [this.VARS.INPUT_BG]: 'var(--bg-primary)',
+        [this.VARS.MODAL_BG]: 'var(--color-surface-elevated-secondary, var(--main-surface-primary, #303030))',
+        [this.VARS.PANEL_BG]: 'var(--color-surface-elevated-secondary, var(--sidebar-surface-primary, #303030))',
+        [this.VARS.INPUT_BG]: 'var(--color-background-control-opaque, var(--bg-primary, #303030))',
 
-        [this.VARS.TEXT_PRIMARY]: 'var(--text-primary)',
-        [this.VARS.TEXT_SECONDARY]: 'var(--text-secondary)',
-        [this.VARS.TEXT_DANGER]: 'var(--text-danger)',
+        [this.VARS.TEXT_PRIMARY]: 'var(--color-text-primary, var(--text-primary, #ededed))',
+        [this.VARS.TEXT_SECONDARY]: 'var(--color-text-secondary, var(--text-secondary, #cdcdcd))',
+        [this.VARS.TEXT_DANGER]: 'var(--color-text-danger, var(--text-danger, #ff6764))',
         [this.VARS.TEXT_WARNING]: '#FFD54F',
-        [this.VARS.TEXT_ACCENT]: 'var(--text-accent)',
+        [this.VARS.TEXT_ACCENT]: 'var(--app-color-text-accent, var(--text-accent, #2c67c5))',
 
-        [this.VARS.BORDER_DEFAULT]: 'var(--border-default)',
-        [this.VARS.BORDER_MEDIUM]: 'var(--border-medium)',
-        [this.VARS.BORDER_LIGHT]: 'var(--border-light)',
+        [this.VARS.BORDER_DEFAULT]: 'var(--color-border, var(--border-default, #ffffff26))',
+        [this.VARS.BORDER_MEDIUM]: 'var(--color-border-strong, var(--border-medium, #ffffff33))',
+        [this.VARS.BORDER_LIGHT]: 'var(--color-border-subtle, var(--border-light, #ffffff0d))',
 
-        [this.VARS.BTN_BG]: 'var(--interactive-bg-tertiary-default)',
-        [this.VARS.BTN_HOVER_BG]: 'var(--interactive-bg-secondary-hover)',
-        [this.VARS.BTN_TEXT]: 'var(--text-primary)',
-        [this.VARS.BTN_BORDER]: 'var(--border-default)',
+        [this.VARS.BTN_BG]: 'var(--color-background-secondary-solid, var(--interactive-bg-tertiary-default, #303030))',
+        [this.VARS.BTN_HOVER_BG]: 'var(--color-background-secondary-solid-hover, var(--interactive-bg-secondary-hover, #ffffff1a))',
+        [this.VARS.BTN_TEXT]: 'var(--color-text-primary, var(--text-primary, #ededed))',
+        [this.VARS.BTN_BORDER]: 'var(--color-border, var(--border-default, #ffffff26))',
 
-        [this.VARS.TOGGLE_BG_OFF]: 'var(--bg-primary)',
-        [this.VARS.TOGGLE_BG_ON]: 'var(--text-accent)',
-        [this.VARS.TOGGLE_KNOB]: 'var(--text-primary)',
+        [this.VARS.TOGGLE_BG_OFF]: 'var(--color-background-secondary-soft, var(--bg-primary, #303030))',
+        [this.VARS.TOGGLE_BG_ON]: 'var(--app-color-text-accent, var(--text-accent, #2c67c5))',
+        [this.VARS.TOGGLE_KNOB]: 'var(--color-text-primary, var(--text-primary, #ededed))',
 
-        [this.VARS.LIST_BG]: 'var(--main-surface-primary)',
+        [this.VARS.LIST_BG]: 'var(--color-surface-elevated-secondary, var(--main-surface-primary, #303030))',
         [this.VARS.LIST_SHADOW]: 'var(--drop-shadow-md, 0 3px 3px #0000001f)',
-        [this.VARS.TAB_BG]: 'var(--interactive-bg-tertiary-default)',
-        [this.VARS.TAB_TEXT]: 'var(--text-primary)',
-        [this.VARS.TAB_BORDER]: 'var(--border-light)',
-        [this.VARS.TAB_HOVER_BG]: 'var(--interactive-bg-secondary-hover)',
-        [this.VARS.TAB_ACTIVE_BG]: 'var(--interactive-bg-secondary-hover)',
-        [this.VARS.TAB_ACTIVE_BORDER]: 'var(--border-default)',
-        [this.VARS.TAB_ACTIVE_OUTLINE]: 'var(--border-default)',
 
-        [this.VARS.OPTION_BG]: 'var(--interactive-bg-tertiary-default)',
-        [this.VARS.OPTION_TEXT]: 'var(--text-primary)',
-        [this.VARS.OPTION_BORDER]: 'var(--border-default)',
-        [this.VARS.OPTION_HOVER_BG]: 'var(--interactive-bg-secondary-hover)',
-        [this.VARS.OPTION_HOVER_BORDER]: 'var(--border-default)',
-        [this.VARS.OPTION_HOVER_OUTLINE]: 'var(--border-default)',
+        [this.VARS.TAB_BG]: 'var(--color-background-secondary-solid, var(--interactive-bg-tertiary-default, #303030))',
+        [this.VARS.TAB_TEXT]: 'var(--color-text-primary, var(--text-primary, #ededed))',
+        [this.VARS.TAB_BORDER]: 'var(--color-border-subtle, var(--border-light, #ffffff0d))',
+        [this.VARS.TAB_HOVER_BG]: 'var(--color-background-secondary-solid-hover, var(--interactive-bg-secondary-hover, #ffffff1a))',
+        [this.VARS.TAB_ACTIVE_BG]: 'var(--color-background-secondary-solid-hover, var(--interactive-bg-secondary-hover, #ffffff1a))',
+        [this.VARS.TAB_ACTIVE_BORDER]: 'var(--color-border, var(--border-default, #ffffff26))',
+        [this.VARS.TAB_ACTIVE_OUTLINE]: 'var(--color-border, var(--border-default, #ffffff26))',
 
-        [this.VARS.INSERT_BTN_COLOR]: 'var(--text-primary)',
-        [this.VARS.INSERT_BTN_HOVER_BG]: 'var(--interactive-bg-secondary-hover)',
+        [this.VARS.OPTION_BG]: 'var(--color-background-secondary-solid, var(--interactive-bg-tertiary-default, #303030))',
+        [this.VARS.OPTION_TEXT]: 'var(--color-text-primary, var(--text-primary, #ededed))',
+        [this.VARS.OPTION_BORDER]: 'var(--color-border, var(--border-default, #ffffff26))',
+        [this.VARS.OPTION_HOVER_BG]: 'var(--color-background-secondary-solid-hover, var(--interactive-bg-secondary-hover, #ffffff1a))',
+        [this.VARS.OPTION_HOVER_BORDER]: 'var(--color-border, var(--border-default, #ffffff26))',
+        [this.VARS.OPTION_HOVER_OUTLINE]: 'var(--color-border, var(--border-default, #ffffff26))',
+
+        [this.VARS.INSERT_BTN_COLOR]: 'var(--color-text-primary, var(--text-primary, #ededed))',
+        [this.VARS.INSERT_BTN_HOVER_BG]: 'var(--color-background-secondary-ghost-hover, var(--interactive-bg-secondary-hover, #ffffff1a))',
         [this.VARS.INSERT_BTN_POSITION]: 'static',
         [this.VARS.INSERT_BTN_LEFT]: 'auto',
         [this.VARS.INSERT_BTN_BOTTOM]: 'auto',
@@ -577,11 +579,12 @@
         [this.VARS.ANCHOR_PADDING_LEFT]: '0',
         [this.VARS.ANCHOR_GAP]: '2px',
 
-        [this.VARS.DELETE_BTN_TEXT]: 'var(--interactive-label-danger-secondary-default)',
-        [this.VARS.DELETE_BTN_BG]: 'var(--interactive-bg-danger-secondary-default)',
-        [this.VARS.DELETE_BTN_HOVER_TEXT]: 'var(--interactive-label-danger-secondary-hover)',
-        [this.VARS.DELETE_BTN_HOVER_BG]: 'var(--interactive-bg-secondary-hover)',
-        [this.VARS.DND_INDICATOR]: 'var(--text-accent)',
+        [this.VARS.DELETE_BTN_TEXT]: 'var(--color-text-danger, var(--interactive-label-danger-secondary-default, #ff6764))',
+        [this.VARS.DELETE_BTN_BG]: 'var(--color-background-danger-soft-alpha, var(--interactive-bg-danger-secondary-default, transparent))',
+        [this.VARS.DELETE_BTN_HOVER_TEXT]: 'var(--color-text-danger-ghost-hover, var(--interactive-label-danger-secondary-hover, #fa423e))',
+        [this.VARS.DELETE_BTN_HOVER_BG]: 'var(--color-background-danger-soft-alpha-hover, var(--interactive-bg-secondary-hover, transparent))',
+
+        [this.VARS.DND_INDICATOR]: 'var(--app-color-text-accent, var(--text-accent, #2c67c5))',
       },
       gemini: {
         [this.VARS.MODAL_BG]: 'var(--gem-sys-color--surface-container-highest)',
@@ -5114,8 +5117,8 @@ font-size: 0.95em;
           // Update Options (if not renaming)
           if (!isRenamingThis) {
             const profiles = this.cachedConfig?.texts || [];
-            let keys = [];
-            let activeKey = '';
+            let keys;
+            let activeKey;
 
             if (type === 'profile') {
               keys = profiles.map((p) => p.name);
@@ -6349,7 +6352,7 @@ font-size: 0.95em;
       const container = this.modal?.getContentContainer();
       if (!container) return;
 
-      let sizeInBytes = 0;
+      let sizeInBytes;
       let isRaw = false;
 
       try {

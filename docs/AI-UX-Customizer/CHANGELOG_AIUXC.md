@@ -6,6 +6,9 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.6.0] - 2026-09-26
+- [ChatGPT] Added support for the new ChatGPT UI while retaining compatibility with the legacy UI.
+
 ## [1.5.9] - 2026-09-21
 - **Fixes**
   - [ChatGPT] Fixed an opaque sticky composer overlay appearing when scrolling project chat lists, allowing custom theme backgrounds to remain visible.

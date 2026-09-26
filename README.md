@@ -11,13 +11,13 @@
 ---
 
 > [!IMPORTANT]
-> **Temporary compatibility issue with the new ChatGPT UI** (2026-09-25)
+> **ChatGPT new UI compatibility** (2026-09-26)
 >
-> ChatGPT is currently undergoing a major UI update. AI-UX-Customizer / Quick Text Buttons do not currently work on accounts using the new UI.
+> AI-UX-Customizer and Quick Text Buttons have been updated to support the new ChatGPT UI while retaining compatibility with the previous UI.
 >
-> At the moment, the new UI has been observed on paid accounts such as ChatGPT Plus, while Free accounts may still use the previous UI. The scripts continue to work with the previous UI.
+> However, the new ChatGPT UI is still changing frequently, and its DOM structure and behavior may change without notice. Compatibility with the new UI is therefore provided on a best-effort basis, and some features may temporarily stop working after future ChatGPT updates.
 >
-> Support for the new UI is planned, but adapting to these changes may take some time. Thank you for your patience.
+> If you encounter an issue that only occurs with the new UI, please report it so it can be investigated and addressed as needed.
 
 ---
 
@@ -44,14 +44,15 @@ It integrates powerful theme and navigation features into a single codebase, all
 
 ## Recent Updates
 
+### 2026-09-26
+- Updated `AI UX Customizer` (1.5.9 -> 1.6.0)
+- Updated `Quick Text Buttons` (3.3.11 -> 3.4.0)
+
 ### 2026-09-21
 - Updated `AI UX Customizer` (1.5.7 -> 1.5.8 -> 1.5.9)
 
 ### 2026-09-19
 - Updated `AI UX Customizer` (1.5.6 -> 1.5.7)
-
-### 2026-09-18
-- Updated `AI UX Customizer` (1.5.5 -> 1.5.6)
 
 ---
 
@@ -63,7 +64,7 @@ A userscript that adds powerful **theming**, **UI customization**, and **advance
 
 | Platform | GitHub | Greasy Fork | Version | Last Updated | Changelog |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **ChatGPT**<br>**Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/AI-UX-Customizer/AI-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/570496-ai-ux-customizer) | 1.5.9 | 2026-09-21 | [View](./docs/AI-UX-Customizer/CHANGELOG_AIUXC.md) |
+| **ChatGPT**<br>**Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/AI-UX-Customizer/AI-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/570496-ai-ux-customizer) | 1.6.0 | 2026-09-26 | [View](./docs/AI-UX-Customizer/CHANGELOG_AIUXC.md) |
 
 **[View Detailed Features & Manual for AI UX Customizer](./docs/AI-UX-Customizer/README.md)**
 
@@ -80,7 +81,7 @@ Adds customizable text buttons to paste frequently used prompts into [ChatGPT/Ge
 
 | Platform | GitHub | Greasy Fork | Version | Last Updated | Changelog |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **ChatGPT**<br>**Gemini**<br>**Claude** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/Quick-Text-Buttons/Quick-Text-Buttons.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/544699-quick-text-buttons) | 3.3.11 | 2026-08-26 | [View](./docs/Quick-Text-Buttons/CHANGELOG_QTBUX.md) |
+| **ChatGPT**<br>**Gemini**<br>**Claude** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/Quick-Text-Buttons/Quick-Text-Buttons.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/544699-quick-text-buttons) | 3.4.0 | 2026-09-26 | [View](./docs/Quick-Text-Buttons/CHANGELOG_QTBUX.md) |
 
 **[View Detailed Features & Manual for Quick Text Buttons](./docs/Quick-Text-Buttons/README.md)**
 

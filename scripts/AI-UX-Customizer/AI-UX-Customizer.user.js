@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.5.9
+// @version      1.6.0
 // @license      MIT
 // @description  Fully customize the chat UI of [ChatGPT/Gemini]. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' height='24px' viewBox='0 -960 960 960' width='24px' fill='%235985E1'%3E%3Cpath d='M480-80q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 32.5-156t88-127Q256-817 330-848.5T488-880q80 0 151 27.5t124.5 76q53.5 48.5 85 115T880-518q0 115-70 176.5T640-280h-74q-9 0-12.5 5t-3.5 11q0 12 15 34.5t15 51.5q0 50-27.5 74T480-80Zm0-400Zm-220 40q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm120-160q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm200 0q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm120 160q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17ZM480-160q9 0 14.5-5t5.5-13q0-14-15-33t-15-57q0-42 29-67t71-25h70q66 0 113-38.5T800-518q0-121-92.5-201.5T488-800q-136 0-232 93t-96 227q0 133 93.5 226.5T480-160Z'/%3E%3C/svg%3E
@@ -247,6 +247,7 @@
       POLLING: {
         IDLE_INDEXING_MS: 1000, // Interval for background text indexing task
         HEARTBEAT_INTERVAL_MS: 2000, // Interval for checking DOM integrity
+        PROGRESSIVE_SCROLL_INTERVAL_MS: 250,
       },
       PERF_MONITOR_THROTTLE: 1000,
       KEYBOARD_THROTTLE: 120,
@@ -877,7 +878,7 @@
 ${root} .${cls.modalButton} {
 background: ${palette.btn_bg};
 border: 1px solid ${palette.btn_border};
-border-radius: var(--radius-md, 5px);
+border-radius: var(--radius-md);
 color: ${palette.btn_text};
 cursor: pointer;
 font-size: 13px;
@@ -925,6 +926,8 @@ gap: 6px;
 ${root} .${cls.sliderSubgroupControl} input[type=range] {
 flex-grow: 1;
 min-width: 0;
+-webkit-appearance: auto;
+appearance: auto;
 }
 ${root} .${cls.sliderDisplay} {
 color: ${palette.slider_display_text};
@@ -1672,7 +1675,11 @@ ${root} .${cls.sliderGroup} input[type="range"]:focus::-moz-range-thumb { outlin
       const S_ASST_BUBBLE = selectors.RAW_ASSISTANT_BUBBLE;
 
       // Highlight Selectors
-      const highlightCommon = `.${cls.highlightMessage} ${S_USER_BUBBLE}, .${cls.highlightMessage} ${S_ASST_BUBBLE}, .${cls.highlightMessage} ${selectors.RAW_USER_IMAGE_BUBBLE}, .${cls.highlightTurn} ${selectors.RAW_ASSISTANT_IMAGE_BUBBLE}`;
+      const highlightCommon =
+        `.${cls.highlightMessage} ${S_USER_BUBBLE}, ` +
+        `.${cls.highlightMessage} ${S_ASST_BUBBLE}, ` +
+        `${selectors.USER_MESSAGE}.${cls.highlightMessage} ${selectors.RAW_USER_IMAGE_BUBBLE}, ` +
+        `.${cls.highlightTurn} ${selectors.ASSISTANT_IMAGE_HIGHLIGHT_TARGET}`;
       const highlightUserText = `.${cls.highlightMessage} ${S_USER_BUBBLE}`;
       const highlightAsstText = `.${cls.highlightMessage} ${S_ASST_BUBBLE}`;
 
@@ -1709,6 +1716,7 @@ box-shadow: none !important;
 padding: 0 8px !important;
 height: 100%;
 z-index: auto;
+pointer-events: auto;
 }
 ${root}.${cls.hidden} {
 display: none;
@@ -2456,7 +2464,7 @@ ${extraCss}
       const S_USER_MSG = selectors.USER_MESSAGE;
       const S_ASST_MSG = selectors.ASSISTANT_MESSAGE;
       const S_USER_BUBBLE = selectors.RAW_USER_BUBBLE;
-      const S_ASST_BUBBLE = selectors.RAW_ASSISTANT_BUBBLE;
+      const S_ASST_BUBBLE = selectors.ASSISTANT_BUBBLE_STYLE_TARGET ? `:is(${selectors.ASSISTANT_BUBBLE_STYLE_TARGET}, ${selectors.RAW_ASSISTANT_BUBBLE})` : selectors.RAW_ASSISTANT_BUBBLE;
 
       // Helper to generate CSS property only if the variable is active
       const prop = (propName, varName) => {
@@ -2504,9 +2512,10 @@ ${S_ASST_MSG} ${selectors.ASSISTANT_TEXT_CONTENT} {
 ${prop('color', CSS_VARS.ASSISTANT_TEXT_COLOR)}
 ${prop('font-family', CSS_VARS.ASSISTANT_FONT)}
 }
-/* Assistant Child Elements Text Color */
+/* Assistant Child Elements Text Styles */
 ${assistantTextSelectors} {
 ${prop('color', CSS_VARS.ASSISTANT_TEXT_COLOR)}
+${prop('font-family', CSS_VARS.ASSISTANT_FONT)}
 }
 
 /* --- Assistant Rich Content Styling (Tone-on-Tone) --- */
@@ -3309,9 +3318,10 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
      * Optional hook to handle platform-specific scroll logic.
      * @param {MessageNode} messageNode The target message node.
      * @param {FixedNavigationManager} manager The manager instance.
+     * @param {'first'|'last'|null} edge Direct edge navigation hint, or null for normal navigation.
      * @returns {boolean} True if the scroll was handled by the adapter, false to use the default common logic.
      */
-    handleScrollToMessage(messageNode, manager) {
+    handleScrollToMessage(messageNode, manager, edge) {
       return false;
     }
   }
@@ -3442,6 +3452,11 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
         MESSAGE_ID: 'data-message-id',
         TURN_ID: 'data-turn-id',
         TURN_ID_VIRTUAL: 'data-turn-id-container',
+
+        // New ChatGPT UI
+        MESSAGE_SEARCH_IDS: 'data-chatgpt-search-message-ids',
+        SEARCH_UNIT_KEY: 'data-chatgpt-search-unit-key',
+        TURN_KEY: 'data-turn-key',
       },
       SELECTORS: {
         // [IMPORTANT] CSS Scoping & Dynamic Selectors:
@@ -3451,44 +3466,50 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
         // ALWAYS use the `:is()` pseudo-class instead (e.g., ':is(A, B)').
 
         // --- Main containers ---
-        MAIN_APP_CONTAINER: ':is(div[data-scroll-root], div:has(> main#main):not(div[data-scroll-root] *))',
-        MESSAGE_WRAPPER_FINDER: '.w-full',
+        MAIN_APP_CONTAINER: ':is(div[data-scroll-root], div:has(> main#main):not(div[data-scroll-root] *), main[data-app-shell-main-surface])',
+        MESSAGE_WRAPPER_FINDER: ':is([data-chatgpt-search-unit-key], .w-full, [data-chatgpt-search-message-ids]:has([data-testid="generated-image-gallery"]))',
         // Root container for message search optimization
         MESSAGES_ROOT: 'main',
 
         // --- Message containers ---
         // Target persistent turn containers (Active section or Virtualized placeholder div)
-        CONVERSATION_UNIT: ':is(section[data-turn-id], article[data-turn-id], div[data-turn-id-container])',
-        MESSAGE_ID_HOLDER: '[data-message-id], [id^="image-"]',
-        MESSAGE_ROOT_NODE: ':is(section[data-testid^="conversation-turn-"], article[data-testid^="conversation-turn-"], [data-turn-id-container])',
+        CONVERSATION_UNIT: ':is(section[data-turn-id], article[data-turn-id], div[data-turn-id-container], [data-turn-key])',
+        MESSAGE_ID_HOLDER: ':is([data-message-id], [data-chatgpt-search-message-ids], [id^="image-"])',
+        MESSAGE_ROOT_NODE: ':is(section[data-testid^="conversation-turn-"], article[data-testid^="conversation-turn-"], [data-turn-id-container], [data-turn-key])',
 
         // --- Selectors for messages ---
-        USER_MESSAGE: 'div[data-message-author-role="user"]',
-        ASSISTANT_MESSAGE: 'div[data-message-author-role="assistant"]',
+        USER_MESSAGE: ':is(div[data-message-author-role="user"], [data-chatgpt-search-unit-key$=":user"])',
+        ASSISTANT_MESSAGE: ':is(div[data-message-author-role="assistant"], [data-chatgpt-search-unit-key$=":assistant"])',
 
         // --- Selectors for finding elements to tag ---
-        RAW_USER_BUBBLE: 'div.user-message-bubble-color',
-        RAW_ASSISTANT_BUBBLE: 'div:has(> .markdown)',
-        ASSISTANT_MESSAGE_CONTENT: 'div.markdown.prose',
+        RAW_USER_BUBBLE: ':is(div.user-message-bubble-color, [data-user-message-bubble])',
+        RAW_ASSISTANT_BUBBLE: ':is(div:has(> .markdown), [data-chatgpt-selection-message-id])',
+        ASSISTANT_BUBBLE_STYLE_TARGET: '[data-chatgpt-selection-conversation-id]',
+        ASSISTANT_MESSAGE_CONTENT: ':is(div.markdown.prose, [data-markdown-text-style="assistant-message"])',
         RAW_USER_IMAGE_BUBBLE: 'div.overflow-hidden:has(img)',
-        RAW_ASSISTANT_IMAGE_BUBBLE: 'div.group\\/imagegen-image',
+        RAW_ASSISTANT_IMAGE_BUBBLE: ':is(div.group\\/imagegen-image, [data-testid="generated-image-gallery"])',
+        ASSISTANT_IMAGE_HIGHLIGHT_TARGET: ':is(div.group\\/imagegen-image, [data-testid="generated-image-preview"][aria-hidden="false"])',
+        ASSISTANT_IMAGE_MESSAGE: '[data-chatgpt-search-message-ids]:has([data-testid="generated-image-gallery"])',
 
         // --- Text content ---
         USER_TEXT_CONTENT: '.whitespace-pre-wrap',
-        ASSISTANT_TEXT_CONTENT: '.markdown',
+        ASSISTANT_TEXT_CONTENT: ':is(.markdown, [data-markdown-text-style="assistant-message"])',
 
         // --- Input area ---
         THREAD_BOTTOM_CONTAINER: '#thread-bottom-container',
-        INPUT_AREA_BG_TARGET: 'form[data-type="unified-composer"] div[style*="border-radius"]',
-        INPUT_TEXT_FIELD_TARGET: 'div.ProseMirror#prompt-textarea',
-        INPUT_RESIZE_TARGET: 'form[data-type="unified-composer"]',
+        NEW_UI_THREAD_BOTTOM_GRADIENT: '[data-app-action-timeline-scroll] div[class~="bg-gradient-to-t"]',
+        INPUT_AREA_BG_TARGET: ':is(form[data-type="unified-composer"] div[style*="border-radius"], [data-composer-body])',
+        THREAD_INPUT_AREA_BG_TARGET: 'form[data-composer-placement="thread"] [data-composer-body]',
+        INPUT_TEXT_FIELD_TARGET: ':is(div.ProseMirror#prompt-textarea, div[data-composer-markdown])',
+        INPUT_RESIZE_TARGET: ':is(form[data-type="unified-composer"], form[data-chatgpt-composer])',
 
         // --- Input area (Button Injection) ---
-        INSERTION_ANCHOR: 'form[data-type="unified-composer"] div[class*="[grid-area:trailing]"]',
+        INSERTION_ANCHOR:
+          ':is(form[data-type="unified-composer"] div[class*="[grid-area:trailing]"], form[data-chatgpt-composer] [data-composer-footer-responsive] div.flex.min-w-0.items-center.justify-end:has(button[type="submit"]) > div.flex.min-w-0.flex-1.justify-end)',
 
         // --- Avatar area ---
-        AVATAR_USER: ':is(section[data-turn="user"], article[data-turn="user"])',
-        AVATAR_ASSISTANT: ':is(section[data-turn="assistant"], article[data-turn="assistant"])',
+        AVATAR_USER: ':is(section[data-turn="user"], article[data-turn="user"], [data-chatgpt-search-unit-key$=":user"])',
+        AVATAR_ASSISTANT: ':is(section[data-turn="assistant"], article[data-turn="assistant"], [data-chatgpt-search-unit-key$=":assistant"], [data-chatgpt-search-message-ids]:has([data-testid="generated-image-gallery"]))',
 
         // --- Selectors for Avatar ---
         SIDE_AVATAR_CONTAINER: '.side-avatar-container',
@@ -3497,38 +3518,45 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
         SIDE_AVATAR_NAME: '.side-avatar-name',
 
         // --- Other UI Selectors ---
-        SIDEBAR_WIDTH_TARGET: 'div[id="stage-slideover-sidebar"]',
+        SIDEBAR_WIDTH_TARGET: ':is(aside[data-app-shell-left-panel-appearance], #app-shell-sidebar, #stage-slideover-sidebar)',
         SIDEBAR_STATE_INDICATOR: '#stage-sidebar-tiny-bar',
-        RIGHT_SIDEBAR: '[data-testid="stage-thread-flyout"], div.bg-token-sidebar-surface-primary.shrink-0:not(#stage-slideover-sidebar)',
-        CHAT_CONTENT_MAX_WIDTH: ':is(.group\\/turn-messages, div[class*="--thread-content-max-width"].grid)',
-        SCROLL_CONTAINER: 'div[data-scroll-root], div:has(> main#main)',
-        STANDING_IMAGE_ANCHOR: '.group\\/turn-messages, div[class*="--thread-content-max-width"].grid',
+        RIGHT_SIDEBAR: '[data-testid="stage-thread-flyout"], div.bg-token-sidebar-surface-primary.shrink-0:not(#stage-slideover-sidebar), aside[data-app-shell-focus-area="right-panel"]',
+        CHAT_CONTENT_MAX_WIDTH: ':is(.group\\/turn-messages, div[class*="--thread-content-max-width"].grid, [data-thread-user-message-navigation-content])',
+        SCROLL_CONTAINER: ':is(div[data-scroll-root], div:has(> main#main), [data-app-action-timeline-scroll])',
+        NEW_UI_SCROLL_CONTAINER: '[data-app-action-timeline-scroll]',
+        STANDING_IMAGE_ANCHOR: '.group\\/turn-messages, div[class*="--thread-content-max-width"].grid, [data-thread-user-message-navigation-content]',
         PLACEHOLDER_PREFIX: 'placeholder-request-',
         SCROLL_TO_BOTTOM_BUTTON: 'div[style*="--thread-scroll-to-bottom"]',
+        NEW_UI_SCROLL_TO_BOTTOM_BUTTON: '[data-pip-obstacle="thread-footer"] > div.relative.h-0 > button',
 
         // --- Site Specific Selectors ---
         DISCLAIMER: '[data-testid="thread-disclaimer"]',
+        NEW_UI_DISCLAIMER: '[data-app-action-timeline-scroll] .sticky.bottom-0.self-end > [data-markdown-copy="exclude"]',
         BUTTON_SHARE_CHAT: '[data-testid="share-chat-button"]',
         PAGE_HEADER: '#page-header',
         TITLE_OBSERVER_TARGET: 'title',
         PAGINATION_SENTINEL: '[data-testid="conversation-pagination-sentinel"]',
+        HISTORY_LOADING_STATUS: '[data-thread-find-target="conversation"] [role="status"]',
         TOC_ITEM: 'button[data-toc-item-index]',
 
         // --- Header Integration Selectors ---
+        NEW_UI_HEADER_OBSTACLE: '[data-app-shell-main-titlebar="true"] > [data-app-shell-header-obstacle="true"]',
         HEADER_ACTIONS: '#conversation-header-actions',
         HEADER_FALLBACK_SECTION: '#page-header > div:last-child',
 
         // --- BubbleFeature-specific Selectors ---
-        BUBBLE_FEATURE_MESSAGE_CONTAINERS: 'div[data-message-author-role]',
+        NEW_UI_MESSAGE_CONTAINER: '[data-chatgpt-search-unit-key]',
+        BUBBLE_FEATURE_MESSAGE_CONTAINERS: ':is(div[data-message-author-role], [data-chatgpt-search-unit-key$=":user"], [data-chatgpt-search-unit-key$=":assistant"])',
 
         // --- FixedNav-specific Selectors ---
-        FIXED_NAV_INPUT_AREA_TARGET: 'form[data-type="unified-composer"]',
-        FIXED_NAV_MESSAGE_CONTAINERS: 'div[data-message-author-role]',
+        FIXED_NAV_INPUT_AREA_TARGET: ':is(form[data-type="unified-composer"], form[data-chatgpt-composer])',
+        FIXED_NAV_MESSAGE_CONTAINERS:
+          ':is(div[data-message-author-role], [data-chatgpt-search-unit-key$=":user"], [data-chatgpt-search-unit-key$=":assistant"]), [data-chatgpt-search-message-ids]:has([data-testid="generated-image-gallery"])',
         FIXED_NAV_ROLE_USER: 'user',
         FIXED_NAV_ROLE_ASSISTANT: 'assistant',
 
         // --- Turn Completion Selector ---
-        TURN_COMPLETE_SELECTOR: 'button[data-testid="copy-turn-action-button"]',
+        TURN_COMPLETE_SELECTOR: ':is(button[data-testid="copy-turn-action-button"], .turn-action-controls:not([data-chatgpt-search-unit-key$=":user"] .turn-action-controls))',
 
         // --- Canvas ---
         CANVAS_CONTAINER: 'section.popover button',
@@ -3563,55 +3591,60 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
 
     // ---- Site-specific Style Variables ----
     const UI_PALETTE = {
-      bg: 'var(--main-surface-primary)',
-      input_bg: 'var(--bg-primary)',
-      text_primary: 'var(--text-primary)',
-      text_secondary: 'var(--text-secondary)',
-      border: 'var(--border-default)',
-      border_medium: 'var(--border-medium)',
-      border_light: 'var(--border-light)',
-      btn_bg: 'var(--interactive-bg-tertiary-default)',
-      btn_hover_bg: 'var(--interactive-bg-secondary-hover)',
-      btn_text: 'var(--text-primary)',
-      btn_border: 'var(--border-default)',
-      toggle_bg_off: 'var(--bg-primary)',
-      toggle_bg_on: 'var(--text-accent)',
-      toggle_knob: 'var(--text-primary)',
-      danger_text: 'var(--text-danger)',
-      accent_text: 'var(--text-accent)',
+      bg: 'var(--color-surface-elevated-secondary, var(--main-surface-primary, #303030))',
+      input_bg: 'var(--color-background-control-opaque, var(--bg-primary, #303030))',
+      text_primary: 'var(--color-text-primary, var(--text-primary, #ededed))',
+      text_secondary: 'var(--color-text-secondary, var(--text-secondary, #cdcdcd))',
+      border: 'var(--color-border, var(--border-default, #ffffff26))',
+      border_medium: 'var(--color-border-strong, var(--border-medium, #ffffff33))',
+      border_light: 'var(--color-border-subtle, var(--border-light, #ffffff0d))',
+      btn_bg: 'var(--color-background-secondary-solid, var(--interactive-bg-tertiary-default, #303030))',
+      btn_hover_bg: 'var(--color-background-secondary-solid-hover, var(--interactive-bg-secondary-hover, #ffffff1a))',
+      btn_text: 'var(--color-text-primary, var(--text-primary, #ededed))',
+      btn_border: 'var(--color-border, var(--border-default, #ffffff26))',
+      toggle_bg_off: 'var(--color-background-secondary-soft, var(--bg-primary, #303030))',
+      toggle_bg_on: 'var(--app-color-text-accent, var(--text-accent, #2c67c5))',
+      toggle_knob: 'var(--color-text-primary, var(--text-primary, #ededed))',
+      danger_text: 'var(--color-text-danger, var(--text-danger, #ff6764))',
+      accent_text: 'var(--app-color-text-accent, var(--text-accent, #2c67c5))',
       loading_spinner: '#ffca28',
+
       // Shared properties
-      slider_display_text: 'var(--text-primary)',
-      label_text: 'var(--text-secondary)',
-      error_text: 'var(--text-danger)',
+      slider_display_text: 'var(--color-text-primary, var(--text-primary, #ededed))',
+      label_text: 'var(--color-text-secondary, var(--text-secondary, #cdcdcd))',
+      error_text: 'var(--color-text-danger, var(--text-danger, #ff6764))',
+
       // Component Specifics: Settings Button
       settings_btn_width: 'calc(var(--spacing)*9)',
       settings_btn_height: 'calc(var(--spacing)*9)',
-      settings_btn_color: 'var(--text-primary)',
-      settings_btn_hover_bg: 'var(--interactive-bg-secondary-hover)',
+      settings_btn_color: 'var(--color-text-primary, var(--text-primary, #ededed))',
+      settings_btn_hover_bg: 'var(--color-background-secondary-ghost-hover, var(--interactive-bg-secondary-hover, #ffffff1a))',
+
       // Component Specifics: Theme Modal
-      delete_confirm_btn_text: 'var(--interactive-label-danger-secondary-default)',
-      delete_confirm_btn_bg: 'var(--interactive-bg-danger-secondary-default)',
-      delete_confirm_btn_hover_text: 'var(--interactive-label-danger-secondary-hover)',
-      delete_confirm_btn_hover_bg: 'var(--interactive-bg-danger-secondary-hover)',
+      delete_confirm_btn_text: 'var(--color-text-danger, var(--interactive-label-danger-secondary-default, #ff6764))',
+      delete_confirm_btn_bg: 'var(--color-background-danger-soft-alpha, var(--interactive-bg-danger-secondary-default, transparent))',
+      delete_confirm_btn_hover_text: 'var(--color-text-danger-ghost-hover, var(--interactive-label-danger-secondary-hover, #fa423e))',
+      delete_confirm_btn_hover_bg: 'var(--color-background-danger-soft-alpha-hover, var(--interactive-bg-danger-secondary-hover, transparent))',
+
       // Component Specifics: Fixed Nav
-      fixed_nav_bg: 'var(--sidebar-surface-primary)',
-      fixed_nav_border: 'var(--border-medium)',
-      fixed_nav_separator_bg: 'var(--border-default)',
-      fixed_nav_label_text: 'var(--text-secondary)',
-      fixed_nav_counter_bg: 'var(--bg-primary)',
-      fixed_nav_counter_text: 'var(--text-primary)',
-      fixed_nav_counter_border: 'var(--border-default)',
+      fixed_nav_bg: 'var(--color-token-side-bar-background, var(--sidebar-surface-primary, #000000))',
+      fixed_nav_border: 'var(--color-border-strong, var(--border-medium, #ffffff33))',
+      fixed_nav_separator_bg: 'var(--color-border, var(--border-default, #ffffff26))',
+      fixed_nav_label_text: 'var(--color-text-secondary, var(--text-secondary, #cdcdcd))',
+      fixed_nav_counter_bg: 'var(--color-background-secondary-soft, var(--bg-primary, #303030))',
+      fixed_nav_counter_text: 'var(--color-text-secondary, var(--text-secondary, #cdcdcd))',
+      fixed_nav_counter_border: 'var(--color-border, var(--border-default, #ffffff26))',
       fixed_nav_assistant_text: '#e57373',
-      fixed_nav_btn_accent_text: 'var(--text-accent)',
-      fixed_nav_btn_danger_text: 'var(--text-danger)',
-      fixed_nav_highlight_outline: 'var(--text-accent)',
+      fixed_nav_btn_accent_text: 'var(--app-color-text-accent, var(--text-accent, #2c67c5))',
+      fixed_nav_btn_danger_text: 'var(--color-text-danger, var(--text-danger, #ff6764))',
+      fixed_nav_highlight_outline: 'var(--app-color-text-accent, var(--text-accent, #2c67c5))',
       fixed_nav_highlight_radius: '12px',
+
       // Component Specifics: Jump List
-      jump_list_bg: 'var(--sidebar-surface-primary)',
-      jump_list_border: 'var(--border-medium)',
-      jump_list_hover_outline: 'var(--text-accent)',
-      jump_list_current_outline: 'var(--text-accent)',
+      jump_list_bg: 'var(--color-token-side-bar-background, var(--sidebar-surface-primary, #000000))',
+      jump_list_border: 'var(--color-border-strong, var(--border-medium, #ffffff33))',
+      jump_list_hover_outline: 'var(--app-color-text-accent, var(--text-accent, #2c67c5))',
+      jump_list_current_outline: 'var(--app-color-text-accent, var(--text-accent, #2c67c5))',
     };
 
     const SITE_STYLES = {
@@ -3669,11 +3702,18 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
         const msgId = element.getAttribute(CONSTANTS.ATTRIBUTES.MESSAGE_ID);
         if (msgId) return msgId;
 
+        const searchIds = element.getAttribute(CONSTANTS.ATTRIBUTES.MESSAGE_SEARCH_IDS);
+        if (searchIds) {
+          const firstId = searchIds.trim().split(/\s+/)[0];
+          if (firstId) return firstId;
+        }
+
         // Fallback for DALL-E images which use id="image-<uuid>"
         const idAttr = element.getAttribute('id');
         if (idAttr && idAttr.startsWith('image-')) {
           return idAttr.substring(6); // Remove 'image-' prefix
         }
+
         return null;
       }
 
@@ -3683,8 +3723,25 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
         if (role) {
           return role;
         }
-        // If not found, check for the turn attribute (article[data-turn])
-        return messageElement.getAttribute(CONSTANTS.ATTRIBUTES.TURN_ROLE);
+
+        const turnRole = messageElement.getAttribute(CONSTANTS.ATTRIBUTES.TURN_ROLE);
+        if (turnRole) {
+          return turnRole;
+        }
+
+        const unitKey = messageElement.getAttribute(CONSTANTS.ATTRIBUTES.SEARCH_UNIT_KEY);
+        if (unitKey?.endsWith(':user')) {
+          return CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER;
+        }
+        if (unitKey?.endsWith(':assistant')) {
+          return CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT;
+        }
+
+        if (messageElement.matches(CONSTANTS.SELECTORS.ASSISTANT_IMAGE_MESSAGE)) {
+          return CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT;
+        }
+
+        return null;
       }
 
       /**
@@ -3966,9 +4023,9 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
         const rawTurnElement = messageElement.closest(CONSTANTS.SELECTORS.CONVERSATION_UNIT);
         const turnElement = rawTurnElement instanceof HTMLElement ? rawTurnElement : null;
 
-        let turnId = '';
+        let turnId;
         if (turnElement) {
-          turnId = turnElement.getAttribute(CONSTANTS.ATTRIBUTES.TURN_ID) || turnElement.getAttribute(CONSTANTS.ATTRIBUTES.TURN_ID_VIRTUAL) || '';
+          turnId = turnElement.getAttribute(CONSTANTS.ATTRIBUTES.TURN_ID) || turnElement.getAttribute(CONSTANTS.ATTRIBUTES.TURN_ID_VIRTUAL) || turnElement.getAttribute(CONSTANTS.ATTRIBUTES.TURN_KEY) || '';
         }
 
         return {
@@ -4159,6 +4216,10 @@ ${CSS_VARS.MESSAGE_MARGIN_TOP}: 24px;
 ${CONSTANTS.SELECTORS.MAIN_APP_CONTAINER} {
 transition: background-image 0.3s ease-in-out;
 }
+/* Preserve the native rounded composer shape on thread pages. */
+${CONSTANTS.SELECTORS.THREAD_INPUT_AREA_BG_TARGET} {
+border-radius: inherit;
+}
 /* Add margin between messages to prevent overlap */
 ${CONSTANTS.SELECTORS.USER_MESSAGE},
 ${CONSTANTS.SELECTORS.ASSISTANT_MESSAGE} {
@@ -4182,6 +4243,9 @@ background-color: transparent !important;
 ${CONSTANTS.SELECTORS.THREAD_BOTTOM_CONTAINER}::after {
 background-color: transparent !important;
 }
+${CONSTANTS.SELECTORS.NEW_UI_THREAD_BOTTOM_GRADIENT} {
+background: none !important;
+}
 ${CONSTANTS.SELECTORS.PROJECT_CHAT_LIST_CONTAINER} ${CONSTANTS.SELECTORS.CONTENT_FADE_TOP}::after {
 background-image: none !important;
 }
@@ -4190,11 +4254,13 @@ body.${cls.maxWidthActive} main ${CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH} {
 max-width: var(${CSS_VARS.CHAT_CONTENT_MAX_WIDTH}) !important;
 }
 /* Hide default scroll-to-bottom button */
-${CONSTANTS.SELECTORS.SCROLL_TO_BOTTOM_BUTTON} {
+${CONSTANTS.SELECTORS.SCROLL_TO_BOTTOM_BUTTON},
+${CONSTANTS.SELECTORS.NEW_UI_SCROLL_TO_BOTTOM_BUTTON} {
 display: none !important;
 }
 /* (2026/07/14) Hide disclaimer text to prevent overlap with Nav Console */
-${CONSTANTS.SELECTORS.DISCLAIMER} {
+${CONSTANTS.SELECTORS.DISCLAIMER},
+${CONSTANTS.SELECTORS.NEW_UI_DISCLAIMER} {
 display: none !important;
 }
 /* Make new chat introduction area transparent to reveal theme background */
@@ -4318,7 +4384,7 @@ ${CONSTANTS.SELECTORS.USER_MESSAGE} .${cls.collapsibleBtn} {right: 4px;}
         const msgWrapper = messageElement.closest(CONSTANTS.SELECTORS.MESSAGE_WRAPPER_FINDER);
         if (!(msgWrapper instanceof HTMLElement)) return null;
 
-        const role = messageElement.getAttribute(CONSTANTS.ATTRIBUTES.MESSAGE_ROLE);
+        const role = PlatformAdapters.General.getMessageRole(messageElement);
         let bubbleElement = null;
 
         if (role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_USER) {
@@ -4327,6 +4393,9 @@ ${CONSTANTS.SELECTORS.USER_MESSAGE} .${cls.collapsibleBtn} {right: 4px;}
           const contentEl = messageElement.querySelector(CONSTANTS.SELECTORS.ASSISTANT_MESSAGE_CONTENT);
           if (contentEl) {
             bubbleElement = contentEl.parentElement;
+          }
+          if (!bubbleElement && role === CONSTANTS.SELECTORS.FIXED_NAV_ROLE_ASSISTANT) {
+            bubbleElement = messageElement.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE);
           }
         }
 
@@ -4404,8 +4473,21 @@ ${CONSTANTS.SELECTORS.USER_MESSAGE} .${cls.collapsibleBtn} {right: 4px;}
            * @returns {boolean}
            */
           _isHistoryFullyLoaded() {
+            const newScrollContainer = document.querySelector(CONSTANTS.SELECTORS.NEW_UI_SCROLL_CONTAINER);
+
+            // New ChatGPT UI
+            if (newScrollContainer instanceof HTMLElement) {
+              const topPosition = Math.min(0, newScrollContainer.clientHeight - newScrollContainer.scrollHeight);
+              const isAtTop = Math.abs(newScrollContainer.scrollTop - topPosition) <= 1;
+              const isLoadingHistory = !!document.querySelector(CONSTANTS.SELECTORS.HISTORY_LOADING_STATUS);
+
+              return isAtTop && !isLoadingHistory;
+            }
+
+            // Legacy ChatGPT UI
             const hasToc = !!document.querySelector(CONSTANTS.SELECTORS.TOC_ITEM);
             const hasSentinel = !!document.querySelector(CONSTANTS.SELECTORS.PAGINATION_SENTINEL);
+
             return hasToc || !hasSentinel;
           }
 
@@ -4493,17 +4575,36 @@ ${CONSTANTS.SELECTORS.USER_MESSAGE} .${cls.collapsibleBtn} {right: 4px;}
           _startScrollLoop() {
             this._resetSettleTimeout();
 
+            const isNewUi = !!document.querySelector(CONSTANTS.SELECTORS.NEW_UI_SCROLL_CONTAINER);
+
+            let lastScrollHeight = isNewUi && this.scrollContainer ? this.scrollContainer.scrollHeight : 0;
+
             const executeStep = () => {
               if (!this.isScrolling) return;
 
+              if (isNewUi && this.scrollContainer) {
+                const currentScrollHeight = this.scrollContainer.scrollHeight;
+
+                if (currentScrollHeight !== lastScrollHeight) {
+                  lastScrollHeight = currentScrollHeight;
+                  this._resetSettleTimeout();
+                }
+              }
+
               if (this._isHistoryFullyLoaded()) {
-                Logger.log('', '', 'AutoScrollManager: Full history loaded (Sentinel gone or TOC found). Auto-scroll complete.');
+                Logger.log('', '', 'AutoScrollManager: Full history loaded. Auto-scroll complete.');
                 this.stop(false);
                 return;
               }
 
               this._triggerScroll();
-              this._resetSettleTimeout();
+
+              // Legacy UI relies on the pagination sentinel, while the new UI
+              // extends the settle timeout only when newly loaded messages arrive.
+              if (!isNewUi) {
+                this._resetSettleTimeout();
+              }
+
               this.stepTimer = setTimeout(executeStep, AutoScrollManager.CONFIG.SCROLL_STEP_INTERVAL_MS);
             };
 
@@ -4540,6 +4641,20 @@ ${CONSTANTS.SELECTORS.USER_MESSAGE} .${cls.collapsibleBtn} {right: 4px;}
 
             if (!this.isScrolling || !this.scrollContainer) return;
 
+            // New ChatGPT UI uses a reversed scroll coordinate system:
+            // the bottom is 0 and positions toward the top are negative.
+            if (this.scrollContainer.matches(CONSTANTS.SELECTORS.NEW_UI_SCROLL_CONTAINER)) {
+              const topPosition = Math.min(0, this.scrollContainer.clientHeight - this.scrollContainer.scrollHeight);
+
+              this.scrollContainer.scrollTo({
+                top: topPosition,
+                behavior: 'auto',
+              });
+
+              return;
+            }
+
+            // Legacy ChatGPT UI
             this.scrollContainer.scrollTop = 0;
 
             const sentinel = document.querySelector(CONSTANTS.SELECTORS.PAGINATION_SENTINEL);
@@ -4640,6 +4755,40 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
 
       /** @override */
       measureAvatarTarget(msgElem) {
+        // New ChatGPT UI: user and assistant messages share one turn container, so avatars must be managed per message rather than per turn.
+        const isDirectNewUiMessage = msgElem.matches(CONSTANTS.SELECTORS.NEW_UI_MESSAGE_CONTAINER) || msgElem.matches(CONSTANTS.SELECTORS.ASSISTANT_IMAGE_MESSAGE);
+
+        // Generated images may reach the lifecycle through a virtual data-message-author-role="assistant" wrapper created by ensureMessageContainerForImage().
+        // Resolve that wrapper back to the actual new-UI image message container used as the avatar scope.
+        const imageMessageContainer = !isDirectNewUiMessage && msgElem.querySelector(CONSTANTS.SELECTORS.RAW_ASSISTANT_IMAGE_BUBBLE) ? msgElem.closest(CONSTANTS.SELECTORS.ASSISTANT_IMAGE_MESSAGE) : null;
+
+        const newUiTarget = isDirectNewUiMessage ? msgElem : imageMessageContainer;
+
+        if (newUiTarget instanceof HTMLElement) {
+          if (newUiTarget.getElementsByClassName(CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER_CLASS).length > 0) {
+            return {
+              shouldInject: false,
+              targetElement: null,
+              processedTarget: newUiTarget,
+              exclusionKey: newUiTarget,
+              originalElement: msgElem,
+            };
+          }
+
+          if (newUiTarget.querySelector(CONSTANTS.SELECTORS.DEEP_RESEARCH_RESULT)) {
+            return null;
+          }
+
+          return {
+            shouldInject: true,
+            targetElement: newUiTarget,
+            processedTarget: newUiTarget,
+            exclusionKey: newUiTarget,
+            originalElement: msgElem,
+          };
+        }
+
+        // Legacy ChatGPT UI
         let turnContainer;
 
         // Check if msgElem is the turn container (article) or a message element (div) inside it
@@ -4655,8 +4804,10 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
         const centeredWrapper = turnContainer.querySelector(CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH);
         if (!centeredWrapper) return null;
 
-        // Check if avatar container already exists *inside the centered wrapper*.
-        if (centeredWrapper.getElementsByClassName(CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER_CLASS).length > 0) {
+        const avatarCheckTarget = msgElem.matches(CONSTANTS.SELECTORS.NEW_UI_MESSAGE_CONTAINER) || msgElem.matches(CONSTANTS.SELECTORS.ASSISTANT_IMAGE_MESSAGE) ? msgElem : centeredWrapper;
+
+        // Check if avatar container already exists in the relevant message scope.
+        if (avatarCheckTarget.getElementsByClassName(CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER_CLASS).length > 0) {
           // Already present. Return context to ensure processed class is added, but do not inject.
           return {
             shouldInject: false,
@@ -5020,6 +5171,12 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
 
       /** @override */
       getNavAnchorContainer() {
+        // New ChatGPT UI: append after the existing header action group so the nav console appears at the right edge of the toolbar.
+        const newUiHeaderObstacle = document.querySelector(CONSTANTS.SELECTORS.NEW_UI_HEADER_OBSTACLE);
+        if (newUiHeaderObstacle instanceof HTMLElement) {
+          return newUiHeaderObstacle;
+        }
+
         // Try to find the specific action container first
         const actionContainer = document.querySelector(CONSTANTS.SELECTORS.HEADER_ACTIONS);
         if (actionContainer && actionContainer.parentElement) {
@@ -5070,30 +5227,201 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
       }
 
       /** @override */
-      handleScrollToMessage(node, manager) {
+      handleScrollToMessage(node, manager, edge) {
+        // Cancel any previous progressive navigation before starting a new one.
+        manager._cancelProgressiveScroll?.();
+
+        const isEdgeNavigation = edge === 'first' || edge === 'last';
+
         // 1. Direct message element scroll (Target already mounted in DOM)
-        if (node.element && node.element.isConnected) {
+        if (!isEdgeNavigation && node.element && node.element.isConnected) {
           PlatformAdapters.General.scrollTo(node.element);
           return true;
         }
 
         // 2. Persistent turn container scroll (Placeholder reached)
-        if (node.turnElement && node.turnElement.isConnected) {
+        if (!isEdgeNavigation && node.turnElement && node.turnElement.isConnected) {
           PlatformAdapters.General.scrollTo(node.turnElement);
           return true;
         }
 
-        // 3. Fallback: Scroll to closest mounted message or scroll container top
-        const targetToScroll = manager.messageCacheManager.getScrollTarget(node);
-        if (targetToScroll) {
-          PlatformAdapters.General.scrollTo(targetToScroll);
-        } else {
-          const scrollContainerSelector = CONSTANTS.SELECTORS.SCROLL_CONTAINER;
-          const scrollContainer = scrollContainerSelector ? document.querySelector(scrollContainerSelector) : null;
-          if (scrollContainer instanceof HTMLElement) {
-            scrollContainer.scrollTo({ top: 0, behavior: 'auto' });
-          }
+        // 3. Progressively move through the currently mounted range until
+        // the target message becomes available in the virtualized DOM.
+        const targetInfo = manager.messageCacheManager.findMessageIndex(node.id);
+
+        if (!targetInfo) {
+          return true;
         }
+
+        const scrollContainerSelector = CONSTANTS.SELECTORS.SCROLL_CONTAINER;
+        const scrollContainer = scrollContainerSelector ? document.querySelector(scrollContainerSelector) : null;
+
+        if (!(scrollContainer instanceof HTMLElement)) {
+          return true;
+        }
+
+        const progressiveScrollId = Symbol();
+        manager._progressiveScrollId = progressiveScrollId;
+
+        let timerId = null;
+        let lastRangeKey = null;
+        let lastProgressAt = performance.now();
+        let cancelProgressive = null;
+
+        const cleanup = () => {
+          if (timerId !== null) {
+            clearTimeout(timerId);
+            timerId = null;
+          }
+
+          window.removeEventListener('wheel', cancelOnUserInput, true);
+          window.removeEventListener('touchmove', cancelOnUserInput, true);
+          document.removeEventListener('keydown', cancelOnKeyDown, true);
+
+          if (manager._progressiveScrollId === progressiveScrollId) {
+            manager._progressiveScrollId = null;
+          }
+
+          if (manager._cancelProgressiveScroll === cancelProgressive) {
+            manager._cancelProgressiveScroll = null;
+          }
+        };
+
+        cancelProgressive = () => {
+          cleanup();
+        };
+
+        const cancelOnUserInput = () => {
+          cancelProgressive();
+        };
+
+        const cancelOnKeyDown = (event) => {
+          if (event.key !== 'Escape') return;
+
+          event.preventDefault();
+          event.stopPropagation();
+          cancelProgressive();
+        };
+
+        manager._cancelProgressiveScroll = cancelProgressive;
+
+        window.addEventListener('wheel', cancelOnUserInput, { capture: true, passive: true });
+        window.addEventListener('touchmove', cancelOnUserInput, { capture: true, passive: true });
+        document.addEventListener('keydown', cancelOnKeyDown, true);
+
+        const scrollProgressively = () => {
+          if (manager.isDestroyed || manager._progressiveScrollId !== progressiveScrollId) {
+            cleanup();
+            return;
+          }
+
+          const mountedMessages = [];
+
+          const messageElements = document.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
+
+          for (const messageElement of messageElements) {
+            if (!(messageElement instanceof HTMLElement)) {
+              continue;
+            }
+
+            let holder = messageElement.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
+            if (!holder) {
+              holder = messageElement.querySelector(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
+            }
+
+            const messageId = holder ? PlatformAdapters.General.getMessageId(holder) : null;
+
+            if (!messageId) {
+              continue;
+            }
+
+            // The target has become mounted.
+            if (messageId === node.id) {
+              cleanup();
+              PlatformAdapters.General.scrollTo(messageElement);
+              return;
+            }
+
+            const info = manager.messageCacheManager.findMessageIndex(messageId);
+
+            if (info) {
+              mountedMessages.push({
+                element: messageElement,
+                totalIndex: info.totalIndex,
+              });
+            }
+          }
+
+          if (mountedMessages.length === 0) {
+            cleanup();
+            return;
+          }
+
+          mountedMessages.sort((a, b) => a.totalIndex - b.totalIndex);
+
+          const firstMounted = mountedMessages[0];
+          const lastMounted = mountedMessages.at(-1);
+          const targetIndex = targetInfo.totalIndex;
+          const rangeKey = `${firstMounted.totalIndex}:` + `${lastMounted.totalIndex}`;
+
+          // Timeout measures lack of progress, not total travel time.
+          // Long-distance navigation can therefore traverse any number of virtualized ranges as long as the DOM keeps advancing.
+          if (rangeKey !== lastRangeKey) {
+            lastRangeKey = rangeKey;
+            lastProgressAt = performance.now();
+          } else if (performance.now() - lastProgressAt >= CONSTANTS.TIMING.TIMEOUTS.PROGRESSIVE_SCROLL_TIMEOUT) {
+            cleanup();
+            return;
+          }
+
+          let boundary;
+
+          if (targetIndex < firstMounted.totalIndex) {
+            boundary = firstMounted.element;
+          } else if (targetIndex > lastMounted.totalIndex) {
+            boundary = lastMounted.element;
+          } else {
+            // The logical target lies inside the mounted range but has no corresponding DOM message.
+            const nearest = mountedMessages.reduce((best, current) => (Math.abs(current.totalIndex - targetIndex) < Math.abs(best.totalIndex - targetIndex) ? current : best));
+
+            cleanup();
+            PlatformAdapters.General.scrollTo(nearest.element);
+            return;
+          }
+
+          PlatformAdapters.General.scrollTo(boundary);
+
+          timerId = setTimeout(scrollProgressively, CONSTANTS.TIMING.POLLING.PROGRESSIVE_SCROLL_INTERVAL_MS);
+        };
+
+        if (edge === 'first') {
+          // New ChatGPT UI uses reversed scroll coordinates:
+          // Home corresponds to the maximum negative position.
+          const topPosition = Math.min(0, scrollContainer.clientHeight - scrollContainer.scrollHeight);
+
+          scrollContainer.scrollTo({
+            top: topPosition,
+            behavior: 'auto',
+          });
+
+          timerId = setTimeout(scrollProgressively, CONSTANTS.TIMING.POLLING.PROGRESSIVE_SCROLL_INTERVAL_MS);
+
+          return true;
+        }
+
+        if (edge === 'last') {
+          // End corresponds to scrollTop = 0 in the new ChatGPT UI.
+          scrollContainer.scrollTo({
+            top: 0,
+            behavior: 'auto',
+          });
+
+          timerId = setTimeout(scrollProgressively, CONSTANTS.TIMING.POLLING.PROGRESSIVE_SCROLL_INTERVAL_MS);
+
+          return true;
+        }
+
+        scrollProgressively();
 
         return true;
       }
@@ -13090,6 +13418,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       };
 
       this.lastShortcutTime = 0;
+      this._cancelProgressiveScroll = null;
 
       // Cache for UI elements to avoid repeated querySelector calls
       this.uiCache = null;
@@ -13166,7 +13495,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         this._subscribe(EVENTS.AUTO_SCROLL_COMPLETE, () => {
           this.state.isAutoScrolling = false;
           this.updateUI(); // Re-render the UI to reflect the state change.
-          this.selectLastMessage();
+          this.selectLastMessage('last');
         });
       }
 
@@ -13178,6 +13507,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
      * @returns {void}
      */
     _onDestroy() {
+      this._cancelProgressiveScroll?.();
       this.isRepositionScheduled = false;
       if (this.idleIndexingCancelFn) {
         this.idleIndexingCancelFn();
@@ -13241,24 +13571,26 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       this._hideJumpList();
     }
 
-    selectLastMessage() {
+    selectLastMessage(edge) {
       const totalMessages = this.messageCacheManager.getTotalMessages();
       if (totalMessages.length > 0) {
         const lastMessage = totalMessages.at(-1);
-        this.navigateToMessage(lastMessage);
+        this.navigateToMessage(lastMessage, edge);
       }
     }
 
-    navigateToMessage(node) {
+    navigateToMessage(node, edge) {
       // Manual navigation overrides the initial auto-scroll logic.
       this.state.isInitialSelectionDone = true;
       this.setHighlightAndIndices(node);
-      this._scrollToMessage(node);
+      this._scrollToMessage(node, edge);
     }
 
     resetState() {
       // Guard against execution after destruction
       if (this.isDestroyed || !this.state) return;
+
+      this._cancelProgressiveScroll?.();
 
       // Force cleanup of any active input session to prevent UI corruption
       this._forceCleanupJumpInput();
@@ -13506,7 +13838,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       if (newTotal > oldTotal && this.state.currentIndices[CONSTANTS.NAV_ROLES.TOTAL] === oldTotal - 1 && !this.state.isAutoScrolling) {
         // We were at the old last message, and new messages appeared.
         // Re-select the new last message. This will update indices and call _renderUI().
-        this.selectLastMessage();
+        this.selectLastMessage(null);
         // Update previousTotalMessages here to prevent logic blocks below from running incorrectly
         this.state.previousTotalMessages = newTotal;
         // Exit, as selectLastMessage() already handled the UI update.
@@ -13540,7 +13872,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
       // Select the last message on initial load, but only if auto-scroll is not in progress.
       if (!this.state.isAutoScrolling && !this.state.isInitialSelectionDone && totalMessages.length > 0) {
-        this.selectLastMessage();
+        this.selectLastMessage(null);
         this.state.isInitialSelectionDone = true;
         indicesUpdated = true;
       } else if (!this.state.highlightedMessage && totalMessages.length > 0) {
@@ -13563,7 +13895,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     }
 
     _handleIntegrityScanMessagesFound() {
-      this.selectLastMessage();
+      this.selectLastMessage(null);
     }
 
     createContainers() {
@@ -14096,13 +14428,14 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       }
 
       if (nextIndex !== -1 && messages[nextIndex]) {
-        this.navigateToMessage(messages[nextIndex]);
+        const edge = direction === 'first' || direction === 'last' ? direction : null;
+        this.navigateToMessage(messages[nextIndex], edge);
       }
     }
 
-    _scrollToMessage(node) {
+    _scrollToMessage(node, edge) {
       // 1. Hook for platform-specific progressive scrolling (e.g., ChatGPT)
-      if (PlatformAdapters.FixedNav.handleScrollToMessage && PlatformAdapters.FixedNav.handleScrollToMessage(node, this)) {
+      if (PlatformAdapters.FixedNav.handleScrollToMessage && PlatformAdapters.FixedNav.handleScrollToMessage(node, this, edge)) {
         return; // Adapter handled the scroll completely
       }
 
@@ -14174,7 +14507,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
           requestAnimationFrame(() => {
             if (this.isDestroyed) return;
-            this._scrollToMessage(highlightedMessage);
+            this._scrollToMessage(highlightedMessage, null);
           });
         });
       }
@@ -14270,7 +14603,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
               // Clamp value between 1 and total length
               const clampedNum = Math.max(1, Math.min(num, targetArray.length));
               const index = clampedNum - 1;
-              this.navigateToMessage(targetArray[index]);
+              this.navigateToMessage(targetArray[index], null);
             }
           }
         }
@@ -14575,7 +14908,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     }
 
     _handleJumpListSelect(messageNode) {
-      this.navigateToMessage(messageNode);
+      this.navigateToMessage(messageNode, null);
       this._hideJumpList();
     }
   }

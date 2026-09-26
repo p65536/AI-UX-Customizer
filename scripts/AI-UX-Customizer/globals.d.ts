@@ -650,7 +650,7 @@ interface FixedNavAdapter {
     isHeaderPositionAvailable(): boolean;
     getNavAnchorContainer(): HTMLElement | null;
     handleInfiniteScroll(manager: IFixedNavigationManager, highlightedMessage: MessageNode | null, previousTotalMessages: number): void;
-    handleScrollToMessage(messageNode: MessageNode, manager: IFixedNavigationManager): boolean;
+    handleScrollToMessage(messageNode: MessageNode, manager: IFixedNavigationManager, edge: 'first' | 'last' | null): boolean;
     applyAdditionalHighlight(messageNode: MessageNode, styleHandle: StyleHandle): void;
     getPlatformSpecificButtons(manager: IFixedNavigationManager, styleHandle: StyleHandle): Element[];
     updatePlatformSpecificButtonState(btn: HTMLButtonElement, isAutoScrolling: boolean, autoScrollManager: IAutoScrollManager): void;
@@ -715,6 +715,7 @@ interface PlatformConstants {
         POLLING: {
             IDLE_INDEXING_MS: number;
             HEARTBEAT_INTERVAL_MS: number;
+            PROGRESSIVE_SCROLL_INTERVAL_MS: number;
         };
         PERF_MONITOR_THROTTLE: number;
         KEYBOARD_THROTTLE: number;

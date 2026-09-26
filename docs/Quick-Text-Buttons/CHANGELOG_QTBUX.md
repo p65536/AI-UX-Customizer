@@ -6,6 +6,9 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [3.4.0] - 2026-09-26
+- [ChatGPT] Added support for the new ChatGPT UI while retaining compatibility with the legacy UI.
+
 ## [3.3.11] - 2026-08-26
 - **Fixes**
   - [Claude] Restored button visibility in the composer toolbar following Claude's recent UI layout update.
