@@ -6,6 +6,11 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.6.4] - 2026-09-27
+- **Fixes**
+  - [ChatGPT] Restored native keyboard scrolling after Jump List navigation in the legacy UI.
+  - [ChatGPT] Reused the shared conversation scroll container selector to support both current and legacy UI layouts.
+
 ## [1.6.3] - 2026-09-27
 - **Improvements**
   - [Navigation] Restored native keyboard scrolling after selecting a message from the Jump List on ChatGPT and Gemini.
