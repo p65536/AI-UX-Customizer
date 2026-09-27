@@ -1,0 +1,8 @@
+{
+  "extends": "../../jsconfig.base.json",
+  "include": [
+    "./*.js",
+    "./globals.d.ts",
+    "../../types/userscript-globals.d.ts"
+  ]
+}

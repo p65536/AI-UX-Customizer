@@ -1,0 +1,26 @@
+# --- OS specific files ---
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# --- VS Code ---
+.vscode/
+*.code-workspace
+
+# --- JavaScript ---
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# --- Local Environment ---
+.env
+.env.*
+
+# --- Build ---
+dist/
+build/
+*.log
+
+# Local temporary directories
+_*
