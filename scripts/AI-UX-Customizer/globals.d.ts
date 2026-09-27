@@ -584,6 +584,7 @@ interface FixedNavAdapter {
     getNavAnchorContainer(): HTMLElement | null;
     handleInfiniteScroll(manager: IFixedNavigationManager, highlightedMessage: MessageNode | null, previousTotalMessages: number): void;
     handleScrollToMessage(messageNode: MessageNode, manager: IFixedNavigationManager, edge: 'first' | 'last' | null): boolean;
+    getJumpListFocusTarget(): HTMLElement | null;
     applyAdditionalHighlight(messageNode: MessageNode, styleHandle: StyleHandle): void;
     getPlatformSpecificButtons(manager: IFixedNavigationManager, styleHandle: StyleHandle): Element[];
     updatePlatformSpecificButtonState(btn: HTMLButtonElement, isAutoScrolling: boolean, autoScrollManager: IAutoScrollManager): void;
