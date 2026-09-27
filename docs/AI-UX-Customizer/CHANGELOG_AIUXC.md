@@ -6,6 +6,10 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.6.1] - 2026-09-27
+- **Fixes**
+  - [ChatGPT] Restored hiding of the bottom disclaimer after recent new UI changes.
+
 ## [1.6.0] - 2026-09-26
 - [ChatGPT] Added support for the new ChatGPT UI while retaining compatibility with the legacy UI.
 
