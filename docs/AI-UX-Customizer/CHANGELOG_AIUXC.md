@@ -6,6 +6,12 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.6.2] - 2026-09-27
+- **Improvements**
+  - [ChatGPT] Added a convenience workaround for a current ChatGPT new UI behavior that prevents keyboard scrolling after clicking non-interactive areas of the conversation thread.
+  - [ChatGPT] Native keyboard scrolling is restored without interfering with links, buttons, inputs, or other interactive elements.
+  - [ChatGPT] The workaround only activates while the affected focus state is detected and is intended to become unnecessary once ChatGPT handles this behavior natively.
+
 ## [1.6.1] - 2026-09-27
 - **Fixes**
   - [ChatGPT] Restored hiding of the bottom disclaimer after recent new UI changes.
