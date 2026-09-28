@@ -6,6 +6,10 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.6.5] - 2026-09-28
+- **Fixes**
+  - [ChatGPT] Updated the new UI disclaimer selector to match ChatGPT's current DOM structure.
+
 ## [1.6.4] - 2026-09-27
 - **Fixes**
   - [ChatGPT] Restored native keyboard scrolling after Jump List navigation in the legacy UI.
