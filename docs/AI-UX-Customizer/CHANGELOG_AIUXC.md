@@ -6,6 +6,11 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.6.7] - 2026-09-28
+- **Fixes**
+  - [ChatGPT] Restored native code block headers, line-wrap controls, and copy buttons that could be hidden by disclaimer suppression.
+  - [ChatGPT] Refined new UI disclaimer targeting while preserving its existing hidden state.
+
 ## [1.6.6] - 2026-09-28
 - **Fixes & Improvements**
   - [ChatGPT] Restored the AIUXC settings button in Work mode chats after the composer is rebuilt.
