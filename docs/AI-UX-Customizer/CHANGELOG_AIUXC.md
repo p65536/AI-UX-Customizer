@@ -6,6 +6,12 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.6.6] - 2026-09-28
+- **Fixes & Improvements**
+  - [ChatGPT] Restored the AIUXC settings button in Work mode chats after the composer is rebuilt.
+  - [ChatGPT] Fixed Input Top navigation console positioning in Work mode.
+  - [ChatGPT] Improved settings button placement robustness against composer UI class changes.
+
 ## [1.6.5] - 2026-09-28
 - **Fixes**
   - [ChatGPT] Updated the new UI disclaimer selector to match ChatGPT's current DOM structure.
