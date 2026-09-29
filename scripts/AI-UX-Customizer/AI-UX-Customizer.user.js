@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.6.7
+// @version      1.6.8
 // @license      MIT
 // @description  Fully customize the chat UI of [ChatGPT/Gemini]. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' height='24px' viewBox='0 -960 960 960' width='24px' fill='%235985E1'%3E%3Cpath d='M480-80q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 32.5-156t88-127Q256-817 330-848.5T488-880q80 0 151 27.5t124.5 76q53.5 48.5 85 115T880-518q0 115-70 176.5T640-280h-74q-9 0-12.5 5t-3.5 11q0 12 15 34.5t15 51.5q0 50-27.5 74T480-80Zm0-400Zm-220 40q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm120-160q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm200 0q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm120 160q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17ZM480-160q9 0 14.5-5t5.5-13q0-14-15-33t-15-57q0-42 29-67t71-25h70q66 0 113-38.5T800-518q0-121-92.5-201.5T488-800q-136 0-232 93t-96 227q0 133 93.5 226.5T480-160Z'/%3E%3C/svg%3E
@@ -2896,7 +2896,7 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
      */
     getToastPositionX() {
       // Use the input resize target (form container) as it spans the correct width
-      const inputArea = document.querySelector(CONSTANTS.SELECTORS.INPUT_RESIZE_TARGET);
+      const inputArea = queryRenderedElement(CONSTANTS.SELECTORS.INPUT_RESIZE_TARGET);
       if (inputArea instanceof HTMLElement && inputArea.offsetWidth > 0) {
         const rect = inputArea.getBoundingClientRect();
         return rect.left + rect.width / 2;
@@ -3184,7 +3184,7 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
 
       // 2. Check available width in the main container (accounts for sidebar)
       const selector = this.getScrollContainerForHeaderCheck();
-      const container = selector ? document.querySelector(selector) : null;
+      const container = selector ? queryRenderedElement(selector) : null;
       if (container instanceof HTMLElement) {
         return container.offsetWidth >= CONSTANTS.UI_SPECS.HEADER_POSITION_MIN_WIDTH;
       }
@@ -3689,7 +3689,7 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
           return false;
         }
         // Check if there are active temporary chat messages in the DOM
-        return !document.querySelector(CONSTANTS.SELECTORS.MESSAGE_ROOT_NODE);
+        return !queryRenderedElement(CONSTANTS.SELECTORS.MESSAGE_ROOT_NODE);
       }
 
       /** @override */
@@ -3701,7 +3701,7 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
 
       /** @override */
       getMessagesRoot() {
-        const root = document.querySelector(CONSTANTS.SELECTORS.MESSAGES_ROOT);
+        const root = queryRenderedElement(CONSTANTS.SELECTORS.MESSAGES_ROOT);
         return root instanceof HTMLElement ? root : document.body;
       }
 
@@ -4109,7 +4109,8 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
 
         const selector = selectors.join(', ');
 
-        const nodes = document.querySelectorAll(selector);
+        const rootContainer = this.getMessagesRoot();
+        const nodes = rootContainer.querySelectorAll(selector);
         nodes.forEach((node) => {
           lifecycleManager.processRawMessage(node);
         });
@@ -4139,7 +4140,7 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
       scrollTo(element) {
         const offset = CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV;
         const scrollContainerSelector = CONSTANTS.SELECTORS.SCROLL_CONTAINER;
-        const scrollContainer = scrollContainerSelector ? document.querySelector(scrollContainerSelector) : null;
+        const scrollContainer = scrollContainerSelector ? queryRenderedElement(scrollContainerSelector) : null;
 
         if (!(scrollContainer instanceof HTMLElement)) return;
 
@@ -4481,13 +4482,13 @@ ${CONSTANTS.SELECTORS.USER_MESSAGE} .${cls.collapsibleBtn} {right: 4px;}
            * @returns {boolean}
            */
           _isHistoryFullyLoaded() {
-            const newScrollContainer = document.querySelector(CONSTANTS.SELECTORS.NEW_UI_SCROLL_CONTAINER);
+            const newScrollContainer = queryRenderedElement(CONSTANTS.SELECTORS.NEW_UI_SCROLL_CONTAINER);
 
             // New ChatGPT UI
             if (newScrollContainer instanceof HTMLElement) {
               const topPosition = Math.min(0, newScrollContainer.clientHeight - newScrollContainer.scrollHeight);
               const isAtTop = Math.abs(newScrollContainer.scrollTop - topPosition) <= 1;
-              const isLoadingHistory = !!document.querySelector(CONSTANTS.SELECTORS.HISTORY_LOADING_STATUS);
+              const isLoadingHistory = !!queryRenderedElement(CONSTANTS.SELECTORS.HISTORY_LOADING_STATUS);
 
               return isAtTop && !isLoadingHistory;
             }
@@ -4549,7 +4550,7 @@ ${CONSTANTS.SELECTORS.USER_MESSAGE} .${cls.collapsibleBtn} {right: 4px;}
             this.isScrolling = true;
 
             const scrollContainerSelector = CONSTANTS.SELECTORS.SCROLL_CONTAINER;
-            const scrollContainer = scrollContainerSelector ? document.querySelector(scrollContainerSelector) : null;
+            const scrollContainer = scrollContainerSelector ? queryRenderedElement(scrollContainerSelector) : null;
 
             if (!(scrollContainer instanceof HTMLElement)) {
               Logger.warn('AUTOSCROLL WARN', LOG_STYLES.YELLOW, 'Could not find scroll container.');
@@ -4583,7 +4584,7 @@ ${CONSTANTS.SELECTORS.USER_MESSAGE} .${cls.collapsibleBtn} {right: 4px;}
           _startScrollLoop() {
             this._resetSettleTimeout();
 
-            const isNewUi = !!document.querySelector(CONSTANTS.SELECTORS.NEW_UI_SCROLL_CONTAINER);
+            const isNewUi = !!queryRenderedElement(CONSTANTS.SELECTORS.NEW_UI_SCROLL_CONTAINER);
 
             let lastScrollHeight = isNewUi && this.scrollContainer ? this.scrollContainer.scrollHeight : 0;
 
@@ -4943,7 +4944,7 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
         } else {
           // On existing chat pages, find the content synchronously.
           // If not found, abort immediately. Sentinel will trigger an update when it appears.
-          const chatContent = document.querySelector(CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH);
+          const chatContent = queryRenderedElement(CONSTANTS.SELECTORS.CHAT_CONTENT_MAX_WIDTH);
           if (chatContent) {
             chatRect = chatContent.getBoundingClientRect();
           } else {
@@ -5254,7 +5255,7 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
 
       /** @override */
       getJumpListFocusTarget() {
-        const scrollContainer = document.querySelector(CONSTANTS.SELECTORS.SCROLL_CONTAINER);
+        const scrollContainer = queryRenderedElement(CONSTANTS.SELECTORS.SCROLL_CONTAINER);
         return scrollContainer instanceof HTMLElement ? scrollContainer : null;
       }
 
@@ -5320,7 +5321,7 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
         }
 
         const scrollContainerSelector = CONSTANTS.SELECTORS.SCROLL_CONTAINER;
-        const scrollContainer = scrollContainerSelector ? document.querySelector(scrollContainerSelector) : null;
+        const scrollContainer = scrollContainerSelector ? queryRenderedElement(scrollContainerSelector) : null;
 
         if (!(scrollContainer instanceof HTMLElement)) {
           return true;
@@ -5383,7 +5384,8 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
 
           const mountedMessages = [];
 
-          const messageElements = document.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
+          const rootContainer = PlatformAdapters.General.getMessagesRoot();
+          const messageElements = rootContainer.querySelectorAll(CONSTANTS.SELECTORS.BUBBLE_FEATURE_MESSAGE_CONTAINERS);
 
           for (const messageElement of messageElements) {
             if (!(messageElement instanceof HTMLElement)) {
@@ -6370,7 +6372,7 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
           return false;
         }
         // Check if there are active temporary chat messages in the DOM
-        return !document.querySelector(CONSTANTS.SELECTORS.MESSAGE_ROOT_NODE);
+        return !queryRenderedElement(CONSTANTS.SELECTORS.MESSAGE_ROOT_NODE);
       }
 
       /** @override */
@@ -9741,6 +9743,29 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
   }
 
   /**
+   * Returns the first matching element that currently participates in layout.
+   * This avoids selecting stale SPA route elements that remain connected to the DOM but are no longer rendered.
+   *
+   * Elements outside the viewport are still considered rendered. This check only
+   * distinguishes active layout elements from hidden or inactive route trees.
+   *
+   * @param {string} selector The CSS selector to query.
+   * @param {ParentNode} [root=document] The root node to search within.
+   * @returns {HTMLElement | null} The first rendered matching element, or null if none is found.
+   */
+  function queryRenderedElement(selector, root = document) {
+    const elements = root.querySelectorAll(selector);
+
+    for (const element of elements) {
+      if (element instanceof HTMLElement && (element.offsetParent !== null || element.getClientRects().length > 0)) {
+        return element;
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * Gets the current width of the sidebar.
    * @returns {number}
    */
@@ -9955,7 +9980,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     withLayoutCycle({
       measure: () => {
         // Read phase
-        const anchor = document.querySelector(anchorSelector);
+        const anchor = queryRenderedElement(anchorSelector);
         if (!(anchor instanceof HTMLElement)) return { anchor: null };
 
         // Ghost Detection Logic
@@ -11216,7 +11241,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       // Guard clause: If no conversation turns are on the page (e.g., on the homepage), clear the cache and exit.
       // Even if the cache is already empty, we must call clear() (which triggers notify())
       // to ensure ObserverManager receives the "0 messages" signal for navigation completion detection.
-      if (!document.querySelector(CONSTANTS.SELECTORS.CONVERSATION_UNIT)) {
+      if (!queryRenderedElement(CONSTANTS.SELECTORS.CONVERSATION_UNIT)) {
         this.clear();
         return;
       }
@@ -14238,7 +14263,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
           // 3. Measure ONLY if needed
           if (targetMode === CONSTANTS.CONSOLE_POSITIONS.INPUT_TOP) {
-            const inputForm = document.querySelector(CONSTANTS.SELECTORS.FIXED_NAV_INPUT_AREA_TARGET);
+            const inputForm = queryRenderedElement(CONSTANTS.SELECTORS.FIXED_NAV_INPUT_AREA_TARGET);
             const consoleRect = this.navConsole.getBoundingClientRect();
             const consoleWidth = consoleRect.width;
             const windowHeight = window.innerHeight;
@@ -14308,7 +14333,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       const totalMessages = this.messageCacheManager.getTotalMessages();
       const isNewChat = isNewChatPage();
       const hasCachedMessages = totalMessages.length > 0;
-      const hasDomMessages = !!document.querySelector(CONSTANTS.SELECTORS.MESSAGE_ROOT_NODE);
+      const hasDomMessages = !!queryRenderedElement(CONSTANTS.SELECTORS.MESSAGE_ROOT_NODE);
 
       // Capture previous hidden state to trigger repositioning on appearance
       const wasHidden = this.navConsole.classList.contains(cls.hidden);
@@ -22360,7 +22385,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       if (this.appController) return;
 
       const anchorSelector = CONSTANTS.SELECTORS.INPUT_TEXT_FIELD_TARGET;
-      const anchor = document.querySelector(anchorSelector);
+      const anchor = queryRenderedElement(anchorSelector);
 
       if (anchor) {
         this._launchApp();
@@ -22368,7 +22393,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         // Define the listener logic
         const listener = () => {
           // Double check target page in case URL changed while waiting
-          if (PlatformAdapters.General.isTargetPage()) {
+          if (PlatformAdapters.General.isTargetPage() && queryRenderedElement(anchorSelector)) {
             this._launchApp();
           }
         };

@@ -6,6 +6,15 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.6.8] - 2026-09-29
+- **Fixes & Improvements**
+  - [ChatGPT] Restored AIUXC functionality after SPA navigation when hidden DOM from previous routes remains mounted.
+  - [ChatGPT] Restored settings button placement, message processing, Fixed Navigation positioning, and standing image layout when switching chats.
+  - [ChatGPT] Restored Jump List navigation and Auto-scroll after switching chats without reloading the page.
+  - [ChatGPT] Prevented hidden previous-route content from affecting current chat processing, navigation, and new-chat detection.
+  - [Internal] Added rendered-element selection for route-dependent DOM targets and scoped message scanning to the active route.
+  - [Internal] Aligned shared and Gemini new-chat detection with the same rendered-element criteria.
+
 ## [1.6.7] - 2026-09-28
 - **Fixes**
   - [ChatGPT] Restored native code block headers, line-wrap controls, and copy buttons that could be hidden by disclaimer suppression.
