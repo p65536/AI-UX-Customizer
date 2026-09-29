@@ -6,6 +6,12 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [3.4.2] - 2026-09-29
+- **Fixes & Improvements**
+  - [ChatGPT] Restored Quick Text Buttons after SPA navigation when hidden composer DOM from the previous route remains mounted.
+  - [ChatGPT] Ensured button placement, text insertion, and input focus use the currently rendered composer.
+  - [Internal] Added rendered-element selection for composer-related DOM targets.
+
 ## [3.4.1] - 2026-09-28
 - **Fixes & Improvements**
   - [ChatGPT] Added support for Quick Text Buttons in Work mode.

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Quick-Text-Buttons
 // @namespace    https://github.com/p65536
-// @version      3.4.1
+// @version      3.4.2
 // @license      MIT
 // @description  Adds customizable text buttons to paste frequently used prompts into [ChatGPT/Gemini/Claude] inputs.
 // @icon         data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' height='24px' viewBox='0 -960 960 960' width='24px' fill='%235985E1'%3E%3Cpath d='m499-287 335-335-52-52-335 335 52 52Zm-261 87q-100-5-149-42T40-349q0-65 53.5-105.5T242-503q39-3 58.5-12.5T320-542q0-26-29.5-39T193-600l7-80q103 8 151.5 41.5T400-542q0 53-38.5 83T248-423q-64 5-96 23.5T120-349q0 35 28 50.5t94 18.5l-4 80Zm280 7L353-358l382-382q20-20 47.5-20t47.5 20l70 70q20 20 20 47.5T900-575L518-193Zm-159 33q-17 4-30-9t-9-30l33-159 165 165-159 33Z'/%3E%3C/svg%3E
@@ -1775,7 +1775,7 @@ font-size: 0.95em;
         }
 
         // Use INPUT_TARGET for text insertion logic
-        const editor = document.querySelector(platform.selectors.INPUT_TARGET);
+        const editor = queryRenderedElement(platform.selectors.INPUT_TARGET);
         if (!editor || !(editor instanceof HTMLElement)) {
           Logger.error('DOM ERROR', LOG_STYLES.RED, 'Input element not found via selector:', platform.selectors.INPUT_TARGET);
           return;
@@ -2027,7 +2027,7 @@ font-size: 0.95em;
             const platform = PlatformAdapters.General.getPlatformDetails();
             if (!platform) return { anchor: null };
 
-            const anchor = document.querySelector(platform.selectors.INSERTION_ANCHOR);
+            const anchor = queryRenderedElement(platform.selectors.INSERTION_ANCHOR);
             if (!(anchor instanceof HTMLElement)) return { anchor: null };
 
             // Retrieve configuration for positioning
@@ -2141,7 +2141,7 @@ font-size: 0.95em;
         sentinel.on(selector, handleAnchorAppearance);
 
         // Initial check in case the element is already present
-        const initialInputArea = document.querySelector(selector);
+        const initialInputArea = queryRenderedElement(selector);
         if (initialInputArea instanceof HTMLElement) {
           handleAnchorAppearance();
         }
@@ -2480,6 +2480,29 @@ font-size: 0.95em;
   // =================================================================================
   // SECTION: Utility Functions
   // =================================================================================
+
+  /**
+   * Returns the first matching element that currently participates in layout.
+   * This avoids selecting stale SPA route elements that remain connected to the DOM but are no longer rendered.
+   *
+   * Elements outside the viewport are still considered rendered. This check only
+   * distinguishes active layout elements from hidden or inactive route trees.
+   *
+   * @param {string} selector The CSS selector to query.
+   * @param {ParentNode} [root=document] The root node to search within.
+   * @returns {HTMLElement | null} The first rendered matching element, or null if none is found.
+   */
+  function queryRenderedElement(selector, root = document) {
+    const elements = root.querySelectorAll(selector);
+
+    for (const element of elements) {
+      if (element instanceof HTMLElement && (element.offsetParent !== null || element.getClientRects().length > 0)) {
+        return element;
+      }
+    }
+
+    return null;
+  }
 
   /**
    * Schedules a function to run when the browser is idle.
@@ -7305,7 +7328,7 @@ font-size: 0.95em;
       if (listElem.style.display !== 'none') return;
 
       // 1. Capture the current cursor position before focus might shift to the list
-      const editor = document.querySelector(this.platformDetails.selectors.INPUT_TARGET);
+      const editor = queryRenderedElement(this.platformDetails.selectors.INPUT_TARGET);
       if (editor && editor.contains(document.activeElement)) {
         const sel = window.getSelection();
         if (sel.rangeCount > 0) {
@@ -7374,7 +7397,7 @@ font-size: 0.95em;
 
       // UX: Restore focus to the input editor
       const editorSelector = this.platformDetails.selectors.INPUT_TARGET;
-      const editor = document.querySelector(editorSelector);
+      const editor = queryRenderedElement(editorSelector);
       if (editor instanceof HTMLElement) {
         editor.focus();
       }
@@ -8478,7 +8501,7 @@ font-size: 0.95em;
 
       // 2. Try to launch if valid target exists
       if (!this.app.isInitialized) {
-        const target = document.querySelector(this.platformDetails.selectors.INPUT_TARGET);
+        const target = queryRenderedElement(this.platformDetails.selectors.INPUT_TARGET);
         if (target) {
           this.app.init();
         }
