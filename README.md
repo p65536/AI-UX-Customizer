@@ -29,6 +29,7 @@
   - <img src="https://p65536.github.io/p65536/images/icons/aiuxc.svg" width="18" height="18" align="center"> [1. AI UX Customizer (AIUXC)](#1-ai-ux-customizer-aiuxc)
   - <img src="https://p65536.github.io/p65536/images/icons/qtb.svg" width="18" height="18" align="center"> [2. Quick Text Buttons (QTB)](#2-quick-text-buttons-qtb)
   - <img src="https://p65536.github.io/p65536/images/icons/gdms.svg" width="18" height="18" align="center"> [3. Gemini Default Model Setter (GDMS)](#3-gemini-default-model-setter-gdms)
+  - <img src="https://p65536.github.io/p65536/images/icons/cwps.svg" width="18" height="18" align="center"> [4. ChatGPT Work Pet Scaler (CWPS)](#4-chatgpt-work-pet-scaler-cwps)
 - [Installation](#installation)
 - [Updating](#updating)
 - [Tested Environment](#tested-environment)
@@ -45,6 +46,7 @@ It integrates powerful theme and navigation features into a single codebase, all
 ## Recent Updates
 
 ### 2026-09-30
+- **[New script]** Added `ChatGPT Work Pet Scaler` (CWPS) (1.0.0)
 - Updated `AI UX Customizer` (1.6.8 -> 1.6.10)
 
 ### 2026-09-29
@@ -102,6 +104,22 @@ Automatically forces Google Gemini to use your preferred model (e.g., "Flash" or
 
 ![Extension Menu](./docs/Gemini-Default-Model-Setter/images/menu.png)  
 ![Settings Modal](./docs/Gemini-Default-Model-Setter/images/settings.png)  
+
+---
+
+### 4. ChatGPT Work Pet Scaler (CWPS)
+
+Enlarges ChatGPT Work pets with configurable scaling while preserving usable layout around the composer and activity display.
+
+| Platform | GitHub | Greasy Fork | Version | Last Updated | Changelog |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **ChatGPT** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/ChatGPT-Work-Pet-Scaler/ChatGPT-Work-Pet-Scaler.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/598030-chatgpt-work-pet-scaler) | 1.0.0 | 2026-09-30 | [View](./docs/ChatGPT-Work-Pet-Scaler/CHANGELOG_CWPS.md) |
+
+**[View Detailed Features & Manual for ChatGPT Work Pet Scaler](./docs/ChatGPT-Work-Pet-Scaler/README.md)**
+
+![ChatGPT Work Pet Scaler Showcase](./docs/ChatGPT-Work-Pet-Scaler/images/cwps_working.webp)
+
+*Shown at the default x7 scale using the author's original character **Nyappi**. The surrounding theme is provided by AI UX Customizer (AIUXC).*
 
 ---
 
