@@ -6,6 +6,13 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.6.10] - 2026-09-30
+- **Fixes & Improvements**
+  - [ChatGPT] Restored automatic hiding of standing images while the resizable right sidebar is open.
+  - [ChatGPT] Fixed right sidebar detection when hidden SPA-retained panel DOM remains mounted.
+  - [ChatGPT] Standing images now remain hidden regardless of the right sidebar width.
+  - [Internal] Updated shared panel observation to prefer currently rendered elements; verified existing Gemini behavior remains unchanged.
+
 ## [1.6.9] - 2026-09-30
 - **Fixes & Improvements**
   - [ChatGPT] Restored custom theme background visibility around the composer after the new UI added a solid thread-footer surface.
