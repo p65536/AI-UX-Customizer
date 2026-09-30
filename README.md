@@ -117,9 +117,11 @@ Enlarges ChatGPT Work pets with configurable scaling while preserving usable lay
 
 **[View Detailed Features & Manual for ChatGPT Work Pet Scaler](./docs/ChatGPT-Work-Pet-Scaler/README.md)**
 
-![ChatGPT Work Pet Scaler Showcase](./docs/ChatGPT-Work-Pet-Scaler/images/cwps_working.webp)
+| x1 (ChatGPT default) | x7 (CWPS default) |
+| :---: | :---: |
+| ![ChatGPT Work Pet at x1 scale](./docs/ChatGPT-Work-Pet-Scaler/images/cwps_working_x1.webp) | ![ChatGPT Work Pet at x7 scale](./docs/ChatGPT-Work-Pet-Scaler/images/cwps_working.webp) |
 
-*Shown at the default x7 scale using the author's original character **Nyappi**. The surrounding theme is provided by AI UX Customizer (AIUXC).*
+*Shown using the author's original character **Nyappi**. The surrounding theme is provided by AI UX Customizer (AIUXC).*
 
 ---
 
