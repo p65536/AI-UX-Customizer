@@ -6,6 +6,12 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.6.9] - 2026-09-30
+- **Fixes & Improvements**
+  - [ChatGPT] Restored custom theme background visibility around the composer after the new UI added a solid thread-footer surface.
+  - [ChatGPT] Preserved the existing thread-footer gradient transparency while also suppressing the new solid background layer.
+  - [Internal] Added dated comments to clarify the ChatGPT UI background overrides currently maintained by AIUXC.
+
 ## [1.6.8] - 2026-09-29
 - **Fixes & Improvements**
   - [ChatGPT] Restored AIUXC functionality after SPA navigation when hidden DOM from previous routes remains mounted.
