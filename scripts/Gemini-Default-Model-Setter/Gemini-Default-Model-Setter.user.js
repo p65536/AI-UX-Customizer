@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini Default Model Setter
 // @namespace    https://github.com/p65536
-// @version      1.5.1
+// @version      1.6.0
 // @license      MIT
 // @description  Automatically selects a specific model and its additional settings for Gemini upon page load, URL change, or tab return. The target patterns and script state can be easily configured via the extension menu.
 // @icon         data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' height='24px' viewBox='0 -960 960 960' width='24px' fill='%235985E1'%3E%3Cpath d='M240-880h480L600-712v512L480-80 360-200v-512L240-880Zm200 320h80v-176l40-64H400l40 64v176Zm80 80h-80v80h80v-80Zm0 240v-80h-80v80l40 40 40-40Zm-40-320Zm0 160Zm0-160Zm0 80Zm0 160Z'/%3E%3C/svg%3E
@@ -62,6 +62,7 @@
   const SHARED_CONSTANTS = {
     FOCUS_TARGETS: {
       MODEL: 'model',
+      THINKING: 'thinking',
     },
     TIMING: {
       MENU_POLL_INTERVAL_MS: 120,
@@ -81,7 +82,7 @@
     },
     RESOURCE_KEYS: {
       MENU_TARGET: 'menu_target',
-      MENU_EXTENDED_THINKING: 'menu_extended_thinking',
+      MENU_THINKING: 'menu_thinking',
       MENU_VISIBILITY: 'menu_visibility',
       DOM_OBSERVER: 'dom_observer',
       MODEL_SWITCH_OBSERVER: 'model_switch_observer',
@@ -1059,21 +1060,14 @@
     }
 
     /**
-     * Gets the text of the current sub-setting (e.g., thinking level).
-     * @returns {string}
-     */
-    getCurrentSubSettingText() {
-      return '';
-    }
-
-    /**
      * Executes the platform-specific model and settings application flow.
      * @param {Object} context
      * @param {string} context.targetText
+     * @param {string} context.targetThinkingText
      * @param {function(string): boolean} context.isMatch
+     * @param {function(string): boolean} context.isThinkingMatch
      * @param {boolean} context.isSettled
      * @param {boolean} context.isThinkingSettled
-     * @param {boolean} context.shouldEnableExtendedThinking
      * @param {AbortSignal} signal
      * @returns {Promise<{ isSettled: boolean, isThinkingSettled: boolean, setFailed: boolean, thinkingFailed: boolean, modelChanged: boolean }>}
      */
@@ -1103,9 +1097,12 @@
     const CONSTANTS = {
       ...SHARED_CONSTANTS,
       TARGET_TEXT: 'Flash$',
+      TARGET_THINKING_TEXT: '',
       MODEL_NAME: 'Model',
       BRAND_NAME: 'Gemini',
-      MODEL_EXAMPLES: 'e.g., Flash, Pro',
+      MODEL_EXAMPLES: 'e.g., Flash, Pro. Leave blank to skip.',
+      SUB_SETTING_NAME: 'Thinking Level',
+      SUB_SETTING_EXAMPLES: 'Enter a level shown in the Gemini menu. Leave blank to skip.',
       SELECTORS: {
         CURRENT_MODE_LABEL: '[data-test-id="logo-pill-label-container"]',
         MENU_BUTTON: '[data-test-id="bard-mode-menu-button"]',
@@ -1116,8 +1113,10 @@
         DISABLED_STATE: ':disabled, [aria-disabled="true"], [class*="disabled"]',
         BUTTON_TAG: 'button',
         MENU_ITEM_TAG: 'gem-menu-item',
+        MODEL_MENU_ITEMS: 'gem-menu-item[data-mode-id]',
         PICKER_PRIMARY_TEXT: '.picker-primary-text',
         PICKER_SECONDARY_TEXT: '.picker-secondary-text',
+        THINKING_SEPARATOR: 'mat-divider[role="separator"]',
         MOBILE_FLAG: '.is-mobile',
       },
     };
@@ -1137,6 +1136,8 @@
     };
 
     class GeminiModelSetterAdapter extends BaseModelSetterAdapter {
+      hasSingleModelOption = false;
+
       /**
        * Determines if the current environment is using the mobile UI layout.
        * @returns {boolean}
@@ -1153,27 +1154,12 @@
         const secondaryText = secondaryEl?.textContent?.trim() || '';
 
         if (this.isMobile()) {
-          // On mobile, if primary text is "Gemini" (thinking OFF), the actual model name is in secondary text.
-          // If thinking is ON, primary text holds the model name (e.g., "Flash") and secondary text holds "Extended".
+          // On mobile, the primary text may contain the brand name "Gemini" instead of the model name.
+          // In that case, use the secondary text; otherwise, the primary text contains the model name.
           return primaryText === CONSTANTS.BRAND_NAME ? secondaryText : primaryText;
         }
 
         return primaryText || document.querySelector(CONSTANTS.SELECTORS.CURRENT_MODE_LABEL)?.textContent?.trim();
-      }
-
-      getCurrentSubSettingText() {
-        const primaryEl = document.querySelector(CONSTANTS.SELECTORS.PICKER_PRIMARY_TEXT);
-        const secondaryEl = document.querySelector(CONSTANTS.SELECTORS.PICKER_SECONDARY_TEXT);
-        const primaryText = primaryEl?.textContent?.trim() || '';
-        const secondaryText = secondaryEl?.textContent?.trim() || '';
-
-        if (this.isMobile()) {
-          // On mobile, if primary text is "Gemini" (thinking OFF), sub-setting is considered empty.
-          // If thinking is ON, secondary text holds the thinking indicator (e.g., "Extended").
-          return primaryText === CONSTANTS.BRAND_NAME ? '' : secondaryText;
-        }
-
-        return secondaryText;
       }
 
       /**
@@ -1227,7 +1213,7 @@
         }
       }
 
-      async applyModelSettings(isMatch, signal) {
+      async applyModelSettings(isMatch, signal, keepMenuOpenForThinking = false) {
         this.openMenu();
         let items = [];
         const maxAttempts = CONSTANTS.TIMING.MENU_POLL_MAX_ATTEMPTS;
@@ -1237,6 +1223,18 @@
           items = this.getMenuItems();
           if (items.length > 0) break;
           await new Promise((resolve) => setTimeout(resolve, intervalMs));
+        }
+
+        // Skip model selection when the menu offers only one fixed model.
+        const modelItems = items.filter((el) => el.matches(CONSTANTS.SELECTORS.MODEL_MENU_ITEMS));
+        this.hasSingleModelOption = modelItems.length === 1;
+
+        if (this.hasSingleModelOption) {
+          // Keep the menu open when thinking level selection will follow.
+          if (!keepMenuOpenForThinking) {
+            this.closeMenu();
+          }
+          return { success: true, changed: false };
         }
 
         const targetBtn = this.findTargetMenuItem(items, isMatch);
@@ -1270,10 +1268,11 @@
        * Executes the platform-specific model and settings application flow.
        * @param {Object} context
        * @param {string} context.targetText
+       * @param {string} context.targetThinkingText
        * @param {function(string): boolean} context.isMatch
+       * @param {function(string): boolean} context.isThinkingMatch
        * @param {boolean} context.isSettled
        * @param {boolean} context.isThinkingSettled
-       * @param {boolean} context.shouldEnableExtendedThinking
        * @param {AbortSignal} signal
        * @returns {Promise<{ isSettled: boolean, isThinkingSettled: boolean, setFailed: boolean, thinkingFailed: boolean, modelChanged: boolean }>}
        */
@@ -1284,8 +1283,10 @@
         let thinkingFailed = false;
 
         // --- Step 1: Model check and enforce ---
-        if (!isSettled) {
-          const result = await this.applyModelSettings(context.isMatch, signal);
+        if (!context.targetText) {
+          isSettled = true;
+        } else if (!isSettled) {
+          const result = await this.applyModelSettings(context.isMatch, signal, !!context.targetThinkingText && !isThinkingSettled);
           if (!result.success) {
             console.warn(`${LOG_PREFIX} Target model matching pattern "${context.targetText}" not found in menu.`);
             return { isSettled: false, isThinkingSettled: false, setFailed: true, thinkingFailed: false, modelChanged: false };
@@ -1299,9 +1300,11 @@
           isSettled = true;
         }
 
-        // --- Step 2: Extended Thinking check and enforce ---
-        if (!isThinkingSettled) {
-          const result = await this.applyAdditionalSettings(signal, context.shouldEnableExtendedThinking);
+        // --- Step 2: Thinking Level check and enforce ---
+        if (!context.targetThinkingText) {
+          isThinkingSettled = true;
+        } else if (!isThinkingSettled) {
+          const result = await this.applyAdditionalSettings(signal, context.targetThinkingText, context.isThinkingMatch);
           if (result.success) {
             isThinkingSettled = true;
           } else if (result.fatal) {
@@ -1324,12 +1327,13 @@
       }
 
       /**
-       * Applies the preferred extended thinking toggle directly from the flat main menu.
+       * Applies the preferred thinking level directly from the flat main menu.
        * @param {AbortSignal} signal
-       * @param {boolean} shouldEnableExtendedThinking
+       * @param {string} targetThinkingText
+       * @param {function(string): boolean} isThinkingMatch
        * @returns {Promise<{ success: boolean, fatal: boolean }>} Resolves with status indicating success and fatality.
        */
-      async applyAdditionalSettings(signal, shouldEnableExtendedThinking) {
+      async applyAdditionalSettings(signal, targetThinkingText, isThinkingMatch) {
         const menuButton = document.querySelector(CONSTANTS.SELECTORS.MENU_BUTTON);
         if (!(menuButton instanceof HTMLElement)) return { success: false, fatal: false };
 
@@ -1338,25 +1342,32 @@
         }
 
         let items = [];
+        let thinkingItems = [];
         const maxAttempts = CONSTANTS.TIMING.MENU_POLL_MAX_ATTEMPTS;
         const intervalMs = CONSTANTS.TIMING.MENU_POLL_INTERVAL_MS;
         for (let i = 0; i < maxAttempts; i++) {
           if (signal.aborted) return { success: false, fatal: false };
           items = this.getMenuItems();
-          if (items.length > 0) break;
+
+          // Identify thinking level items after the model/thinking separator
+          const firstIndex = items.findIndex((el) => el.previousElementSibling?.matches(CONSTANTS.SELECTORS.THINKING_SEPARATOR));
+          if (firstIndex !== -1) {
+            thinkingItems = items.slice(firstIndex);
+            break;
+          }
+
           await new Promise((resolve) => setTimeout(resolve, intervalMs));
         }
 
-        // Identify the extended thinking toggle item which lacks a 'data-test-id' attribute
-        const targetBtn = items.find((el) => !el.hasAttribute('data-test-id'));
+        const targetBtn = this.findTargetMenuItem(thinkingItems, isThinkingMatch);
+
         if (!(targetBtn instanceof HTMLElement)) {
-          console.warn(`${LOG_PREFIX} Target extended thinking item not found in menu.`);
+          console.warn(`${LOG_PREFIX} Target thinking level matching pattern "${targetThinkingText}" not found in menu.`);
           this.closeMenu();
-          return { success: false, fatal: true };
+          return { success: false, fatal: items.length > 0 };
         }
 
-        const isCurrentlySelected = this.isTargetSelected(targetBtn);
-        if (isCurrentlySelected === shouldEnableExtendedThinking) {
+        if (this.isTargetSelected(targetBtn)) {
           this.closeMenu();
           return { success: true, fatal: false };
         }
@@ -1390,7 +1401,7 @@
     #isThinkingSettledForCurrentContext = false;
     #isThinkingApplyFailedForCurrentContext = false;
     #targetText = '';
-    #isExtendedThinkingEnabled = false;
+    #targetThinkingText = '';
     #adapter = null;
     #constants = null;
     #palette = null;
@@ -1409,8 +1420,8 @@
     get #targetTextKey() {
       return `${APPID}-${PLATFORM}-target-text-state`;
     }
-    get #extendedThinkingKey() {
-      return `${APPID}-${PLATFORM}-extended-thinking-state`;
+    get #targetThinkingTextKey() {
+      return `${APPID}-${PLATFORM}-thinking-level-pattern-state`;
     }
 
     /**
@@ -1435,6 +1446,20 @@
     #isMatch(text) {
       try {
         const rx = new RegExp(this.#targetText, 'i');
+        return rx.test(text);
+      } catch {
+        return false;
+      }
+    }
+
+    /**
+     * Checks if the given text matches the target thinking level regex pattern (case-insensitive).
+     * @param {string} text
+     * @returns {boolean}
+     */
+    #isThinkingMatch(text) {
+      try {
+        const rx = new RegExp(this.#targetThinkingText, 'i');
         return rx.test(text);
       } catch {
         return false;
@@ -1503,7 +1528,7 @@
       EventBus.setLogPrefix(LOG_PREFIX);
 
       this.#targetText = await GM.getValue(this.#targetTextKey, this.#constants.TARGET_TEXT);
-      this.#isExtendedThinkingEnabled = await GM.getValue(this.#extendedThinkingKey, false);
+      this.#targetThinkingText = await GM.getValue(this.#targetThinkingTextKey, this.#constants.TARGET_THINKING_TEXT);
       this.#isVisibilityCheckEnabled = await GM.getValue(this.#visibilityCheckKey, false);
 
       await this.#updateMenuCommand();
@@ -1528,6 +1553,7 @@
       // Initialize navigation monitor to safely detect SPA URL/history changes
       this.#navigationMonitor = new NavigationMonitor(OWNERID);
       const onNavStart = () => {
+        this.#adapter.hasSingleModelOption = false;
         this.#isSettledForCurrentContext = false;
         this.#isThinkingSettledForCurrentContext = false;
         this.#isThinkingApplyFailedForCurrentContext = false;
@@ -1574,40 +1600,27 @@
     }
 
     /**
-     * Update the Tampermonkey menu command label based on the current state.
+     * Update the Tampermonkey menu command label based on the current state
      */
     async #updateMenuCommand() {
       // Clear all existing menu commands first to guarantee sequential re-registration order
       this.manageResource(this.#constants.RESOURCE_KEYS.MENU_TARGET, null);
-      this.manageResource(this.#constants.RESOURCE_KEYS.MENU_EXTENDED_THINKING, null);
+      this.manageResource(this.#constants.RESOURCE_KEYS.MENU_THINKING, null);
       this.manageResource(this.#constants.RESOURCE_KEYS.MENU_VISIBILITY, null);
-
-      const thinkingStateText = this.#isExtendedThinkingEnabled ? `🟢 Set Extended Thinking: ON` : `🔴 Set Extended Thinking: OFF`;
-      const thinkingTooltipText = this.#isExtendedThinkingEnabled ? 'Click to disable Extended Thinking globally' : 'Click to enable Extended Thinking globally';
 
       const visibilityStateText = this.#isVisibilityCheckEnabled ? `🟢 Auto-Check on Re-focus: ON` : `🔴 Auto-Check on Re-focus: OFF`;
       const visibilityTooltipText = this.#isVisibilityCheckEnabled ? 'Click to disable checking the model when returning to this page' : 'Click to enable checking the model when returning to this page';
 
       // Register menu commands strictly sequentially to prevent asynchronous race conditions in the UI order
-      const targetId = await GM.registerMenuCommand(`⚙️ Set Target ${this.#constants.MODEL_NAME} Name: ${this.#targetText}`, () => this.#showSettingsModal(this.#constants.FOCUS_TARGETS.MODEL), {
+      const targetId = await GM.registerMenuCommand(`⚙️ Set Target ${this.#constants.MODEL_NAME} Name: ${this.#targetText || '(None)'}`, () => this.#showSettingsModal(this.#constants.FOCUS_TARGETS.MODEL), {
         title: `Set the target ${this.#constants.MODEL_NAME.toLowerCase()} name to fix`,
       });
       this.manageResource(this.#constants.RESOURCE_KEYS.MENU_TARGET, () => GM.unregisterMenuCommand(targetId));
 
-      const thinkingId = await GM.registerMenuCommand(
-        thinkingStateText,
-        async () => {
-          this.#isExtendedThinkingEnabled = !this.#isExtendedThinkingEnabled;
-          await GM.setValue(this.#extendedThinkingKey, this.#isExtendedThinkingEnabled);
-          console.info(`${LOG_PREFIX} Extended Thinking state changed: ${this.#isExtendedThinkingEnabled ? 'ON' : 'OFF'}`);
-          this.#isThinkingSettledForCurrentContext = false;
-          await this.#updateMenuCommand();
-          this.#manageModelSwitchObserver();
-          this.#checkAndEnforce();
-        },
-        { title: thinkingTooltipText }
-      );
-      this.manageResource(this.#constants.RESOURCE_KEYS.MENU_EXTENDED_THINKING, () => GM.unregisterMenuCommand(thinkingId));
+      const thinkingId = await GM.registerMenuCommand(`⚙️ Set Target ${this.#constants.SUB_SETTING_NAME}: ${this.#targetThinkingText || '(None)'}`, () => this.#showSettingsModal(this.#constants.FOCUS_TARGETS.THINKING), {
+        title: `Set the target ${this.#constants.SUB_SETTING_NAME.toLowerCase()} to fix`,
+      });
+      this.manageResource(this.#constants.RESOURCE_KEYS.MENU_THINKING, () => GM.unregisterMenuCommand(thinkingId));
 
       const visibilityId = await GM.registerMenuCommand(
         visibilityStateText,
@@ -1623,7 +1636,7 @@
     }
 
     /**
-     * Check current state and enforce target model and extended thinking if necessary.
+     * Check current state and enforce target model and thinking level if necessary.
      * Implements dynamic real-time auditing against the outer DOM text to safely catch
      * and overwrite delayed site history auto-overrides during initial loads or SPA navigations.
      */
@@ -1636,7 +1649,7 @@
       let needsThinkingChange = false;
 
       // --- Check model state (Real-time Audit) ---
-      if (this.#isMatch(currentText)) {
+      if (!this.#targetText || this.#adapter.hasSingleModelOption || this.#isMatch(currentText)) {
         this.#isSettledForCurrentContext = true;
       } else {
         // If the current DOM text doesn't match the target, we must differentiate between
@@ -1656,18 +1669,15 @@
         }
       }
 
-      // --- Check extended thinking state ---
-      if (this.#isThinkingApplyFailedForCurrentContext) {
+      // --- Check thinking level state ---
+      if (!this.#targetThinkingText) {
+        this.#isThinkingSettledForCurrentContext = true;
+      } else if (this.#isThinkingApplyFailedForCurrentContext) {
         // Treated as settled to stop retrying the invalid configuration, keeping the main flow unblocked
         this.#isThinkingSettledForCurrentContext = true;
-      } else {
-        const currentSubText = this.#adapter.getCurrentSubSettingText();
-        const hasExtensionActive = currentSubText.length > 0;
-        if (hasExtensionActive === this.#isExtendedThinkingEnabled) {
-          this.#isThinkingSettledForCurrentContext = true;
-        } else {
-          needsThinkingChange = true;
-        }
+      } else if (!this.#isThinkingSettledForCurrentContext) {
+        // The selected thinking level must be checked in the menu because the picker text is not reliable on Free.
+        needsThinkingChange = true;
       }
 
       if (needsModelChange || needsThinkingChange) {
@@ -1758,7 +1768,7 @@
     }
 
     /**
-     * Shows a modal to configure the target model name.
+     * Shows a modal to configure the target model and thinking level.
      */
     #showSettingsModal(focusTarget) {
       // Safely destroy any existing modal via the manager
@@ -1860,6 +1870,23 @@ margin: 0 !important;
       input.className = `${APPID}-modal-input`;
       dialog.appendChild(input);
 
+      const thinkingLabel = document.createElement('label');
+      thinkingLabel.textContent = `${this.#constants.SUB_SETTING_NAME}:`;
+      thinkingLabel.style.cssText = 'display:block; font-size:13px; margin-bottom:4px; font-weight:bold; margin-top:12px;';
+      dialog.appendChild(thinkingLabel);
+
+      const thinkingDesc = document.createElement('span');
+      thinkingDesc.className = `${APPID}-modal-text-small`;
+      thinkingDesc.style.cssText = 'font-size: 13px; margin-bottom: 8px; display: block;';
+      thinkingDesc.textContent = this.#constants.SUB_SETTING_EXAMPLES;
+      dialog.appendChild(thinkingDesc);
+
+      const thinkingInput = document.createElement('input');
+      thinkingInput.type = 'text';
+      thinkingInput.value = this.#targetThinkingText;
+      thinkingInput.className = `${APPID}-modal-input`;
+      dialog.appendChild(thinkingInput);
+
       const statusDisplay = document.createElement('div');
       statusDisplay.className = `${APPID}-modal-status`;
       dialog.appendChild(statusDisplay);
@@ -1882,6 +1909,7 @@ margin: 0 !important;
       defaultBtn.className = `${APPID}-modal-btn`;
       defaultBtn.onclick = () => {
         input.value = this.#constants.TARGET_TEXT;
+        thinkingInput.value = this.#constants.TARGET_THINKING_TEXT;
         updateStatus();
       };
 
@@ -1898,14 +1926,15 @@ margin: 0 !important;
 
       const updateStatus = () => {
         const pattern = input.value;
+        const thinkingPattern = thinkingInput.value;
 
-        if (pattern.includes('/')) {
+        if (pattern.includes('/') || thinkingPattern.includes('/')) {
           statusDisplay.textContent = '⚠️ Do not use "/"';
           statusDisplay.style.color = this.#palette.danger_text;
           saveBtn.disabled = true;
           return;
         }
-        if (!this.#isValidRegex(pattern)) {
+        if (!this.#isValidRegex(pattern) || !this.#isValidRegex(thinkingPattern)) {
           statusDisplay.textContent = '⚠️ Invalid Regex';
           statusDisplay.style.color = this.#palette.danger_text;
           saveBtn.disabled = true;
@@ -1918,19 +1947,25 @@ margin: 0 !important;
       };
 
       input.addEventListener('input', updateStatus);
+      thinkingInput.addEventListener('input', updateStatus);
 
       saveBtn.onclick = async () => {
         const newVal = input.value.trim();
+        const newThinkingVal = thinkingInput.value.trim();
 
-        if (newVal && this.#isValidRegex(newVal)) {
+        if (this.#isValidRegex(newVal) && this.#isValidRegex(newThinkingVal) && !newVal.includes('/') && !newThinkingVal.includes('/')) {
           // Guard against multiple non-atomic invocations via rapid clicks
           saveBtn.disabled = true;
           this.#targetText = newVal;
+          this.#targetThinkingText = newThinkingVal;
 
           await GM.setValue(this.#targetTextKey, newVal);
-          console.info(`${LOG_PREFIX} Target ${this.#constants.MODEL_NAME.toLowerCase()} name updated to: ${newVal}`);
+          await GM.setValue(this.#targetThinkingTextKey, newThinkingVal);
+          console.info(`${LOG_PREFIX} Target ${this.#constants.MODEL_NAME.toLowerCase()} name updated to: ${newVal || '(None)'}, ${this.#constants.SUB_SETTING_NAME} to: ${newThinkingVal || '(None)'}`);
           this.#setFailedForCurrentContext = false;
           this.#isSettledForCurrentContext = false;
+          this.#isThinkingSettledForCurrentContext = false;
+          this.#isThinkingApplyFailedForCurrentContext = false;
 
           await this.#updateMenuCommand();
           this.#manageModelSwitchObserver();
@@ -1952,8 +1987,13 @@ margin: 0 !important;
       });
       dialog.showModal();
 
-      input.focus();
-      input.select();
+      if (focusTarget === this.#constants.FOCUS_TARGETS.THINKING) {
+        thinkingInput.focus();
+        thinkingInput.select();
+      } else {
+        input.focus();
+        input.select();
+      }
     }
 
     /**
@@ -1971,10 +2011,11 @@ margin: 0 !important;
         const result = await this.#adapter.executeApplicationFlow(
           {
             targetText: this.#targetText,
+            targetThinkingText: this.#targetThinkingText,
             isMatch: (text) => this.#isMatch(text),
+            isThinkingMatch: (text) => this.#isThinkingMatch(text),
             isSettled: this.#isSettledForCurrentContext,
             isThinkingSettled: this.#isThinkingSettledForCurrentContext,
-            shouldEnableExtendedThinking: this.#isExtendedThinkingEnabled,
           },
           signal
         );

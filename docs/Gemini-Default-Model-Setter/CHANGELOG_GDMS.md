@@ -6,6 +6,18 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.6.0] - 2026-10-10
+- **Core Changes**
+  - Adapted to Gemini's updated model selector with three thinking levels: Low, Medium, and High.
+  - Replaced the Extended Thinking ON/OFF toggle with regex-based thinking level configuration in the settings modal.
+  - Added independent model and thinking level configuration, allowing either setting to be left blank to skip automatic selection.
+- **Fixes & Improvements**
+  - Improved thinking level detection and selection using the menu structure and selected state.
+  - Automatically skips model selection when only one model option is available, allowing thinking level configuration to work with Gemini Free accounts.
+  - Improved compatibility with the updated Gemini Free and Pro interfaces.
+- **Configuration Note**
+  - The previous Extended Thinking ON/OFF setting is not migrated. Users must configure their preferred thinking level using the new setting.
+
 ## [1.5.1] - 2026-08-26
 - **Fixes & Improvements**
   - Fixed an issue where the model selector would freeze or stay open during model/thinking selection on mobile layouts.

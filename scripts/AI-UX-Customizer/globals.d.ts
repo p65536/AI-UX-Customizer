@@ -807,14 +807,6 @@ interface PlatformDefinitions {
     PlatformAdapters: PlatformAdapters;
 }
 
-// --- Utility Types ---
-type AppDisposableFn = () => void;
-type AppDisposableObj = { dispose: () => void };
-type AppDisconnectableObj = { disconnect: () => void };
-type AppAbortableObj = { abort: () => void };
-type AppDestructibleObj = { destroy: () => void };
-type AppDisposable = AppDisposableFn | AppDisposableObj | AppDisconnectableObj | AppAbortableObj | AppDestructibleObj;
-
 // --- Context Interfaces ---
 interface AppContext {
     onSave: (config: AppConfig) => Promise<void>;
