@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini Default Model Setter
 // @namespace    https://github.com/p65536
-// @version      1.6.0
+// @version      1.6.1
 // @license      MIT
 // @description  Automatically selects a specific model and its additional settings for Gemini upon page load, URL change, or tab return. The target patterns and script state can be easily configured via the extension menu.
 // @icon         data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' height='24px' viewBox='0 -960 960 960' width='24px' fill='%235985E1'%3E%3Cpath d='M240-880h480L600-712v512L480-80 360-200v-512L240-880Zm200 320h80v-176l40-64H400l40 64v176Zm80 80h-80v80h80v-80Zm0 240v-80h-80v80l40 40 40-40Zm-40-320Zm0 160Zm0-160Zm0 80Zm0 160Z'/%3E%3C/svg%3E
@@ -1163,6 +1163,19 @@
       }
 
       /**
+       * Gets the thinking level from the collapsed model picker when explicitly displayed.
+       * @returns {string} The thinking level label, or an empty string if unavailable.
+       */
+      getCurrentThinkingText() {
+        const primaryText = document.querySelector(CONSTANTS.SELECTORS.PICKER_PRIMARY_TEXT)?.textContent?.trim() || '';
+
+        // On Free, the secondary text contains the model name rather than the thinking level.
+        if (!primaryText || primaryText === CONSTANTS.BRAND_NAME) return '';
+
+        return document.querySelector(CONSTANTS.SELECTORS.PICKER_SECONDARY_TEXT)?.textContent?.trim() || '';
+      }
+
+      /**
        * Checks whether the mode selector menu is currently open and visible.
        * @returns {boolean}
        */
@@ -1676,8 +1689,15 @@
         // Treated as settled to stop retrying the invalid configuration, keeping the main flow unblocked
         this.#isThinkingSettledForCurrentContext = true;
       } else if (!this.#isThinkingSettledForCurrentContext) {
-        // The selected thinking level must be checked in the menu because the picker text is not reliable on Free.
-        needsThinkingChange = true;
+        const currentThinkingText = this.#adapter.getCurrentThinkingText();
+
+        if (currentThinkingText && this.#isThinkingMatch(currentThinkingText)) {
+          // The collapsed picker already shows the target thinking level.
+          this.#isThinkingSettledForCurrentContext = true;
+        } else {
+          // Verify the selection in the menu when the label is unavailable or does not match.
+          needsThinkingChange = true;
+        }
       }
 
       if (needsModelChange || needsThinkingChange) {

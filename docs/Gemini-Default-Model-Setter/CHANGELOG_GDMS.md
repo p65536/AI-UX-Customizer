@@ -6,6 +6,12 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.6.1] - 2026-10-10
+- **Performance Improvements**
+  - Optimized thinking level detection by reading the collapsed model selector without opening the menu when possible.
+  - Eliminated unnecessary menu opening during chat navigation when the displayed thinking level already matches the configured pattern.
+  - Preserved menu-based verification for Low, Gemini Free, and cases where the thinking level cannot be determined from the collapsed selector.
+
 ## [1.6.0] - 2026-10-10
 - **Core Changes**
   - Adapted to Gemini's updated model selector with three thinking levels: Low, Medium, and High.
