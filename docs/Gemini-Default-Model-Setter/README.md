@@ -18,7 +18,7 @@ Stop manually configuring your preferred model and thinking level every time you
 - **Automatic Selection**: Automatically selects your specified model and thinking level when starting a new chat or opening an existing history thread.
 - **Regex Targeting**: Configure both the model name and thinking level using case-insensitive Regular Expressions through a single settings modal.
 - **Independent Configuration**: Model and thinking level settings can be configured separately. Leave either field blank to skip automatic selection for that setting.
-- **Single-Model Support**: Automatically skips model selection when only one model is available, allowing thinking level configuration to work with Gemini Free accounts.
+- **Single-Model Support**: Automatically selects the only available model if necessary, allowing thinking level configuration to work with Gemini Free accounts.
 - **Preserves Manual Control**: Sets the initial configuration while allowing you to manually switch models or thinking levels during a chat.
 - **Lightweight & Resource-Efficient**: Designed to minimize CPU and memory overhead. Instead of running heavy, continuous background loops, the script utilizes a transient DOM observer that activates only when necessary (such as initial load or SPA navigation) and immediately disconnects once the state is settled.
 - **Auto-Check on Re-focus**: An optional fail-safe feature that re-verifies and applies your target configurations when returning to the Gemini tab (useful for background loads or idle sessions).
@@ -46,7 +46,7 @@ Use Regular Expressions to configure your preferred model and thinking level ind
 
 - **Initial Setup**: Click your userscript manager extension icon (e.g., Tampermonkey) while on the Gemini page. Select **"⚙️ Set Target Model Name"** or **"⚙️ Set Target Thinking Level"** to open the configuration modal. Enter your preferred model pattern (e.g., `Flash$` or `Pro`) and thinking level pattern (e.g., `High`).
 - **Optional Settings**: Leave either input field blank to skip automatic selection for that setting. The two settings operate independently.
-- **Gemini Free**: When only one model option is available, the script automatically skips model selection regardless of the configured model pattern. Thinking level selection remains available.
+- **Gemini Free**: When only one model option is available, the script ensures it is selected regardless of the configured model pattern. Thinking level selection remains available.
 - **Past Chat History**: When you open a past conversation from the sidebar, the script applies your configured model and thinking level, allowing you to resume with your preferred settings.
 
 ### Understanding "Auto-Check on Re-focus"
@@ -74,7 +74,7 @@ Patterns must match the labels displayed in your current Gemini interface langua
 - `^Flash-Lite$`: Matches exactly "Flash-Lite".
 - **Blank**: Skips automatic model selection.
 
-**Note:** When the menu offers only one model option, model selection is automatically skipped regardless of the configured pattern.
+**Note:** When the menu offers only one model option, the script selects it if necessary, regardless of the configured pattern.
 
 ### Thinking Level Examples
 

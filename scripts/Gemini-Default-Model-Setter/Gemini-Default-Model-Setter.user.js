@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini Default Model Setter
 // @namespace    https://github.com/p65536
-// @version      1.6.1
+// @version      1.6.2
 // @license      MIT
 // @description  Automatically selects a specific model and its additional settings for Gemini upon page load, URL change, or tab return. The target patterns and script state can be easily configured via the extension menu.
 // @icon         data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' height='24px' viewBox='0 -960 960 960' width='24px' fill='%235985E1'%3E%3Cpath d='M240-880h480L600-712v512L480-80 360-200v-512L240-880Zm200 320h80v-176l40-64H400l40 64v176Zm80 80h-80v80h80v-80Zm0 240v-80h-80v80l40 40 40-40Zm-40-320Zm0 160Zm0-160Zm0 80Zm0 160Z'/%3E%3C/svg%3E
@@ -1113,10 +1113,10 @@
         DISABLED_STATE: ':disabled, [aria-disabled="true"], [class*="disabled"]',
         BUTTON_TAG: 'button',
         MENU_ITEM_TAG: 'gem-menu-item',
-        MODEL_MENU_ITEMS: 'gem-menu-item[data-mode-id]',
+        MODEL_MENU_ITEMS: 'gem-menu-item[data-mode-id]:not([data-mode-id^="upsell_"])',
         PICKER_PRIMARY_TEXT: '.picker-primary-text',
         PICKER_SECONDARY_TEXT: '.picker-secondary-text',
-        THINKING_SEPARATOR: 'mat-divider[role="separator"]',
+        THINKING_MENU_TRIGGER: 'gem-menu-item[value="thinking_level"]',
         MOBILE_FLAG: '.is-mobile',
       },
     };
@@ -1243,6 +1243,20 @@
         this.hasSingleModelOption = modelItems.length === 1;
 
         if (this.hasSingleModelOption) {
+          const btn = modelItems[0];
+
+          // Select the only available model if it is not currently selected.
+          if (!this.isTargetSelected(btn)) {
+            btn.click();
+            if (this.isMobile()) {
+              // Allow DOM event queue to settle before explicitly closing the menu on mobile
+              await new Promise((resolve) => setTimeout(resolve, 50));
+              this.closeMenu();
+            }
+            await this.focusInput(signal);
+            return { success: true, changed: true };
+          }
+
           // Keep the menu open when thinking level selection will follow.
           if (!keepMenuOpenForThinking) {
             this.closeMenu();
@@ -1250,7 +1264,7 @@
           return { success: true, changed: false };
         }
 
-        const targetBtn = this.findTargetMenuItem(items, isMatch);
+        const targetBtn = this.findTargetMenuItem(modelItems, isMatch);
         if (!(targetBtn instanceof HTMLElement)) {
           this.closeMenu();
           return { success: false, changed: false };
@@ -1340,11 +1354,11 @@
       }
 
       /**
-       * Applies the preferred thinking level directly from the flat main menu.
+       * Applies the preferred thinking level from the submenu.
        * @param {AbortSignal} signal
        * @param {string} targetThinkingText
        * @param {function(string): boolean} isThinkingMatch
-       * @returns {Promise<{ success: boolean, fatal: boolean }>} Resolves with status indicating success and fatality.
+       * @returns {Promise<{ success: boolean, fatal: boolean }>}
        */
       async applyAdditionalSettings(signal, targetThinkingText, isThinkingMatch) {
         const menuButton = document.querySelector(CONSTANTS.SELECTORS.MENU_BUTTON);
@@ -1354,19 +1368,45 @@
           menuButton.click();
         }
 
-        let items = [];
-        let thinkingItems = [];
         const maxAttempts = CONSTANTS.TIMING.MENU_POLL_MAX_ATTEMPTS;
         const intervalMs = CONSTANTS.TIMING.MENU_POLL_INTERVAL_MS;
+        let items = [];
+        let trigger = null;
+
+        // Find the thinking level submenu trigger.
         for (let i = 0; i < maxAttempts; i++) {
           if (signal.aborted) return { success: false, fatal: false };
-          items = this.getMenuItems();
 
-          // Identify thinking level items after the model/thinking separator
-          const firstIndex = items.findIndex((el) => el.previousElementSibling?.matches(CONSTANTS.SELECTORS.THINKING_SEPARATOR));
-          if (firstIndex !== -1) {
-            thinkingItems = items.slice(firstIndex);
-            break;
+          items = this.getMenuItems();
+          trigger = items.find((el) => el.matches(CONSTANTS.SELECTORS.THINKING_MENU_TRIGGER)) ?? null;
+          if (trigger) break;
+
+          await new Promise((resolve) => setTimeout(resolve, intervalMs));
+        }
+
+        if (!(trigger instanceof HTMLElement)) {
+          console.warn(`${LOG_PREFIX} Thinking level submenu trigger not found.`);
+          this.closeMenu();
+          return { success: false, fatal: items.length > 0 };
+        }
+
+        // Open the submenu only if it is not already expanded.
+        if (trigger.getAttribute('aria-expanded') !== 'true') {
+          trigger.click();
+        }
+
+        let thinkingItems = [];
+
+        // Locate the submenu through the trigger's aria-controls attribute.
+        for (let i = 0; i < maxAttempts; i++) {
+          if (signal.aborted) return { success: false, fatal: false };
+
+          const submenuId = trigger.getAttribute('aria-controls');
+          const submenu = submenuId ? document.getElementById(submenuId) : null;
+
+          if (submenu instanceof HTMLElement) {
+            thinkingItems = this.getMenuItems().filter((el) => el.closest(CONSTANTS.SELECTORS.MENU_CONTAINER) === submenu);
+            if (thinkingItems.length > 0) break;
           }
 
           await new Promise((resolve) => setTimeout(resolve, intervalMs));
@@ -1375,9 +1415,9 @@
         const targetBtn = this.findTargetMenuItem(thinkingItems, isThinkingMatch);
 
         if (!(targetBtn instanceof HTMLElement)) {
-          console.warn(`${LOG_PREFIX} Target thinking level matching pattern "${targetThinkingText}" not found in menu.`);
+          console.warn(`${LOG_PREFIX} Target thinking level matching pattern "${targetThinkingText}" not found in submenu.`);
           this.closeMenu();
-          return { success: false, fatal: items.length > 0 };
+          return { success: false, fatal: thinkingItems.length > 0 };
         }
 
         if (this.isTargetSelected(targetBtn)) {

@@ -6,6 +6,14 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.6.2] - 2026-10-14
+- **Fixes & Improvements**
+  - Adapted thinking level selection to Gemini's new submenu-based interface.
+  - Updated submenu detection using ARIA attributes and preserved selected-state checks.
+  - Excluded subscription upsell entries from model selection.
+  - Fixed single-model selection handling on Gemini Free accounts to ensure thinking level settings are applied correctly.
+  - Verified compatibility with Gemini Free and Pro, including page reloads and SPA navigation.
+
 ## [1.6.1] - 2026-10-10
 - **Performance Improvements**
   - Optimized thinking level detection by reading the collapsed model selector without opening the menu when possible.
