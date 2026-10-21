@@ -10,14 +10,14 @@
 
 ---
 
-> [!IMPORTANT]
-> **ChatGPT new UI compatibility** (2026-09-26)
+> [!NOTE]
+> **ChatGPT UI compatibility**
 >
-> AI-UX-Customizer and Quick Text Buttons have been updated to support the new ChatGPT UI while retaining compatibility with the previous UI.
+> AI-UX-Customizer and Quick Text Buttons support the current ChatGPT UI.
 >
-> However, the new ChatGPT UI is still changing frequently, and its DOM structure and behavior may change without notice. Compatibility with the new UI is therefore provided on a best-effort basis, and some features may temporarily stop working after future ChatGPT updates.
+> ChatGPT continues to update its interface, which may affect script compatibility without notice. Some UI issues may also originate from ChatGPT itself rather than these scripts.
 >
-> If you encounter an issue that only occurs with the new UI, please report it so it can be investigated and addressed as needed.
+> If you encounter an issue, please check whether it also occurs with the scripts disabled and report any script-specific problems.
 
 ---
 
@@ -45,16 +45,14 @@ It integrates powerful theme and navigation features into a single codebase, all
 
 ## Recent Updates
 
+### 2026-10-21
+- Updated `AI UX Customizer` (1.6.10 -> 1.6.11)
+
 ### 2026-10-14
 - Updated `Gemini Default Model Setter` (1.6.1 -> 1.6.2)
 
 ### 2026-10-10
 - Updated `Gemini Default Model Setter` (1.5.1 -> 1.6.1)
-
-### 2026-09-30
-
-- **[New script]** Added `ChatGPT Work Pet Scaler` (CWPS) (1.0.0)
-- Updated `AI UX Customizer` (1.6.8 -> 1.6.10)
 
 ---
 
@@ -66,7 +64,7 @@ A userscript that adds powerful **theming**, **UI customization**, and **advance
 
 | Platform | GitHub | Greasy Fork | Version | Last Updated | Changelog |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **ChatGPT**<br>**Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/AI-UX-Customizer/AI-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/570496-ai-ux-customizer) | 1.6.10 | 2026-09-30 | [View](./docs/AI-UX-Customizer/CHANGELOG_AIUXC.md) |
+| **ChatGPT**<br>**Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/AI-UX-Customizer/AI-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/570496-ai-ux-customizer) | 1.6.11 | 2026-10-21 | [View](./docs/AI-UX-Customizer/CHANGELOG_AIUXC.md) |
 
 **[View Detailed Features & Manual for AI UX Customizer](./docs/AI-UX-Customizer/README.md)**
 

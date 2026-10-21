@@ -6,6 +6,11 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.6.11] - 2026-10-21
+- **Fixes**
+  - [ChatGPT] Fixed an opaque background appearing around composer footer controls in existing chats after a recent UI change.
+  - [ChatGPT] Restored consistent custom input background appearance between new and existing chats.
+
 ## [1.6.10] - 2026-09-30
 - **Fixes & Improvements**
   - [ChatGPT] Restored automatic hiding of standing images while the resizable right sidebar is open.
