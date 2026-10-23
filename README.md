@@ -45,14 +45,14 @@ It integrates powerful theme and navigation features into a single codebase, all
 
 ## Recent Updates
 
+### 2026-10-23
+- Updated `Gemini Default Model Setter` (1.6.2 -> 1.6.3)
+
 ### 2026-10-21
 - Updated `AI UX Customizer` (1.6.10 -> 1.6.11)
 
 ### 2026-10-14
 - Updated `Gemini Default Model Setter` (1.6.1 -> 1.6.2)
-
-### 2026-10-10
-- Updated `Gemini Default Model Setter` (1.5.1 -> 1.6.1)
 
 ---
 
@@ -97,7 +97,7 @@ Automatically selects your preferred Gemini model (e.g., "Flash" or "Pro") and t
 
 | Platform | GitHub | Greasy Fork | Version | Last Updated | Changelog |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/Gemini-Default-Model-Setter/Gemini-Default-Model-Setter.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/578088-gemini-default-model-setter) | 1.6.2 | 2026-10-14 | [View](./docs/Gemini-Default-Model-Setter/CHANGELOG_GDMS.md) |
+| **Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/Gemini-Default-Model-Setter/Gemini-Default-Model-Setter.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/578088-gemini-default-model-setter) | 1.6.3 | 2026-10-23 | [View](./docs/Gemini-Default-Model-Setter/CHANGELOG_GDMS.md) |
 
 **[View Detailed Features & Manual for Gemini Default Model Setter](./docs/Gemini-Default-Model-Setter/README.md)**
 
@@ -136,9 +136,9 @@ Enlarges ChatGPT Work pets with configurable scaling while preserving usable lay
 
 ## Tested Environment
 
-- These scripts are designed for **desktop browsers** and does not support mobile environments.
 - These scripts are primarily developed and tested on **Firefox** with **Tampermonkey**.
 - It is also confirmed to work on Chromium-based browsers, but testing on these platforms is less extensive.
+- These scripts are primarily developed for **desktop browsers** and are not intended for mobile use. However, mobile-specific issues may occasionally be addressed when they can be reproduced and tested using browser DevTools' mobile emulation. Compatibility with actual mobile browsers is not guaranteed.
 
 ---
 
