@@ -6,6 +6,10 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [3.4.3] - 2026-11-01
+- **Fixes**
+  - [Claude] Restored button visibility in the composer toolbar following Claude's recent UI layout update.
+
 ## [3.4.2] - 2026-09-29
 - **Fixes & Improvements**
   - [ChatGPT] Restored Quick Text Buttons after SPA navigation when hidden composer DOM from the previous route remains mounted.
