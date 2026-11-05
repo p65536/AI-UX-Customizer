@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini Default Model Setter
 // @namespace    https://github.com/p65536
-// @version      1.6.3
+// @version      1.6.4
 // @license      MIT
 // @description  Automatically selects a specific model and its additional settings for Gemini upon page load, URL change, or tab return. The target patterns and script state can be easily configured via the extension menu.
 // @icon         data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' height='24px' viewBox='0 -960 960 960' width='24px' fill='%235985E1'%3E%3Cpath d='M240-880h480L600-712v512L480-80 360-200v-512L240-880Zm200 320h80v-176l40-64H400l40 64v176Zm80 80h-80v80h80v-80Zm0 240v-80h-80v80l40 40 40-40Zm-40-320Zm0 160Zm0-160Zm0 80Zm0 160Z'/%3E%3C/svg%3E
@@ -1064,8 +1064,8 @@
      * @param {Object} context
      * @param {string} context.targetText
      * @param {string} context.targetThinkingText
-     * @param {function(string): boolean} context.isMatch
-     * @param {function(string): boolean} context.isThinkingMatch
+     * @param {(value: string) => boolean} context.isMatch
+     * @param {(value: string) => boolean} context.isThinkingMatch
      * @param {boolean} context.isSettled
      * @param {boolean} context.isThinkingSettled
      * @param {AbortSignal} signal
@@ -1296,8 +1296,8 @@
        * @param {Object} context
        * @param {string} context.targetText
        * @param {string} context.targetThinkingText
-       * @param {function(string): boolean} context.isMatch
-       * @param {function(string): boolean} context.isThinkingMatch
+       * @param {(value: string) => boolean} context.isMatch
+       * @param {(value: string) => boolean} context.isThinkingMatch
        * @param {boolean} context.isSettled
        * @param {boolean} context.isThinkingSettled
        * @param {AbortSignal} signal
@@ -1357,7 +1357,7 @@
        * Applies the preferred thinking level from the submenu.
        * @param {AbortSignal} signal
        * @param {string} targetThinkingText
-       * @param {function(string): boolean} isThinkingMatch
+       * @param {(value: string) => boolean} isThinkingMatch
        * @returns {Promise<{ success: boolean, fatal: boolean }>}
        */
       async applyAdditionalSettings(signal, targetThinkingText, isThinkingMatch) {
