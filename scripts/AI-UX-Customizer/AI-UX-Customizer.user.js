@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.6.11
+// @version      1.6.12
 // @license      MIT
 // @description  Fully customize the chat UI of [ChatGPT/Gemini]. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' height='24px' viewBox='0 -960 960 960' width='24px' fill='%235985E1'%3E%3Cpath d='M480-80q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 32.5-156t88-127Q256-817 330-848.5T488-880q80 0 151 27.5t124.5 76q53.5 48.5 85 115T880-518q0 115-70 176.5T640-280h-74q-9 0-12.5 5t-3.5 11q0 12 15 34.5t15 51.5q0 50-27.5 74T480-80Zm0-400Zm-220 40q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm120-160q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm200 0q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm120 160q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17ZM480-160q9 0 14.5-5t5.5-13q0-14-15-33t-15-57q0-42 29-67t71-25h70q66 0 113-38.5T800-518q0-121-92.5-201.5T488-800q-136 0-232 93t-96 227q0 133 93.5 226.5T480-160Z'/%3E%3C/svg%3E
@@ -404,7 +404,7 @@
   /**
    * Generates the default configuration for a platform.
    * Defined as a factory function to prevent reference sharing between platforms.
-   * @returns {object}
+   * @returns {PlatformSettings}
    */
   function createDefaultPlatformConfig() {
     return {
@@ -4995,7 +4995,7 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
       /**
        * @private
        * @description Starts a stateful observer for the right sidebar (Activity/Thread flyout).
-       * @param {object} dependencies
+       * @param {ObserverDependencies} dependencies
        * @returns {() => void}
        */
       startRightSidebarObserver(dependencies) {
@@ -5013,7 +5013,7 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
       /**
        * @private
        * @description Starts a stateful observer for the Research Panel.
-       * @param {object} dependencies
+       * @param {ObserverDependencies} dependencies
        * @returns {() => void}
        */
       startResearchPanelObserver(dependencies) {
@@ -5033,7 +5033,7 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
       /**
        * @private
        * @description Starts a stateful observer to detect the appearance and disappearance of the Canvas panel using a high-performance hybrid approach.
-       * @param {object} dependencies The required methods from ObserverManager.
+       * @param {ObserverDependencies} dependencies The required methods from ObserverManager.
        * @returns {() => void} A cleanup function.
        */
       startCanvasObserver(dependencies) {
@@ -5999,7 +5999,7 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
       /**
        * Extracts and parses messages from the JSON object.
        * Processes the entire mapping to support all branches (chat trees).
-       * @param {object} data - The parsed JSON response.
+       * @param {{mapping?: Record<string, any>, current_node?: string}} data - The parsed JSON response.
        * @param {string} chatId - The conversation ID.
        * @returns {Map<string, MessageNode>}
        */
@@ -7079,7 +7079,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       /**
        * @private
        * @description Starts a stateful observer to detect the appearance and disappearance of panels (Immersive/File) using a high-performance hybrid approach.
-       * @param {object} dependencies The required methods from ObserverManager.
+       * @param {ObserverDependencies} dependencies The required methods from ObserverManager.
        * @returns {() => void} A cleanup function.
        */
       startPanelObserver(dependencies) {
@@ -7611,7 +7611,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
   /**
    * @param {string} actor - 'user' or 'assistant'
-   * @returns {object[]} An array of style definition objects for the given actor.
+   * @returns {{configKey: string, fallbackKey: string, cssVar: string, transformer?: (value: any, config?: AppConfig) => any}[]} An array of style definition objects for the given actor.
    */
   function createActorStyleDefinitions(actor) {
     const actorUpper = actor.toUpperCase();
@@ -8973,7 +8973,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
     /**
      * Generates IDs and Prefixes, constructs CSS using the provided generator, and injects the style.
-     * @param {object} def Definition object from StyleDefinitions.
+     * @param {StyleDefinition} def Definition object from StyleDefinitions.
      * @returns {StyleHandle} The style handle.
      */
     static _render(def) {
@@ -9359,9 +9359,10 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
    * Keys present in 'source' but missing in 'target' are ignored.
    * The 'target' object acts as a schema; it must contain all valid keys.
    *
-   * @param {object} target The target object (e.g., a deep copy of default config).
+   * @template {Record<string, any>} T
+   * @param {T} target The target object (e.g., a deep copy of default config).
    * @param {object} source The source object (e.g., user config).
-   * @returns {object} The mutated target object.
+   * @returns {T} The mutated target object.
    */
   function resolveConfig(target, source) {
     for (const [key, sourceVal] of Object.entries(source)) {
@@ -9382,7 +9383,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         resolveConfig(targetVal, sourceVal);
       } else if (typeof sourceVal !== 'undefined') {
         // Otherwise, overwrite or set the value from the source
-        target[key] = sourceVal;
+        target[/** @type {keyof T} */ (key)] = sourceVal;
       }
     }
     return target;
@@ -9390,8 +9391,9 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
   /**
    * Removes system-internal properties (prefixed with _system) from the config object before saving.
-   * @param {object} data The config object to sanitize.
-   * @returns {object} A deep copy of the config object without system properties.
+   * @template {object} T
+   * @param {T} data The config object to sanitize.
+   * @returns {T} A deep copy of the config object without system properties.
    */
   function sanitizeConfigForSave(data) {
     if (!data || typeof data !== 'object') return data;
@@ -9530,7 +9532,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
   /**
    * Recursively builds a DOM element from a definition object using the h() function.
-   * @param {object} def The definition object for the element.
+   * @param {{tag: string, props?: object, children?: Array<any>}} def The definition object for the element.
    * @returns {HTMLElement | SVGElement | null} The created DOM element.
    */
   function createIconFromDef(def) {
@@ -9886,7 +9888,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     requestAnimationFrame(() => {
       try {
         mutate(measuredData);
-        resolve();
+        resolve(undefined);
       } catch (e) {
         Logger.error('LAYOUT ERROR', LOG_STYLES.RED, 'Error during mutate phase:', e);
         reject(e);
@@ -9974,7 +9976,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
   /**
    * @description Ensures the settings button is correctly placed.
-   * @param {object} settingsButton The settings button component instance.
+   * @param {ICustomSettingsButton} settingsButton The settings button component instance.
    * @param {string} anchorSelector The CSS selector for the anchor element.
    * @param {() => boolean} isTargetPageFn A function that returns true if the current page is a target page.
    */
@@ -10149,7 +10151,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
      * Handles the logic for "Auto" (null) values by extending the minimum range.
      * Searches both theme and platform scopes.
      * @param {string} configKey - The configuration key to look up in CONFIG_SCHEMA.
-     * @returns {object|null} Slider properties or null if not a valid numeric field.
+     * @returns {{min: number, max: number, step: number, transformValue?: (value: any) => any, toInputValue?: (value: any) => any}|null} Slider properties or null if not a valid numeric field.
      */
     getSliderProps(configKey) {
       // Search in both scopes
@@ -10271,8 +10273,9 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
     /**
      * Normalizes theme data by cleaning up array fields.
-     * @param {object} themeData The theme data to normalize.
-     * @returns {object} The normalized theme data.
+     * @template {object} T
+     * @param {T} themeData The theme data to normalize.
+     * @returns {T} The normalized theme data.
      */
     normalize(themeData) {
       const normalized = deepClone(themeData);
@@ -10418,7 +10421,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
      * @private
      * Validates and sanitizes a numeric property based on the provided schema item.
      * @param {string | number | null} value The value to sanitize.
-     * @param {object} schemaItem The schema item containing validator rules.
+     * @param {{type: string, validators?: {allowedValues?: Array<string | number>, min?: number, max?: number}, def?: {nullable?: boolean, unit?: string, options?: Array<unknown>, imageType?: string}}} schemaItem The schema item containing validator rules.
      * @param {any} defaultValue The fallback value.
      * @returns {any} The sanitized value.
      */
@@ -10493,7 +10496,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
      */
     async load(updateState) {
       // 1. Load Manifest
-      const manifestRaw = await GM.getValue(this.ROOT_KEY);
+      const manifestRaw = /** @type {string | undefined} */ (await GM.getValue(this.ROOT_KEY));
       let loadedConfig = null;
 
       if (updateState) {
@@ -10524,7 +10527,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
           const themePromises = manifest.themeIndex.map(async (id) => {
             try {
               const themeKey = id;
-              const themeRaw = await GM.getValue(themeKey);
+              const themeRaw = /** @type {string | undefined} */ (await GM.getValue(themeKey));
               if (themeRaw) {
                 if (updateState) {
                   this._themeCache.set(id, themeRaw);
@@ -10676,7 +10679,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       // Includes optimistic locking to prevent deleting files created by other tabs during our save process.
       try {
         // Re-fetch manifest to check if another tab has updated it since our save
-        const currentManifestRaw = await GM.getValue(this.ROOT_KEY);
+        const currentManifestRaw = /** @type {string | undefined} */ (await GM.getValue(this.ROOT_KEY));
         let isSafeToGC = false;
 
         if (currentManifestRaw) {
@@ -11173,7 +11176,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
   class MessageCacheManager extends BaseManager {
     /**
-     * @param {object} streamingState - Shared state object for streaming status.
+     * @param {{isActive: boolean}} streamingState - Shared state object for streaming status.
      */
     constructor(streamingState) {
       super();
@@ -11961,7 +11964,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
   class ObserverManager extends BaseManager {
     /**
      * @param {MessageCacheManager} messageCacheManager
-     * @param {object} streamingState - Shared state object for streaming status.
+     * @param {{isActive: boolean}} streamingState - Shared state object for streaming status.
      */
     constructor(messageCacheManager, streamingState) {
       super();
@@ -12101,10 +12104,10 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
      * @param {object} config
      * @param {string} config.triggerSelector
      * @param {string} config.observerType
-     * @param {function(HTMLElement): HTMLElement|null} config.targetResolver - A function to resolve the actual panel element from the trigger element.
-     * @param {function(HTMLElement, HTMLElement): boolean} config.checkVisibility - A function to determine if the panel is visible based on the panel and trigger elements.
+     * @param {(trigger: HTMLElement) => HTMLElement|null} config.targetResolver - A function to resolve the actual panel element from the trigger element.
+     * @param {(panel: HTMLElement, trigger: HTMLElement) => boolean} config.checkVisibility - A function to determine if the panel is visible based on the panel and trigger elements.
      * @param {string[]} config.attributesToWatch - An array of attribute names to monitor for changes.
-     * @param {function(): void} [config.immediateCallback] - An optional callback executed immediately and repeatedly during the animation loop.
+     * @param {() => void} [config.immediateCallback] - An optional callback executed immediately and repeatedly during the animation loop.
      * @returns {() => void} A cleanup function.
      */
     startGenericPanelObserver(config) {
@@ -13107,9 +13110,12 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
       /**
        * @private
-       * @type {Array<object>}
        */
-      this._features = [BubbleFeatureDefs.COLLAPSIBLE, BubbleFeatureDefs.BUBBLE_NAV_TOP, BubbleFeatureDefs.BUBBLE_NAV_BOTTOM].map((def) => ({
+      this._features = /** @type {Array<(typeof BubbleFeatureDefs)[keyof typeof BubbleFeatureDefs] & {measure?: typeof BubbleFeatureDefs.COLLAPSIBLE.measure, group?: string, position?: string}>} */ ([
+        BubbleFeatureDefs.COLLAPSIBLE,
+        BubbleFeatureDefs.BUBBLE_NAV_TOP,
+        BubbleFeatureDefs.BUBBLE_NAV_BOTTOM,
+      ]).map((def) => ({
         ...def,
         // Wrap update method to inject 'this' (manager) as the last argument
         // This allows the external definition to access manager state (styles, config, etc.)
@@ -13249,7 +13255,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
     /**
      * @private
-     * @param {object} measurement
+     * @param {ReturnType<BubbleUIManager['_measureElement']>} measurement
      */
     _mutateElement(measurement) {
       const { messageElement, featureTasks, navPositioningParent } = measurement;
@@ -13327,7 +13333,9 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
                   }
                 }
               } else {
-                targetContainer = info.positioningParent;
+                if ('positioningParent' in info && info.positioningParent instanceof HTMLElement) {
+                  targetContainer = info.positioningParent;
+                }
                 if (featureElement.classList.length > 0) {
                   cleanupSelector = `.${featureElement.classList[0]}`;
                 }
@@ -13486,7 +13494,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
      * @param {ConfigManager} dependencies.configManager
      * @param {any} dependencies.autoScrollManager
      * @param {MessageLifecycleManager} dependencies.messageLifecycleManager
-     * @param {object} options
+     * @param {{isReEnabling?: boolean}} options
      */
     constructor({ messageCacheManager, configManager, autoScrollManager, messageLifecycleManager }, options) {
       super();
@@ -15695,7 +15703,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     /**
      * @abstract
      * Renders the component's DOM structure. Must be implemented by subclasses.
-     * @returns {HTMLElement|void}
+     * @returns {HTMLElement | SVGElement | void}
      */
     render() {
       throw new Error('Component must implement render method.');
@@ -15735,6 +15743,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
   /**
    * @class ReactiveStore
+   * @template {object} [T=Record<string, any>]
    * @description A simple reactive store implementing the Pub/Sub pattern.
    * It allows setting and getting values using dot-notation paths and notifies listeners on changes.
    *
@@ -15744,6 +15753,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
    * - Subscribers are responsible for determining if a change affects them (e.g., using startsWith checks).
    */
   class ReactiveStore {
+    /** @param {T} initialState */
     constructor(initialState) {
       this.state = deepClone(initialState);
       this.listeners = new Set();
@@ -15786,7 +15796,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
      * Returns a direct reference to the current state object.
      * WARNING: The returned object MUST be treated as Read-Only. Do not mutate directly.
      * Use this for performance-critical reads where deep cloning is too expensive.
-     * @returns {Readonly<object>}
+     * @returns {Readonly<T>}
      */
     getStateRef() {
       return this.state;
@@ -15795,7 +15805,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     /**
      * Replaces the entire state with a new object and notifies listeners.
      * Triggers notifications for all top-level keys in both old and new states.
-     * @param {object} newState - The new full state object. Must be a valid object (null is ignored).
+     * @param {T} newState - The new full state object. Must be a valid object (null is ignored).
      */
     replaceState(newState) {
       if (!newState || typeof newState !== 'object') {
@@ -15818,8 +15828,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
      * Subscribes to store updates.
      * WARNING: The state object passed to the callback is a direct reference to the store's internal state.
      * Do not mutate the state object directly within the callback. Use store.set() for updates.
-     * @param {function(object, string): void} callback - The function to call on update. Receives (state, changedPath).
-     * @returns {function(): void} A function to unsubscribe.
+     * @param {(state: T, changedPath: string) => void} callback - The function to call on update. Receives (state, changedPath).
+     * @returns {() => void} A function to unsubscribe.
      */
     subscribe(callback) {
       if (typeof callback !== 'function') {
@@ -15848,13 +15858,14 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
   /**
    * @class UIBuilder
+   * @template {object} [T=Record<string, any>]
    * @description A lightweight, procedural UI builder that handles DOM generation,
    * two-way data binding with ReactiveStore, and lifecycle management.
    */
   class UIBuilder {
     /**
-     * @param {ReactiveStore} store
-     * @param {object} context
+     * @param {ReactiveStore<T>} store
+     * @param {{styles?: Record<string, string>, siteStyles?: SiteStyles, pickerRootId?: string, fileHandler?: (key: string, callbacks: {onStart: () => void, onSuccess: () => void, onError: (message: string) => void}) => void}} context
      * @param {(fn: () => void) => void} disposer
      */
     constructor(store, context, disposer) {
@@ -15879,7 +15890,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
      * Observes store paths and triggers callback on change.
      * Automatically registers cleanup.
      * @param {string|string[]} paths - Config key(s) to observe.
-     * @param {function(unknown): void} callback - Called with full store state on change.
+     * @param {(state: T) => void} callback - Called with full store state on change.
      */
     observe(paths, callback) {
       const pathList = Array.isArray(paths) ? paths : [paths];
@@ -15900,7 +15911,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
      * @private
      * Sets up dynamic visibility and disabled state.
      * @param {HTMLElement} element
-     * @param {object} options
+     * @param {{key?: string, dependencies?: string[], visibleIf?: (state: T) => boolean, disabledIf?: (state: T) => boolean}} options
      */
     _setupDynamicState(element, options) {
       if (options.visibleIf || options.disabledIf) {
@@ -15936,7 +15947,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
      * @param {HTMLElement} element - The container element.
      * @param {HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement} input - The input element.
      * @param {string} key - Store key.
-     * @param {object} options - Transform options.
+     * @param {{onStoreUpdate?: (input: any, value: any) => void, toInputValue?: (value: any) => any, onUIUpdate?: (value: any, uiValue: any) => void, transformValue?: (value: any) => any, validate?: (value: any) => any}} options - Transform options.
      */
     _bindInput(element, input, key, options) {
       // 1. Store -> UI Update
@@ -16426,8 +16437,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
   class ThemePreviewController {
     /**
      * @param {HTMLElement} rootElement - The root element of the modal to search for preview nodes.
-     * @param {ReactiveStore} store - The store instance to subscribe to.
-     * @param {object} defaultSet - The default theme configuration for fallback values.
+     * @param {ReactiveStore<ThemeSet>} store - The store instance to subscribe to.
+     * @param {Omit<ThemeSet, "metadata">} defaultSet - The default theme configuration for fallback values.
      */
     constructor(rootElement, store, defaultSet) {
       if (!defaultSet) {
@@ -16475,7 +16486,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     /**
      * Updates the internal reference to the default set.
      * Used to ensure fallback values are current after a "Save" or "Apply" action.
-     * @param {object} newDefaultSet - The updated default theme configuration.
+     * @param {Omit<ThemeSet, "metadata">} newDefaultSet - The updated default theme configuration.
      */
     setDefaultSet(newDefaultSet) {
       if (!newDefaultSet) {
@@ -16507,7 +16518,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     /**
      * Handles updates from the store and dispatches to specific render methods.
      * Checks for both exact key matches (e.g., 'user') and nested paths (e.g., 'user.textColor').
-     * @param {object} state - The full state object.
+     * @param {Omit<ThemeSet, "metadata">} state - The full state object.
      * @param {string} changedPath - The path of the property that changed.
      */
     onStoreUpdate(state, changedPath) {
@@ -17093,8 +17104,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
      * @param {number | string | undefined} options.zIndex
      * @param {boolean} options.closeOnBackdropClick
      * @param {Array<{text: string, id: string, className?: string, title?: string, onClick: ModalButtonOnClick}>} options.buttons
-     * @param {function(Event): void | null} options.onCancel
-     * @param {function(): void | null} options.onDestroy
+     * @param {(event: Event) => void | null} options.onCancel
+     * @param {() => void | null} options.onDestroy
      */
     constructor(options) {
       this.options = options;
@@ -18627,6 +18638,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       this.modal = null;
       this.dataConverter = context.dataConverter;
       this.checkSize = context.checkSize;
+      /** @type {ReactiveStore<ThemeSet> | null} */
       this.store = null;
       this.previewController = null;
       this.style = null; // Style handle will be stored here
@@ -18926,7 +18938,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     /**
      * Retrieves the schema definition securely with logging and fallback.
      * @param {string} key - The config key (e.g. 'window.backgroundSize').
-     * @returns {object} The schema definition or a fallback object.
+     * @returns {{ui?: {label?: string, tooltip?: string}, def?: {options?: Array<string | {value: string, label: string}>, unit?: string, imageType?: string}}} The schema definition or a fallback object.
      * @private
      */
     _getSchemaDef(key) {
@@ -19254,6 +19266,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       const isDeleting = uiMode === ThemeModalComponent.UI_MODES.DELETING;
 
       const headerRow = this.modal.element.querySelector(`.${cls.headerRow}`);
+      if (!(headerRow instanceof HTMLElement)) return;
 
       // --- UI Element References ---
       const label = headerRow.querySelector('label');
@@ -19262,6 +19275,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       const mainActions = headerRow.querySelector(`#${cls.mainActionsId}`);
       const renameActions = headerRow.querySelector(`#${cls.renameActionsId}`);
       const deleteConfirmGroup = headerRow.querySelector(`#${cls.deleteConfirmGroup}`);
+
+      if (!(select instanceof HTMLSelectElement) || !(renameInput instanceof HTMLInputElement) || !(mainActions instanceof HTMLElement) || !(renameActions instanceof HTMLElement) || !(deleteConfirmGroup instanceof HTMLElement)) return;
 
       // --- Toggle visibility based on mode ---
       select.style.display = isRenaming ? 'none' : 'block';
@@ -19300,21 +19315,30 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       if (label) label.style.opacity = isActionInProgress ? '0.5' : '';
 
       // Block structural changes if size is exceeded
-      headerRow.querySelector(`#${cls.upBtn}`).disabled = isActionInProgress || isDefault || index <= 0 || isSizeExceeded;
-      headerRow.querySelector(`#${cls.downBtn}`).disabled = isActionInProgress || isDefault || index >= config.themeSets.length - 1 || isSizeExceeded;
-      headerRow.querySelector(`#${cls.deleteBtn}`).disabled = isActionInProgress || isDefault; // Delete always allowed
-      headerRow.querySelector(`#${cls.newBtn}`).disabled = isActionInProgress || isSizeExceeded;
-      headerRow.querySelector(`#${cls.copyBtn}`).disabled = isActionInProgress || isSizeExceeded;
-      headerRow.querySelector(`#${cls.renameBtn}`).disabled = isActionInProgress || isDefault || isSizeExceeded;
+      const upBtn = headerRow.querySelector(`#${cls.upBtn}`);
+      if (upBtn instanceof HTMLButtonElement) upBtn.disabled = isActionInProgress || isDefault || index <= 0 || isSizeExceeded;
+      const downBtn = headerRow.querySelector(`#${cls.downBtn}`);
+      if (downBtn instanceof HTMLButtonElement) downBtn.disabled = isActionInProgress || isDefault || index >= config.themeSets.length - 1 || isSizeExceeded;
+      const deleteBtn = headerRow.querySelector(`#${cls.deleteBtn}`);
+      if (deleteBtn instanceof HTMLButtonElement) deleteBtn.disabled = isActionInProgress || isDefault; // Delete always allowed
+      const newBtn = headerRow.querySelector(`#${cls.newBtn}`);
+      if (newBtn instanceof HTMLButtonElement) newBtn.disabled = isActionInProgress || isSizeExceeded;
+      const copyBtn = headerRow.querySelector(`#${cls.copyBtn}`);
+      if (copyBtn instanceof HTMLButtonElement) copyBtn.disabled = isActionInProgress || isSizeExceeded;
+      const renameBtn = headerRow.querySelector(`#${cls.renameBtn}`);
+      if (renameBtn instanceof HTMLButtonElement) renameBtn.disabled = isActionInProgress || isDefault || isSizeExceeded;
 
       // --- Disable content areas and footer buttons during actions ---
       // Access DOM via engine elements if needed, or query global class
       const scrollArea = this.modal.element.querySelector(`.${cls.scrollableArea}`);
       if (scrollArea) scrollArea.classList.toggle('is-disabled', isActionInProgress);
 
-      this.modal.element.querySelector(`#${cls.applyBtn}`).disabled = isActionInProgress;
-      this.modal.element.querySelector(`#${cls.saveBtn}`).disabled = isActionInProgress;
-      this.modal.element.querySelector(`#${cls.cancelBtn}`).disabled = isActionInProgress;
+      const applyBtn = this.modal.element.querySelector(`#${cls.applyBtn}`);
+      if (applyBtn instanceof HTMLButtonElement) applyBtn.disabled = isActionInProgress;
+      const saveBtn = this.modal.element.querySelector(`#${cls.saveBtn}`);
+      if (saveBtn instanceof HTMLButtonElement) saveBtn.disabled = isActionInProgress;
+      const cancelBtn = this.modal.element.querySelector(`#${cls.cancelBtn}`);
+      if (cancelBtn instanceof HTMLButtonElement) cancelBtn.disabled = isActionInProgress;
 
       // --- Show warning in footer if exceeded ---
       const footerMessage = this.modal.dom.footerMessage;
@@ -19433,6 +19457,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
       // Get current form data from Store and sanitize it
       const storeData = this.store.getStateRef();
+      /** @type {ThemeSet} */
       let themeData = sanitizeConfigForSave(storeData);
 
       // Normalize data (remove empty patterns) before validation and saving
@@ -19510,7 +19535,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         await this._initFormWithTheme(this.state.activeThemeKey);
         this._renderUI();
         const input = this.modal.element.querySelector(`#${this.style.classes.renameInput}`);
-        if (input) {
+        if (input instanceof HTMLInputElement) {
           input.focus();
           input.select();
         }
@@ -19559,7 +19584,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       this.state.uiMode = ThemeModalComponent.UI_MODES.RENAMING;
       this._renderUI();
       const input = this.modal.element.querySelector(`#${this.style.classes.renameInput}`);
-      if (input) {
+      if (input instanceof HTMLInputElement) {
         input.focus();
         input.select();
       }
@@ -19571,6 +19596,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       if (footerMessage) footerMessage.textContent = '';
 
       const input = this.modal.element.querySelector(`#${this.style.classes.renameInput}`);
+      if (!(input instanceof HTMLInputElement)) return;
       const newName = input.value;
 
       try {
