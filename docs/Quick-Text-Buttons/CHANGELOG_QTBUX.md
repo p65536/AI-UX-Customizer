@@ -6,6 +6,10 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [3.4.5] - 2026-11-05
+- **Fixes**
+  - [ChatGPT] Restored button visibility and positioning in the composer toolbar following ChatGPT's recent UI layout update.
+
 ## [3.4.4] - 2026-11-05
 - **Maintenance**
   - Clarified type annotations for configuration handling, reactive state, and UI components.
