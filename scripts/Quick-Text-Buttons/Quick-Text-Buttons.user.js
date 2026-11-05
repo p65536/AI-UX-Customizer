@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Quick-Text-Buttons
 // @namespace    https://github.com/p65536
-// @version      3.4.3
+// @version      3.4.4
 // @license      MIT
 // @description  Adds customizable text buttons to paste frequently used prompts into [ChatGPT/Gemini/Claude] inputs.
 // @icon         data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' height='24px' viewBox='0 -960 960 960' width='24px' fill='%235985E1'%3E%3Cpath d='m499-287 335-335-52-52-335 335 52 52Zm-261 87q-100-5-149-42T40-349q0-65 53.5-105.5T242-503q39-3 58.5-12.5T320-542q0-26-29.5-39T193-600l7-80q103 8 151.5 41.5T400-542q0 53-38.5 83T248-423q-64 5-96 23.5T120-349q0 35 28 50.5t94 18.5l-4 80Zm280 7L353-358l382-382q20-20 47.5-20t47.5 20l70 70q20 20 20 47.5T900-575L518-193Zm-159 33q-17 4-30-9t-9-30l33-159 165 165-159 33Z'/%3E%3C/svg%3E
@@ -1587,8 +1587,8 @@ font-size: 0.95em;
 
     /**
      * Requests a style handle for the given definition provider.
-     * @param {() => object} defProvider Function that returns the style definition.
-     * @returns {{id: string, prefix: string, classes: object, vars: object}} The style handle.
+     * @param {() => {key: string, classes: Record<string, string>, vars?: Record<string, string>, generator: (classes: Record<string, string>) => string}} defProvider Function that returns the style definition.
+     * @returns {{id: string, prefix: string, classes: Record<string, string>, vars: Record<string, string>}} The style handle.
      */
     static request(defProvider) {
       if (!this._handles.has(defProvider)) {
@@ -1765,7 +1765,7 @@ font-size: 0.95em;
       /**
        * Finds the editor element and delegates the text insertion task to the EditorController.
        * @param {string} text The text to insert.
-       * @param {object} options The insertion options.
+       * @param {Partial<typeof DEFAULT_CONFIG.options> & {_savedRange?: Range}} options The insertion options.
        */
       insertText(text, options = {}) {
         const platform = this.getPlatformDetails();
@@ -2170,7 +2170,7 @@ font-size: 0.95em;
      * Inserts text for rich text editors (ChatGPT/Gemini) using Range API and InputEvent.
      * @param {string} text The text to insert.
      * @param {HTMLElement} editor The target editor element.
-     * @param {object} options The insertion options.
+     * @param {Partial<typeof DEFAULT_CONFIG.options> & {_savedRange?: Range}} options The insertion options.
      */
     static insertText(text, editor, options) {
       // 1. Snapshot current state
@@ -2619,9 +2619,10 @@ font-size: 0.95em;
    * Keys present in 'source' but missing in 'target' are ignored.
    * The 'target' object acts as a schema; it must contain all valid keys.
    *
-   * @param {object} target The target object (e.g., a deep copy of default config).
+   * @template {Record<string, any>} T
+   * @param {T} target The target object (e.g., a deep copy of default config).
    * @param {object} source The source object (e.g., user config).
-   * @returns {object} The mutated target object.
+   * @returns {T} The mutated target object.
    */
   function resolveConfig(target, source) {
     for (const [key, sourceVal] of Object.entries(source)) {
@@ -2642,7 +2643,7 @@ font-size: 0.95em;
         resolveConfig(targetVal, sourceVal);
       } else if (typeof sourceVal !== 'undefined') {
         // Otherwise, overwrite or set the value from the source
-        target[key] = sourceVal;
+        target[/** @type {keyof T} */ (key)] = sourceVal;
       }
     }
     return target;
@@ -2714,7 +2715,7 @@ font-size: 0.95em;
     requestAnimationFrame(() => {
       try {
         mutate(measuredData);
-        resolve();
+        resolve(undefined);
       } catch (e) {
         Logger.error('LAYOUT ERROR', LOG_STYLES.RED, 'Error during mutate phase:', e);
         reject(e);
@@ -2845,7 +2846,7 @@ font-size: 0.95em;
 
   /**
    * Recursively builds a DOM element from a definition object using the h() function.
-   * @param {object} def The definition object for the element.
+   * @param {{tag: string, props?: object, children?: Array<any>}} def The definition object for the element.
    * @returns {HTMLElement | SVGElement | null} The created DOM element.
    */
   function createIconFromDef(def) {
@@ -3380,6 +3381,7 @@ font-size: 0.95em;
 
   /**
    * @class ReactiveStore
+   * @template {object} [T=Record<string, any>]
    * @description A simple reactive store implementing the Pub/Sub pattern.
    * It allows setting and getting values using dot-notation paths and notifies listeners on changes.
    *
@@ -3389,6 +3391,7 @@ font-size: 0.95em;
    * - Subscribers are responsible for determining if a change affects them (e.g., using startsWith checks).
    */
   class ReactiveStore {
+    /** @param {T} initialState */
     constructor(initialState) {
       this.state = deepClone(initialState);
       this.listeners = new Set();
@@ -3429,7 +3432,7 @@ font-size: 0.95em;
 
     /**
      * Returns a deep copy of the current full state object.
-     * @returns {object}
+     * @returns {T}
      */
     getData() {
       return deepClone(this.state);
@@ -3439,7 +3442,7 @@ font-size: 0.95em;
      * Returns a direct reference to the current state object.
      * WARNING: The returned object MUST be treated as Read-Only. Do not mutate directly.
      * Use this for performance-critical reads where deep cloning is too expensive.
-     * @returns {Readonly<object>}
+     * @returns {Readonly<T>}
      */
     getStateRef() {
       return this.state;
@@ -3448,7 +3451,7 @@ font-size: 0.95em;
     /**
      * Replaces the entire state with a new object and notifies listeners.
      * Triggers notifications for all top-level keys in both old and new states.
-     * @param {object} newState - The new full state object. Must be a valid object (null is ignored).
+     * @param {T} newState - The new full state object. Must be a valid object (null is ignored).
      */
     replaceState(newState) {
       if (!newState || typeof newState !== 'object') {
@@ -3471,8 +3474,8 @@ font-size: 0.95em;
      * Subscribes to store updates.
      * WARNING: The state object passed to the callback is a direct reference to the store's internal state.
      * Do not mutate the state object directly within the callback. Use store.set() for updates.
-     * @param {function(object, string): void} callback - The function to call on update. Receives (state, changedPath).
-     * @returns {function(): void} A function to unsubscribe.
+     * @param {(state: T, changedPath: string) => void} callback - The function to call on update. Receives (state, changedPath).
+     * @returns {() => void} A function to unsubscribe.
      */
     subscribe(callback) {
       if (typeof callback !== 'function') {
@@ -3501,13 +3504,14 @@ font-size: 0.95em;
 
   /**
    * @class UIBuilder
+   * @template {object} [T=Record<string, any>]
    * @description A lightweight, procedural UI builder that handles DOM generation,
    * two-way data binding with ReactiveStore, and lifecycle management.
    */
   class UIBuilder {
     /**
-     * @param {ReactiveStore} store
-     * @param {object} context
+     * @param {ReactiveStore<T>} store
+     * @param {{styles?: Record<string, string>}} context
      * @param {(fn: () => void) => void} disposer
      */
     constructor(store, context, disposer) {
@@ -3521,7 +3525,7 @@ font-size: 0.95em;
      * Creates a DOM element wrapper using the global h() function.
      * @param {string} tag
      * @param {object} [props]
-     * @param {Array<Node|string>} [children]
+     * @param {Array<Node|string> | Node | string} [children]
      * @returns {HTMLElement | SVGElement}
      */
     create(tag, props = {}, children = []) {
@@ -3532,7 +3536,7 @@ font-size: 0.95em;
      * Observes store paths and triggers callback on change.
      * Automatically registers cleanup.
      * @param {string|string[]} paths - Config key(s) to observe.
-     * @param {function(any): void} callback - Called with full store state on change.
+     * @param {(state: T) => void} callback - Called with full store state on change.
      */
     observe(paths, callback) {
       const pathList = Array.isArray(paths) ? paths : [paths];
@@ -3553,7 +3557,7 @@ font-size: 0.95em;
      * @private
      * Sets up dynamic visibility and disabled state.
      * @param {HTMLElement} element
-     * @param {object} options
+     * @param {{key?: string, dependencies?: string[], visibleIf?: (state: T) => boolean, disabledIf?: (state: T) => boolean}} options
      */
     _setupDynamicState(element, options) {
       if (options.visibleIf || options.disabledIf) {
@@ -3588,7 +3592,7 @@ font-size: 0.95em;
      * @param {HTMLElement} element - The container element.
      * @param {Element} input - The input element.
      * @param {string} key - Store key.
-     * @param {object} options - Transform options.
+     * @param {{onStoreUpdate?: (input: any, value: any) => void, toInputValue?: (value: any) => any, onUIUpdate?: (value: any, uiValue: any) => void, transformValue?: (value: any) => any, validate?: (value: any) => any}} options - Transform options.
      */
     _bindInput(element, input, key, options) {
       // 1. Store -> UI Update
@@ -3851,7 +3855,7 @@ font-size: 0.95em;
     /**
      * Processes and sanitizes an entire configuration object.
      * @param {object|null} userConfig The user configuration object (partial or full).
-     * @returns {object} The complete, sanitized configuration object.
+     * @returns {typeof DEFAULT_CONFIG} The complete, sanitized configuration object.
      */
     process(userConfig) {
       // 1. Start with a deep copy of the defaults.
@@ -3982,7 +3986,7 @@ font-size: 0.95em;
 
     /**
      * Validates and corrects option values based on the sanitized config.
-     * @param {object} config
+     * @param {typeof DEFAULT_CONFIG} config
      */
     _validateOptions(config) {
       // Ensure options object exists
@@ -4054,7 +4058,7 @@ font-size: 0.95em;
       super();
       this.CONFIG_KEY = CONSTANTS.CONFIG_KEY;
       this.DEFAULT_CONFIG = DEFAULT_CONFIG;
-      /** @type {object|null} */
+      /** @type {typeof DEFAULT_CONFIG | null} */
       this.config = null;
     }
 
@@ -4077,7 +4081,7 @@ font-size: 0.95em;
     }
 
     /**
-     * @returns {object|null} The current configuration object.
+     * @returns {typeof DEFAULT_CONFIG | null} The current configuration object.
      */
     get() {
       return this.config;
@@ -4087,7 +4091,7 @@ font-size: 0.95em;
      * Loads the configuration from storage, delegates processing to ConfigProcessor.
      */
     async load() {
-      const raw = await GM.getValue(this.CONFIG_KEY);
+      const raw = /** @type {string | undefined} */ (await GM.getValue(this.CONFIG_KEY));
 
       // Cancel subsequent processing if the manager was destroyed during the async storage read
       if (this.signal.aborted) return;
@@ -4179,10 +4183,9 @@ font-size: 0.95em;
      * @param {string} [options.title=''] - The title displayed in the modal header.
      * @param {string} [options.width='500px'] - The width of the modal.
      * @param {boolean} [options.closeOnBackdropClick=true] - Whether to close the modal when clicking the backdrop.
-     * @param {Array<object>} [options.buttons=[]] - An array of button definitions for the footer.
-     * @param {function(Event): void} [options.onCancel] - A callback function for the cancel event (ESC key).
-     * @param {function(): void} [options.onDestroy] - A callback function executed when the modal is destroyed.
-     * @param {{text: string, id: string, className: string, onClick: (modalInstance: CustomModal, event: Event) => void}} options.buttons[]
+     * @param {{text: string, id: string, className: string, title?: string, onClick: (modalInstance: CustomModal, event: Event) => void}[]} [options.buttons=[]] - An array of button definitions for the footer.
+     * @param {(event: Event) => void} [options.onCancel] - A callback function for the cancel event (ESC key).
+     * @param {() => void} [options.onDestroy] - A callback function executed when the modal is destroyed.
      */
     constructor(options = {}) {
       this.options = {
@@ -6232,8 +6235,8 @@ font-size: 0.95em;
       const sizeInfo = ui.create('div', { className: cls.sizeInfo });
 
       ui.observe(['json.status', 'json.sizeInfo'], (state) => {
-        const status = state.json?.status || {};
-        const info = state.json?.sizeInfo || {};
+        const status = /** @type {{text?: string, color?: string}} */ (state.json?.status || {});
+        const info = /** @type {{text?: string, color?: string, bold?: boolean, title?: string}} */ (state.json?.sizeInfo || {});
 
         // Update Status Message
         if (statusMsg.textContent !== (status.text || '')) {
@@ -6789,9 +6792,9 @@ font-size: 0.95em;
   }
 
   class UIManager extends BaseManager {
-    /** * @param {object} config
+    /** * @param {typeof DEFAULT_CONFIG} config
      * @param {(config: object) => Promise<void>} onSave
-     * @param {object} platformDetails
+     * @param {ReturnType<typeof PlatformAdapters.General.getPlatformDetails>} platformDetails
      * @param {() => void} onModalClose
      * @param {(config: object) => {isValid: boolean, message: string|null}} checkConfigSizeCallback
      */
