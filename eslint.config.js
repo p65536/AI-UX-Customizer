@@ -2,6 +2,16 @@ import globals from 'globals';
 import js from '@eslint/js';
 import prettierConfig from 'eslint-config-prettier';
 
+const commonRules = {
+    ...js.configs.recommended.rules,
+    'no-undef': 'error',
+    'no-unused-vars': ['warn', { args: 'none' }],
+    'no-debugger': 'error',
+    eqeqeq: 'error',
+    'no-var': 'error',
+    'prefer-const': 'warn',
+};
+
 // ----------------------------------------------------
 // Common settings applied to all files
 // ----------------------------------------------------
@@ -20,10 +30,10 @@ export const baseRules = [
     // Settings applied to JavaScript files (UserScripts)
     // ----------------------------------------------------
     {
-        files: ['**/*.js'],
+        files: ['scripts/**/*.user.js'],
         languageOptions: {
             ecmaVersion: 'latest',
-            sourceType: 'module',
+            sourceType: 'script',
             globals: {
                 // Enable browser environment only (Exclude Node.js globals to prevent misuse)
                 ...globals.browser,
@@ -50,15 +60,7 @@ export const baseRules = [
                 unsafeWindow: 'readonly',
             },
         },
-        rules: {
-            ...js.configs.recommended.rules,
-            'no-undef': 'error',
-            'no-unused-vars': ['warn', { args: 'none' }],
-            'no-debugger': 'error',
-            eqeqeq: 'error',
-            'no-var': 'error',
-            'prefer-const': 'warn',
-        },
+        rules: commonRules,
     },
     // ----------------------------------------------------
     // Overrides for config files (These run in Node environment)
@@ -66,10 +68,13 @@ export const baseRules = [
     {
         files: ['eslint.config.js', 'prettier.config.js'],
         languageOptions: {
+            ecmaVersion: 'latest',
+            sourceType: 'module',
             globals: {
                 ...globals.node,
             },
         },
+        rules: commonRules,
     },
 ];
 

@@ -43,9 +43,11 @@ interface GMXMLHttpRequestDetails<T = unknown> {
 declare function GM_addValueChangeListener(key: string, listener: (name: string, oldValue: unknown, newValue: unknown, remote: boolean) => void): number | string;
 declare function GM_removeValueChangeListener(listenerId: number | string): void;
 declare function GM_setValue(key: string, value: unknown): void;
-declare function GM_getValue<T>(key: string, defaultValue?: T): T;
+declare function GM_getValue<T = unknown>(key: string): T | undefined;
+declare function GM_getValue<T>(key: string, defaultValue: T): T;
 declare function GM_deleteValue(key: string): void;
 declare function GM_listValues(): string[];
+declare function GM_xmlhttpRequest(details: GMXMLHttpRequestDetails<Blob> & { responseType: "blob" }): { abort: () => void };
 declare function GM_xmlhttpRequest<T = unknown>(details: GMXMLHttpRequestDetails<T>): { abort: () => void };
 declare function GM_registerMenuCommand(caption: string, onClick: (event: MouseEvent | KeyboardEvent) => void, accessKey?: string): number | string;
 declare function GM_unregisterMenuCommand(menuCommandId: number | string): void;
@@ -55,10 +57,12 @@ declare function GM_addStyle(css: string): HTMLStyleElement;
 // --- GM Namespace (Async) ---
 declare const GM: {
     setValue(key: string, value: unknown): Promise<void>;
-    getValue<T>(key: string, defaultValue?: T): Promise<T>;
+    getValue<T = unknown>(key: string): Promise<T | undefined>;
+    getValue<T>(key: string, defaultValue: T): Promise<T>;
     deleteValue(key: string): Promise<void>;
     listValues(): Promise<string[]>;
-    xmlHttpRequest<T = unknown>(details: GMXMLHttpRequestDetails<T>): { abort: () => void };
+    xmlHttpRequest(details: GMXMLHttpRequestDetails<Blob> & { responseType: "blob" }): Promise<GMXMLHttpRequestResponse<Blob>> & { abort: () => void };
+    xmlHttpRequest<T = unknown>(details: GMXMLHttpRequestDetails<T>): Promise<GMXMLHttpRequestResponse<T>> & { abort: () => void };
     registerMenuCommand(caption: string, onClick: (event: MouseEvent | KeyboardEvent) => void, options?: string | { title?: string; accessKey?: string }): Promise<number | string>;
     unregisterMenuCommand(menuCommandId: number | string): Promise<void>;
 };

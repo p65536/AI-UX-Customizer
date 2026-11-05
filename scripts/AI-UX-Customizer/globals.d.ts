@@ -37,7 +37,7 @@ interface StyleDefinition {
     classes: Record<string, string>;
     vars: Record<string, string>;
     rootId: string | null;
-    generator: ((cls: Record<string, string>, activeVars?: Set<string>) => string) | (() => string);
+    generator: (cls?: Record<string, string>, activeVars?: Set<string>) => string;
 }
 
 interface ThemeSet {
