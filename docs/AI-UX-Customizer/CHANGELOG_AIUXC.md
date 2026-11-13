@@ -6,6 +6,10 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.6.13] - 2026-11-13
+- **Fixes**
+  - [ChatGPT] Restored custom theme background visibility around the composer after a recent UI change introduced new footer overlays.
+
 ## [1.6.12] - 2026-11-05
 - **Fixes**
   - Prevented theme editor errors when expected controls are missing or invalid.
