@@ -6,6 +6,11 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.6.14] - 2026-11-16
+- **Fixes**
+  - [ChatGPT] Fixed gaps in message numbering caused by thinking preambles being counted as normal messages.
+  - [ChatGPT] Excluded thinking preambles from Jump List entries, search, and previous/next navigation targets.
+
 ## [1.6.13] - 2026-11-13
 - **Fixes**
   - [ChatGPT] Restored custom theme background visibility around the composer after a recent UI change introduced new footer overlays.
