@@ -12,6 +12,11 @@ interface MessageNode {
     turnElement: HTMLElement | null;
 }
 
+interface DomMessageText {
+    text: string;
+    messageIds: string[];
+}
+
 interface ActorConfig {
     name: string | null;
     icon: string | null;
@@ -488,12 +493,13 @@ interface GeneralAdapter {
     isChatPage(): boolean;
     getMessagesRoot(): HTMLElement | null;
     getMessageId(element: Element | null): string | null;
+    getMessageIds(element: Element): string[];
     getMessageRole(element: Element): string | null;
     getChatTitle(): string | null;
     getJumpListDisplayText(element: HTMLElement): string;
     findMessageElement(element: Element): HTMLElement | null;
     filterMessage(element: Element): boolean;
-    extractMessageNodes(): MessageNode[];
+    extractMessageNodes(domTexts?: Map<string, DomMessageText>): MessageNode[];
     createMessageNode(element: HTMLElement): MessageNode | null;
     ensureMessageContainerForImage(element: HTMLElement): HTMLElement | null;
     initializeSentinel(callback: (element: HTMLElement) => void): () => void;

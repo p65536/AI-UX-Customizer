@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.6.15
+// @version      1.6.16
 // @license      MIT
 // @description  Fully customize the chat UI of [ChatGPT/Gemini]. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' height='24px' viewBox='0 -960 960 960' width='24px' fill='%235985E1'%3E%3Cpath d='M480-80q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 32.5-156t88-127Q256-817 330-848.5T488-880q80 0 151 27.5t124.5 76q53.5 48.5 85 115T880-518q0 115-70 176.5T640-280h-74q-9 0-12.5 5t-3.5 11q0 12 15 34.5t15 51.5q0 50-27.5 74T480-80Zm0-400Zm-220 40q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm120-160q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm200 0q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm120 160q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17ZM480-160q9 0 14.5-5t5.5-13q0-14-15-33t-15-57q0-42 29-67t71-25h70q66 0 113-38.5T800-518q0-121-92.5-201.5T488-800q-136 0-232 93t-96 227q0 133 93.5 226.5T480-160Z'/%3E%3C/svg%3E
@@ -1672,7 +1672,7 @@ ${root} .${cls.sliderGroup} input[type="range"]:focus::-moz-range-thumb { outlin
       const root = `#${rootId}`;
 
       const S_USER_BUBBLE = selectors.RAW_USER_BUBBLE;
-      const S_ASST_BUBBLE = selectors.RAW_ASSISTANT_BUBBLE;
+      const S_ASST_BUBBLE = selectors.ASSISTANT_BUBBLE_STYLE_TARGET ? `:is(${selectors.ASSISTANT_BUBBLE_STYLE_TARGET}, ${selectors.RAW_ASSISTANT_BUBBLE})` : selectors.RAW_ASSISTANT_BUBBLE;
 
       // Highlight Selectors
       const highlightCommon =
@@ -2624,6 +2624,12 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
      */
     getMessageId(element) {
       throw new Error('getMessageId must be implemented by the platform adapter.');
+    }
+
+    /** @param {Element} element @returns {string[]} */
+    getMessageIds(element) {
+      const id = this.getMessageId(element);
+      return id ? [id] : [];
     }
 
     /**
@@ -3873,8 +3879,8 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
         return true; // Keep all other messages
       }
 
-      /** @override */
-      extractMessageNodes() {
+      /** @override @param {Map<string, DomMessageText>} [domTexts] */
+      extractMessageNodes(domTexts = new Map()) {
         // --- ChatGPT Architecture Note ---
         // 1. Turn Container Persistence (DOM):
         //    Turn containers (section or virtualized div) are always present in the DOM.
@@ -3928,6 +3934,8 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
               if (turnElement instanceof HTMLElement) {
                 mountedElements.set(msgId, { element: msgEl, turnElement });
                 activeIdsFromDom.push(msgId);
+                const text = this.getJumpListDisplayText(msgEl);
+                if (text) domTexts.set(msgId, { text, messageIds: this.getMessageIds(holder) });
               }
             }
           }
@@ -3977,9 +3985,9 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
               if (newNode) {
                 newNode.turnElement = mountedData.turnElement;
                 newNode.timestamp = sequentialTimestamp++;
-                nodes.push(newNode);
+                nodes.push({ ...newNode, text: '' });
                 if (hasApi && typeof apiAdapter.addMessageData === 'function') {
-                  apiAdapter.addMessageData(msgId, newNode);
+                  apiAdapter.addMessageData(msgId, { ...newNode, text: '', element: null, turnElement: null });
                 }
               }
             }
@@ -3994,7 +4002,49 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
           }
         }
 
-        return nodes;
+        return this._normalizeImageTurns(nodes, domTexts, !!queryRenderedElement(CONSTANTS.SELECTORS.NEW_UI_SCROLL_CONTAINER));
+      }
+
+      /** @override */
+      getMessageIds(element) {
+        const id = this.getMessageId(element);
+        const searchIds = element.getAttribute(CONSTANTS.ATTRIBUTES.MESSAGE_SEARCH_IDS)?.trim().split(/\s+/) || [];
+        return [...new Set([id, ...searchIds].filter(Boolean))];
+      }
+
+      /**
+       * @param {MessageNode[]} nodes
+       * @param {Map<string, DomMessageText>} domTexts
+       * @param {boolean} isNewUi
+       * @returns {MessageNode[]}
+       */
+      _normalizeImageTurns(nodes, domTexts, isNewUi) {
+        const result = [];
+        let turn = [];
+        const withText = (node) => ({ ...node, text: node.text || domTexts.get(node.id)?.text || '' });
+        const flush = () => {
+          const images = turn.filter((node) => node.role === 'assistant' && node.type === 'image');
+          const texts = turn.filter((node) => node.role === 'assistant' && node.type === 'text');
+          if (!isNewUi || images.length === 0 || texts.length === 0) {
+            result.push(...turn.map(withText));
+          } else {
+            // shortcut: assumes one text container per new UI image turn; revisit if another layout is observed.
+            const representative = texts[0];
+            const snapshot = domTexts.get(representative.id);
+            const textIds = new Set(texts.map((node) => node.id));
+            const hasApiText = texts.every((node) => node.text) && (!snapshot || snapshot.messageIds.every((id) => textIds.has(id)));
+            // A DOM snapshot already covers the container; never append API fragments to it.
+            const text = hasApiText ? texts.map((node) => node.text).join('\n\n') : snapshot?.text || texts.map((node) => node.text).filter(Boolean).join('\n\n');
+            result.push(...turn.filter((node) => node.role === 'user').map(withText), ...images.map(withText), { ...representative, text });
+          }
+          turn = [];
+        };
+        for (const node of nodes) {
+          if (node.role === 'user') flush();
+          turn.push(node);
+        }
+        flush();
+        return result;
       }
 
       /** @override */
@@ -11215,6 +11265,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       this.totalMessages = [];
       /** @type {Map<string, { role: 'user'|'assistant', index: number, totalIndex: number }>} */
       this.elementMap = new Map();
+      /** @type {Map<string, DomMessageText>} */
+      this.domTexts = new Map();
       this.streamingState = streamingState;
       this.debouncedRebuildCache = debounce(this.rebuild.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.CACHE_UPDATE, true);
       this.debouncedNotify = debounce(this.notify.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.CACHE_UPDATE, true);
@@ -11241,6 +11293,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       // Process new message nodes detected in real-time or update DOM bindings
       this._subscribe(EVENTS.API_MESSAGE_ADDED, (payload) => {
         if (payload && payload.node) {
+          this.updateDomText(payload.node);
           const existingInfo = this.elementMap.get(payload.node.id);
           if (existingInfo) {
             // Update DOM references for virtual scroll re-mounting
@@ -11267,6 +11320,16 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       this.assistantMessages = [];
       this.totalMessages = [];
       this.elementMap.clear();
+      this.domTexts.clear();
+    }
+
+    /** @param {MessageNode} node */
+    updateDomText(node) {
+      if (!CONSTANTS.CAPABILITIES.API_MESSAGE) return;
+      if (!node.element) return;
+      const holder = node.element.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER) || node.element.querySelector(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER) || node.element;
+      const text = PlatformAdapters.General.getJumpListDisplayText(node.element);
+      if (text) this.domTexts.set(node.id, { text, messageIds: PlatformAdapters.General.getMessageIds(holder) });
     }
 
     rebuild() {
@@ -11290,7 +11353,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       this.elementMap = new Map();
 
       // 1. Fetch all MessageNodes from the platform adapter
-      const nodes = PlatformAdapters.General.extractMessageNodes();
+      const nodes = PlatformAdapters.General.extractMessageNodes(this.domTexts);
 
       // 2. Build arrays while reusing existing objects if present
       for (let i = 0; i < nodes.length; i++) {
@@ -11447,6 +11510,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       this.assistantMessages = [];
       this.totalMessages = [];
       this.elementMap.clear();
+      this.domTexts.clear();
       this.notify();
     }
 
@@ -13610,7 +13674,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       }
 
       // --- Performance Optimization: Search Cache ---
-      /** @type {Map<string, {displayText: string, lowerText: string, roleClass: string}>} */
+      /** @type {Map<string, {displayText: string, lowerText: string, roleClass: string, sourceText: string}>} */
       this.searchCache = new Map();
       /** @type {MessageNode[]} */
       this.indexingQueue = [];
@@ -13811,6 +13875,9 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       // 2. Queueing: Find messages not yet cached
       this.indexingQueue = [];
       for (const msg of totalMessages) {
+        if (this.searchCache.get(msg.id)?.sourceText !== msg.text) {
+          this.searchCache.delete(msg.id);
+        }
         if (!this.searchCache.has(msg.id)) {
           this.indexingQueue.push(msg);
         }
@@ -13866,6 +13933,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
               displayText: displayText,
               lowerText: displayText.toLowerCase(),
               roleClass: roleClass,
+              sourceText: msg.text,
             });
           }
         }
@@ -15277,7 +15345,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         this.pendingMessages.forEach((node, messageId) => {
           // Only apply if NOT already present (i.e., not loaded from API)
           if (!PlatformAdapters.ApiMessage.getMessageData(messageId)) {
-            PlatformAdapters.ApiMessage.addMessageData(messageId, node);
+            PlatformAdapters.ApiMessage.addMessageData(messageId, { ...node, text: '', element: null, turnElement: null });
             addedCount++;
           }
         });
@@ -15313,30 +15381,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       const latestMsgNode = asstMessages.at(-1);
       if (!latestMsgNode?.element) return;
 
-      let holder = latestMsgNode.element.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
-      if (!holder) holder = latestMsgNode.element.querySelector(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
-      holder = holder || latestMsgNode.element;
-
-      const msgId = PlatformAdapters.General.getMessageId(holder);
-      if (!msgId) return;
-
-      const rawText = PlatformAdapters.General.getJumpListDisplayText(latestMsgNode.element);
-      const text = (rawText || '').replace(/\s+/g, ' ').trim();
-      if (!text) return;
-
-      // Update pending messages buffer
-      const pendingNode = this.pendingMessages.get(msgId);
-      if (pendingNode) {
-        pendingNode.text = text;
-      }
-
-      // Update persistent API cache
-      if (PlatformAdapters.ApiMessage?.getMessageData) {
-        const cachedNode = PlatformAdapters.ApiMessage.getMessageData(msgId);
-        if (cachedNode) {
-          cachedNode.text = text;
-        }
-      }
+      this.messageCacheManager.updateDomText(latestMsgNode);
+      this.messageCacheManager.debouncedRebuildCache();
     }
 
     /**
@@ -15361,7 +15407,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       if (!PlatformAdapters.ApiMessage.getMessageData(messageId)) {
         Logger.debug('API_MESSAGE', LOG_STYLES.TEAL, `Added real-time message data for ${messageId}.`);
 
-        PlatformAdapters.ApiMessage.addMessageData(messageId, node);
+        PlatformAdapters.ApiMessage.addMessageData(messageId, { ...node, text: '', element: null, turnElement: null });
       }
     }
   }
@@ -19724,7 +19770,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
         // 1. Force refresh for the latest message to ensure real-time consistency during streaming.
         // 2. Fallback generation for uncached items or items with empty text (previously cached during streaming).
-        if (isLatest || !cachedData || !cachedData.displayText) {
+        if (isLatest || !cachedData || !cachedData.displayText || cachedData.sourceText !== msg.text) {
           const roleClass = msg.role === CONSTANTS.INTERNAL_ROLES.USER ? cls.userItem : msg.role === CONSTANTS.INTERNAL_ROLES.ASSISTANT ? cls.asstItem : null;
 
           let rawText = msg.text;
@@ -19743,11 +19789,12 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
           const displayText = (rawText || '').replace(/\s+/g, ' ').trim();
 
           // Only update/set cache if data is missing or has changed (for latest message)
-          if (!cachedData || cachedData.displayText !== displayText) {
+          if (!cachedData || cachedData.displayText !== displayText || cachedData.sourceText !== msg.text) {
             cachedData = {
               displayText: displayText,
               lowerText: displayText.toLowerCase(),
               roleClass: roleClass,
+              sourceText: msg.text,
             };
             // Update shared cache
             searchCache.set(msg.id, cachedData);

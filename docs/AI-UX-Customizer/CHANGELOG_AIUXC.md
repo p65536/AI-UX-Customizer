@@ -6,6 +6,12 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.6.16] - 2026-11-16
+- **Fixes**
+  - [ChatGPT] Fixed message numbering and navigation in legacy image chats displayed in the new UI by matching the image-first, combined-text order shown on screen.
+  - [ChatGPT] Kept combined message text searchable in the Jump List while preventing stale or duplicated text after response updates.
+  - [ChatGPT] Restored selection highlights for combined assistant text.
+
 ## [1.6.15] - 2026-11-16
 - **Fixes**
   - [ChatGPT] Fixed navigation getting stuck on expanded long messages when using in-message navigation buttons or the navigation console.

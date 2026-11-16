@@ -63,6 +63,20 @@ export const baseRules = [
         rules: commonRules,
     },
     // ----------------------------------------------------
+    // Overrides for executable checks (Node.js CommonJS)
+    // ----------------------------------------------------
+    {
+        files: ['checks/**/*.cjs'],
+        languageOptions: {
+            ecmaVersion: 'latest',
+            sourceType: 'commonjs',
+            globals: {
+                ...globals.node,
+            },
+        },
+        rules: commonRules,
+    },
+    // ----------------------------------------------------
     // Overrides for config files (These run in Node environment)
     // ----------------------------------------------------
     {
