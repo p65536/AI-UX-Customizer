@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.6.14
+// @version      1.6.15
 // @license      MIT
 // @description  Fully customize the chat UI of [ChatGPT/Gemini]. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' height='24px' viewBox='0 -960 960 960' width='24px' fill='%235985E1'%3E%3Cpath d='M480-80q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 32.5-156t88-127Q256-817 330-848.5T488-880q80 0 151 27.5t124.5 76q53.5 48.5 85 115T880-518q0 115-70 176.5T640-280h-74q-9 0-12.5 5t-3.5 11q0 12 15 34.5t15 51.5q0 50-27.5 74T480-80Zm0-400Zm-220 40q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm120-160q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm200 0q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm120 160q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17ZM480-160q9 0 14.5-5t5.5-13q0-14-15-33t-15-57q0-42 29-67t71-25h70q66 0 113-38.5T800-518q0-121-92.5-201.5T488-800q-136 0-232 93t-96 227q0 133 93.5 226.5T480-160Z'/%3E%3C/svg%3E
@@ -3317,7 +3317,7 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
     /**
      * Optional hook to handle platform-specific scroll logic.
      * @param {MessageNode} messageNode The target message node.
-     * @param {FixedNavigationManager} manager The manager instance.
+     * @param {MessageScrollContext} manager The manager instance.
      * @param {'first'|'last'|null} edge Direct edge navigation hint, or null for normal navigation.
      * @returns {boolean} True if the scroll was handled by the adapter, false to use the default common logic.
      */
@@ -4138,16 +4138,19 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
         }
       }
 
-      /** @override */
-      scrollTo(element) {
+      /**
+       * @override
+       * @param {HTMLElement} element
+       * @param {'top'|'bottom'} [anchor='top']
+       */
+      scrollTo(element, anchor = 'top') {
         const offset = CONSTANTS.RETRY.SCROLL_OFFSET_FOR_NAV;
         const scrollContainerSelector = CONSTANTS.SELECTORS.SCROLL_CONTAINER;
         const scrollContainer = scrollContainerSelector ? queryRenderedElement(scrollContainerSelector) : null;
 
         if (!(scrollContainer instanceof HTMLElement)) return;
 
-        // Target the provided container directly to ensure the entire message
-        // (including attached images) is scrolled into view.
+        // Use the message container so attached images contribute to the selected edge.
         const scrollTargetElement = element;
 
         // Setup flag and ID for exclusive scroll control to prevent jittering
@@ -4167,7 +4170,7 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
 
         // Initial scroll position calculation and execution (behavior: 'auto' for instant move)
         const calculateTargetTop = () => {
-          return scrollContainer.scrollTop + scrollTargetElement.getBoundingClientRect().top - scrollContainer.getBoundingClientRect().top - offset;
+          return scrollContainer.scrollTop + scrollTargetElement.getBoundingClientRect()[anchor] - scrollContainer.getBoundingClientRect().top - offset;
         };
 
         let currentTargetTop = calculateTargetTop();
@@ -4189,12 +4192,12 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
           const now = performance.now();
           if (now - startTime > MAX_DURATION_MS) return; // Stop if timeout reached
 
-          const currentRectTop = scrollTargetElement.getBoundingClientRect().top;
+          const currentRectPosition = scrollTargetElement.getBoundingClientRect()[anchor];
           const containerRectTop = scrollContainer.getBoundingClientRect().top;
 
           // The expected relative Y coordinate on screen (should match the offset)
           const expectedRelativeTop = offset;
-          const actualRelativeTop = currentRectTop - containerRectTop;
+          const actualRelativeTop = currentRectPosition - containerRectTop;
 
           // Detect shift (allow up to 1px rounding error)
           if (Math.abs(actualRelativeTop - expectedRelativeTop) > 1) {
@@ -5235,6 +5238,12 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
     }
 
     class ChatGPTFixedNavAdapter extends BaseFixedNavAdapter {
+      constructor() {
+        super();
+        /** @type {(() => void) | null} */
+        this._cancelProgressiveScroll = null;
+      }
+
       /** @override */
       getScrollContainerForHeaderCheck() {
         return CONSTANTS.SELECTORS.SCROLL_CONTAINER;
@@ -5306,6 +5315,7 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
       /** @override */
       handleScrollToMessage(node, manager, edge) {
         // Cancel any previous progressive navigation before starting a new one.
+        this._cancelProgressiveScroll?.();
         manager._cancelProgressiveScroll?.();
 
         const isEdgeNavigation = edge === 'first' || edge === 'last';
@@ -5362,6 +5372,9 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
           if (manager._cancelProgressiveScroll === cancelProgressive) {
             manager._cancelProgressiveScroll = null;
           }
+          if (this._cancelProgressiveScroll === cancelProgressive) {
+            this._cancelProgressiveScroll = null;
+          }
         };
 
         cancelProgressive = () => {
@@ -5381,6 +5394,7 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
         };
 
         manager._cancelProgressiveScroll = cancelProgressive;
+        this._cancelProgressiveScroll = cancelProgressive;
 
         window.addEventListener('wheel', cancelOnUserInput, { capture: true, passive: true });
         window.addEventListener('touchmove', cancelOnUserInput, { capture: true, passive: true });
@@ -5453,11 +5467,14 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
           }
 
           let boundary;
+          /** @type {'top' | 'bottom'} */
+          let anchor = 'top';
 
           if (targetIndex < firstMounted.totalIndex) {
             boundary = firstMounted.element;
           } else if (targetIndex > lastMounted.totalIndex) {
             boundary = lastMounted.element;
+            anchor = 'bottom';
           } else {
             // The logical target lies inside the mounted range but has no corresponding DOM message.
             const nearest = mountedMessages.reduce((best, current) => (Math.abs(current.totalIndex - targetIndex) < Math.abs(best.totalIndex - targetIndex) ? current : best));
@@ -5467,7 +5484,7 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
             return;
           }
 
-          PlatformAdapters.General.scrollTo(boundary);
+          PlatformAdapters.General.scrollTo(boundary, anchor);
 
           timerId = setTimeout(scrollProgressively, CONSTANTS.TIMING.POLLING.PROGRESSIVE_SCROLL_INTERVAL_MS);
         };
@@ -13048,9 +13065,11 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
           const newIndex = nodeInfo.index + direction;
           const targetNode = manager.messageCacheManager.getMessageAtIndex(nodeInfo.role, newIndex);
           if (targetNode) {
-            const targetToScroll = manager.messageCacheManager.getScrollTarget(targetNode);
-            if (targetToScroll) {
-              scrollToElement(targetToScroll);
+            if (!PlatformAdapters.FixedNav.handleScrollToMessage(targetNode, manager, null)) {
+              const targetToScroll = manager.messageCacheManager.getScrollTarget(targetNode);
+              if (targetToScroll) {
+                scrollToElement(targetToScroll);
+              }
             }
             EventBus.publish(EVENTS.NAV_HIGHLIGHT_MESSAGE, targetNode);
           }
@@ -13113,6 +13132,10 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       this.configManager = configManager;
       this.messageCacheManager = messageCacheManager;
       this.navContainers = new WeakMap();
+      /** @type {(() => void) | null} */
+      this._cancelProgressiveScroll = null;
+      /** @type {symbol | null} */
+      this._progressiveScrollId = null;
       this.featureElementsCache = new WeakMap();
       this.autoCollapseProcessedIds = new WeakMap();
       this.styleHandle = null;
@@ -13147,6 +13170,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
     }
 
     _onDestroy() {
+      this._cancelProgressiveScroll?.();
       this.navContainers = new WeakMap();
       this.featureElementsCache = new WeakMap();
       this.autoCollapseProcessedIds = new WeakMap();
@@ -13377,6 +13401,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
     /** @private */
     _handleNavigationStart() {
+      this._cancelProgressiveScroll?.();
       // Cancel pending batch processing to prevent memory leaks or errors
       this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
       this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK_TURN, null);
@@ -13393,6 +13418,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
     /** @private */
     _onNavigation() {
+      this._cancelProgressiveScroll?.();
       // Cancel pending batch processing as a fail-safe (in case NAVIGATION_START was missed)
       this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK, null);
       this.manageResource(CONSTANTS.RESOURCE_KEYS.BATCH_TASK_TURN, null);
@@ -13537,7 +13563,10 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       };
 
       this.lastShortcutTime = 0;
+      /** @type {(() => void) | null} */
       this._cancelProgressiveScroll = null;
+      /** @type {symbol | null} */
+      this._progressiveScrollId = null;
 
       // Cache for UI elements to avoid repeated querySelector calls
       this.uiCache = null;

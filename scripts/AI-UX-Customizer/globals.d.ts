@@ -370,6 +370,13 @@ interface IAutoScrollManager {
     disable(): void;
 }
 
+interface MessageScrollContext {
+    messageCacheManager: IMessageCacheManager;
+    isDestroyed: boolean;
+    _cancelProgressiveScroll: (() => void) | null;
+    _progressiveScrollId: symbol | null;
+}
+
 interface IFixedNavigationManager {
     messageCacheManager: IMessageCacheManager;
     messageLifecycleManager: IMessageLifecycleManager;
@@ -492,7 +499,7 @@ interface GeneralAdapter {
     initializeSentinel(callback: (element: HTMLElement) => void): () => void;
     performInitialScan(lifecycleManager: IMessageLifecycleManager): number;
     onNavigationEnd(lifecycleManager: IMessageLifecycleManager): void;
-    scrollTo(element: HTMLElement): void;
+    scrollTo(element: HTMLElement, anchor?: 'top' | 'bottom'): void;
     isAppendOrderValid(newNode: MessageNode, lastNode: MessageNode): boolean;
 }
 
@@ -583,7 +590,7 @@ interface FixedNavAdapter {
     isHeaderPositionAvailable(): boolean;
     getNavAnchorContainer(): HTMLElement | null;
     handleInfiniteScroll(manager: IFixedNavigationManager, highlightedMessage: MessageNode | null, previousTotalMessages: number): void;
-    handleScrollToMessage(messageNode: MessageNode, manager: IFixedNavigationManager, edge: 'first' | 'last' | null): boolean;
+    handleScrollToMessage(messageNode: MessageNode, manager: MessageScrollContext, edge: 'first' | 'last' | null): boolean;
     getJumpListFocusTarget(): HTMLElement | null;
     applyAdditionalHighlight(messageNode: MessageNode, styleHandle: StyleHandle): void;
     getPlatformSpecificButtons(manager: IFixedNavigationManager, styleHandle: StyleHandle): Element[];

@@ -6,6 +6,11 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.6.15] - 2026-11-16
+- **Fixes**
+  - [ChatGPT] Fixed navigation getting stuck on expanded long messages when using in-message navigation buttons or the navigation console.
+  - [ChatGPT] Prevented competing scroll operations when switching between in-message navigation buttons and the navigation console.
+
 ## [1.6.14] - 2026-11-16
 - **Fixes**
   - [ChatGPT] Fixed gaps in message numbering caused by thinking preambles being counted as normal messages.
