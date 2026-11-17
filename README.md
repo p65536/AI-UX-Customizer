@@ -45,19 +45,14 @@ It integrates powerful theme and navigation features into a single codebase, all
 
 ## Recent Updates
 
+### 2026-11-17
+- Updated `AI UX Customizer` (1.6.16 -> 1.6.17)
+
 ### 2026-11-16
 - Updated `AI UX Customizer` (1.6.13 -> 1.6.16)
 
 ### 2026-11-13
 - Updated `AI UX Customizer` (1.6.12 -> 1.6.13)
-
-### 2026-11-05
-- Updated `AI UX Customizer` (1.6.11 -> 1.6.12)
-- Updated `Quick Text Buttons` (3.4.3 -> 3.4.5)
-- Updated `Gemini Default Model Setter` (1.6.3 -> 1.6.4)
-
-### 2026-11-01
-- Updated `Quick Text Buttons` (3.4.2 -> 3.4.3)
 
 ---
 
@@ -69,7 +64,7 @@ A userscript that adds powerful **theming**, **UI customization**, and **advance
 
 | Platform | GitHub | Greasy Fork | Version | Last Updated | Changelog |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **ChatGPT**<br>**Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/AI-UX-Customizer/AI-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/570496-ai-ux-customizer) | 1.6.16 | 2026-11-16 | [View](./docs/AI-UX-Customizer/CHANGELOG_AIUXC.md) |
+| **ChatGPT**<br>**Gemini** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/AI-UX-Customizer/AI-UX-Customizer.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/570496-ai-ux-customizer) | 1.6.17 | 2026-11-17 | [View](./docs/AI-UX-Customizer/CHANGELOG_AIUXC.md) |
 
 **[View Detailed Features & Manual for AI UX Customizer](./docs/AI-UX-Customizer/README.md)**
 

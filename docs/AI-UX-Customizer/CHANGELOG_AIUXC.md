@@ -6,6 +6,12 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.6.17] - 2026-11-17
+- **Fixes**
+  - [ChatGPT] Fixed previous/next navigation getting stuck inside combined text bubbles in image-free turns, including after interrupted jumps to unmounted messages.
+  - [ChatGPT] Added number ranges such as `#20–21` to combined text bubbles without renumbering individual messages or changing message counts and Jump List entries.
+  - [ChatGPT] Fixed Jump List and number-based jumps to select and highlight the containing bubble of a combined text message. Selection highlights are also cleared when switching chats or disabling the navigation console.
+
 ## [1.6.16] - 2026-11-16
 - **Fixes**
   - [ChatGPT] Fixed message numbering and navigation in legacy image chats displayed in the new UI by matching the image-first, combined-text order shown on screen.

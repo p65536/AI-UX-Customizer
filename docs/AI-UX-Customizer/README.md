@@ -36,6 +36,7 @@ It also includes convenient UI enhancements such as **message collapsing**, **a 
   - **Message Jump List with Search**: Instantly jump to any message in the conversation from a list. You can filter messages by plain text or regular expressions.  
     > (Note for ChatGPT: In long paginated chats, load the full history via Auto-scroll first to jump to older unmounted messages.)
   - **Per-Message Navigation**: Adds buttons to each message to jump to the next/previous message by the same speaker (user/assistant) or scroll to the top of the current message.
+  - **[ChatGPT only] Combined Text Bubbles**: When an image-free bubble combines multiple messages, its label shows their numbers (for example, `#20–21`). Previous/next navigation moves between bubbles. Individual Jump List entries and number-based jumps keep their original numbers and land at the combined bubble's top; discovering a combination does not renumber later messages or change the total count. Image turns retain their existing numbering.
   - **Collapsible Messages**: Adds a button to collapse long messages, and includes a "Bulk Collapse/Expand" button in the navigation console.
   - **[ChatGPT only] Auto-collapse User Messages**: Automatically collapses long user queries upon loading to save screen space.
   - **Keyboard Shortcuts**: Efficiently navigate messages (`Alt + ↑/↓`), toggle the Jump List (`Alt + J`), and access message number input (`Alt + N`) without leaving the keyboard.

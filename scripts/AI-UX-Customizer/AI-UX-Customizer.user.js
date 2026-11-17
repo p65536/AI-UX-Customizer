@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.6.16
+// @version      1.6.17
 // @license      MIT
 // @description  Fully customize the chat UI of [ChatGPT/Gemini]. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' height='24px' viewBox='0 -960 960 960' width='24px' fill='%235985E1'%3E%3Cpath d='M480-80q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 32.5-156t88-127Q256-817 330-848.5T488-880q80 0 151 27.5t124.5 76q53.5 48.5 85 115T880-518q0 115-70 176.5T640-280h-74q-9 0-12.5 5t-3.5 11q0 12 15 34.5t15 51.5q0 50-27.5 74T480-80Zm0-400Zm-220 40q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm120-160q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm200 0q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm120 160q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17ZM480-160q9 0 14.5-5t5.5-13q0-14-15-33t-15-57q0-42 29-67t71-25h70q66 0 113-38.5T800-518q0-121-92.5-201.5T488-800q-136 0-232 93t-96 227q0 133 93.5 226.5T480-160Z'/%3E%3C/svg%3E
@@ -293,18 +293,24 @@
       JSON_MODAL: 15000,
       TOAST: 20000,
     },
-    INTERNAL_ROLES: {
+    INTERNAL_ROLES: /** @type {const} */ ({
       USER: 'user',
       ASSISTANT: 'assistant',
-    },
+    }),
     THEME_IDS: {
       DEFAULT: 'defaultSet',
     },
     NAV_ROLES: {
       USER: 'user',
-      ASSISTANT: 'asst',
+      ASSISTANT: 'assistant',
       TOTAL: 'total',
     },
+    NAV_DIRECTIONS: /** @type {const} */ ({
+      PREV: 'prev',
+      NEXT: 'next',
+      FIRST: 'first',
+      LAST: 'last',
+    }),
     UI_STATES: {
       EXPANDED: 'expanded',
       COLLAPSED: 'collapsed',
@@ -3325,10 +3331,42 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
      * @param {MessageNode} messageNode The target message node.
      * @param {MessageScrollContext} manager The manager instance.
      * @param {'first'|'last'|null} edge Direct edge navigation hint, or null for normal navigation.
+     * @param {(messageIds: string[]) => void} [onArrive] Called only when the target bubble is mounted.
      * @returns {boolean} True if the scroll was handled by the adapter, false to use the default common logic.
      */
-    handleScrollToMessage(messageNode, manager, edge) {
+    handleScrollToMessage(messageNode, manager, edge, onArrive) {
       return false;
+    }
+
+    /**
+     * @param {MessageNode} source
+     * @param {MessageScrollContext} manager
+     * @param {string} role
+     * @param {number} direction
+     * @param {(node: MessageNode) => void} select
+     * @param {(node: MessageNode) => void} [fallback]
+     */
+    navigateRelative(source, manager, role, direction, select, fallback) {
+      const cache = manager.messageCacheManager;
+      const move = (from) => {
+        const target = cache.getAdjacentMessage(from, role, direction);
+        if (!target) return false;
+        select(target);
+        const onArrive = (messageIds) => {
+          if (messageIds.includes(source.id) && move(target)) return;
+          const representative = cache.getBubbleNodes(target)[0];
+          if (representative !== target) select(representative);
+        };
+        if (!this.handleScrollToMessage(target, manager, null, onArrive)) {
+          if (fallback) fallback(target);
+          else {
+            const element = cache.getScrollTarget(target);
+            if (element) scrollToElement(element);
+          }
+        }
+        return true;
+      };
+      move(source);
     }
 
     /**
@@ -4023,8 +4061,8 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
         let turn = [];
         const withText = (node) => ({ ...node, text: node.text || domTexts.get(node.id)?.text || '' });
         const flush = () => {
-          const images = turn.filter((node) => node.role === 'assistant' && node.type === 'image');
-          const texts = turn.filter((node) => node.role === 'assistant' && node.type === 'text');
+          const images = turn.filter((node) => node.role === CONSTANTS.INTERNAL_ROLES.ASSISTANT && node.type === 'image');
+          const texts = turn.filter((node) => node.role === CONSTANTS.INTERNAL_ROLES.ASSISTANT && node.type === 'text');
           if (!isNewUi || images.length === 0 || texts.length === 0) {
             result.push(...turn.map(withText));
           } else {
@@ -4034,13 +4072,19 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
             const textIds = new Set(texts.map((node) => node.id));
             const hasApiText = texts.every((node) => node.text) && (!snapshot || snapshot.messageIds.every((id) => textIds.has(id)));
             // A DOM snapshot already covers the container; never append API fragments to it.
-            const text = hasApiText ? texts.map((node) => node.text).join('\n\n') : snapshot?.text || texts.map((node) => node.text).filter(Boolean).join('\n\n');
-            result.push(...turn.filter((node) => node.role === 'user').map(withText), ...images.map(withText), { ...representative, text });
+            const text = hasApiText
+              ? texts.map((node) => node.text).join('\n\n')
+              : snapshot?.text ||
+                texts
+                  .map((node) => node.text)
+                  .filter(Boolean)
+                  .join('\n\n');
+            result.push(...turn.filter((node) => node.role === CONSTANTS.INTERNAL_ROLES.USER).map(withText), ...images.map(withText), { ...representative, text });
           }
           turn = [];
         };
         for (const node of nodes) {
-          if (node.role === 'user') flush();
+          if (node.role === CONSTANTS.INTERNAL_ROLES.USER) flush();
           turn.push(node);
         }
         flush();
@@ -4092,7 +4136,7 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
           id: messageId,
           chatId: currentChatId,
           turnId: turnId,
-          role: /** @type {'user'|'assistant'} */ (role),
+          role: role,
           type: type,
           text: text,
           timestamp: Math.floor(Temporal.Now.instant().epochMilliseconds / 1000), // UNIX timestamp
@@ -5363,23 +5407,32 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
       }
 
       /** @override */
-      handleScrollToMessage(node, manager, edge) {
+      handleScrollToMessage(node, manager, edge, onArrive) {
         // Cancel any previous progressive navigation before starting a new one.
         this._cancelProgressiveScroll?.();
         manager._cancelProgressiveScroll?.();
 
-        const isEdgeNavigation = edge === 'first' || edge === 'last';
+        const isEdgeNavigation = edge === CONSTANTS.NAV_DIRECTIONS.FIRST || edge === CONSTANTS.NAV_DIRECTIONS.LAST;
+        const cache = manager.messageCacheManager;
+        const arrive = (element, messageIds) => {
+          const changed = cache.recordBubble(messageIds, element);
+          PlatformAdapters.General.scrollTo(element);
+          onArrive?.(messageIds);
+          if (changed) cache.notify();
+        };
 
         // 1. Direct message element scroll (Target already mounted in DOM)
-        if (!isEdgeNavigation && node.element && node.element.isConnected) {
-          PlatformAdapters.General.scrollTo(node.element);
+        const bubbleElement = cache.getBubbleElement(node);
+        if (!isEdgeNavigation && bubbleElement) {
+          const holder = bubbleElement.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER) || bubbleElement.querySelector(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER) || bubbleElement;
+          arrive(bubbleElement, PlatformAdapters.General.getMessageIds(holder));
           return true;
         }
 
         // 2. Persistent turn container scroll (Placeholder reached)
         if (!isEdgeNavigation && node.turnElement && node.turnElement.isConnected) {
           PlatformAdapters.General.scrollTo(node.turnElement);
-          return true;
+          if (!onArrive) return true;
         }
 
         // 3. Progressively move through the currently mounted range until
@@ -5471,16 +5524,17 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
               holder = messageElement.querySelector(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER);
             }
 
-            const messageId = holder ? PlatformAdapters.General.getMessageId(holder) : null;
+            const messageIds = holder ? PlatformAdapters.General.getMessageIds(holder) : [];
+            const messageId = messageIds[0];
 
             if (!messageId) {
               continue;
             }
 
             // The target has become mounted.
-            if (messageId === node.id) {
+            if (messageIds.includes(node.id)) {
               cleanup();
-              PlatformAdapters.General.scrollTo(messageElement);
+              arrive(messageElement, messageIds);
               return;
             }
 
@@ -5529,9 +5583,12 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
             // The logical target lies inside the mounted range but has no corresponding DOM message.
             const nearest = mountedMessages.reduce((best, current) => (Math.abs(current.totalIndex - targetIndex) < Math.abs(best.totalIndex - targetIndex) ? current : best));
 
-            cleanup();
-            PlatformAdapters.General.scrollTo(nearest.element);
-            return;
+            if (!onArrive) {
+              cleanup();
+              PlatformAdapters.General.scrollTo(nearest.element);
+              return;
+            }
+            boundary = nearest.element;
           }
 
           PlatformAdapters.General.scrollTo(boundary, anchor);
@@ -5539,7 +5596,7 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
           timerId = setTimeout(scrollProgressively, CONSTANTS.TIMING.POLLING.PROGRESSIVE_SCROLL_INTERVAL_MS);
         };
 
-        if (edge === 'first') {
+        if (edge === CONSTANTS.NAV_DIRECTIONS.FIRST) {
           // New ChatGPT UI uses reversed scroll coordinates:
           // Home corresponds to the maximum negative position.
           const topPosition = Math.min(0, scrollContainer.clientHeight - scrollContainer.scrollHeight);
@@ -5554,7 +5611,7 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
           return true;
         }
 
-        if (edge === 'last') {
+        if (edge === CONSTANTS.NAV_DIRECTIONS.LAST) {
           // End corresponds to scrollTop = 0 in the new ChatGPT UI.
           scrollContainer.scrollTo({
             top: 0,
@@ -6576,7 +6633,7 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
           id: messageId,
           chatId: null,
           turnId: '',
-          role: /** @type {'user'|'assistant'} */ (role),
+          role: role,
           type: type,
           text: text,
           timestamp: null,
@@ -11267,6 +11324,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       this.elementMap = new Map();
       /** @type {Map<string, DomMessageText>} */
       this.domTexts = new Map();
+      /** @type {Map<string, string[]>} */
+      this.bubbleIds = new Map();
       this.streamingState = streamingState;
       this.debouncedRebuildCache = debounce(this.rebuild.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.CACHE_UPDATE, true);
       this.debouncedNotify = debounce(this.notify.bind(this), CONSTANTS.TIMING.DEBOUNCE_DELAYS.CACHE_UPDATE, true);
@@ -11293,19 +11352,21 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       // Process new message nodes detected in real-time or update DOM bindings
       this._subscribe(EVENTS.API_MESSAGE_ADDED, (payload) => {
         if (payload && payload.node) {
-          this.updateDomText(payload.node);
           const existingInfo = this.elementMap.get(payload.node.id);
+          let bindingChanged = false;
           if (existingInfo) {
             // Update DOM references for virtual scroll re-mounting
             const existingNode = this.totalMessages[existingInfo.totalIndex];
             if (existingNode && existingNode.element !== payload.node.element) {
               existingNode.element = payload.node.element;
               existingNode.turnElement = payload.node.turnElement;
-              this.debouncedNotify();
+              bindingChanged = true;
             }
           } else {
             this.append(payload.node);
           }
+          this.updateDomText(payload.node);
+          if (bindingChanged) this.debouncedNotify();
         }
       });
 
@@ -11321,6 +11382,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       this.totalMessages = [];
       this.elementMap.clear();
       this.domTexts.clear();
+      this.bubbleIds.clear();
     }
 
     /** @param {MessageNode} node */
@@ -11330,6 +11392,71 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       const holder = node.element.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER) || node.element.querySelector(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER) || node.element;
       const text = PlatformAdapters.General.getJumpListDisplayText(node.element);
       if (text) this.domTexts.set(node.id, { text, messageIds: PlatformAdapters.General.getMessageIds(holder) });
+      if (this.recordBubble(PlatformAdapters.General.getMessageIds(holder), node.element)) this.debouncedNotify();
+    }
+
+    /** @param {string[]} messageIds @param {HTMLElement} element */
+    recordBubble(messageIds, element) {
+      if (!CONSTANTS.CAPABILITIES.API_MESSAGE) return false;
+      const nodes = [...new Set(messageIds)]
+        .map((id) => this.elementMap.get(id))
+        .filter(Boolean)
+        .sort((a, b) => a.totalIndex - b.totalIndex)
+        .map((info) => this.totalMessages[info.totalIndex]);
+      if (!nodes.length || nodes.some((node) => node.type !== 'text' || node.role !== nodes[0].role)) return false;
+
+      const ids = nodes.map((node) => node.id);
+      const changed = nodes.some((node, i) => (this.bubbleIds.get(node.id) || [node.id]).join(' ') !== ids.join(' ') || node.element !== (i === 0 ? element : null));
+      for (const id of ids) {
+        for (const oldId of this.bubbleIds.get(id) || []) this.bubbleIds.delete(oldId);
+      }
+      for (let i = 0; i < nodes.length; i++) {
+        this.bubbleIds.set(nodes[i].id, ids);
+        nodes[i].element = i === 0 ? element : null;
+      }
+      return changed;
+    }
+
+    /** @param {MessageNode} node @returns {MessageNode[]} */
+    getBubbleNodes(node) {
+      if (!node) return [];
+      const ids = this.bubbleIds.get(node.id);
+      if (!ids) return [node];
+      return ids
+        .map((id) => this.elementMap.get(id))
+        .filter(Boolean)
+        .map((info) => this.totalMessages[info.totalIndex]);
+    }
+
+    /** @param {MessageNode} node @returns {HTMLElement | null} */
+    getBubbleElement(node) {
+      return this.getBubbleNodes(node).find((member) => member.element?.isConnected)?.element || null;
+    }
+
+    /** @param {MessageNode} node @param {string} role @param {number} direction @returns {MessageNode | null} */
+    getAdjacentMessage(node, role, direction) {
+      const messages = role === CONSTANTS.NAV_ROLES.TOTAL ? this.totalMessages : role === CONSTANTS.NAV_ROLES.USER ? this.userMessages : this.assistantMessages;
+      const info = this.findMessageIndex(node.id);
+      if (!info) return null;
+      const index = role === CONSTANTS.NAV_ROLES.TOTAL ? info.totalIndex : info.index;
+      const ids = new Set(this.getBubbleNodes(node).map((member) => member.id));
+      for (let i = index + direction; i >= 0 && i < messages.length; i += direction) {
+        if (!ids.has(messages[i].id)) return this.getBubbleNodes(messages[i])[0];
+      }
+      return null;
+    }
+
+    /** @param {MessageNode} node @returns {string} */
+    getMessageNumberLabel(node) {
+      const numbers = this.getBubbleNodes(node).map((member) => this.elementMap.get(member.id).totalIndex + 1);
+      const ranges = [];
+      for (let i = 0; i < numbers.length; i++) {
+        const start = numbers[i];
+        while (numbers[i + 1] === numbers[i] + 1) i++;
+        const end = numbers[i];
+        ranges.push(start === end ? String(start) : `${start}–${end}`);
+      }
+      return `#${ranges.join(', ')}`;
     }
 
     rebuild() {
@@ -11382,10 +11509,10 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
       // 3. Rebuild the lookup map for O(1) access
       for (let i = 0; i < this.userMessages.length; i++) {
-        this.elementMap.set(this.userMessages[i].id, { role: /** @type {'user'|'assistant'} */ (CONSTANTS.INTERNAL_ROLES.USER), index: i, totalIndex: -1 });
+        this.elementMap.set(this.userMessages[i].id, { role: CONSTANTS.INTERNAL_ROLES.USER, index: i, totalIndex: -1 });
       }
       for (let i = 0; i < this.assistantMessages.length; i++) {
-        this.elementMap.set(this.assistantMessages[i].id, { role: /** @type {'user'|'assistant'} */ (CONSTANTS.INTERNAL_ROLES.ASSISTANT), index: i, totalIndex: -1 });
+        this.elementMap.set(this.assistantMessages[i].id, { role: CONSTANTS.INTERNAL_ROLES.ASSISTANT, index: i, totalIndex: -1 });
       }
 
       // Populate totalIndex using the sorted totalMessages array
@@ -11394,6 +11521,14 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         if (entry) {
           entry.totalIndex = i;
         }
+      }
+
+      // A changed branch invalidates prior grouping; unmounting alone does not.
+      if (oldTotalMessages.some((node) => !this.elementMap.has(node.id))) this.bubbleIds.clear();
+      for (const node of this.totalMessages) {
+        if (!node.element?.isConnected || !CONSTANTS.CAPABILITIES.API_MESSAGE) continue;
+        const holder = node.element.closest(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER) || node.element.querySelector(CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER) || node.element;
+        this.recordBubble(PlatformAdapters.General.getMessageIds(holder), node.element);
       }
 
       this.debouncedNotify();
@@ -11464,7 +11599,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
      * @returns {MessageNode | null}
      */
     getMessageAtIndex(role, index) {
-      const targetArray = role === 'user' ? this.userMessages : this.assistantMessages;
+      const targetArray = role === CONSTANTS.INTERNAL_ROLES.USER ? this.userMessages : this.assistantMessages;
       if (index >= 0 && index < targetArray.length) {
         return targetArray[index];
       }
@@ -11481,7 +11616,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
       // Check isConnected to handle virtual scrolling unmounts.
       // If the specific element is unmounted, fallback to the turn container which persists in the DOM to trigger remounting.
-      if (node.element && node.element.isConnected) return node.element;
+      const bubbleElement = this.getBubbleElement(node);
+      if (bubbleElement) return bubbleElement;
       if (node.turnElement && node.turnElement.isConnected) return node.turnElement;
 
       // Fallback: Find the closest mounted message or turn container
@@ -11511,6 +11647,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       this.totalMessages = [];
       this.elementMap.clear();
       this.domTexts.clear();
+      this.bubbleIds.clear();
       this.notify();
     }
 
@@ -13126,17 +13263,10 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
           const msgId = PlatformAdapters.General.getMessageId(holder);
           const nodeInfo = msgId ? manager.messageCacheManager.findMessageIndex(msgId) : null;
           if (!nodeInfo) return;
-          const newIndex = nodeInfo.index + direction;
-          const targetNode = manager.messageCacheManager.getMessageAtIndex(nodeInfo.role, newIndex);
-          if (targetNode) {
-            if (!PlatformAdapters.FixedNav.handleScrollToMessage(targetNode, manager, null)) {
-              const targetToScroll = manager.messageCacheManager.getScrollTarget(targetNode);
-              if (targetToScroll) {
-                scrollToElement(targetToScroll);
-              }
-            }
-            EventBus.publish(EVENTS.NAV_HIGHLIGHT_MESSAGE, targetNode);
-          }
+          const source = manager.messageCacheManager.getMessageAtIndex(nodeInfo.role, nodeInfo.index);
+          if (!source) return;
+          manager.messageCacheManager.recordBubble(PlatformAdapters.General.getMessageIds(holder), msgElem);
+          PlatformAdapters.FixedNav.navigateRelative(source, manager, nodeInfo.role, direction, (target) => EventBus.publish(EVENTS.NAV_HIGHLIGHT_MESSAGE, target));
         };
         const prevBtn = manager.featureTemplates.navPrevButton.cloneNode(true);
         const nextBtn = manager.featureTemplates.navNextButton.cloneNode(true);
@@ -13549,14 +13679,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
           const container = this.navContainers.get(message);
           if (!container || !container.isConnected) return null;
 
-          // Calculate state based on cache role index logic
-          // We need to know if this is the first or last message of its role.
-          const roleInfo = this.messageCacheManager.findMessageIndex(node.id);
-          if (!roleInfo) return null;
-
-          const roleMessages = roleInfo.role === CONSTANTS.INTERNAL_ROLES.USER ? this.messageCacheManager.getUserMessages() : this.messageCacheManager.getAssistantMessages();
-          const isFirst = roleInfo.index === 0;
-          const isLast = roleInfo.index === roleMessages.length - 1;
+          const isFirst = !this.messageCacheManager.getAdjacentMessage(node, node.role, -1);
+          const isLast = !this.messageCacheManager.getAdjacentMessage(node, node.role, 1);
 
           return { container, isFirst, isLast };
         },
@@ -13707,7 +13831,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         this._subscribe(EVENTS.AUTO_SCROLL_COMPLETE, () => {
           this.state.isAutoScrolling = false;
           this.updateUI(); // Re-render the UI to reflect the state change.
-          this.selectLastMessage('last');
+          this.selectLastMessage(CONSTANTS.NAV_DIRECTIONS.LAST);
         });
       }
 
@@ -13729,10 +13853,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       // Perform cleanup that requires state before clearing it
       if (this.state) {
         // jumpListComponent is managed by BaseManager and will be destroyed automatically.
-
-        if (this.state.highlightedMessage && this.state.highlightedMessage.element && this.styleHandle) {
-          this.state.highlightedMessage.element.classList.remove(this.styleHandle.classes.highlightMessage);
-        }
+        this._clearHighlight();
       }
 
       this.navConsole?.remove();
@@ -13814,9 +13935,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         this.navConsole.classList.add(this.styleHandle.classes.unpositioned);
       }
 
-      if (this.state.highlightedMessage && this.state.highlightedMessage.element) {
-        this.state.highlightedMessage.element.classList.remove(this.styleHandle.classes.highlightMessage);
-      }
+      this._clearHighlight();
 
       // Ensure the jump list component is properly destroyed via manager
       this.manageResource(CONSTANTS.RESOURCE_KEYS.JUMP_LIST, null);
@@ -14161,7 +14280,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
           onclick: (e) => {
             e.preventDefault();
             e.stopPropagation();
-            this._navigateTo(this.state.activeRole, 'prev');
+            this._navigateTo(this.state.activeRole, CONSTANTS.NAV_DIRECTIONS.PREV);
           },
         },
         [createIconFromDef(StyleDefinitions.ICONS.arrowUp)]
@@ -14174,7 +14293,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
           onclick: (e) => {
             e.preventDefault();
             e.stopPropagation();
-            this._navigateTo(this.state.activeRole, 'first');
+            this._navigateTo(this.state.activeRole, CONSTANTS.NAV_DIRECTIONS.FIRST);
           },
         },
         [createIconFromDef(StyleDefinitions.ICONS.scrollToFirst)]
@@ -14196,7 +14315,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
           onclick: (e) => {
             e.preventDefault();
             e.stopPropagation();
-            this._navigateTo(this.state.activeRole, 'next');
+            this._navigateTo(this.state.activeRole, CONSTANTS.NAV_DIRECTIONS.NEXT);
           },
         },
         [createIconFromDef(StyleDefinitions.ICONS.arrowDown)]
@@ -14209,7 +14328,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
           onclick: (e) => {
             e.preventDefault();
             e.stopPropagation();
-            this._navigateTo(this.state.activeRole, 'last');
+            this._navigateTo(this.state.activeRole, CONSTANTS.NAV_DIRECTIONS.LAST);
           },
         },
         [createIconFromDef(StyleDefinitions.ICONS.scrollToLast)]
@@ -14440,6 +14559,13 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       });
     }
 
+    _clearHighlight() {
+      if (!this.styleHandle) return;
+      const cls = this.styleHandle.classes;
+      // Navigation can clear the ID map before selection cleanup runs.
+      document.querySelectorAll(`.${cls.highlightMessage}, .${cls.highlightTurn}`).forEach((element) => element.classList.remove(cls.highlightMessage, cls.highlightTurn));
+    }
+
     _renderUI() {
       if (!this.navConsole || !this.uiCache) return;
       const cls = this.styleHandle.classes;
@@ -14525,12 +14651,10 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       }
 
       // Access elements from cache and Update Highlight
-      document.querySelectorAll(`.${cls.highlightMessage}, .${cls.highlightTurn}`).forEach((el) => {
-        el.classList.remove(cls.highlightMessage);
-        el.classList.remove(cls.highlightTurn);
-      });
-      if (highlightedMessage && highlightedMessage.element) {
-        highlightedMessage.element.classList.add(cls.highlightMessage);
+      this._clearHighlight();
+      const highlightedElement = this.messageCacheManager.getBubbleElement(highlightedMessage);
+      if (highlightedElement) {
+        highlightedElement.classList.add(cls.highlightMessage);
         PlatformAdapters.FixedNav.applyAdditionalHighlight(highlightedMessage, this.styleHandle);
       }
 
@@ -14540,6 +14664,9 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
       // Update Button Visibility based on Input Mode (Using Effective Mode)
       const btns = this.uiCache.buttons;
+      const currentNode = currentData.messages[currentData.index];
+      if (btns.prev instanceof HTMLButtonElement) btns.prev.disabled = currentNode ? !this.messageCacheManager.getAdjacentMessage(currentNode, activeRole, -1) : !currentData.messages.length;
+      if (btns.next instanceof HTMLButtonElement) btns.next.disabled = currentNode ? !this.messageCacheManager.getAdjacentMessage(currentNode, activeRole, 1) : !currentData.messages.length;
       const isShift = effectiveMode === CONSTANTS.INPUT_MODES.SHIFT;
       const isNormal = !isShift;
 
@@ -14608,8 +14735,8 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
     /**
      * @private
-     * @param {string} role ('user', 'asst', 'total').
-     * @param {string} direction ('prev', 'next', 'first', 'last').
+     * @param {string} role ('user', 'assistant', 'total').
+     * @param {'prev'|'next'|'first'|'last'} direction
      */
     _navigateTo(role, direction) {
       const { [CONSTANTS.NAV_ROLES.USER]: currentUserIndex, [CONSTANTS.NAV_ROLES.ASSISTANT]: currentAsstIndex, [CONSTANTS.NAV_ROLES.TOTAL]: currentTotalIndex } = this.state.currentIndices;
@@ -14623,28 +14750,35 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
       const { messages, currentIndex } = roleMap[role];
       if (!messages || messages.length === 0) return;
 
+      if (direction === CONSTANTS.NAV_DIRECTIONS.PREV || direction === CONSTANTS.NAV_DIRECTIONS.NEXT) {
+        if (currentIndex === -1) {
+          this.navigateToMessage(messages[0], null);
+        } else {
+          this.state.isInitialSelectionDone = true;
+          PlatformAdapters.FixedNav.navigateRelative(
+            messages[currentIndex],
+            this,
+            role,
+            direction === CONSTANTS.NAV_DIRECTIONS.PREV ? -1 : 1,
+            (node) => this.setHighlightAndIndices(node),
+            (node) => this._scrollToMessage(node, null)
+          );
+        }
+        return;
+      }
+
       let nextIndex = -1;
       switch (direction) {
-        case 'first':
+        case CONSTANTS.NAV_DIRECTIONS.FIRST:
           nextIndex = 0;
           break;
-        case 'last':
+        case CONSTANTS.NAV_DIRECTIONS.LAST:
           nextIndex = messages.length - 1;
           break;
-        case 'prev': {
-          const prevIndex = currentIndex > -1 ? currentIndex : 0;
-          nextIndex = Math.max(0, prevIndex - 1);
-          break;
-        }
-        case 'next': {
-          const nextIndexBase = currentIndex === -1 ? 0 : currentIndex + 1;
-          nextIndex = Math.min(messages.length - 1, nextIndexBase);
-          break;
-        }
       }
 
       if (nextIndex !== -1 && messages[nextIndex]) {
-        const edge = direction === 'first' || direction === 'last' ? direction : null;
+        const edge = direction === CONSTANTS.NAV_DIRECTIONS.FIRST || direction === CONSTANTS.NAV_DIRECTIONS.LAST ? direction : null;
         this.navigateToMessage(messages[nextIndex], edge);
       }
     }
@@ -14907,12 +15041,12 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         switch (e.key) {
           case 'ArrowUp':
             e.preventDefault();
-            this._navigateTo(role, e.shiftKey ? 'first' : 'prev');
+            this._navigateTo(role, e.shiftKey ? CONSTANTS.NAV_DIRECTIONS.FIRST : CONSTANTS.NAV_DIRECTIONS.PREV);
             actionTaken = true;
             break;
           case 'ArrowDown':
             e.preventDefault();
-            this._navigateTo(role, e.shiftKey ? 'last' : 'next');
+            this._navigateTo(role, e.shiftKey ? CONSTANTS.NAV_DIRECTIONS.LAST : CONSTANTS.NAV_DIRECTIONS.NEXT);
             actionTaken = true;
             break;
           case 'j':
@@ -15696,7 +15830,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
         allNodes,
         CONSTANTS.PROCESSING.BATCH_SIZE,
         // Measure
-        (node, i) => {
+        (node) => {
           const message = node.element;
           // Skip if message is no longer in DOM
           if (!message || !message.isConnected) return null;
@@ -15723,7 +15857,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
 
           return {
             message,
-            displayIndex: i + 1,
+            numberLabel: this.messageCacheManager.getMessageNumberLabel(node),
             existingSpan,
             anchor,
             role,
@@ -15750,7 +15884,7 @@ ${CONSTANTS.SELECTORS.SIDE_AVATAR_CONTAINER} {align-self: flex-start !important;
           // Update content and visibility
           if (span && span.isConnected) {
             if (isNavConsoleEnabled) {
-              span.textContent = `#${m.displayIndex}`;
+              span.textContent = m.numberLabel;
             }
             span.classList.toggle(cls.hidden, !isNavConsoleEnabled);
           }

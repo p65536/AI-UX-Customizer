@@ -355,6 +355,10 @@ interface IMessageCacheManager {
     debouncedRebuildCache(): void;
     findMessageIndex(id: string): { role: string; index: number; totalIndex: number } | null;
     getScrollTarget(node: MessageNode): HTMLElement | null;
+    recordBubble(messageIds: string[], element: HTMLElement): boolean;
+    getBubbleNodes(node: MessageNode): MessageNode[];
+    getBubbleElement(node: MessageNode): HTMLElement | null;
+    getAdjacentMessage(node: MessageNode, role: string, direction: number): MessageNode | null;
     notify(): void;
 }
 
@@ -596,7 +600,8 @@ interface FixedNavAdapter {
     isHeaderPositionAvailable(): boolean;
     getNavAnchorContainer(): HTMLElement | null;
     handleInfiniteScroll(manager: IFixedNavigationManager, highlightedMessage: MessageNode | null, previousTotalMessages: number): void;
-    handleScrollToMessage(messageNode: MessageNode, manager: MessageScrollContext, edge: 'first' | 'last' | null): boolean;
+    handleScrollToMessage(messageNode: MessageNode, manager: MessageScrollContext, edge: 'first' | 'last' | null, onArrive?: (messageIds: string[]) => void): boolean;
+    navigateRelative(source: MessageNode, manager: MessageScrollContext, role: string, direction: number, select: (node: MessageNode) => void, fallback?: (node: MessageNode) => void): void;
     getJumpListFocusTarget(): HTMLElement | null;
     applyAdditionalHighlight(messageNode: MessageNode, styleHandle: StyleHandle): void;
     getPlatformSpecificButtons(manager: IFixedNavigationManager, styleHandle: StyleHandle): Element[];
@@ -702,8 +707,8 @@ interface PlatformConstants {
     },
     Z_INDICES: Record<string, number | string>;
     INTERNAL_ROLES: {
-        USER: string;
-        ASSISTANT: string;
+        USER: 'user';
+        ASSISTANT: 'assistant';
     };
     THEME_IDS: {
         DEFAULT: string;
@@ -712,6 +717,12 @@ interface PlatformConstants {
         USER: string;
         ASSISTANT: string;
         TOTAL: string;
+    };
+    NAV_DIRECTIONS: {
+        PREV: 'prev';
+        NEXT: 'next';
+        FIRST: 'first';
+        LAST: 'last';
     };
     UI_STATES: {
         EXPANDED: string;
