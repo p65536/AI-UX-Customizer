@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gemini Default Model Setter
 // @namespace    https://github.com/p65536
-// @version      1.6.4
+// @version      1.6.5
 // @license      MIT
 // @description  Automatically selects a specific model and its additional settings for Gemini upon page load, URL change, or tab return. The target patterns and script state can be easily configured via the extension menu.
 // @icon         data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' height='24px' viewBox='0 -960 960 960' width='24px' fill='%235985E1'%3E%3Cpath d='M240-880h480L600-712v512L480-80 360-200v-512L240-880Zm200 320h80v-176l40-64H400l40 64v176Zm80 80h-80v80h80v-80Zm0 240v-80h-80v80l40 40 40-40Zm-40-320Zm0 160Zm0-160Zm0 80Zm0 160Z'/%3E%3C/svg%3E
@@ -1109,6 +1109,7 @@
         MENU_CONTAINER: 'gem-menu',
         MENU_ITEMS: 'gem-menu-item',
         ITEM_LABEL: '.label',
+        ITEM_SUBLABEL: '.sublabel',
         INPUT_TEXT_FIELD_TARGET: 'rich-textarea .ql-editor',
         DISABLED_STATE: ':disabled, [aria-disabled="true"], [class*="disabled"]',
         BUTTON_TAG: 'button',
@@ -1205,7 +1206,11 @@
         return items.find((el) => {
           const labelEl = el.querySelector(CONSTANTS.SELECTORS.ITEM_LABEL);
           const textToMatch = labelEl ? labelEl.textContent : el.textContent;
-          return isMatch(textToMatch.trim());
+          if (isMatch(textToMatch.trim())) return true;
+
+          // Model names may appear in the sublabel.
+          const sublabelEl = el.matches(CONSTANTS.SELECTORS.MODEL_MENU_ITEMS) ? el.querySelector(CONSTANTS.SELECTORS.ITEM_SUBLABEL) : null;
+          return sublabelEl ? isMatch(sublabelEl.textContent.trim()) : false;
         });
       }
 

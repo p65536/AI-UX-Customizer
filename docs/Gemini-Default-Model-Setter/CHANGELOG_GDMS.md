@@ -6,6 +6,10 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.6.5] - 2026-11-19
+- **Fixes**
+  - Restored automatic model and thinking level selection following Gemini 4 UI changes.
+
 ## [1.6.4] - 2026-11-05
 - **Maintenance**
   - Corrected callback type annotations used for model and thinking level selection.
