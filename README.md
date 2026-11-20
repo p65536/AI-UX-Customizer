@@ -45,14 +45,14 @@ It integrates powerful theme and navigation features into a single codebase, all
 
 ## Recent Updates
 
+### 2026-11-20
+- Updated `ChatGPT Work Pet Scaler` (1.0.0 -> 1.0.1)
+
 ### 2026-11-19
 - Updated `Gemini Default Model Setter` (1.6.4 -> 1.6.5)
 
 ### 2026-11-17
 - Updated `AI UX Customizer` (1.6.16 -> 1.6.17)
-
-### 2026-11-16
-- Updated `AI UX Customizer` (1.6.13 -> 1.6.16)
 
 ---
 
@@ -112,7 +112,7 @@ Enlarges ChatGPT Work pets with configurable scaling while preserving usable lay
 
 | Platform | GitHub | Greasy Fork | Version | Last Updated | Changelog |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **ChatGPT** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/ChatGPT-Work-Pet-Scaler/ChatGPT-Work-Pet-Scaler.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/598030-chatgpt-work-pet-scaler) | 1.0.0 | 2026-09-30 | [View](./docs/ChatGPT-Work-Pet-Scaler/CHANGELOG_CWPS.md) |
+| **ChatGPT** | [![Download](https://img.shields.io/badge/Download-blue?style=flat-square&logo=download)](https://raw.githubusercontent.com/p65536/AI-UX-Customizer/main/scripts/ChatGPT-Work-Pet-Scaler/ChatGPT-Work-Pet-Scaler.user.js) | [![Greasy Fork](https://img.shields.io/badge/Install-green?style=flat-square&logo=greasyfork)](https://greasyfork.org/en/scripts/598030-chatgpt-work-pet-scaler) | 1.0.1 | 2026-11-20 | [View](./docs/ChatGPT-Work-Pet-Scaler/CHANGELOG_CWPS.md) |
 
 **[View Detailed Features & Manual for ChatGPT Work Pet Scaler](./docs/ChatGPT-Work-Pet-Scaler/README.md)**
 

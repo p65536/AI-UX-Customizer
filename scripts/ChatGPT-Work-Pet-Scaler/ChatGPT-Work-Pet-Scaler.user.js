@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ChatGPT Work Pet Scaler
 // @namespace    https://github.com/p65536
-// @version      1.0.0
+// @version      1.0.1
 // @license      MIT
 // @description  Enlarges ChatGPT Work pets while reserving matching layout space for the activity display.
 // @icon         data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20enable-background%3D%22new%200%200%2024%2024%22%20height%3D%2224px%22%20viewBox%3D%220%200%2024%2024%22%20width%3D%2224px%22%20fill%3D%22%235985E1%22%3E%3Cg%3E%3Cpath%20d%3D%22M0%2C0h24v24H0V0z%22%20fill%3D%22none%22%2F%3E%3C%2Fg%3E%3Cg%3E%3Cg%3E%3Crect%20height%3D%222%22%20width%3D%2216%22%20x%3D%224%22%20y%3D%2220%22%2F%3E%3Crect%20height%3D%222%22%20width%3D%2216%22%20x%3D%224%22%20y%3D%222%22%2F%3E%3Cpolygon%20points%3D%229.41%2C13.59%208%2C15%2012%2C19%2016%2C15%2014.59%2C13.59%2013%2C15.17%2013%2C8.83%2014.59%2C10.41%2016%2C9%2012%2C5%208%2C9%209.41%2C10.41%2011%2C8.83%2011%2C15.17%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E
@@ -416,8 +416,7 @@
   /*
    * Observer strategy:
    * - Target routes intentionally match AIUXC: /, /c/, /g/, and /share/.
-   * - New UI normally observes the stable workspace shell, but pet scans are restricted
-   *   to its rendered main area so sidebar mutations are ignored.
+   * - New UI normally observes the stable workspace shell and scans added nodes throughout it, including Work pets outside the rendered main area.
    * - Legacy UI normally observes the legacy chat root used by AIUXC.
    * - If a stable UI root is unavailable, CWPS falls back to a rendered main area.
    * - If no known root exists, document.body is observed for at most FALLBACK_GRACE_MS.
@@ -608,11 +607,7 @@
 
     if (!observerRoot) return;
 
-    if (activeMainArea) {
-      scanNode(activeMainArea);
-    } else {
-      scanNode(observerRoot);
-    }
+    scanNode(observerRoot);
 
     domObserver.observe(observerRoot, {
       childList: true,
@@ -707,21 +702,22 @@
 
   /**
    * Handles mutations according to the active observer mode.
-   * Workspace mode filters scans to the rendered main area; legacy/main modes
-   * already observe chat-only roots, while body mode is a short recovery fallback.
+   * Workspace mode scans all added nodes under the workspace root and also tracks
+   * the rendered main area for selector health; legacy/main modes already observe
+   * chat-only roots, while body mode is a short recovery fallback.
    * @param {MutationRecord[]} records Mutation records.
    * @returns {void}
    */
   function handleObservedMutations(records) {
     if (observerMode === 'workspace') {
-      if (activeMainArea && isRenderedElement(activeMainArea)) {
-        for (const record of records) {
-          for (const node of record.addedNodes) {
-            if (node instanceof Element && activeMainArea.contains(node)) {
-              scheduleScan(node);
-            }
-          }
+      // Work pets can exist outside the main area.
+      for (const record of records) {
+        for (const node of record.addedNodes) {
+          scheduleScan(node);
         }
+      }
+
+      if (activeMainArea && isRenderedElement(activeMainArea)) {
         return;
       }
 
@@ -736,13 +732,6 @@
 
       activeMainArea = null;
       scheduleSelectorWarning();
-
-      // Preserve functionality while only the stable workspace shell is available.
-      for (const record of records) {
-        for (const node of record.addedNodes) {
-          scheduleScan(node);
-        }
-      }
       return;
     }
 
