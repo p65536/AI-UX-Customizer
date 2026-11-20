@@ -6,6 +6,10 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.6.18] - 2026-11-20
+- **Fixes**
+  - [ChatGPT] Fixed navigation console positioning in Header mode after recent UI changes, including SPA navigation between chats.
+
 ## [1.6.17] - 2026-11-17
 - **Fixes**
   - [ChatGPT] Fixed previous/next navigation getting stuck inside combined text bubbles in image-free turns, including after interrupted jumps to unmounted messages.
