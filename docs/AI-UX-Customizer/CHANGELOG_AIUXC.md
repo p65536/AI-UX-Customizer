@@ -6,6 +6,10 @@ Due to updates to the internal monitoring and coordination mechanisms, strict ve
 - Quick Text Buttons (QTB): v3.3.3+
 - Gemini Default Model Setter (GDMS): v1.2.3+
 
+## [1.6.20] - 2026-11-21
+- **Fixes**
+  - [ChatGPT] Fixed the scroll position jumping back to the bottom when moving toward the top with First, the Jump List, or Previous right after opening an existing chat in the new UI.
+
 ## [1.6.19] - 2026-11-20
 - **Fixes**
   - [ChatGPT] Fixed the header gradient in the new UI covering custom theme backgrounds.

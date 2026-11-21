@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AI-UX-Customizer
 // @namespace    https://github.com/p65536
-// @version      1.6.19
+// @version      1.6.20
 // @license      MIT
 // @description  Fully customize the chat UI of [ChatGPT/Gemini]. Automatically applies themes based on chat names to control everything from avatar icons and standing images to bubble styles and backgrounds. Adds powerful navigation features like a message jump list with search.
 // @icon         data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' height='24px' viewBox='0 -960 960 960' width='24px' fill='%235985E1'%3E%3Cpath d='M480-80q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 32.5-156t88-127Q256-817 330-848.5T488-880q80 0 151 27.5t124.5 76q53.5 48.5 85 115T880-518q0 115-70 176.5T640-280h-74q-9 0-12.5 5t-3.5 11q0 12 15 34.5t15 51.5q0 50-27.5 74T480-80Zm0-400Zm-220 40q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm120-160q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm200 0q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17Zm120 160q26 0 43-17t17-43q0-26-17-43t-43-17q-26 0-43 17t-17 43q0 26 17 43t43 17ZM480-160q9 0 14.5-5t5.5-13q0-14-15-33t-15-57q0-42 29-67t71-25h70q66 0 113-38.5T800-518q0-121-92.5-201.5T488-800q-136 0-232 93t-96 227q0 133 93.5 226.5T480-160Z'/%3E%3C/svg%3E
@@ -201,6 +201,7 @@
     },
     RETRY: {
       SCROLL_OFFSET_FOR_NAV: 40,
+      NAV_SCROLL_WHEEL_DELTA_Y: -1, // Only the negative sign matters: signals upward wheel input to ChatGPT; synthetic events never scroll.
       AVATAR_INJECTION_LIMIT: 5,
       SCROLL_CORRECTION_MAX_MS: 300,
       SCROLL_CORRECTION_STABLE_FRAMES: 3,
@@ -3330,7 +3331,7 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
      * Optional hook to handle platform-specific scroll logic.
      * @param {MessageNode} messageNode The target message node.
      * @param {MessageScrollContext} manager The manager instance.
-     * @param {'first'|'last'|null} edge Direct edge navigation hint, or null for normal navigation.
+     * @param {'first'|'last'|'prev'|'next'|null} edge Navigation direction hint, or null when the direction is unknown.
      * @param {(messageIds: string[]) => void} [onArrive] Called only when the target bubble is mounted.
      * @returns {boolean} True if the scroll was handled by the adapter, false to use the default common logic.
      */
@@ -3357,7 +3358,8 @@ ${prop('font-family', CSS_VARS.USER_FONT)}
           const representative = cache.getBubbleNodes(target)[0];
           if (representative !== target) select(representative);
         };
-        if (!this.handleScrollToMessage(target, manager, null, onArrive)) {
+        const hint = direction < 0 ? CONSTANTS.NAV_DIRECTIONS.PREV : CONSTANTS.NAV_DIRECTIONS.NEXT;
+        if (!this.handleScrollToMessage(target, manager, hint, onArrive)) {
           if (fallback) fallback(target);
           else {
             const element = cache.getScrollTarget(target);
@@ -5417,8 +5419,25 @@ ${CONSTANTS.SELECTORS.CONVERSATION_UNIT} ${CONSTANTS.SELECTORS.MESSAGE_ID_HOLDER
         this._cancelProgressiveScroll?.();
         manager._cancelProgressiveScroll?.();
 
-        const isEdgeNavigation = edge === CONSTANTS.NAV_DIRECTIONS.FIRST || edge === CONSTANTS.NAV_DIRECTIONS.LAST;
         const cache = manager.messageCacheManager;
+        const isDownward = edge === CONSTANTS.NAV_DIRECTIONS.LAST || edge === CONSTANTS.NAV_DIRECTIONS.NEXT;
+        const isLastMessage = cache.findMessageIndex(node.id)?.totalIndex === cache.getTotalMessages().length - 1;
+
+        // Notify the new ChatGPT UI of upward navigation to prevent its virtual scroller from restoring the previous position.
+        if (!isDownward && !isLastMessage) {
+          const scrollContainer = queryRenderedElement(CONSTANTS.SELECTORS.NEW_UI_SCROLL_CONTAINER);
+          if (scrollContainer instanceof HTMLElement) {
+            scrollContainer.dispatchEvent(
+              new WheelEvent('wheel', {
+                bubbles: true,
+                cancelable: true,
+                deltaY: CONSTANTS.RETRY.NAV_SCROLL_WHEEL_DELTA_Y,
+              })
+            );
+          }
+        }
+
+        const isEdgeNavigation = edge === CONSTANTS.NAV_DIRECTIONS.FIRST || edge === CONSTANTS.NAV_DIRECTIONS.LAST;
         const arrive = (element, messageIds) => {
           const changed = cache.recordBubble(messageIds, element);
           PlatformAdapters.General.scrollTo(element);
